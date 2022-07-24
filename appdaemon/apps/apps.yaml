@@ -5,3 +5,9 @@ bed:
 api:
   module: api
   class: API
+light:
+  module: light
+  class: Light
+  light: light.led_fabian_buero
+  wantedLux: 350
+  luxSensor: sensor.fabian_light_level
