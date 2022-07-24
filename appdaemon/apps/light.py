@@ -8,12 +8,12 @@ class Light(hass.Hass):
         self.run_in(self.start_calibration, 30)
 
     def start_calibration(self, kwargs):
-        self._beforeCalibrationLux = self.get_state(self.args["luxSensor"])
+        self._beforeCalibrationLux = int(self.get_state(self.args["luxSensor"]))
         self.turn_on(self.args["light"], brightness = 255 / 2)
         self.run_in(self.calibration, 30)
 
     def calibration(self, kwargs):
-        self._maxLux = (self.get_state(self.args["luxSensor"]) - self._beforeCalibrationLux) * 2
+        self._maxLux = (int(self.get_state(self.args["luxSensor"])) - self._beforeCalibrationLux) * 2
         self.log("Detected %d lux" % self._maxLux)
 
         self.recalc()
