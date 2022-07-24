@@ -4,6 +4,10 @@ class Light(hass.Hass):
 
     def initialize(self):
         # We should calibrate the light first
+        self.turn_off(self.args["light"])
+        self.run_in(self.start_calibration, 30)
+
+    def start_calibration(self, kwargs):
         self._beforeCalibrationLux = self.get_state(self.args["luxSensor"])
         self.turn_on(self.args["light"], brightness = 255 / 2)
         self.run_in(self.calibration, 30)
