@@ -1,0 +1,124 @@
+# Configure a default setup of Home Assistant (frontend, api, etc)
+default_config:
+
+# Enable themes
+frontend:
+  themes: !include_dir_merge_named themes
+
+# Text to speech
+tts:
+  - platform: google_translate
+
+sensor: !include sensors.yaml
+group: !include groups.yaml
+automation: !include automations.yaml
+script: !include scripts.yaml
+scene: !include scenes.yaml
+
+# Influxdb for history graph
+influxdb:
+  host: a0d7b954-influxdb
+  port: 8086
+  database: homeassistant
+  username: homoeassistant
+  password: !secret influx_password
+  max_retries: 3
+  default_measurement: state
+
+# FSR bed sensor
+input_number:
+  bed_left_trigger_level:
+    name: Bed left Trigger Level
+    min: 0
+    max: 3.5
+    step: 0.05
+    unit_of_measurement: V
+    icon: mdi:arrow-collapse-down
+  bed_right_trigger_level:
+    name: Bed right Trigger Level
+    min: 0
+    max: 3.5
+    step: 0.05
+    unit_of_measurement: V
+    icon: mdi:arrow-collapse-down
+
+# Miele
+miele:
+  client_id: !secret miele_client_id
+  client_secret: !secret miele_client_secret
+  lang: en
+  cache_path: /config/miele.cache
+
+# Add route53 DNS
+route53:
+  aws_access_key_id: !secret aws_access_key_id
+  aws_secret_access_key: !secret aws_secret_key
+  zone: Z24CQAQXV6KZ0G
+  domain: !secret domain
+  records:
+    - home
+
+# Allow docker network nginx ssl proxy
+http:
+  use_x_forwarded_for: true
+  trusted_proxies:
+    - 172.30.33.0/24
+
+# Waste management
+waste_collection_schedule:
+  sources:
+    - name: ics
+      customize:
+        - type: Abfuhr Leichtverpackungen # from calendar event name
+          alias: Gelber Sack Abfall # matches type in sensor configuration above
+      args:
+        url: https://www.aha-region.de/abholtermine/abfuhrkalender
+        method: POST
+        params:
+          hausnr: "49"
+          ladeort: "01916-0049 "
+          strasse: "01916@Marienstr.@"
+          ical_android: "31"
+    - name: ics
+      customize:
+        - type: Abfuhr Papier # from calendar event name
+          alias: Papier Abfall # matches type in sensor configuration above
+      args:
+        url: https://www.aha-region.de/abholtermine/abfuhrkalender
+        method: POST
+        params:
+          hausnr: "49"
+          ladeort: "01916-0049 "
+          strasse: "01916@Marienstr.@"
+          ical_android: "22"
+    - name: ics
+      customize:
+        - type: Abfuhr Restabfall # from calendar event name
+          alias: Rest Abfall # matches type in sensor configuration above
+      args:
+        url: https://www.aha-region.de/abholtermine/abfuhrkalender
+        method: POST
+        params:
+          hausnr: "49"
+          ladeort: "01916-0049 "
+          strasse: "01916@Marienstr.@"
+          ical_android: "10"
+
+# Alexa silk trickery
+input_boolean:
+  alexa_silk_trigger:
+    name: Alexa silk trigger
+    initial: False
+
+binary_sensor:
+  - platform: template
+    sensors:
+      alexa_silk_trigger:
+        friendly_name: "Alexa silk trigger"
+        device_class: motion
+        value_template: >-
+          {{ is_state('input_boolean.alexa_silk_trigger', 'on') }}
+
+google:
+  client_id: !secret google_client_id
+  client_secret: !secret google_client_secret

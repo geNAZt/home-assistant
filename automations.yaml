@@ -1,0 +1,120 @@
+- id: '1642081709126'
+  alias: TTS on Washmachine ready
+  description: ''
+  trigger:
+  - platform: state
+    entity_id: sensor.washing_machine_status
+    to: Finished
+  condition: []
+  action:
+  - service: notify.alexa_media
+    data:
+      message: Waschmaschine fertig
+      data:
+        type: tts
+      title: Küche
+      target:
+      - media_player.fabians_echo_dot
+      - media_player.fabians_2_echo_dot
+      - media_player.fabians_3_echo_dot
+      - media_player.fabians_echo_show
+  mode: single
+- id: '1643279499229'
+  alias: TTS on Dryer ready
+  description: ''
+  trigger:
+  - platform: state
+    entity_id: sensor.tumble_dryer_status
+    to: Finished
+  condition: []
+  action:
+  - service: notify.alexa_media
+    data:
+      message: Trockner fertig
+      target:
+      - media_player.fabians_echo_dot
+      - media_player.fabians_2_echo_dot
+      - media_player.fabians_3_echo_dot
+      - media_player.fabians_echo_show
+      data:
+        type: tts
+  mode: single
+- id: '1644933046158'
+  alias: Rose giesen
+  description: ''
+  trigger:
+  - platform: numeric_state
+    entity_id: sensor.rose_moisture_sensor
+    below: '30'
+    for:
+      hours: 0
+      minutes: 30
+      seconds: 0
+  condition: []
+  action:
+  - service: notify.alexa_media
+    data:
+      message: Rose gießen
+      data:
+        type: tts
+      target:
+      - media_player.fabians_echo_dot
+      - media_player.fabians_2_echo_dot
+      - media_player.fabians_3_echo_dot
+      - media_player.fabians_echo_show
+      title: Rose gießen
+  mode: single
+- id: '10987679876658986'
+  alias: Letsencrypt renew
+  trigger:
+  - platform: time
+    at: 03:00
+  condition:
+  - condition: template
+    value_template: '{{as_timestamp(states(''sensor.cert_expiry_timestamp_home_genazt_me''))
+      - as_timestamp(now()) < 30 * 24 * 60 * 60}}'
+  action:
+  - service: hassio.addon_restart
+    data:
+      addon: core_letsencrypt
+  - delay: 00:05:00
+  - service: hassio.addon_restart
+    data:
+      addon: core_nginx_proxy
+  - service: homeassistant.restart
+    data: {}
+- id: '1656838382649'
+  alias: Hundewasser
+  description: ''
+  trigger:
+  - platform: time_pattern
+    minutes: /15
+    hours: '*'
+    seconds: '*'
+  condition:
+  - condition: time
+    after: 08:00:00
+    before: '23:00:00'
+    weekday:
+    - mon
+    - tue
+    - wed
+    - thu
+    - fri
+    - sat
+    - sun
+  action:
+  - type: turn_on
+    device_id: 956a50b527ddf929cdba661e88cdc2fa
+    entity_id: switch.hundewasser
+    domain: switch
+  - delay:
+      hours: 0
+      minutes: 1
+      seconds: 0
+      milliseconds: 0
+  - type: turn_off
+    device_id: 956a50b527ddf929cdba661e88cdc2fa
+    entity_id: switch.hundewasser
+    domain: switch
+  mode: single

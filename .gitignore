@@ -1,0 +1,21 @@
+# Ignore some basic stuff
+.HA_VERSION
+tts/
+custom_components/
+blueprints/
+home-assistant*
+core
+appdaemon/appdaemon.yaml
+*.pyc
+zigbee.db
+*.cache
+
+# Ignore folders.
+.storage
+.cloud
+.google.token
+
+# Ensure these YAML files are ignored, otherwise your secret data/credentials will leak.
+ip_bans.yaml
+secrets.yaml
+known_devices.yaml

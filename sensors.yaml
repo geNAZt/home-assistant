@@ -1,0 +1,18 @@
+- platform: waste_collection_schedule
+  name: Papier # whatever you want the UI to show. Consider adding a similar prefix for both sensors so they get sorted together, "Trash" in this case
+  source_index: 1
+  value_template: '{% if value.daysTo == 0 %}Heute{% elif value.daysTo == 1 %}Morgen{% else %}in {{value.daysTo}} Tagen{% endif %} ({{value.date.strftime("%a, %d.%m.%Y")}})'
+  types:
+    - Papier Abfall # matches alias in waste_collection_schedule below
+- platform: waste_collection_schedule
+  name: Gelber Sack
+  value_template: '{% if value.daysTo == 0 %}Heute{% elif value.daysTo == 1 %}Morgen{% else %}in {{value.daysTo}} Tagen{% endif %} ({{value.date.strftime("%a, %d.%m.%Y")}})'
+  types:
+    - Gelber Sack Abfall
+- platform: waste_collection_schedule
+  name: Restmüll
+  value_template: '{% if value.daysTo == 0 %}Heute{% elif value.daysTo == 1 %}Morgen{% else %}in {{value.daysTo}} Tagen{% endif %} ({{value.date.strftime("%a, %d.%m.%Y")}})'
+  source_index: 2
+  types:
+    - Rest Abfall
+- platform: moon

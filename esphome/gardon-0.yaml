@@ -1,0 +1,52 @@
+esphome:
+  name: gardon-0
+
+esp32:
+  board: nodemcu-32s
+  framework:
+    type: arduino
+
+# Enable Home Assistant API
+api:
+
+ota:
+  password: !secret gardon_ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+#sensor:
+#  - platform: adc
+#    pin: GPIO35
+#    id: tds
+#    name: "TDS Sensor"
+#    update_interval: 5s
+#    unit_of_measurement: ppm
+#    filters:
+#      - median:
+#          window_size: 7
+#          send_every: 4
+#          send_first_at: 3
+#      - multiply: 5.7 # compensate for voltage divider
+#      - lambda: return (133.42*x*x*x - 255.86*x*x + 857.39*x)*0.5;
+#  # https://esphome.io/components/sensor/adc.html
+#  - platform: adc
+#    pin: GPIO34
+#    id: ph
+#    name: "pH Sensor"
+#    update_interval: 3s
+#    unit_of_measurement: pH
+#    # https://esphome.io/components/sensor/index.html#sensor-filters
+#    filters:
+#      - median:
+#          window_size: 7
+#          send_every: 4
+#          send_first_at: 3
+#      # Measured voltage -> Actual pH (buffer solution)
+#      - calibrate_linear:
+#        - 0.469 -> 6.9    #voltage value when entering sensor in PH of 7 solution
+#        - 0.612 -> 4.1  #voltage value when entering sensor in PH of 4 solution
+
+logger:
+  level: VERY_VERBOSE

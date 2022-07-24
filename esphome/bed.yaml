@@ -1,0 +1,84 @@
+esphome:
+  name: bed
+
+esp32:
+  board: nodemcu-32s
+  framework:
+    type: arduino
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+
+ota:
+  password: !secret bed_ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+binary_sensor:
+  - platform: template
+    name: "Bed Left Occupancy"
+    device_class: occupancy
+    id: b_l
+    lambda: |-
+      if (id(bed_left_sensor).state < id(bed_left_trigger_level).state) {
+        return true;
+      } else {
+        return false;
+      }
+
+  - platform: template
+    name: "Bed Right Occupancy"
+    device_class: occupancy
+    id: b_r
+    lambda: |-
+      if (id(bed_right_sensor).state < id(bed_right_trigger_level).state) {
+        return true;
+      } else {
+        return false;
+      }
+
+sensor:
+
+  - platform: adc
+    pin: GPIO35
+    attenuation: 11db
+    name: "Bed Left Sensor"
+    id: "bed_left_sensor"
+    icon: mdi:bed
+    update_interval: 0.5s
+    filters:
+      - sliding_window_moving_average:
+          window_size: 10
+          send_every: 1
+      - or:
+          - throttle: 180s
+          - delta: 0.02
+
+  - platform: adc
+    pin: GPIO34
+    attenuation: 11db
+    name: "Bed Right Sensor"
+    id: "bed_right_sensor"
+    icon: mdi:bed
+    update_interval: 0.5s
+    filters:
+      - sliding_window_moving_average:
+          window_size: 10
+          send_every: 1
+      - or:
+          - throttle: 180s
+          - delta: 0.02
+
+  - platform: homeassistant
+    name: "Bed Left Trigger Level"
+    id: "bed_left_trigger_level"
+    entity_id: input_number.bed_left_trigger_level
+  - platform: homeassistant
+    name: "Bed Right Trigger Level"
+    id: "bed_right_trigger_level"
+    entity_id: input_number.bed_right_trigger_level

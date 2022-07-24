@@ -1,0 +1,39 @@
+esphome:
+  name: rose
+
+esp32:
+  board: nodemcu-32s
+  framework:
+    type: arduino
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+
+ota:
+  password: !secret rose_ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+sensor:
+  - platform: adc
+    pin: GPIO34
+    name: "Rose Moisture sensor"
+    id: "rose_moisture_sensor"
+    update_interval: 1s
+    attenuation: 11db
+    unit_of_measurement: "%"
+    filters:
+    - median:
+        window_size: 120
+        send_every: 60
+        send_first_at: 30
+    - calibrate_linear:
+        - 2.8 -> 0.00
+        - 1.25 -> 100.00
+    - lambda: if (x < 1) return 0; else return (x);
+    accuracy_decimals: 2

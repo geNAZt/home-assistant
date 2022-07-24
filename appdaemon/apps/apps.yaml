@@ -1,0 +1,7 @@
+---
+bed:
+  module: bed
+  class: Bed
+api:
+  module: api
+  class: API
