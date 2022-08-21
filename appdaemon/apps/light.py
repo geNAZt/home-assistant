@@ -30,12 +30,7 @@ class Light(hass.Hass):
             self.turn_on(self.args["light"], brightness = neededBrightness)
             self.log("Turned light %s to %d" % (self.args["light"], neededBrightness))
         elif neededLux < -10:
-            currentBrightness = self.get_state(self.args["light"], attribute="brightness")
-            if currentBrightness == None:
-                currentBrightness = 0
-            else:
-                currentBrightness = float(currentBrightness)
-
+            currentBrightness = float(self.get_state(self.args["light"], attribute="brightness", default=0))
             adjustedBrightness = currentBrightness - ((abs(neededLux) / self._maxLux) * 255)
             if adjustedBrightness <= 0:
                 self.turn_off(self.args["light"])
