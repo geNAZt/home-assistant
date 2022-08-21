@@ -4,12 +4,16 @@ class Light(hass.Hass):
 
     def initialize(self):
         # We should calibrate the light first
+        diffLightWarmth = float(self.args["maxLightTemp"]) - float(self.args["minLightTemp"])
+        wantedLightWarmth = float(self.args["wantedLightTemp"]) - float(self.args["minLightTemp"])
+        self._lightWarmth = (wantedLightWarmth / diffLightWarmth) * 255
+
         self.turn_off(self.args["light"])
         self.run_in(self.start_calibration, 10)
 
     def start_calibration(self, kwargs):
         self._beforeCalibrationLux = float(self.get_state(self.args["luxSensor"]))
-        self.turn_on(self.args["light"], brightness = 255 / 2)
+        self.turn_on(self.args["light"], brightness = 255 / 2, color_temp = self._lightWarmth)
         self.run_in(self.calibration, 10)
 
     def calibration(self, kwargs):
@@ -27,7 +31,7 @@ class Light(hass.Hass):
 
         if neededLux > 10:
             neededBrightness = (neededLux / self._maxLux) * 255
-            self.turn_on(self.args["light"], brightness = neededBrightness)
+            self.turn_on(self.args["light"], brightness = neededBrightness, color_temp = self._lightWarmth)
             self.log("Turned light %s to %d" % (self.args["light"], neededBrightness))
         elif neededLux < -10:
             currentBrightness = float(self.get_state(self.args["light"], attribute="brightness", default=0))
@@ -36,6 +40,6 @@ class Light(hass.Hass):
                 self.turn_off(self.args["light"])
                 self.log("Turned light %s off" % self.args["light"])
             else:
-                self.turn_on(self.args["light"], brightness = adjustedBrightness)
+                self.turn_on(self.args["light"], brightness = adjustedBrightness, color_temp = self._lightWarmth)
                 self.log("Turned light %s to %d" % (self.args["light"], adjustedBrightness))
 

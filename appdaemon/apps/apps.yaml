@@ -11,3 +11,6 @@ light:
   light: light.led_fabian_buero
   wantedLux: 15
   luxSensor: sensor.fabian_light_level
+  minLightTemp: 2700
+  maxLightTemp: 6500
+  wantedLightTemp: 4000 # Optional for working according to https://www.any-lamp.com/blog/which-color-temperature-for-what-room
