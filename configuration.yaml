@@ -118,7 +118,3 @@ binary_sensor:
         device_class: motion
         value_template: >-
           {{ is_state('input_boolean.alexa_silk_trigger', 'on') }}
-
-google:
-  client_id: !secret google_client_id
-  client_secret: !secret google_client_secret
