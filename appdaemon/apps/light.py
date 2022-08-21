@@ -25,6 +25,8 @@ class Light(hass.Hass):
         lux = float(self.get_state(self.args["luxSensor"]))
         neededLux = float(self.args["wantedLux"]) - lux
 
+        self.log("Needed lux %d" % neededLux)
+
         if neededLux > 10:
             neededBrightness = (neededLux / self._maxLux) * 255
             self.turn_on(self.args["light"], brightness = neededBrightness)
