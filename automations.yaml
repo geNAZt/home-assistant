@@ -90,7 +90,7 @@
   - platform: time_pattern
     minutes: /15
     hours: '*'
-    seconds: '*'
+    seconds: '0'
   condition:
   - condition: time
     after: 08:00:00
