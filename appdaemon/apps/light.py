@@ -22,8 +22,8 @@ class Light(hass.Hass):
 
     def recalc(self, kwargs):
         # Get the actual lux
-        lux = self.get_state(self.args["luxSensor"])
-        neededLux = int(self.args["wantedLux"]) - lux
+        lux = float(self.get_state(self.args["luxSensor"]))
+        neededLux = float(self.args["wantedLux"]) - lux
 
         if neededLux > 10:
             neededBrightness = (neededLux / self._maxLux) * 255
