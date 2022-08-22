@@ -48,9 +48,11 @@ class Light(hass.Hass):
             return
 
         if neededLux > 1:
-            neededBrightness = (neededLux / self._maxLux) * 255
-            self.turn_on(self.args["light"], brightness = neededBrightness, color_temp = self._lightWarmth)
-            self.log("Turned light %s to %d" % (self.args["light"], neededBrightness))
+            currentBrightness = float(self.get_state(self.args["light"], attribute="brightness", default=0))
+            adjustedBrightness = currentBrightness + ((abs(neededLux) / self._maxLux) * 255)
+
+            self.turn_on(self.args["light"], brightness = adjustedBrightness, color_temp = self._lightWarmth)
+            self.log("Turned light %s to %d" % (self.args["light"], adjustedBrightness))
         elif neededLux < -1:
             currentBrightness = float(self.get_state(self.args["light"], attribute="brightness", default=0))
             adjustedBrightness = currentBrightness - ((abs(neededLux) / self._maxLux) * 255)
