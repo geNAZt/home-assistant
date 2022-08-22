@@ -36,14 +36,16 @@ class Light(hass.Hass):
         self.run_every(self.recalc, "now", 5)
 
     def recalc(self, kwargs):
+        # Get the actual lux
+        lux = float(self.get_state(self.args["luxSensor"]))
+        neededLux = float(self.args["wantedLux"]) - lux
+
+        self.log("Presence: %r, Lux: %r, Wanted change: %r" % (self._presence, lux, neededLux))
+
         # Check if presence is triggered
         if self._presence == False:
             self.turn_off(self.args["light"])
             return
-
-        # Get the actual lux
-        lux = float(self.get_state(self.args["luxSensor"]))
-        neededLux = float(self.args["wantedLux"]) - lux
 
         if neededLux > 10:
             neededBrightness = (neededLux / self._maxLux) * 255
