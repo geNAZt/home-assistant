@@ -8,8 +8,23 @@ class Light(hass.Hass):
         wantedLightWarmth = float(self.args["wantedLightTemp"]) - float(self.args["minLightTemp"])
         self._lightWarmth = (wantedLightWarmth / diffLightWarmth) * 255
 
+        # Get presence state
+        self._presence = self.get_state(self.args["presenceSensor"]) == "on"
+        
+        presenceEntity = self.get_entity(self.args["presenceSensor"])
+        presenceEntity.listen_state(self.onPresenceOff, new = "off", duration = 300)
+        presenceEntity.listen_state(self.onPresenceOn, new = "on")
+
         self.turn_off(self.args["light"])
         self.run_in(self.start_calibration, 10)
+
+    def onPresenceOff(self, entity, attribute, old, new, kwargs):
+        self._presence = False
+        self.recalc(kwargs=None)
+    
+    def onPresenceOn(self, entity, attribute, old, new, kwargs):
+        self._presence = True
+        self.recalc(kwargs=None)
 
     def start_calibration(self, kwargs):
         self._beforeCalibrationLux = float(self.get_state(self.args["luxSensor"]))
@@ -26,7 +41,7 @@ class Light(hass.Hass):
 
     def recalc(self, kwargs):
         # Check if presence is triggered
-        if self.get_state(self.args["presenceSensor"]) == "off":
+        if self._presence == False:
             self.turn_off(self.args["light"])
             return
 
