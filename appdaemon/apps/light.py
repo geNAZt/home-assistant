@@ -12,18 +12,14 @@ class Light(hass.Hass):
         self._presence = self.get_state(self.args["presenceSensor"]) == "on"
         
         presenceEntity = self.get_entity(self.args["presenceSensor"])
-        presenceEntity.listen_state(self.onPresenceOff, new = "off", duration = 300)
-        presenceEntity.listen_state(self.onPresenceOn, new = "on")
+        presenceEntity.listen_state(self.onPresenceChange, new = "off", duration = 300)
+        presenceEntity.listen_state(self.onPresenceChange, new = "on")
 
         self.turn_off(self.args["light"])
         self.run_in(self.start_calibration, 10)
 
-    def onPresenceOff(self, entity, attribute, old, new, kwargs):
-        self._presence = False
-        self.recalc(kwargs=None)
-    
-    def onPresenceOn(self, entity, attribute, old, new, kwargs):
-        self._presence = True
+    def onPresenceChange(self, entity, attribute, old, new, kwargs):
+        self._presence = new == "on"
         self.recalc(kwargs=None)
 
     def start_calibration(self, kwargs):
