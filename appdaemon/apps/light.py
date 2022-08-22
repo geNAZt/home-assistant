@@ -8,6 +8,8 @@ class Light(hass.Hass):
         wantedLightWarmth = float(self.args["wantedLightTemp"]) - float(self.args["minLightTemp"])
         self._lightWarmth = (wantedLightWarmth / diffLightWarmth) * 255
 
+        self._hasRun = False
+
         # Get presence state
         self._presence = self.get_state(self.args["presenceSensor"]) == "on"
         
@@ -15,8 +17,14 @@ class Light(hass.Hass):
         presenceEntity.listen_state(self.onPresenceChange, new = "off", duration = 300)
         presenceEntity.listen_state(self.onPresenceChange, new = "on")
 
+        luxEntity = self.get_entity(self.args["luxSensor"])
+        luxEntity.listen_state(self.onLuxChange)
+
         self.turn_off(self.args["light"])
         self.run_in(self.start_calibration, 10)
+
+    def onLuxChange(self, entity, attribute, old, new, kwargs):
+        self._hasRun = False
 
     def onPresenceChange(self, entity, attribute, old, new, kwargs):
         self._presence = new == "on"
@@ -39,6 +47,12 @@ class Light(hass.Hass):
         # Check if max lux is present (aka calibration is done)
         if hasattr(self, "_maxLux") == False:
             return
+
+        # Ensure that we only run once per lux update
+        if self._hasRun:
+            return
+
+        self._hasRun = True
 
         # Get the actual lux
         lux = float(self.get_state(self.args["luxSensor"]))
