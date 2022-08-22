@@ -33,9 +33,13 @@ class Light(hass.Hass):
 
         self.turn_off(self.args["light"])
         self.recalc(kwargs=None)
-        self.run_every(self.recalc, "now", 5)
+        self.run_every(self.recalc, "now", 60)
 
     def recalc(self, kwargs):
+        # Check if max lux is present (aka calibration is done)
+        if hasattr(self, "_maxLux") == False:
+            return
+
         # Get the actual lux
         lux = float(self.get_state(self.args["luxSensor"]))
         neededLux = float(self.args["wantedLux"]) - lux
