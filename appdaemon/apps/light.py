@@ -8,8 +8,27 @@ class Light(hass.Hass):
         wantedLightWarmth = float(self.args["wantedLightTemp"]) - float(self.args["minLightTemp"])
         self._lightWarmth = (wantedLightWarmth / diffLightWarmth) * 255
 
+        self._hasRun = False
+
+        # Get presence state
+        self._presence = self.get_state(self.args["presenceSensor"]) == "on"
+        
+        presenceEntity = self.get_entity(self.args["presenceSensor"])
+        presenceEntity.listen_state(self.onPresenceChange, new = "off", duration = 300)
+        presenceEntity.listen_state(self.onPresenceChange, new = "on")
+
+        luxEntity = self.get_entity(self.args["luxSensor"])
+        luxEntity.listen_state(self.onLuxChange)
+
         self.turn_off(self.args["light"])
         self.run_in(self.start_calibration, 10)
+
+    def onLuxChange(self, entity, attribute, old, new, kwargs):
+        self._hasRun = False
+
+    def onPresenceChange(self, entity, attribute, old, new, kwargs):
+        self._presence = new == "on"
+        self.recalc(kwargs=None)
 
     def start_calibration(self, kwargs):
         self._beforeCalibrationLux = float(self.get_state(self.args["luxSensor"]))
@@ -22,23 +41,37 @@ class Light(hass.Hass):
 
         self.turn_off(self.args["light"])
         self.recalc(kwargs=None)
-        self.run_every(self.recalc, "now", 5)
+        self.run_every(self.recalc, "now", 60)
 
     def recalc(self, kwargs):
-        # Check if presence is triggered
-        if self.get_state(self.args["presenceSensor"]) == "off":
-            self.turn_off(self.args["light"])
+        # Check if max lux is present (aka calibration is done)
+        if hasattr(self, "_maxLux") == False:
             return
+
+        # Ensure that we only run once per lux update
+        if self._hasRun:
+            return
+
+        self._hasRun = True
 
         # Get the actual lux
         lux = float(self.get_state(self.args["luxSensor"]))
         neededLux = float(self.args["wantedLux"]) - lux
 
-        if neededLux > 10:
-            neededBrightness = (neededLux / self._maxLux) * 255
-            self.turn_on(self.args["light"], brightness = neededBrightness, color_temp = self._lightWarmth)
-            self.log("Turned light %s to %d" % (self.args["light"], neededBrightness))
-        elif neededLux < -10:
+        self.log("Presence: %r, Lux: %r, Wanted change: %r" % (self._presence, lux, neededLux))
+
+        # Check if presence is triggered
+        if self._presence == False:
+            self.turn_off(self.args["light"])
+            return
+
+        if neededLux > 1:
+            currentBrightness = float(self.get_state(self.args["light"], attribute="brightness", default=0))
+            adjustedBrightness = currentBrightness + ((abs(neededLux) / self._maxLux) * 255)
+
+            self.turn_on(self.args["light"], brightness = adjustedBrightness, color_temp = self._lightWarmth)
+            self.log("Turned light %s to %d" % (self.args["light"], adjustedBrightness))
+        elif neededLux < -1:
             currentBrightness = float(self.get_state(self.args["light"], attribute="brightness", default=0))
             adjustedBrightness = currentBrightness - ((abs(neededLux) / self._maxLux) * 255)
             if adjustedBrightness <= 0:
