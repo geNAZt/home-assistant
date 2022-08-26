@@ -1,10 +1,8 @@
 esphome:
   name: rose
 
-esp32:
-  board: nodemcu-32s
-  framework:
-    type: arduino
+esp8266:
+  board: d1_mini
 
 # Enable logging
 logger:
@@ -21,7 +19,7 @@ wifi:
 
 sensor:
   - platform: adc
-    pin: GPIO34
+    pin: D1
     name: "Rose Moisture sensor"
     id: "rose_moisture_sensor"
     update_interval: 1s
