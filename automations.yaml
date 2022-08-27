@@ -44,7 +44,7 @@
   description: ''
   trigger:
   - platform: numeric_state
-    entity_id: sensor.rose_moisture_sensor
+    entity_id: sensor.rose_moisture_sensor_2
     below: '30'
     for:
       hours: 0
