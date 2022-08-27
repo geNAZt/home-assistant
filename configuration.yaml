@@ -23,7 +23,6 @@ influxdb:
   username: homoeassistant
   password: !secret influx_password
   max_retries: 3
-  default_measurement: state
 
 # FSR bed sensor
 input_number:
