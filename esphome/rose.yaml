@@ -23,14 +23,10 @@ sensor:
     name: "Rose Moisture sensor"
     id: "rose_moisture_sensor"
     update_interval: 1s
-    unit_of_measurement: "%"
+    unit_of_measurement: "V"
     filters:
     - median:
         window_size: 120
-        send_every: 60
-        send_first_at: 30
-    - calibrate_linear:
-        - 2.8 -> 0.00
-        - 1.25 -> 100.00
-    - lambda: if (x < 1) return 0; else return (x);
+        send_every: 10
+        send_first_at: 5
     accuracy_decimals: 2
