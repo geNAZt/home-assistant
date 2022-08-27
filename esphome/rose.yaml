@@ -19,11 +19,10 @@ wifi:
 
 sensor:
   - platform: adc
-    pin: D1
+    pin: GPIO17
     name: "Rose Moisture sensor"
     id: "rose_moisture_sensor"
     update_interval: 1s
-    attenuation: 11db
     unit_of_measurement: "%"
     filters:
     - median:
