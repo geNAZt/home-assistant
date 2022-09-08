@@ -8,7 +8,7 @@ api:
 light:
   module: light
   class: Light
-  light: light.led_fabian_buero
+  light: light.test_knx_light
   wantedLux: 50
   luxSensor: sensor.test_knx_lux
   minLightTemp: 2700
