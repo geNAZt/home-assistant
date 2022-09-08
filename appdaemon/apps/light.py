@@ -94,7 +94,7 @@ class PID(object):
         :param dt: If set, uses this value for timestep instead of real time. This can be used in
             simulations when simulation time is different from real time.
         """
-        if not self.auto_mode:
+        if not self._auto_mode:
             return self._last_output
 
         now = _current_time()
