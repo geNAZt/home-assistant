@@ -145,75 +145,6 @@ class PID(object):
 
         return output
 
-    def __repr__(self):
-        return (
-            '{self.__class__.__name__}('
-            'Kp={self.Kp!r}, Ki={self.Ki!r}, Kd={self.Kd!r}, '
-            'setpoint={self.setpoint!r}, sample_time={self.sample_time!r}, '
-            'output_limits={self.output_limits!r}, auto_mode={self.auto_mode!r}, '
-            'proportional_on_measurement={self.proportional_on_measurement!r}, '
-            'differetial_on_measurement={self.differetial_on_measurement!r}, '
-            'error_map={self.error_map!r}'
-            ')'
-        ).format(self=self)
-
-    @property
-    def components(self):
-        """
-        The P-, I- and D-terms from the last computation as separate components as a tuple. Useful
-        for visualizing what the controller is doing or when tuning hard-to-tune systems.
-        """
-        return self._proportional, self._integral, self._derivative
-
-    @property
-    def tunings(self):
-        """The tunings used by the controller as a tuple: (Kp, Ki, Kd)."""
-        return self.Kp, self.Ki, self.Kd
-
-    @tunings.setter
-    def tunings(self, tunings):
-        """Set the PID tunings."""
-        self.Kp, self.Ki, self.Kd = tunings
-
-    @property
-    def auto_mode(self):
-        """Whether the controller is currently enabled (in auto mode) or not."""
-        return self._auto_mode
-
-    @auto_mode.setter
-    def auto_mode(self, enabled):
-        """Enable or disable the PID controller."""
-        self.set_auto_mode(enabled)
-
-    def set_auto_mode(self, enabled, last_output=None):
-        """
-        Enable or disable the PID controller, optionally setting the last output value.
-        This is useful if some system has been manually controlled and if the PID should take over.
-        In that case, disable the PID by setting auto mode to False and later when the PID should
-        be turned back on, pass the last output variable (the control variable) and it will be set
-        as the starting I-term when the PID is set to auto mode.
-        :param enabled: Whether auto mode should be enabled, True or False
-        :param last_output: The last output, or the control variable, that the PID should start
-            from when going from manual mode to auto mode. Has no effect if the PID is already in
-            auto mode.
-        """
-        if enabled and not self._auto_mode:
-            # Switching from manual mode to auto, reset
-            self.reset()
-
-            self._integral = last_output if (last_output is not None) else 0
-            self._integral = _clamp(self._integral, self.output_limits)
-
-        self._auto_mode = enabled
-
-    @property
-    def output_limits(self):
-        """
-        The current output limits as a 2-tuple: (lower, upper).
-        See also the *output_limits* parameter in :meth:`PID.__init__`.
-        """
-        return self._min_output, self._max_output
-
     @output_limits.setter
     def output_limits(self, limits):
         """Set the output limits."""
@@ -251,7 +182,7 @@ class PID(object):
 class Light(hass.Hass):
 
     def initialize(self):
-        self._pid = PID(5, 0.01, 0.1, setpoint=float(self.args["wantedLux"]), sample_time=1)
+        self._pid = PID(1.5, 0.05, 0.2, setpoint=float(self.args["wantedLux"]), sample_time=1)
         self._pid.output_limits = (-30, 30)
 
         # We should calibrate the light first
