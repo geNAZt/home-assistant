@@ -251,7 +251,7 @@ class PID(object):
 class Light(hass.Hass):
 
     def initialize(self):
-        self._pid = PID(5, 0.01, 0.1, setpoint=float(self.args["wantedLux"]))
+        self._pid = PID(5, 0.01, 0.1, setpoint=float(self.args["wantedLux"]), sample_time=1)
         self._pid.output_limits = (-10, 10)
 
         # We should calibrate the light first
@@ -266,8 +266,13 @@ class Light(hass.Hass):
         presenceEntity.listen_state(self.onPresenceChange, new = "off", duration = 300)
         presenceEntity.listen_state(self.onPresenceChange, new = "on")
 
+        luxEntity = self.get_entity(self.args["luxSensor"])
+        luxEntity.listen_state(self.onLuxChange)
+
         self.turn_off(self.args["light"])
-        self.run_every(self.recalc, "now", 1)
+
+    def onLuxChange(self, entity, attribute, old, new, kwargs):
+        self.recalc(kwargs=None)
 
     def onPresenceChange(self, entity, attribute, old, new, kwargs):
         if self._presence == False:
