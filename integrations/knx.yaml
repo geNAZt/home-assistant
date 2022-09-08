@@ -1,2 +1,3 @@
 knx:
+  binary_sensor: !include_dir_list ../entities/knx/binary_sensors
   sensor: !include_dir_list ../entities/knx/sensors
