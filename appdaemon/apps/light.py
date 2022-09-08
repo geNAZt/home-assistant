@@ -278,22 +278,25 @@ class Light(hass.Hass):
         if self._presence == False:
             self._presence = new == "on"
             if self._presence:
+                self.turn_on(self.args["light"], brightness = self._restoreValue, color_temp = self._lightWarmth)
                 self.recalc(kwargs=None)
         else: 
             self._presence = new == "on"
             if self._presence == False:
+                # Store old value for restore
+                self._restoreValue = float(self.get_state(self.args["light"], attribute="brightness", default=0))
                 self.recalc(kwargs=None)
 
     def recalc(self, kwargs):
-        # Check if presence is triggered
-        if self._presence == False:
-            self.turn_off(self.args["light"])
-            return
-
         # Get the actual lux
         lux = float(self.get_state(self.args["luxSensor"]))
         power = self._pid(lux)
         self.log("Presence: %r, Lux: %r, Wanted change: %r" % (self._presence, lux, power))
+
+        # Check if presence is triggered
+        if self._presence == False:
+            self.turn_off(self.args["light"])
+            return
 
         # Calc new brightness
         currentBrightness = float(self.get_state(self.args["light"], attribute="brightness", default=0))
