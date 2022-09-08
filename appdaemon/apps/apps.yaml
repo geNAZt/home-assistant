@@ -14,4 +14,4 @@ light:
   minLightTemp: 2700
   maxLightTemp: 6500
   wantedLightTemp: 4000 # Optional for working according to https://www.any-lamp.com/blog/which-color-temperature-for-what-room
-  presenceSensor: binary_sensor.fabian_presence
+  presenceSensor: binary_sensor.test_knx_presence
