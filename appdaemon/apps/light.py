@@ -145,7 +145,6 @@ class PID(object):
 
         return output
 
-    @output_limits.setter
     def output_limits(self, limits):
         """Set the output limits."""
         if limits is None:
