@@ -267,7 +267,7 @@ class Light(hass.Hass):
         presenceEntity.listen_state(self.onPresenceChange, new = "on")
 
         self.turn_off(self.args["light"])
-        self.run_every(self.run_every, "now", 1)
+        self.run_every(self.recalc, "now", 1)
 
     def onPresenceChange(self, entity, attribute, old, new, kwargs):
         if self._presence == False:
