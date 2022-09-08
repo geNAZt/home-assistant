@@ -32,6 +32,11 @@ class Light(hass.Hass):
             if self._presence:
                 self._hasRun = False # A movement should always trigger a recalc
                 self.recalc(kwargs=None)
+        else: 
+            self._presence = new == "on"
+            if self._presence == False:
+                self._hasRun = False # A movement should always trigger a recalc
+                self.recalc(kwargs=None)
 
     def start_calibration(self, kwargs):
         self._beforeCalibrationLux = float(self.get_state(self.args["luxSensor"]))
