@@ -130,4 +130,7 @@ binary_sensor:
           {{ is_state('input_boolean.alexa_silk_trigger', 'on') }}
 
 knx:
-  sensor: !include_dir_list knx/sensors/
+  sensor:
+  - name: "TEST KNX Lux"
+    state_address: "0/0/1"
+    type: illuminance
