@@ -30,14 +30,7 @@ automation: !include automations.yaml
 script: !include scripts.yaml
 scene: !include scenes.yaml
 
-# Influxdb for history graph
-influxdb:
-  host: a0d7b954-influxdb
-  port: 8086
-  database: homeassistant
-  username: homoeassistant
-  password: !secret influx_password
-  max_retries: 3
+
 
 # FSR bed sensor
 input_number:
@@ -56,31 +49,11 @@ input_number:
     unit_of_measurement: V
     icon: mdi:arrow-collapse-down
 
-# Miele
-miele:
-  client_id: !secret miele_client_id
-  client_secret: !secret miele_client_secret
-  lang: en
-  cache_path: /config/miele.cache
-
-# Add route53 DNS
-route53:
-  aws_access_key_id: !secret aws_access_key_id
-  aws_secret_access_key: !secret aws_secret_key
-  zone: Z24CQAQXV6KZ0G
-  domain: !secret domain
-  records:
-    - home
-
 # Allow docker network nginx ssl proxy
 http:
   use_x_forwarded_for: true
   trusted_proxies:
     - 172.30.33.0/24
-
-# Waste management
-waste_collection_schedule:
-  
 
 # Alexa silk trickery
 input_boolean:
