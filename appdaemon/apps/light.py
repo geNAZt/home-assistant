@@ -252,7 +252,7 @@ class Light(hass.Hass):
 
     def initialize(self):
         self._pid = PID(5, 0.01, 0.1, setpoint=float(self.args["wantedLux"]), sample_time=1)
-        self._pid.output_limits = (-10, 10)
+        self._pid.output_limits = (-30, 30)
 
         # We should calibrate the light first
         diffLightWarmth = float(self.args["maxLightTemp"]) - float(self.args["minLightTemp"])
