@@ -9,7 +9,7 @@ light:
   module: light
   class: Light
   light: light.test_knx_light
-  wantedLux: 50
+  wantedLux: 30
   luxSensor: sensor.test_knx_lux
   minLightTemp: 2700
   maxLightTemp: 6500
