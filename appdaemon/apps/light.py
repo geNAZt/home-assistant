@@ -252,7 +252,7 @@ class Light(hass.Hass):
 
     def initialize(self):
         self._pid = PID(5, 0.01, 0.1, setpoint=float(self.args["wantedLux"]))
-        self._pid.output_limits = (0, 300)
+        self._pid.output_limits = (-10, 10)
 
         # We should calibrate the light first
         diffLightWarmth = float(self.args["maxLightTemp"]) - float(self.args["minLightTemp"])
@@ -289,3 +289,15 @@ class Light(hass.Hass):
         lux = float(self.get_state(self.args["luxSensor"]))
         power = self._pid(lux)
         self.log("Presence: %r, Lux: %r, Wanted change: %r" % (self._presence, lux, power))
+
+        # Calc new brightness
+        currentBrightness = float(self.get_state(self.args["light"], attribute="brightness", default=0))
+        adjustedBrightness = currentBrightness + power
+
+        # Check what we change
+        if adjustedBrightness <= 0:
+            self.turn_off(self.args["light"])
+            self.log("Turned light %s off" % self.args["light"])
+        else:
+            self.turn_on(self.args["light"], brightness = adjustedBrightness, color_temp = self._lightWarmth)
+            self.log("Turned light %s to %d" % (self.args["light"], adjustedBrightness))
