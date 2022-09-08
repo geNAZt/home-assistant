@@ -1,0 +1,54 @@
+- id: '10987679876658986'
+  alias: Letsencrypt renew
+  trigger:
+  - platform: time
+    at: 03:00
+  condition:
+  - condition: template
+    value_template: '{{as_timestamp(states(''sensor.cert_expiry_timestamp_home_genazt_me''))
+      - as_timestamp(now()) < 30 * 24 * 60 * 60}}'
+  action:
+  - service: hassio.addon_restart
+    data:
+      addon: core_letsencrypt
+  - delay: 00:05:00
+  - service: hassio.addon_restart
+    data:
+      addon: core_nginx_proxy
+  - service: homeassistant.restart
+    data: {}
+- id: '1656838382649'
+  alias: Hundewasser
+  description: ''
+  trigger:
+  - platform: time_pattern
+    minutes: /15
+    hours: '*'
+    seconds: '0'
+  condition:
+  - condition: time
+    after: 08:00:00
+    before: '23:00:00'
+    weekday:
+    - mon
+    - tue
+    - wed
+    - thu
+    - fri
+    - sat
+    - sun
+  action:
+  - type: turn_on
+    device_id: 956a50b527ddf929cdba661e88cdc2fa
+    entity_id: switch.hundewasser
+    domain: switch
+  - delay:
+      hours: 0
+      minutes: 1
+      seconds: 0
+      milliseconds: 0
+  - type: turn_off
+    device_id: 956a50b527ddf929cdba661e88cdc2fa
+    entity_id: switch.hundewasser
+    domain: switch
+  mode: single
