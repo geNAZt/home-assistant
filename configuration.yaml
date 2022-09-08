@@ -117,3 +117,6 @@ binary_sensor:
         device_class: motion
         value_template: >-
           {{ is_state('input_boolean.alexa_silk_trigger', 'on') }}
+
+knx:
+  sensor: !include_dir_list knx/sensors/
