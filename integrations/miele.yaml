@@ -1,4 +1,5 @@
-client_id: !secret miele_client_id
-client_secret: !secret miele_client_secret
-lang: en
-cache_path: /config/miele.cache
+miele:
+  client_id: !secret miele_client_id
+  client_secret: !secret miele_client_secret
+  lang: en
+  cache_path: /config/miele.cache

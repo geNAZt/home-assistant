@@ -1,7 +1,8 @@
 # Influxdb for history graph
-host: a0d7b954-influxdb
-port: 8086
-database: homeassistant
-username: homoeassistant
-password: !secret influx_password
-max_retries: 3
+influxdb:
+  host: a0d7b954-influxdb
+  port: 8086
+  database: homeassistant
+  username: homoeassistant
+  password: !secret influx_password
+  max_retries: 3
