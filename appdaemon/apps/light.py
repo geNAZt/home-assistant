@@ -199,7 +199,7 @@ class Light(hass.Hass):
         luxEntity = self.get_entity(self.args["luxSensor"])
         luxEntity.listen_state(self.onLuxChange)
 
-        self.turn_off(self.args["light"])
+        self.turn_on(self.args["light"], brightness = 30, color_temp = self._lightWarmth)
 
     def onLuxChange(self, entity, attribute, old, new, kwargs):
         self.recalc(kwargs=None)
@@ -209,13 +209,12 @@ class Light(hass.Hass):
             self._presence = new == "on"
             if self._presence:
                 self.turn_on(self.args["light"], brightness = self._restoreValue, color_temp = self._lightWarmth)
-                self.recalc(kwargs=None)
         else: 
             self._presence = new == "on"
             if self._presence == False:
                 # Store old value for restore
                 self._restoreValue = float(self.get_state(self.args["light"], attribute="brightness", default=0))
-                self.recalc(kwargs=None)
+                self.turn_off(self.args["light"])
 
     def recalc(self, kwargs):
         # Check if presence is triggered
