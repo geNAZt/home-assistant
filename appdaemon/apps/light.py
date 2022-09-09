@@ -205,6 +205,7 @@ class Light(hass.Hass):
         self.turn_on(self.args["light"], brightness = 90, color_temp = self._lightWarmth)
 
     def onWantedLuxChange(self, entity, attribute, old, new, kwargs):
+        self.log("Wanted lux changed: %r" % new)
         self._pid.setpoint = float(new)
 
     def onLuxChange(self, entity, attribute, old, new, kwargs):
