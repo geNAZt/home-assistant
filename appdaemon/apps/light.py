@@ -181,7 +181,7 @@ class PID(object):
 class Light(hass.Hass):
 
     def initialize(self):
-        self._pid = PID(0.2, 0.05, 0.2, setpoint=float(self.args["wantedLux"]), sample_time=1)
+        self._pid = PID(0.15, 0.05, 0.5, setpoint=float(self.args["wantedLux"]), sample_time=1)
         self._pid.output_limits = (-10, 10)
 
         # We should calibrate the light first
