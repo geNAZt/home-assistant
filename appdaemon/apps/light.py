@@ -193,7 +193,7 @@ class Light(hass.Hass):
         self._presence = self.get_state(self.args["presenceSensor"]) == "on"
         
         presenceEntity = self.get_entity(self.args["presenceSensor"])
-        presenceEntity.listen_state(self.onPresenceChange, new = "off", duration = 300)
+        presenceEntity.listen_state(self.onPresenceChange, new = "off")
         presenceEntity.listen_state(self.onPresenceChange, new = "on")
 
         luxEntity = self.get_entity(self.args["luxSensor"])
