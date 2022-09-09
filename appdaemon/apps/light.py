@@ -199,7 +199,7 @@ class Light(hass.Hass):
         luxEntity = self.get_entity(self.args["luxSensor"])
         luxEntity.listen_state(self.onLuxChange)
 
-        self.turn_on(self.args["light"], brightness = 30, color_temp = self._lightWarmth)
+        self.turn_on(self.args["light"], brightness = 90, color_temp = self._lightWarmth)
 
     def onLuxChange(self, entity, attribute, old, new, kwargs):
         self.recalc(kwargs=None)
