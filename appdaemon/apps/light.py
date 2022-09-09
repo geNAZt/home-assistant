@@ -181,7 +181,7 @@ class PID(object):
 class Light(hass.Hass):
 
     def initialize(self):
-        self._pid = PID(0.8, 0.0, 0.0, setpoint=float(self.args["wantedLux"]), sample_time=1)
+        self._pid = PID(0.8, 0.0, 0.0, setpoint=float(self.get_state(self.args["wantedLux"])), sample_time=1)
         self._pid.output_limits = (-50, 50)
 
         # We should calibrate the light first
@@ -199,7 +199,13 @@ class Light(hass.Hass):
         luxEntity = self.get_entity(self.args["luxSensor"])
         luxEntity.listen_state(self.onLuxChange)
 
+        inputEntity = self.get_entity(self.args["wantedLux"])
+        inputEntity.listen_state(self.onWantedLuxChange)
+
         self.turn_on(self.args["light"], brightness = 90, color_temp = self._lightWarmth)
+
+    def onWantedLuxChange(self, entity, attribute, old, new, kwargs):
+        self._pid.setpoint = float(new)
 
     def onLuxChange(self, entity, attribute, old, new, kwargs):
         self.recalc(kwargs=None)

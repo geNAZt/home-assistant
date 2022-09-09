@@ -9,7 +9,7 @@ light:
   module: light
   class: Light
   light: light.test_knx_light
-  wantedLux: 30
+  wantedLux: input_number.light_fabian_target_lux
   luxSensor: sensor.test_knx_lux
   minLightTemp: 2700
   maxLightTemp: 6500
