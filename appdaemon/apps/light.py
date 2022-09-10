@@ -69,7 +69,7 @@ class Light(hass.Hass):
             self._presence = self.is_present()
             if self._presence == False:
                 # Store old value for restore
-                self._restoreValue = float(self.get_state(self.args["light"], attribute="brightness", default=0))
+                self._restoreValue = float(self.get_state(self.args["light"][0], attribute="brightness", default=0))
                 self.set_light_to(0)
 
     def recalc(self, kwargs):
