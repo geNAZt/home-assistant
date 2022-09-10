@@ -100,15 +100,15 @@ class Light(hass.Hass):
             # We want to fade to the new value so it doesn't jump
             negative = adjustedBrightness < currentBrightness
             diff = abs(adjustedBrightness - currentBrightness)
-            
+
             if diff > 10:
-                for x in range(0, int(diff), round(int(diff) / 10)):
+                for x in range(0, int(diff), round(int(diff) / 3)):
                     if negative:
                         self.set_light_to(currentBrightness - x)
                     else:
                         self.set_light_to(currentBrightness + x)
 
-                    time.sleep(0.3)
+                    time.sleep(0.29)
 
             self.set_light_to(adjustedBrightness)
             self.log("Turned light to %d" % (adjustedBrightness))
