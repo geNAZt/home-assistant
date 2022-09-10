@@ -8,10 +8,18 @@ api:
 light:
   module: light
   class: Light
-  light: light.test_knx_light
-  wantedLux: input_number.light_fabian_target_lux
-  luxSensor: sensor.test_knx_lux
+  # Light temperature settings
   minLightTemp: 2700
-  maxLightTemp: 6500
+  maxLightTemp: 6700
   wantedLightTemp: 4000 # Optional for working according to https://www.any-lamp.com/blog/which-color-temperature-for-what-room
-  presenceSensor: binary_sensor.test_knx_presence
+  # Input number which sets the target lux, you can dynamically change this. The light will update
+  wantedLux: input_number.light_fabian_target_lux
+  # All light entities, those are controlled the same (so ensure those are the same type of light)
+  light: 
+  - light.test_knx_light
+  # All lux sensors, the amount of lux will be averaged over all of them
+  luxSensor: 
+  - sensor.test_knx_lux
+  # All presence sensors, if one triggers light will be on
+  presenceSensor: 
+  - binary_sensor.test_knx_presence
