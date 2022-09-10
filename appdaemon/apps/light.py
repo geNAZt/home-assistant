@@ -81,11 +81,11 @@ class Light(hass.Hass):
         # Get the actual lux
         lux = 0
         for luxSensor in self.args["luxSensor"]:
-            lux += float(self.get_state(self.args["luxSensor"]))
+            lux += float(self.get_state(luxSensor))
 
         lux = lux / len(self.args["luxSensor"])
         power = self._pid(lux)
-        
+
         self.log("Presence: %r, Lux: %r, Wanted change: %r" % (self._presence, lux, power))
 
         # Calc new brightness
