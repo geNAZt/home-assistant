@@ -102,7 +102,7 @@ class Light(hass.Hass):
             negative = adjustedBrightness < currentBrightness
             diff = abs(adjustedBrightness - currentBrightness)
 
-            if diff > 10:
+            if diff > 3:
                 for x in range(0, int(diff), round(int(diff) / 3)):
                     if negative:
                         self.set_light_to(currentBrightness - x)
