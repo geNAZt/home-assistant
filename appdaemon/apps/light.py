@@ -36,6 +36,7 @@ class Light(hass.Hass):
         self.set_light_to(90)
 
     def set_light_to(self, brightness):
+        self.log("Setting light level to %d" % brightness)
         for light in self.args["light"]:
             if brightness == 0:
                 self.turn_off(light)
