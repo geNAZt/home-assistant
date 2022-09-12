@@ -1,8 +1,4 @@
 # Ignore some basic stuff
-.HA_VERSION
-tts/
-custom_components/
-blueprints/
 home-assistant*
 core
 appdaemon/appdaemon.yaml
