@@ -9,6 +9,7 @@ appdaemon/appdaemon.yaml
 *.pyc
 zigbee.db
 *.cache
+www/
 
 # Ignore folders.
 .storage
