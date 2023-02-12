@@ -1,3 +1,4 @@
 homeassistant:
   # Load packages
   packages: !include_dir_named integrations
+  external_url: "https://home.genazt.me"
