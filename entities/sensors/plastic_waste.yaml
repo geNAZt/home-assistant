@@ -2,4 +2,4 @@ platform: waste_collection_schedule
 name: Gelber Sack
 value_template: '{% if value.daysTo == 0 %}Heute{% elif value.daysTo == 1 %}Morgen{% else %}in {{value.daysTo}} Tagen{% endif %} ({{value.date.strftime("%a, %d.%m.%Y")}})'
 types:
-- Gelber Sack Abfall
+- Leichtverpackungen
