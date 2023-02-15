@@ -9,5 +9,11 @@ waste_collection_schedule:
         - type: LANGUAGE=de:Restabfall # from calendar event name
           alias: Rest Abfall # matches type in sensor configuration above
       args:
-        url: https://kundenlogin.aws-shg.de/WasteManagementSchaumburg/WasteManagementServiceServlet?ApplicationName=Calendar&SubmitAction=sync&StandortID=398142001&AboID=195278&Fra=R;B;P;V;S
+        url: https://kundenlogin.aws-shg.de/WasteManagementSchaumburg/WasteManagementServiceServlet
         method: GET
+        params:
+          ApplicationName: Calendar
+          SubmitAction: sync
+          StandortID: "398142001"
+          AboID: "195278"
+          Fra: R;B;P;V;S
