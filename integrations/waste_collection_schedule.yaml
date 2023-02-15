@@ -2,37 +2,22 @@ waste_collection_schedule:
   sources:
     - name: ics
       customize:
-        - type: Abfuhr Leichtverpackungen # from calendar event name
+        - type: LANGUAGE=de:Leichtverpackungen # from calendar event name
           alias: Gelber Sack Abfall # matches type in sensor configuration above
       args:
-        url: https://www.aha-region.de/abholtermine/abfuhrkalender
-        method: POST
-        params:
-          hausnr: "49"
-          ladeort: "01916-0049 "
-          strasse: "01916@Marienstr.@"
-          ical_android: "31"
+        url: https://kundenlogin.aws-shg.de/WasteManagementSchaumburg/WasteManagementServiceServlet?ApplicationName=Calendar&SubmitAction=sync&StandortID=398142001&AboID=195278&Fra=R;B;P;V;S
+        method: GET
     - name: ics
       customize:
-        - type: Abfuhr Papier # from calendar event name
+        - type: LANGUAGE=de:Altpapier # from calendar event name
           alias: Papier Abfall # matches type in sensor configuration above
       args:
-        url: https://www.aha-region.de/abholtermine/abfuhrkalender
-        method: POST
-        params:
-          hausnr: "49"
-          ladeort: "01916-0049 "
-          strasse: "01916@Marienstr.@"
-          ical_android: "22"
+        url: https://kundenlogin.aws-shg.de/WasteManagementSchaumburg/WasteManagementServiceServlet?ApplicationName=Calendar&SubmitAction=sync&StandortID=398142001&AboID=195278&Fra=R;B;P;V;S
+        method: GET
     - name: ics
       customize:
-        - type: Abfuhr Restabfall # from calendar event name
+        - type: LANGUAGE=de:Restabfall # from calendar event name
           alias: Rest Abfall # matches type in sensor configuration above
       args:
-        url: https://www.aha-region.de/abholtermine/abfuhrkalender
-        method: POST
-        params:
-          hausnr: "49"
-          ladeort: "01916-0049 "
-          strasse: "01916@Marienstr.@"
-          ical_android: "10"
+        url: https://kundenlogin.aws-shg.de/WasteManagementSchaumburg/WasteManagementServiceServlet?ApplicationName=Calendar&SubmitAction=sync&StandortID=398142001&AboID=195278&Fra=R;B;P;V;S
+        method: GET
