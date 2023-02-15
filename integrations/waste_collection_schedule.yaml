@@ -2,11 +2,11 @@ waste_collection_schedule:
   sources:
     - name: ics
       customize:
-        - type: LANGUAGE=de:Leichtverpackungen # from calendar event name
+        - type: Leichtverpackungen # from calendar event name
           alias: Gelber Sack Abfall # matches type in sensor configuration above
-        - type: LANGUAGE=de:Altpapier # from calendar event name
+        - type: Altpapier # from calendar event name
           alias: Papier Abfall # matches type in sensor configuration above
-        - type: LANGUAGE=de:Restabfall # from calendar event name
+        - type: Restabfall # from calendar event name
           alias: Rest Abfall # matches type in sensor configuration above
       args:
         url: https://kundenlogin.aws-shg.de/WasteManagementSchaumburg/WasteManagementServiceServlet
