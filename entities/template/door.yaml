@@ -5,7 +5,7 @@ binary_sensor:
       device_key: TEST_KEY
       device_id: TEST_ID
       cutoff_rssi: -99
-      allowed_times:
+      allowed_times: |
         sunday:
         - "00:00:00-23:59:59"
         tuesday:
