@@ -1,6 +1,6 @@
 binary_sensor:
   - unique_id: 95:6C:64:58:5C:22
-    name: Merjas Türöffner
+    name: 95:6C:64:58:5C:22
     state: "off"
     attributes:
       device_key: !secret merja_door_key
@@ -22,7 +22,7 @@ binary_sensor:
         wednesday:
         - "00:00:00-23:59:59"
   - unique_id: 65:74:BB:ED:42:2D
-    name: Fabians Türöffner
+    name: 65:74:BB:ED:42:2D
     state: "off"
     attributes:
       device_key: !secret fabian_door_key
