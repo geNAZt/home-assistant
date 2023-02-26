@@ -3,8 +3,8 @@ binary_sensor:
     name: Fabians Türöffner
     state: "off"
     attributes:
-      device_key: TEST_KEY
-      device_id: TEST_ID
+      device_key: !secret fabian_door_key
+      device_id: "0x14, 0xf3, 0x60, 0x71, 0x19, 0xba, 0x09, 0x95, 0x85, 0x48"
       cutoff_rssi: -99
       allowed_times: |
         sunday:
