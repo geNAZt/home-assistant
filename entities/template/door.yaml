@@ -1,7 +1,9 @@
 binary_sensor:
-  - name: Door Fabian
+  - unique_id: 65:74:BB:ED:42:2D
+    name: 65:74:BB:ED:42:2D
     state: "off"
     attributes:
+      friendly_name: Fabians Türöffner
       device_key: TEST_KEY
       device_id: TEST_ID
       cutoff_rssi: -99
