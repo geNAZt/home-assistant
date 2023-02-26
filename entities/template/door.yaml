@@ -22,19 +22,19 @@ binary_sensor:
         - "00:00:00-23:59:59"
         wednesday:
         - "00:00:00-23:59:59"
-      restart_count: |
+      restart_count: >
         {% if states.binary_sensor.95_6C_64_58_5C_22 %}
           {{ state_attr('binary_sensor.95_6C_64_58_5C_22', 'restart_count') }}
         {% else %}
           0
         {% endif %}
-      last_seen_local: |
+      last_seen_local: >
         {% if states.binary_sensor.95_6C_64_58_5C_22 %}
           {{ state_attr('binary_sensor.95_6C_64_58_5C_22', 'last_seen_local') }}
         {% else %}
           0
         {% endif %}
-      last_seen: |
+      last_seen: >
         {% if states.binary_sensor.95_6C_64_58_5C_22 %}
           {{ state_attr('binary_sensor.95_6C_64_58_5C_22', 'last_seen') }}
         {% else %}
@@ -63,19 +63,19 @@ binary_sensor:
         - "00:00:00-23:59:59"
         wednesday:
         - "00:00:00-23:59:59"
-      restart_count: |
+      restart_count: >
         {% if states.binary_sensor.65_74_BB_ED_42_2D %}
           {{ state_attr('binary_sensor.65_74_BB_ED_42_2D', 'restart_count') }}
         {% else %}
           0
         {% endif %}
-      last_seen_local: |
+      last_seen_local: >
         {% if states.binary_sensor.65_74_BB_ED_42_2D %}
           {{ state_attr('binary_sensor.65_74_BB_ED_42_2D', 'last_seen_local') }}
         {% else %}
           0
         {% endif %}
-      last_seen: |
+      last_seen: >
         {% if states.binary_sensor.65_74_BB_ED_42_2D %}
           {{ state_attr('binary_sensor.65_74_BB_ED_42_2D', 'last_seen') }}
         {% else %}
