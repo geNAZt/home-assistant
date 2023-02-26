@@ -22,9 +22,9 @@ binary_sensor:
         - "00:00:00-23:59:59"
         wednesday:
         - "00:00:00-23:59:59"
-      restart_count: "{{ this.attributes.restart_count if this.attributes.restart_count is not none else '0' }}"
-      last_seen_local: "{{ this.attributes.last_seen_local if this.attributes.last_seen_local is not none else '0' }}"
-      last_seen: "{{ this.attributes.last_seen if this.attributes.last_seen is not none else '0' }}"
+      restart_count: "{{ this.attributes.restart_count or '0' }}"
+      last_seen_local: "{{ this.attributes.last_seen_local or '0' }}"
+      last_seen: "{{ this.attributes.last_seen or '0' }}"
   - unique_id: 65:74:BB:ED:42:2D
     name: 65:74:BB:ED:42:2D
     state: "off"
@@ -48,6 +48,6 @@ binary_sensor:
         - "00:00:00-23:59:59"
         wednesday:
         - "00:00:00-23:59:59"
-      restart_count: "{{ this.attributes.restart_count if this.attributes.restart_count is not none else '0' }}"
-      last_seen_local: "{{ this.attributes.last_seen_local if this.attributes.last_seen_local is not none else '0' }}"
-      last_seen: "{{ this.attributes.last_seen if this.attributes.last_seen is not none else '0' }}"
+      restart_count: "{{ this.attributes.restart_count or '0' }}"
+      last_seen_local: "{{ this.attributes.last_seen_local or '0' }}"
+      last_seen: "{{ this.attributes.last_seen or '0' }}"
