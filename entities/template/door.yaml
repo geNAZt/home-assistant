@@ -1,5 +1,5 @@
 binary_sensor:
-  - unique_id: 95:6C:64:58:5C:22"
+  - unique_id: 95:6C:64:58:5C:22
     name: Merjas Türöffner
     state: "off"
     attributes:
