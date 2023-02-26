@@ -22,24 +22,9 @@ binary_sensor:
         - "00:00:00-23:59:59"
         wednesday:
         - "00:00:00-23:59:59"
-      restart_count: >
-        {% if states.binary_sensor.95_6C_64_58_5C_22 %}
-          {{ state_attr('binary_sensor.95_6C_64_58_5C_22', 'restart_count') }}
-        {% else %}
-          0
-        {% endif %}
-      last_seen_local: >
-        {% if states.binary_sensor.95_6C_64_58_5C_22 %}
-          {{ state_attr('binary_sensor.95_6C_64_58_5C_22', 'last_seen_local') }}
-        {% else %}
-          0
-        {% endif %}
-      last_seen: >
-        {% if states.binary_sensor.95_6C_64_58_5C_22 %}
-          {{ state_attr('binary_sensor.95_6C_64_58_5C_22', 'last_seen') }}
-        {% else %}
-          0
-        {% endif %}
+      restart_count: "{{ state_attr('binary_sensor.95_6C_64_58_5C_22', 'restart_count') | 0 }}"
+      last_seen_local: "{{ state_attr('binary_sensor.95_6C_64_58_5C_22', 'last_seen_local') | 0 }}"
+      last_seen: "{{ state_attr('binary_sensor.95_6C_64_58_5C_22', 'last_seen_lolast_seencal') | 0 }}"
   - unique_id: 65:74:BB:ED:42:2D
     name: 65:74:BB:ED:42:2D
     state: "off"
@@ -63,21 +48,6 @@ binary_sensor:
         - "00:00:00-23:59:59"
         wednesday:
         - "00:00:00-23:59:59"
-      restart_count: >
-        {% if states.binary_sensor.65_74_BB_ED_42_2D %}
-          {{ state_attr('binary_sensor.65_74_BB_ED_42_2D', 'restart_count') }}
-        {% else %}
-          0
-        {% endif %}
-      last_seen_local: >
-        {% if states.binary_sensor.65_74_BB_ED_42_2D %}
-          {{ state_attr('binary_sensor.65_74_BB_ED_42_2D', 'last_seen_local') }}
-        {% else %}
-          0
-        {% endif %}
-      last_seen: >
-        {% if states.binary_sensor.65_74_BB_ED_42_2D %}
-          {{ state_attr('binary_sensor.65_74_BB_ED_42_2D', 'last_seen') }}
-        {% else %}
-          0
-        {% endif %}
+      restart_count: "{{ state_attr('binary_sensor.65_74_BB_ED_42_2D', 'restart_count') | 0 }}"
+      last_seen_local: "{{ state_attr('binary_sensor.65_74_BB_ED_42_2D', 'last_seen_local') | 0 }}"
+      last_seen: "{{ state_attr('binary_sensor.65_74_BB_ED_42_2D', 'last_seen') | 0 }}"
