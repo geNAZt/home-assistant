@@ -1,8 +1,10 @@
+trigger:
+- platform: state
+  entity_id: 
+  - "binary_sensor.95_6C_64_58_5C_22"
+  - "binary_sensor.65_74_BB_ED_42_2D"
 binary_sensor: 
-  - trigger:
-      - platform: state
-        entity_id: "{{ this.entity_id }}"
-    unique_id: 95:6C:64:58:5C:22
+  - unique_id: 95:6C:64:58:5C:22
     name: 95:6C:64:58:5C:22
     state: "off"
     attributes:
@@ -28,12 +30,7 @@ binary_sensor:
       restart_count: "{{ this.attributes.restart_count or '0' }}"
       last_seen_local: "{{ this.attributes.last_seen_local or '0' }}"
       last_seen: "{{ this.attributes.last_seen or '0' }}"
-  - trigger:
-      - platform: time_pattern
-        # This will update every night
-        hours: 0
-        minutes: 0
-    unique_id: 65:74:BB:ED:42:2D
+  - unique_id: 65:74:BB:ED:42:2D
     name: 65:74:BB:ED:42:2D
     state: "off"
     attributes:
