@@ -106,14 +106,14 @@ class Light(hass.Hass):
             diff = abs(adjustedBrightness - currentBrightness)
 
             if diff > 1:
-                fadeTime = 10 / int(diff)
-                for x in range(int(diff)):
-                    if negative:
-                        self.set_light_to(currentBrightness - x)
-                    else:
-                        self.set_light_to(currentBrightness + x)
+                #fadeTime = 10 / int(diff)
+                #for x in range(int(diff)):
+                #    if negative:
+                #        self.set_light_to(currentBrightness - x)
+                #    else:
+                #        self.set_light_to(currentBrightness + x)
 
-                    time.sleep(fadeTime)
+                # time.sleep(fadeTime)
 
-            self.set_light_to(adjustedBrightness)
-            self.log("Turned light to %d" % (adjustedBrightness))
+              self.set_light_to(adjustedBrightness)
+              self.log("Turned light to %d" % (adjustedBrightness))
