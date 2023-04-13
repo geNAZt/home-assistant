@@ -1,7 +1,7 @@
 name: Light fabian target lux
 min: 0
 max: 300
-initial: 30
+initial: 80
 step: 1
 unit_of_measurement: lx
 icon: mdi:desk-lamp-on
