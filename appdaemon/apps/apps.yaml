@@ -17,6 +17,7 @@ light:
   # All light entities, those are controlled the same (so ensure those are the same type of light)
   light: 
   - light.light_1_speisekammer
+  - light.light_2_speisekammer
   # All lux sensors, the amount of lux will be averaged over all of them
   luxSensor: 
   - sensor.lux_speisekammer
