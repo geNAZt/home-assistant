@@ -6,7 +6,7 @@ class Light(hass.Hass):
 
     def initialize(self):
         # Setup the PID controller
-        self._pid = PID(4, 0.0, 0.0, setpoint=float(self.get_state(self.args["wantedLux"])), sample_time=1)
+        self._pid = PID(1.25, 0.5, 2.0, setpoint=float(self.get_state(self.args["wantedLux"])), sample_time=1)
         self._pid.output_limits = (-30, 30)
 
         # We should calibrate the light temperature first
@@ -36,6 +36,9 @@ class Light(hass.Hass):
         self.set_light_to(90)
 
     def set_light_to(self, brightness):
+        if brightness > 255:
+            brightness = 255
+
         self.log("Setting light level to %d" % brightness)
         for light in self.args["light"]:
             if brightness == 0:
@@ -101,10 +104,6 @@ class Light(hass.Hass):
             # We want to fade to the new value so it doesn't jump
             negative = adjustedBrightness < currentBrightness
             diff = abs(adjustedBrightness - currentBrightness)
-
-            if currentBrightness + diff > 255:
-                self.set_light_to(255)
-                return
 
             if diff > 1:
                 fadeTime = 5 / int(diff)
