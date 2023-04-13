@@ -36,8 +36,8 @@ class Light(hass.Hass):
         self.set_light_to(90)
 
     def set_light_to(self, brightness):
-        if brightness > 255:
-            brightness = 255
+        if brightness > 200:
+            brightness = 200
 
         self.log("Setting light level to %d" % brightness)
         for light in self.args["light"]:
