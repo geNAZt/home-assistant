@@ -7,7 +7,7 @@ class Light(hass.Hass):
     def initialize(self):
         # Setup the PID controller
         self._pid = PID(4, 0.0, 0.0, setpoint=float(self.get_state(self.args["wantedLux"])), sample_time=1)
-        self._pid.output_limits = (-50, 50)
+        self._pid.output_limits = (-30, 30)
 
         # We should calibrate the light temperature first
         diffLightWarmth = float(self.args["maxLightTemp"]) - float(self.args["minLightTemp"])
