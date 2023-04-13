@@ -102,6 +102,10 @@ class Light(hass.Hass):
             negative = adjustedBrightness < currentBrightness
             diff = abs(adjustedBrightness - currentBrightness)
 
+            if currentBrightness + diff > 255:
+                self.set_light_to(255)
+                return
+
             if diff > 1:
                 fadeTime = 5 / int(diff)
                 for x in range(int(diff)):
