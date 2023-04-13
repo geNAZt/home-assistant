@@ -1,4 +1,4 @@
-name: "TEST KNX Light"
+name: "Light 1 Speisekammer"
 address: "0/0/1"
 state_address: "0/0/2"
 brightness_address: "0/0/3"

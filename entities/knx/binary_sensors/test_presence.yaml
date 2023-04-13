@@ -1,3 +1,0 @@
-name: "TEST KNX Presence"
-state_address: "0/0/2"
-device_class: presence

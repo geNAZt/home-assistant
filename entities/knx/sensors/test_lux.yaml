@@ -1,4 +1,0 @@
-name: "TEST KNX Lux"
-state_address: "0/0/1"
-type: illuminance
-always_callback: true
