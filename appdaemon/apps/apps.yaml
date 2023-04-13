@@ -16,10 +16,10 @@ light:
   wantedLux: input_number.light_fabian_target_lux
   # All light entities, those are controlled the same (so ensure those are the same type of light)
   light: 
-  - light.test_knx_light
+  - light.light_1_speisekammer
   # All lux sensors, the amount of lux will be averaged over all of them
   luxSensor: 
-  - sensor.test_knx_lux
+  - sensor.lux_speisekammer
   # All presence sensors, if one triggers light will be on
   presenceSensor: 
-  - binary_sensor.test_knx_presence
+  - binary_sensor.presence_speisekammer
