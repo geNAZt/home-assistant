@@ -14,11 +14,6 @@ class Light(hass.Hass):
         self._pid = PID(2.0, 0.5, 2.0, setpoint=float(self.get_state(self.args["wantedLux"])))
         self._pid.output_limits = (-10, 10)
 
-        # We should calibrate the light temperature first
-        diffLightWarmth = float(self.args["maxLightTemp"]) - float(self.args["minLightTemp"])
-        wantedLightWarmth = float(self.args["wantedLightTemp"]) - float(self.args["minLightTemp"])
-        self._lightWarmth = (wantedLightWarmth / diffLightWarmth) * 255
-
         # Get presence state
         self._presence = self.is_present()
         
@@ -49,7 +44,7 @@ class Light(hass.Hass):
             if brightness == 0:
                 self.turn_off(light)
             else:
-                self.turn_on(light, brightness = brightness, color_temp = self._lightWarmth)
+                self.turn_on(light, brightness = brightness, kelvin = int(self.args["wantedLightTemp"]))
 
         # Check if we reached that level
         #for i in range(10):
