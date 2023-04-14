@@ -4,9 +4,14 @@ from simple_pid import PID
 
 class Light(hass.Hass):
 
+    _restoreValue: float
+    _presence: bool
+    _pid: PID
+    _lastUpdate: int
+
     def initialize(self):
         # Setup the PID controller
-        self._pid = PID(1.25, 0.5, 2.0, setpoint=float(self.get_state(self.args["wantedLux"])), sample_time=1)
+        self._pid = PID(2.0, 0.5, 2.0, setpoint=float(self.get_state(self.args["wantedLux"])))
         self._pid.output_limits = (-10, 10)
 
         # We should calibrate the light temperature first
@@ -36,8 +41,8 @@ class Light(hass.Hass):
         self.set_light_to(90)
 
     def set_light_to(self, brightness):
-        if brightness > 200:
-            brightness = 200
+        if brightness > 255:
+            brightness = 255
 
         self.log("Setting light level to %d" % brightness)
         for light in self.args["light"]:
@@ -45,6 +50,17 @@ class Light(hass.Hass):
                 self.turn_off(light)
             else:
                 self.turn_on(light, brightness = brightness, color_temp = self._lightWarmth)
+
+        # Check if we reached that level
+        for i in range(10):
+            currentBrightness = float(self.get_state(self.args["light"][0], attribute="brightness", default=0))
+            if brightness - currentBrightness < 1:
+                return
+            
+            time.sleep(50)
+            
+        currentBrightness = float(self.get_state(self.args["light"][0], attribute="brightness", default=0))
+        self.log("Light did not set light level to %d, it is %d now" % (brightness, currentBrightness))
 
     def is_present(self):
         for sensor in self.args["presenceSensor"]:
@@ -101,19 +117,7 @@ class Light(hass.Hass):
             self.set_light_to(0)
             self.log("Turned light off")
         else:
-            # We want to fade to the new value so it doesn't jump
-            negative = adjustedBrightness < currentBrightness
             diff = abs(adjustedBrightness - currentBrightness)
 
             if diff > 1:
-                #fadeTime = 10 / int(diff)
-                #for x in range(int(diff)):
-                #    if negative:
-                #        self.set_light_to(currentBrightness - x)
-                #    else:
-                #        self.set_light_to(currentBrightness + x)
-
-                # time.sleep(fadeTime)
-
-              self.set_light_to(adjustedBrightness)
-              self.log("Turned light to %d" % (adjustedBrightness))
+                self.set_light_to(adjustedBrightness)
