@@ -52,12 +52,12 @@ class Light(hass.Hass):
                 self.turn_on(light, brightness = brightness, color_temp = self._lightWarmth)
 
         # Check if we reached that level
-        for i in range(10):
-            currentBrightness = float(self.get_state(self.args["light"][0], attribute="brightness", default=0))
-            if brightness - currentBrightness < 1:
-                return
+        #for i in range(10):
+        #    currentBrightness = float(self.get_state(self.args["light"][0], attribute="brightness", default=0))
+        #    if brightness - currentBrightness < 1:
+        #        return
             
-            time.sleep(50)
+        #    time.sleep(10)
             
         currentBrightness = float(self.get_state(self.args["light"][0], attribute="brightness", default=0))
         self.log("Light did not set light level to %d, it is %d now" % (brightness, currentBrightness))
