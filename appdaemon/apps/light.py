@@ -46,17 +46,6 @@ class Light(hass.Hass):
             else:
                 self.turn_on(light, brightness = brightness, kelvin = int(self.args["wantedLightTemp"]))
 
-        # Check if we reached that level
-        #for i in range(10):
-        #    currentBrightness = float(self.get_state(self.args["light"][0], attribute="brightness", default=0))
-        #    if brightness - currentBrightness < 1:
-        #        return
-            
-        #    time.sleep(10)
-            
-        currentBrightness = float(self.get_state(self.args["light"][0], attribute="brightness", default=0))
-        self.log("Light did not set light level to %d, it is %d now" % (brightness, currentBrightness))
-
     def is_present(self):
         for sensor in self.args["presenceSensor"]:
             if self.get_state(sensor) == "on":
