@@ -1,5 +1,5 @@
 name: Speisekammer Zieltemperatur
-min: 18
+min: 10
 max: 30
 initial: 21
 step: 1
