@@ -31,6 +31,9 @@ class Heating(hass.Hass):
         self.turn_off(self.args["output"])
         self._heating = False
 
+        # Ensure that we run at least once a minute
+        self.run_every(self.recalc, "now", 60)
+
     def onChangeRecalc(self, entity, attribute, old, new, kwargs):
         self.recalc(kwargs=None)
 
