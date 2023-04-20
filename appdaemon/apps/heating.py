@@ -69,8 +69,8 @@ class Heating(hass.Hass):
         diff = self.target_temp() - self.room_temperature()
         if self._heating and self.room_temperature() >= self.target_temp():
             self._heating = False
-        elif self._heating == False and diff > float(self.args["allowedDiff"]):
-            self._heating = True
+        #elif self._heating == False and diff > float(self.args["allowedDiff"]):
+            #self._heating = True
 
         if self._heating:
             self.turn_on(self.args["output"])
