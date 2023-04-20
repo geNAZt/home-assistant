@@ -32,7 +32,7 @@ class Heating(hass.Hass):
         self._heating = False
 
     def onChangeRecalc(self, entity, attribute, old, new, kwargs):
-        self.recalc()
+        self.recalc(kwargs=None)
 
     def target_temp(self):
         return float(self.get_state(self.args["targetTemp"], default=0))
