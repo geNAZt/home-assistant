@@ -2,3 +2,4 @@ name: "Heating Usage Speisekammer"
 state_address: "0/1/24"
 type: active_energy
 always_callback: true
+state_class: total_increasing
