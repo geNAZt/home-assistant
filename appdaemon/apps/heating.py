@@ -52,7 +52,7 @@ class Heating(hass.Hass):
         for sensor in self.args["roomSensors"]:
             temperature += float(self.get_state(sensor))
 
-        return float(temperature / len(self.args["luxSensor"]))
+        return float(temperature / len(self.args["roomSensors"]))
 
     def recalc(self, kwargs):
         # Check for security shutdown
