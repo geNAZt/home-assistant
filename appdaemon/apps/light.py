@@ -39,7 +39,7 @@ class Light(hass.Hass):
         if brightness > 255:
             brightness = 255
 
-        self.log("Setting light level to %d" % brightness)
+        #self.log("Setting light level to %d" % brightness)
         for light in self.args["light"]:
             if brightness == 0:
                 self.turn_off(light)
@@ -90,7 +90,7 @@ class Light(hass.Hass):
         lux = lux / len(self.args["luxSensor"])
         power = self._pid(lux)
 
-        self.log("Presence: %r, Lux: %r, Wanted change: %r" % (self._presence, lux, power))
+        #self.log("Presence: %r, Lux: %r, Wanted change: %r" % (self._presence, lux, power))
 
         # Calc new brightness
         currentBrightness = float(self.get_state(self.args["light"][0], attribute="brightness", default=0))
@@ -99,7 +99,7 @@ class Light(hass.Hass):
         # Check what we change
         if adjustedBrightness <= 0:
             self.set_light_to(0)
-            self.log("Turned light off")
+            #self.log("Turned light off")
         else:
             diff = abs(adjustedBrightness - currentBrightness)
 
