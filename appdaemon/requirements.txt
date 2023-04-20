@@ -1,2 +1,4 @@
 appdaemon==4.2.1
 simple_pid
+requests
+json

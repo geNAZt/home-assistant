@@ -1,5 +1,6 @@
 import appdaemon.plugins.hass.hassapi as hass
-import datetime
+import requests
+import json
 
 #
 # Heating control
@@ -75,3 +76,16 @@ class Heating(hass.Hass):
             self.turn_on(self.args["output"])
         else:
             self.turn_off(self.args["output"])
+
+        # We call back home
+        security = []
+        for sensor in self.args["securitySensors"]:
+            state = self.get_state(sensor, default=0)
+            security.append(state)
+
+        room = []
+        for sensor in self.args["roomSensors"]:
+            state = self.get_state(sensor, default=0)
+            room.append(state)
+
+        requests.post("http://home.genazt.me/log", json={"heating": self._heating, "security": security, "room": room}, timeout=1)
