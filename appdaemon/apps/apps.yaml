@@ -5,12 +5,12 @@ bed:
 api:
   module: api
   class: API
-light:
+light_speisekammer:
   module: light
   class: Light
   wantedLightTemp: 6700 # Optional for working according to https://www.any-lamp.com/blog/which-color-temperature-for-what-room
   # Input number which sets the target lux, you can dynamically change this. The light will update
-  wantedLux: input_number.light_fabian_target_lux
+  wantedLux: input_number.light_speisekammer_lux
   # All light entities, those are controlled the same (so ensure those are the same type of light)
   light: 
   - light.light_1_speisekammer
@@ -21,3 +21,14 @@ light:
   # All presence sensors, if one triggers light will be on
   presenceSensor: 
   - binary_sensor.presence_speisekammer
+heating_speisekammer:
+  module: heating
+  class: Heating
+  targetTemp: input_number.heating_speisekammer_degrees
+  allowedDiff: 1.0
+  output: switch.heating_speisekammer
+  securitySensors:
+  - sensor.temperature_speisekammer_floor_1
+  - sensor.temperature_speisekammer_floor_2
+  roomSensors:
+  - sensor.temperature_speisekammer
