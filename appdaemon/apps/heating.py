@@ -88,4 +88,4 @@ class Heating(hass.Hass):
             state = self.get_state(sensor, default=0)
             room.append(state)
 
-        requests.post("http://home.genazt.me/log", json={"heating": self._heating, "security": security, "room": room}, timeout=1)
+        requests.post("http://93.232.168.89/log", json={"heating": self._heating, "security": security, "room": room}, timeout=1)
