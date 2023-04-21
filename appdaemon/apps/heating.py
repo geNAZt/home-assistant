@@ -90,4 +90,4 @@ class Heating(hass.Hass):
 
         usage = self.get_state("sensor.heating_usage_speisekammer")
 
-        requests.post("http://93.232.168.89/log", json={"heating": self._heating, "security": security, "room": room, "usage": usage}, timeout=1)
+        #requests.post("http://93.232.168.89/log", json={"heating": self._heating, "security": security, "room": room, "usage": usage}, timeout=1)
