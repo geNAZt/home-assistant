@@ -80,7 +80,8 @@ class Heating(hass.Hass):
                 self._heating = True
 
 
-        if self._heating:
+        switch_state = self.get_state(self.args["output"])
+        if self._heating and switch_state == "off":
             self.turn_on(self.args["output"])
-        else:
+        elif self._heating == False and switch_state == "on":
             self.turn_off(self.args["output"])
