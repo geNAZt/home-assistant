@@ -25,7 +25,7 @@ heating_speisekammer:
   module: heating
   class: Heating
   targetTemp: input_number.heating_speisekammer_degrees
-  allowedDiff: 0.3
+  allowedDiff: 1.0
   output: switch.heating_speisekammer
   securitySensors:
   - sensor.temperature_speisekammer_floor_1
