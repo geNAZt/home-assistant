@@ -57,37 +57,30 @@ class Heating(hass.Hass):
             temperature += float(self.get_state(sensor))
 
         return float(temperature / len(self.args["roomSensors"]))
+    
+    def security_temperature(self):
+        temperature = 0
+        for sensor in self.args["securitySensors"]:
+            temperature += float(self.get_state(sensor))
+
+        return float(temperature / len(self.args["securitySensors"]))
 
     def recalc(self, kwargs):
         # Check for security shutdown
         if self.is_security_shutdown():
             self.log("Turning off heat due to security")
-            self.turn_off(self.args["output"])
-            return
-        
-        # Check if we need to heat
-        diff = self.target_temp() - self.room_temperature()
-        if self._heating and self.room_temperature() >= self.target_temp():
             self._heating = False
-        elif self._heating == False and diff > float(self.args["allowedDiff"]):
-            self._heating = True
+        else:        
+            # Check if we need to heat
+            diff = self.target_temp() - self.room_temperature()
+            if self._heating and self.room_temperature() >= self.target_temp():       # We reached target temp
+                self._heating = False
+            elif self._heating == False and diff > float(self.args["allowedDiff"]):   # The room is too cold we need to heat it
+                self.log("Room too cold starting to heat. Diff was %r" % diff)
+                self._heating = True
+
 
         if self._heating:
             self.turn_on(self.args["output"])
         else:
             self.turn_off(self.args["output"])
-
-        # We call back home
-        security = []
-        for sensor in self.args["securitySensors"]:
-            state = self.get_state(sensor, default=0)
-            security.append(state)
-
-        room = []
-        for sensor in self.args["roomSensors"]:
-            state = self.get_state(sensor, default=0)
-            room.append(state)
-
-        usage = self.get_state("sensor.heating_usage_speisekammer")
-
-        #requests.post("http://93.232.168.89/log", json={"heating": self._heating, "security": security, "room": room, "usage": usage}, timeout=1)
