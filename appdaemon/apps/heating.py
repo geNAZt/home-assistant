@@ -79,6 +79,10 @@ class Heating(hass.Hass):
                 self.log("Room too cold starting to heat. Diff was %r" % diff)
                 self._heating = True
 
+            diffSecurity = self.room_temperature() - self.security_temperature()
+            if self._heating and diffSecurity > 1.2:
+                self._heating = False
+                self.log("Wanted to heat but diff between ceiling and floor temp is too high")
 
         switch_state = self.get_state(self.args["output"])
         if self._heating and switch_state == "off":
