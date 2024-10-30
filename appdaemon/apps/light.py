@@ -45,6 +45,7 @@ class Light(hass.Hass):
             if brightness == 0:
                 self.turn_off(light)
             else:
+                self._restoreValue = brightness
                 self.turn_on(light, brightness = brightness, kelvin = int(self.args["wantedLightTemp"]))
 
     def is_present(self):
@@ -73,8 +74,6 @@ class Light(hass.Hass):
         else: 
             self._presence = self.is_present()
             if self._presence == False:
-                # Store old value for restore
-                self._restoreValue = 10 # float(self.get_state(self.args["light"][0], attribute="brightness", default=0))
                 self.set_light_to(0)
 
     def recalc(self, kwargs):
