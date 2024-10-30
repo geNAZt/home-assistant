@@ -31,6 +31,7 @@ light_kueche:
   light: 
   - light.light_1_kuche
   - light.light_2_kuche
+  - light.light_3_kuche
   # All lux sensors, the amount of lux will be averaged over all of them
   luxSensor: 
   - sensor.lux_kuche
