@@ -45,7 +45,6 @@ class Light(hass.Hass):
             if brightness == 0:
                 self.turn_off(light)
             else:
-                self._restoreValue = brightness
                 self.turn_on(light, brightness = brightness, kelvin = int(self.args["wantedLightTemp"]))
 
     def is_present(self):
@@ -104,4 +103,5 @@ class Light(hass.Hass):
             diff = abs(adjustedBrightness - currentBrightness)
 
             if diff > 1:
+                self._restoreValue = adjustedBrightness
                 self.set_light_to(adjustedBrightness)
