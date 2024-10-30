@@ -21,6 +21,22 @@ light_speisekammer:
   # All presence sensors, if one triggers light will be on
   presenceSensor: 
   - binary_sensor.presence_speisekammer
+light_kueche:
+  module: light
+  class: Light
+  wantedLightTemp: 6700 # Optional for working according to https://www.any-lamp.com/blog/which-color-temperature-for-what-room
+  # Input number which sets the target lux, you can dynamically change this. The light will update
+  wantedLux: input_number.light_kueche_lux
+  # All light entities, those are controlled the same (so ensure those are the same type of light)
+  light: 
+  - light.light_1_kueche
+  - light.light_2_kueche
+  # All lux sensors, the amount of lux will be averaged over all of them
+  luxSensor: 
+  - sensor.lux_kueche
+  # All presence sensors, if one triggers light will be on
+  presenceSensor: 
+  - binary_sensor.presence_kueche
 heating_speisekammer:
   module: heating
   class: Heating
