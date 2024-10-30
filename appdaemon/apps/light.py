@@ -16,7 +16,8 @@ class Light(hass.Hass):
 
         # Get presence state
         self._presence = self.is_present()
-        
+        self._restoreValue = 0    
+    
         # Attach a listener to all presence sensors
         for sensor in self.args["presenceSensor"]:
             presenceEntity = self.get_entity(sensor)
