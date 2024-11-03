@@ -1,7 +1,0 @@
-route53:
-  aws_access_key_id: !secret aws_access_key_id
-  aws_secret_access_key: !secret aws_secret_key
-  zone: Z24CQAQXV6KZ0G
-  domain: !secret domain
-  records:
-    - home
