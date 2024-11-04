@@ -92,8 +92,11 @@ class Light(hass.Hass):
         #self.log("Presence: %r, Lux: %r, Wanted change: %r" % (self._presence, lux, power))
 
         # Calc new brightness
-        currentBrightness = float(self.get_state(self.args["light"][0], attribute="brightness", default=0))
-        adjustedBrightness = currentBrightness + power
+        currentBrightness = self.get_state(self.args["light"][0], attribute="brightness", default=0)
+        if currentBrightness == None:
+            currentBrightness = 0
+
+        adjustedBrightness = float(currentBrightness) + power
 
         # Check what we change
         if adjustedBrightness <= 0:
