@@ -12,7 +12,7 @@ class Light(hass.Hass):
     def initialize(self):
         # Setup the PID controller
         self._pid = PID(2.0, 0.5, 2.0, setpoint=float(self.get_state(self.args["wantedLux"])))
-        self._pid.output_limits = (-10, 10)
+        self._pid.output_limits = (-10, 40)
 
         # Get presence state
         self._presence = self.is_present()
