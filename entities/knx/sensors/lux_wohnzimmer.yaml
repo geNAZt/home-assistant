@@ -1,0 +1,4 @@
+name: "Lux Wohnzimmer"
+state_address: "3/0/1"
+type: illuminance
+always_callback: true

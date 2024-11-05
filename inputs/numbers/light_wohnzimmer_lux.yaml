@@ -1,0 +1,7 @@
+name: Wohnzimmer Zielhelligkeit
+min: 0
+max: 300
+initial: 80
+step: 1
+unit_of_measurement: lx
+icon: mdi:desk-lamp-on
