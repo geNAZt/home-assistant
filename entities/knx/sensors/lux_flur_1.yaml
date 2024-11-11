@@ -1,0 +1,4 @@
+name: "Lux Flur 1"
+state_address: "9/6/3"
+type: illuminance
+always_callback: true

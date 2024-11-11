@@ -1,0 +1,10 @@
+name: "Light 6 Flur"
+address: "9/5/0"
+state_address: "9/5/1"
+brightness_address: "9/5/4"
+brightness_state_address: "9/5/5"
+color_temperature_address: "9/5/2"
+color_temperature_state_address: "9/5/3"
+color_temperature_mode: "relative"
+min_kelvin: 2700
+max_kelvin: 6700
