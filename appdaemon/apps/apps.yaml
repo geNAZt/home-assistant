@@ -81,3 +81,14 @@ heating_speisekammer:
   - sensor.temperature_speisekammer_floor_2
   roomSensors:
   - sensor.temperature_speisekammer
+heating_kueche:
+  module: heating
+  class: Heating
+  targetTemp: input_number.heating_kuche_degrees
+  allowedDiff: 1.0
+  output: switch.heating_kuche
+  securitySensors:
+  - sensor.temperature_kuche_floor_1
+  - sensor.temperature_kuche_floor_2
+  roomSensors:
+  - sensor.temperature_kuche
