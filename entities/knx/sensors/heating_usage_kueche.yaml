@@ -1,0 +1,5 @@
+name: "Heating Usage Küche"
+state_address: "2/7/2"
+type: active_energy
+always_callback: true
+state_class: total_increasing
