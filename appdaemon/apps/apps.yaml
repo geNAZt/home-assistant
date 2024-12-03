@@ -90,5 +90,6 @@ heating_kueche:
   securitySensors:
   - sensor.temperature_kuche_floor_1
   - sensor.temperature_kuche_floor_2
+  - sensor.temperature_kuche_floor_3
   roomSensors:
   - sensor.temperature_kuche
