@@ -84,7 +84,7 @@ heating_speisekammer:
 heating_kueche:
   module: heating
   class: Heating
-  targetTemp: input_number.heating_kuche_degrees
+  targetTemp: input_number.heating_kueche_degrees
   allowedDiff: 1.0
   output: switch.heating_kuche
   securitySensors:
