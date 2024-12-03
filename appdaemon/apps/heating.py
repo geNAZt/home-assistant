@@ -73,6 +73,7 @@ class Heating(hass.Hass):
         else:        
             # Check if we need to heat
             diff = self.target_temp() - self.room_temperature()
+            self.log("Diff temperature is %r" % diff)
             if self._heating and self.room_temperature() >= self.target_temp():       # We reached target temp
                 self._heating = False
             elif self._heating == False and diff > float(self.args["allowedDiff"]):   # The room is too cold we need to heat it
