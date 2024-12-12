@@ -61,9 +61,11 @@ class Heating(hass.Hass):
     def security_temperature(self):
         temperature = 0
         for sensor in self.args["securitySensors"]:
-            temperature += float(self.get_state(sensor))
+            temp = float(self.get_state(sensor))
+            if temp > temperature:
+                temp = temperature
 
-        return float(temperature / len(self.args["securitySensors"]))
+        return temperature
 
     def recalc(self, kwargs):
         # Check for security shutdown
