@@ -73,16 +73,19 @@ class Heating(hass.Hass):
             self.log("Turning off heat due to security")
             self._heating = False
         else:        
+            room_temp = self.room_temperature()
+            sec_temp = self.security_temperature()
+
             # Check if we need to heat
-            diff = self.target_temp() - self.room_temperature()
-            if self._heating and self.room_temperature() >= self.target_temp():       # We reached target temp
+            diff = self.target_temp() - room_temp
+            if self._heating and room_temp >= self.target_temp():       # We reached target temp
                 self._heating = False
             elif self._heating == False and diff > float(self.args["allowedDiff"]):   # The room is too cold we need to heat it
                 self.log("Room too cold starting to heat. Diff was %r" % diff)
                 self._heating = True
 
-            diffSecurity = self.room_temperature() - self.security_temperature()
-            if self._heating and diffSecurity > 1.2:
+            diffSecurity = room_temp - sec_temp
+            if self._heating and diffSecurity > 1.2 and sec_temp >= 16:
                 self._heating = False
                 self.log("Wanted to heat but diff between ceiling and floor temp is too high: %r" % diffSecurity)
 
