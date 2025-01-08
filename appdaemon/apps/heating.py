@@ -84,7 +84,7 @@ class Heating(hass.Hass):
                 self.log("Room too cold starting to heat. Diff was %r" % diff)
                 self._heating = True
 
-            diffSecurity = abs(room_temp - sec_temp)
+            diffSecurity = sec_temp - room_temp
             if self._heating and diffSecurity > 1.2 and sec_temp >= 10:
                 self._heating = False
                 self.log("Wanted to heat but diff between ceiling and floor temp is too high: %r" % diffSecurity)
