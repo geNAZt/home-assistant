@@ -66,7 +66,6 @@ class Heating(hass.Hass):
                         date = datetime.fromisoformat(data[0][0]['last_changed'])
                         diffTime = now.astimezone(timezone.utc) - date
                         rate_current = ((current_value - state) / float(diffTime.seconds)) * 60.0
-                        self.log("> %r: %r over %r seconds" % (sensor, rate_current, diffTime.seconds))
                         rate += rate_current
                     except ValueError:
                         pass
@@ -87,7 +86,6 @@ class Heating(hass.Hass):
                         date = datetime.fromisoformat(data[0][0]['last_changed'])
                         diffTime = now.astimezone(timezone.utc) - date
                         rate_current = ((current_value - state) / float(diffTime.seconds)) * 60.0
-                        self.log("> %r: %r over %r seconds" % (sensor, rate_current, diffTime.seconds))
                         if rate_current > rate:
                             rate = rate_current
                     except ValueError:
@@ -119,11 +117,7 @@ class Heating(hass.Hass):
         else:        
             room_temp = self.room_temperature()
             sec_temp = self.security_temperature()
-
-            room_temp_rate = self.room_temperature_rate()
             sec_temp_rate = self.security_temperature_rate()
-
-            self.log("Room temp rate: %r, Sec temp rate: %r" % (room_temp_rate, sec_temp_rate))
 
             # Check if we need to heat
             diff = self.target_temp() - room_temp
@@ -134,7 +128,7 @@ class Heating(hass.Hass):
                 self._heating = True
 
             diffSecurity = sec_temp - room_temp
-            if self._heating and diffSecurity > 6.0 and sec_temp >= 10:
+            if self._heating and sec_temp_rate > 0.025:
                 self._heating = False
                 self.log("Wanted to heat but diff between ceiling and floor temp is too high: %r" % diffSecurity)
 
