@@ -46,7 +46,7 @@ class Heating(hass.Hass):
     def is_security_shutdown(self):
         for sensor in self.args["securitySensors"]:
             state = self.get_state(sensor, default=0)
-            if float(state) > self.target_temp() + 1:
+            if float(state) > 26.5:
                 return True
             
         return False
