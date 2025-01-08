@@ -65,7 +65,7 @@ class Heating(hass.Hass):
                     state = float(point['state'])
                     date = datetime.fromisoformat(point['last_changed'])
                     diffTime = now.astimezone(timezone.utc) - date
-                    rate = ((current_value - state) / float(diffTime.seconds())) * 60.0
+                    rate = ((current_value - state) / float(diffTime.seconds)) * 60.0
                     self.log("> %r: %r" % (sensor, rate))
                 except ValueError:
                     pass
