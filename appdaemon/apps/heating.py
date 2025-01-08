@@ -57,7 +57,6 @@ class Heating(hass.Hass):
         now = datetime.now()
         for sensor in self.args["roomSensors"]:
             current_value = float(self.get_state(sensor))
-            temperature += current_value
             start_time =  now - timedelta(minutes = 30)
             data = self.get_history(entity_id = sensor, start_time = start_time)
             if len(data) > 0:
@@ -79,7 +78,6 @@ class Heating(hass.Hass):
         now = datetime.now()
         for sensor in self.args["securitySensors"]:
             current_value = float(self.get_state(sensor))
-            temperature += current_value
             start_time =  now - timedelta(minutes = 30)
             data = self.get_history(entity_id = sensor, start_time = start_time)
             if len(data) > 0:
