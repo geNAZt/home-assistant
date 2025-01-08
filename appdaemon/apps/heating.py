@@ -47,7 +47,6 @@ class Heating(hass.Hass):
         for sensor in self.args["securitySensors"]:
             state = self.get_state(sensor, default=0)
             if float(state) > self.target_temp() + 1:
-                self.log("Security sensor %r is %r" % (sensor, state))
                 return True
             
         return False
@@ -116,7 +115,8 @@ class Heating(hass.Hass):
     def recalc(self, kwargs):
         # Check for security shutdown
         if self.is_security_shutdown():
-            self.log("Turning off heat due to security")
+            if self._heating:
+              self.log("Turning off heat due to security")
             self._heating = False
         else:        
             room_temp = self.room_temperature()
