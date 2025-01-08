@@ -93,3 +93,14 @@ heating_kueche:
   - sensor.temperature_kuche_floor_3
   roomSensors:
   - sensor.temperature_kuche
+heating_wohnzimmer:
+  module: heating
+  class: Heating
+  targetTemp: input_number.heating_wohnzimmer_degrees
+  allowedDiff: 1.0
+  output: switch.heating_wohnzimmer
+  securitySensors:
+  - sensor.temperature_wohnzimmer_floor_1
+  - sensor.temperature_wohnzimmer_floor_2
+  roomSensors:
+  - sensor.temperature_wohnzimmer
