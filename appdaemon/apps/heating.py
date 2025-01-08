@@ -1,4 +1,4 @@
-import appdaemon.plugins.hass.hassapi as hass
+I'mimport appdaemon.plugins.hass.hassapi as hass
 import requests
 import json
 
@@ -85,7 +85,7 @@ class Heating(hass.Hass):
                 self._heating = True
 
             diffSecurity = abs(room_temp - sec_temp)
-            if self._heating and diffSecurity > 1.2 and sec_temp >= 16:
+            if self._heating and diffSecurity > 1.2 and sec_temp >= 10:
                 self._heating = False
                 self.log("Wanted to heat but diff between ceiling and floor temp is too high: %r" % diffSecurity)
 
