@@ -59,7 +59,7 @@ class Heating(hass.Hass):
             start_time = datetime.datetime.now() - timedelta(minutes = 30)
             data = self.get_history(entity_id = sensor, start_time = start_time)
             for point in data:
-                self.log("> %r" % point)
+                self.log("> %r: %r" % (point['last_changed'], point['state']))
 
         return float(temperature / len(self.args["roomSensors"]))
     
