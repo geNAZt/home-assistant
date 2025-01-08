@@ -54,15 +54,16 @@ class Heating(hass.Hass):
     
     def room_temperature(self):
         temperature = float(0)
+        now = datetime.now()
         for sensor in self.args["roomSensors"]:
             temperature += float(self.get_state(sensor))
-            start_time = datetime.now() - timedelta(minutes = 30)
+            start_time =  now - timedelta(minutes = 30)
             data = self.get_history(entity_id = sensor, start_time = start_time)
             for point in data[0]:
                 try:
                     state = float(point['state'])
                     date = datetime.fromisoformat(point['last_changed'])
-                    self.log("> %r: %r" % (date, state))
+                    self.log("> %r: %r" % (now - date, state))
                 except ValueError:
                     pass
 
