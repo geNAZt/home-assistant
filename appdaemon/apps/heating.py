@@ -52,23 +52,55 @@ class Heating(hass.Hass):
             
         return False
     
-    def room_temperature(self):
-        temperature = float(0)
+    def room_temperature_rate(self):
+        rate = float(0)
         now = datetime.now()
         for sensor in self.args["roomSensors"]:
             current_value = float(self.get_state(sensor))
             temperature += current_value
             start_time =  now - timedelta(minutes = 30)
             data = self.get_history(entity_id = sensor, start_time = start_time)
-            for point in data[0]:
-                try:
-                    state = float(point['state'])
-                    date = datetime.fromisoformat(point['last_changed'])
-                    diffTime = now.astimezone(timezone.utc) - date
-                    rate = ((current_value - state) / float(diffTime.seconds)) * 60.0
-                    self.log("> %r: %r over %r seconds" % (sensor, rate, diffTime.seconds))
-                except ValueError:
-                    pass
+            if len(data) > 0:
+                if len(data[0]) > 0:
+                    try:
+                        state = float(data[0][0]['state'])
+                        date = datetime.fromisoformat(data[0][0]['last_changed'])
+                        diffTime = now.astimezone(timezone.utc) - date
+                        rate_current = ((current_value - state) / float(diffTime.seconds)) * 60.0
+                        self.log("> %r: %r over %r seconds" % (sensor, rate_current, diffTime.seconds))
+                        rate += rate_current
+                    except ValueError:
+                        pass
+
+        return float(rate / len(self.args["roomSensors"]))
+    
+    def security_temperature_rate(self):
+        rate = float(0)
+        now = datetime.now()
+        for sensor in self.args["securitySensors"]:
+            current_value = float(self.get_state(sensor))
+            temperature += current_value
+            start_time =  now - timedelta(minutes = 30)
+            data = self.get_history(entity_id = sensor, start_time = start_time)
+            if len(data) > 0:
+                if len(data[0]) > 0:
+                    try:
+                        state = float(data[0][0]['state'])
+                        date = datetime.fromisoformat(data[0][0]['last_changed'])
+                        diffTime = now.astimezone(timezone.utc) - date
+                        rate_current = ((current_value - state) / float(diffTime.seconds)) * 60.0
+                        self.log("> %r: %r over %r seconds" % (sensor, rate_current, diffTime.seconds))
+                        if rate_current > rate:
+                            rate = rate_current
+                    except ValueError:
+                        pass
+
+        return rate
+
+    def room_temperature(self):
+        temperature = float(0)
+        for sensor in self.args["roomSensors"]:
+            temperature += float(self.get_state(sensor))
 
         return float(temperature / len(self.args["roomSensors"]))
     
@@ -89,6 +121,11 @@ class Heating(hass.Hass):
         else:        
             room_temp = self.room_temperature()
             sec_temp = self.security_temperature()
+
+            room_temp_rate = self.room_temperature_rate()
+            sec_temp_rate = self.security_temperature_rate()
+
+            self.log("Room temp rate: %r, Sec temp rate: %r" % (room_temp_rate, sec_temp_rate))
 
             # Check if we need to heat
             diff = self.target_temp() - room_temp
