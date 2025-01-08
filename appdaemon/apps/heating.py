@@ -103,9 +103,13 @@ class Heating(hass.Hass):
     def security_temperature(self):
         temperature = float(0)
         for sensor in self.args["securitySensors"]:
-            temp = float(self.get_state(sensor))
-            if temp > temperature:
-                temperature = temp
+            try:
+                temp = float(self.get_state(sensor))
+                if temp > temperature:
+                    temperature = temp
+            except ValueError:
+                self.log("Could not get %r" % sensor)
+                return 9999
 
         return temperature
 
