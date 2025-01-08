@@ -1,6 +1,7 @@
 import appdaemon.plugins.hass.hassapi as hass
-import requests
-import json
+import datetime
+
+from datetime import timedelta
 
 #
 # Heating control
@@ -55,6 +56,9 @@ class Heating(hass.Hass):
         temperature = float(0)
         for sensor in self.args["roomSensors"]:
             temperature += float(self.get_state(sensor))
+            start_time = datetime.datetime.now() - timedelta(minutes = 30)
+            data = self.get_history(entity_id = sensor, start_time = start_time)
+            self.log("%r" % data)
 
         return float(temperature / len(self.args["roomSensors"]))
     
