@@ -107,7 +107,7 @@ class Heating(hass.Hass):
                 temp = float(self.get_state(sensor))
                 if temp > temperature:
                     temperature = temp
-            except ValueError:
+            except TypeError:
                 self.log("Could not get %r" % sensor)
                 return 9999
 
