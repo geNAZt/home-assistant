@@ -64,7 +64,7 @@ class Heating(hass.Hass):
             temp = float(self.get_state(sensor))
             self.log("Security sensor %r  reading %r" % (sensor, temp))
             if temp > temperature:
-                temp = temperature
+                temperature = temp
 
         return temperature
 
