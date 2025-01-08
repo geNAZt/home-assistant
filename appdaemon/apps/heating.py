@@ -1,7 +1,7 @@
 import appdaemon.plugins.hass.hassapi as hass
 import datetime
 
-from datetime import timedelta
+from datetime import timedelta, datetime
 
 #
 # Heating control
@@ -61,7 +61,8 @@ class Heating(hass.Hass):
             for point in data[0]:
                 try:
                     state = float(point['state'])
-                    self.log("> %r: %r" % (point['last_changed'], state))
+                    date = datetime.fromisoformat(point['last_changed'])
+                    self.log("> %r: %r" % (date, state))
                 except ValueError:
                     pass
 
