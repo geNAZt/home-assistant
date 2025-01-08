@@ -52,14 +52,14 @@ class Heating(hass.Hass):
         return False
     
     def room_temperature(self):
-        temperature = 0
+        temperature = float(0)
         for sensor in self.args["roomSensors"]:
             temperature += float(self.get_state(sensor))
 
         return float(temperature / len(self.args["roomSensors"]))
     
     def security_temperature(self):
-        temperature = 0
+        temperature = float(0)
         for sensor in self.args["securitySensors"]:
             temp = float(self.get_state(sensor))
             if temp > temperature:
