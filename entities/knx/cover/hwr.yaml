@@ -1,7 +1,6 @@
 name: "Rollade HWR"
 move_long_address: "0/0/1"
 stop_address: "0/0/2"
-position_address: "0/0/3"
 position_state_address: "0/0/4"
 travelling_time_down: 16
 travelling_time_up: 16
