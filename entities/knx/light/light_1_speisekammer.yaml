@@ -1,10 +1,10 @@
 name: "Light 1 Speisekammer"
-address: "0/0/1"
-state_address: "0/0/2"
-brightness_address: "0/0/3"
-brightness_state_address: "0/0/4"
-color_temperature_address: "0/0/5"
-color_temperature_state_address: "0/0/6"
+address: "1/0/1"
+state_address: "1/0/2"
+brightness_address: "1/0/3"
+brightness_state_address: "1/0/4"
+color_temperature_address: "1/0/5"
+color_temperature_state_address: "1/0/6"
 color_temperature_mode: "relative"
 min_kelvin: 2700
 max_kelvin: 6700
