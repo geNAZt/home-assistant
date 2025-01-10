@@ -119,3 +119,13 @@ heating_wohnzimmer:
   - sensor.temperature_wohnzimmer_floor_2
   roomSensors:
   - sensor.temperature_wohnzimmer
+heating_buero_fabian:
+  module: heating
+  class: Heating
+  targetTemp: input_number.heating_buero_fabian_degrees
+  allowedDiff: 0.4
+  output: switch.heating_buero_fabian
+  securitySensors:
+  - sensor.temperature_buro_fabian_floor_1
+  roomSensors:
+  - sensor.temperature_buro_fabian
