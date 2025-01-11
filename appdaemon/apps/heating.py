@@ -130,9 +130,11 @@ class Heating(hass.Hass):
 
         # Check if we are paused
         if self._heating_halted_until > now_seconds:
-            self._heating_halted_until = 0.0
+            self.log("Turning off due to cooldown")
             self.turn_off(self.args["output"])
             return
+
+        self._heating_halted_until = 0.0
 
         # Check for security shutdown
         if heating and self.is_security_shutdown():
@@ -158,12 +160,16 @@ class Heating(hass.Hass):
 
         # Have we reached target temp?
         if heating and room_temp >= self.target_temp():       # We reached target temp
+            self.log("Reached target temp")
             self.turn_off(self.args["output"])
             return
 
         # Do we need to start heating?
         diff = self.target_temp() - room_temp
         if heating == False and diff > float(self.args["allowedDiff"]):
+            self.log("Starting to heat")
             self._heating_started = now_seconds
             self.turn_on(self.args["output"])
             return
+
+        self.log("Heating since %r" % (now_seconds - self._heating_started))
