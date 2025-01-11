@@ -120,12 +120,12 @@ class Heating(hass.Hass):
 
     def recalc(self, kwargs):
         heating = self.is_heating()
+        now_seconds = time.time()
 
         if heating:
           self.log("Heating since %r" % (now_seconds - self._heating_started))
 
         # Check for heating length
-        now_seconds = time.time()
         if heating and now_seconds - self._heating_started > 900:
             self._heating_halted_until = now_seconds
             self._heating_started = 0.0
