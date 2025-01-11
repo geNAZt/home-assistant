@@ -125,7 +125,7 @@ class Heating(hass.Hass):
             room_temp_rate = self.room_temperature_rate()
 
             self.log("Room temp rate: %r" % room_temp_rate)
-            if room_temp_rate < -0.035:
+            if room_temp_rate < -0.045:
                 # Open window?
                 self.log("Room has open window. Not heating...")
                 self._heating = False
