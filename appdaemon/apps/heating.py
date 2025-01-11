@@ -33,8 +33,8 @@ class Heating(hass.Hass):
 
         # Ensure that the heater is off
         self.turn_off(self.args["output"])
-        self._heating_started = 0
-        self._heating_halted_until = 0
+        self._heating_started = 0.0
+        self._heating_halted_until = 0.0
 
         # Ensure that we run at least once a minute
         self.run_every(self.recalc, "now", 5)
@@ -125,12 +125,12 @@ class Heating(hass.Hass):
         now_seconds = time.time()
         if heating and now_seconds - self._heating_started > 900:
             self._heating_halted_until = now_seconds
-            self._heating_started = 0
+            self._heating_started = 0.0
             self.log("Setting heating pause until %r" % self._heating_halted_until)
 
         # Check if we are paused
         if self._heating_halted_until > now_seconds:
-            self._heating_halted_until = 0
+            self._heating_halted_until = 0.0
             self.turn_off(self.args["output"])
             return
 
