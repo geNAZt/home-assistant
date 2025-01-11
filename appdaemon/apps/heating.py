@@ -122,6 +122,9 @@ class Heating(hass.Hass):
             room_temp = self.room_temperature()
             sec_temp = self.security_temperature()
             sec_temp_rate = self.security_temperature_rate()
+            room_temp_rate = self.room_temperature_rate()
+
+            self.log("Room temp rate: %r" % room_temp_rate)
 
             # Check if we need to heat
             diff = self.target_temp() - room_temp
