@@ -133,8 +133,9 @@ class Heating(hass.Hass):
 
         # Check if we are paused
         if self._heating_halted_until > now_seconds:
-            self.log("Turning off due to cooldown")
-            self.turn_off(self.args["output"])
+            if heating:
+                self.log("Turning off due to cooldown")
+                self.turn_off(self.args["output"])
             return
 
         self._heating_halted_until = 0.0
