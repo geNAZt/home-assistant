@@ -125,14 +125,18 @@ class Heating(hass.Hass):
             room_temp_rate = self.room_temperature_rate()
 
             self.log("Room temp rate: %r" % room_temp_rate)
-
-            # Check if we need to heat
-            diff = self.target_temp() - room_temp
-            if self._heating and room_temp >= self.target_temp():       # We reached target temp
+            if room_temp_rate < -0.035:
+                # Open window?
+                self.log("Room has open window. Not heating...")
                 self._heating = False
-            elif self._heating == False and diff > float(self.args["allowedDiff"]):   # The room is too cold we need to heat it
-                self.log("Room too cold starting to heat. Diff was %r" % diff)
-                self._heating = True
+            else:
+                # Check if we need to heat
+                diff = self.target_temp() - room_temp
+                if self._heating and room_temp >= self.target_temp():       # We reached target temp
+                    self._heating = False
+                elif self._heating == False and diff > float(self.args["allowedDiff"]):   # The room is too cold we need to heat it
+                    self.log("Room too cold starting to heat. Diff was %r" % diff)
+                    self._heating = True
 
             diffSecurity = sec_temp - room_temp
             if self._heating and sec_temp_rate > 0.025:
