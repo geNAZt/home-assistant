@@ -127,7 +127,7 @@ class Heating(hass.Hass):
 
         # Check for heating length
         if heating and now_seconds - self._heating_started > 900:
-            self._heating_halted_until = now_seconds
+            self._heating_halted_until = now_seconds + 5 * 60
             self._heating_started = 0.0
             self.log("Setting heating pause until %r" % self._heating_halted_until)
 
