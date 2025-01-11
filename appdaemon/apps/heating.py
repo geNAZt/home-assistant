@@ -4,6 +4,12 @@ import time
 
 from datetime import timedelta, datetime, timezone
 
+ALLOWED_DIFF = 0.1
+MAX_ON_TIME_SECONDS = 30*60
+PAUSE_TIME_SECONDS = 10*60
+SECURITY_OFF_RATE = 0.025
+WINDOW_OPEN_RATE = -0.045
+
 #
 # Heating control
 #
@@ -122,12 +128,9 @@ class Heating(hass.Hass):
         heating = self.is_heating()
         now_seconds = time.time()
 
-        if heating:
-          self.log("Heating since %r" % (now_seconds - self._heating_started))
-
         # Check for heating length
-        if heating and now_seconds - self._heating_started > 900:
-            self._heating_halted_until = now_seconds + 5 * 60
+        if heating and now_seconds - self._heating_started > MAX_ON_TIME_SECONDS:
+            self._heating_halted_until = now_seconds + PAUSE_TIME_SECONDS
             self._heating_started = 0.0
             self.log("Setting heating pause until %r" % self._heating_halted_until)
 
@@ -149,13 +152,13 @@ class Heating(hass.Hass):
         # Check for open window (heat leaking)
         if heating:
             room_temp_rate = self.room_temperature_rate()
-            if room_temp_rate < -0.045:
+            if room_temp_rate < WINDOW_OPEN_RATE:
                 self.log("Room has open window. Not heating...")
                 self.turn_off(self.args["output"])
                 return
 
         # Check if diff top to bottom is too strong (heat transfer)
-        if heating and self.security_temperature_rate() > 0.025:
+        if heating and self.security_temperature_rate() > SECURITY_OFF_RATE:
             self.log("Wanted to heat but diff between ceiling and floor temp is too high")
             self.turn_off(self.args["output"])
             return
@@ -170,7 +173,7 @@ class Heating(hass.Hass):
 
         # Do we need to start heating?
         diff = self.target_temp() - room_temp
-        if heating == False and diff > float(self.args["allowedDiff"]):
+        if heating == False and diff > ALLOWED_DIFF:
             self.log("Starting to heat")
             self._heating_started = now_seconds
             self.turn_on(self.args["output"])
