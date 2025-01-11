@@ -33,7 +33,8 @@ class Heating(hass.Hass):
 
         # Ensure that the heater is off
         self.turn_off(self.args["output"])
-        self._heating = False
+        self._heating_started = 0
+        self._heating_halted_until = 0
 
         # Ensure that we run at least once a minute
         self.run_every(self.recalc, "now", 5)
