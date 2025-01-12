@@ -1,4 +1,4 @@
-name: Solaredgee Battery Output Power
+name: Solaredge Battery Output Power
 unit_of_measurement: "kWh"
 device_class: "energy"
 state: >

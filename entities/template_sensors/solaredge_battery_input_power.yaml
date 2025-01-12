@@ -1,4 +1,4 @@
-name: Solaredgee Battery Input Power
+name: Solaredge Battery Input Power
 unit_of_measurement: "kWh"
 device_class: "energy"
 state: >
