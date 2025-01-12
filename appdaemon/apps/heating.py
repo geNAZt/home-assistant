@@ -5,7 +5,7 @@ import time
 from datetime import timedelta, datetime, timezone
 
 ALLOWED_DIFF = 0.1
-MAX_ON_TIME_SECONDS = 7*60
+MAX_ON_TIME_SECONDS = 15*60
 PAUSE_TIME_SECONDS = 15*60
 SECURITY_OFF_RATE = 0.025
 WINDOW_OPEN_RATE = -0.045
