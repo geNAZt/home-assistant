@@ -5,10 +5,9 @@ import time
 from datetime import timedelta, datetime, timezone
 
 ALLOWED_DIFF = 0.1
-MAX_ON_TIME_SECONDS = 15*60
-PAUSE_TIME_SECONDS = 15*60
 SECURITY_OFF_RATE = 0.025
 WINDOW_OPEN_RATE = -0.045
+TIME_SLOT_SECONDS = 30*60
 
 #
 # Heating control
@@ -23,6 +22,9 @@ class Heating(hass.Hass):
 
     _heating_started: float
     _heating_halted_until: float
+
+    _on_time: float
+    _off_time: float
 
     def initialize(self):
         self.log("Heating control loaded...")
@@ -42,8 +44,12 @@ class Heating(hass.Hass):
         self._heating_started = 0.0
         self._heating_halted_until = 0.0
 
+        # Calc on and off time
+        self._on_time = TIME_SLOT_SECONDS * float(self.args["onTimePWM"])
+        self._off_time = TIME_SLOT_SECONDS - self._on_time
+
         # Ensure that we run at least once a minute
-        self.run_every(self.recalc, "now", 5)
+        self.run_every(self.recalc, "now", 1)
 
     def onChangeRecalc(self, entity, attribute, old, new, kwargs):
         self.recalc(kwargs=None)
@@ -129,8 +135,8 @@ class Heating(hass.Hass):
         now_seconds = time.time()
 
         # Check for heating length
-        if heating and now_seconds - self._heating_started > MAX_ON_TIME_SECONDS:
-            self._heating_halted_until = now_seconds + PAUSE_TIME_SECONDS
+        if heating and now_seconds - self._heating_started > self._on_time:
+            self._heating_halted_until = now_seconds + self._off_time
             self._heating_started = 0.0
             self.log("Setting heating pause until %r" % self._heating_halted_until)
 
