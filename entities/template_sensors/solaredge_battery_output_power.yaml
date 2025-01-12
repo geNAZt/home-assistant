@@ -1,0 +1,10 @@
+name: Solaredgee Battery Output Power
+unit_of_measurement: "kWh"
+device_class: "energy"
+state: >
+  {% set energy = states('sensor.solaredge_gespeicherte_energie') | float %}
+  {% if energy > 0 %}
+  {{ energy }}
+  {% else %}
+  0
+  {% endif %}
