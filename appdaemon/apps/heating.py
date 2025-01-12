@@ -173,7 +173,7 @@ class Heating(hass.Hass):
 
         # Do we need to start heating?
         diff = self.target_temp() - room_temp
-        if heating == False and diff > ALLOWED_DIFF:
+        if heating == False and diff >= ALLOWED_DIFF:
             self.log("Starting to heat")
             self._heating_started = now_seconds
             self.turn_on(self.args["output"])
