@@ -1,9 +1,17 @@
 from html.parser import HTMLParser
 
 import requests
-
+import urllib3
 from waste_collection_schedule import Collection  # type: ignore[attr-defined]
 from waste_collection_schedule.service.ICS import ICS
+
+# With verify=True the POST fails due to a SSLCertVerificationError.
+# Using verify=False works, but is not ideal. The following links may provide a better way of dealing with this:
+# https://urllib3.readthedocs.io/en/1.26.x/advanced-usage.html#ssl-warnings
+# https://urllib3.readthedocs.io/en/1.26.x/user-guide.html#ssl
+# This line suppresses the InsecureRequestWarning when using verify=False
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
 
 TITLE = "Abfallwirtschaft Neckar-Odenwald-Kreis"
 DESCRIPTION = "Source for AWN (Abfallwirtschaft Neckar-Odenwald-Kreis)."
@@ -30,6 +38,16 @@ TEST_CASES = {
 SERVLET = (
     "https://athos.awn-online.de/WasteManagementNeckarOdenwald/WasteManagementServlet"
 )
+
+PARAM_TRANSLATIONS = {
+    "de": {
+        "city": "Ort",
+        "street": "Straße",
+        "house_number": "Hausnummer",
+        "address_suffix": "Hausnummerzusatz",
+    }
+}
+
 
 # Parser for HTML input (hidden) text
 class HiddenInputParser(HTMLParser):
@@ -64,6 +82,7 @@ class Source:
         r = session.get(
             SERVLET,
             params={"SubmitAction": "wasteDisposalServices", "InFrameMode": "TRUE"},
+            verify=False,
         )
         r.raise_for_status()
         r.encoding = "utf-8"
@@ -80,6 +99,7 @@ class Source:
         r = session.post(
             SERVLET,
             data=args,
+            verify=False,
         )
         r.raise_for_status()
 
@@ -97,6 +117,7 @@ class Source:
         r = session.post(
             SERVLET,
             data=args,
+            verify=False,
         )
         r.raise_for_status()
 
@@ -105,6 +126,7 @@ class Source:
         r = session.post(
             SERVLET,
             data=args,
+            verify=False,
         )
         r.raise_for_status()
 

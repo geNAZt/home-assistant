@@ -1,26 +1,23 @@
 import datetime
 import logging
+import re
 from os import getcwd
 from pathlib import Path
+from typing import Literal
 
 import requests
 from waste_collection_schedule import Collection  # type: ignore[attr-defined]
+from waste_collection_schedule.exceptions import (
+    SourceArgumentException,
+    SourceArgumentExceptionMultiple,
+    SourceArgumentNotFoundWithSuggestions,
+)
 from waste_collection_schedule.service.ICS import ICS
-from waste_collection_schedule.service.ICS_v1 import ICS_v1
 
 TITLE = "ICS"
 DESCRIPTION = "Source for ICS based schedules."
 URL = None
 TEST_CASES = {
-    "Dortmund, Dudenstr. 5": {
-        "url": "https://www.edg.de/ical/kalender.ics?Strasse=Dudenstr.&Hausnummer=5&Erinnerung=-1&Abfallart=1,2,3,4"
-    },
-    "Leipzig, Sandgrubenweg 27": {
-        "url": "https://stadtreinigung-leipzig.de/wir-kommen-zu-ihnen/abfallkalender/ical.ics?position_nos=38296&name=Sandgrubenweg%2027"
-    },
-    "Ludwigsburg": {
-        "url": "https://kundenportal.avl-lb.de/WasteManagementLudwigsburg/WasteManagementServiceServlet?ApplicationName=Calendar&SubmitAction=sync&StandortID=950230001&AboID=8188&Fra=BT;RT;PT;LT;GT"
-    },
     "Esslingen, Bahnhof": {
         "url": "https://api.abfall.io/?kh=DaA02103019b46345f1998698563DaAd&t=ics&s=1a862df26f6943997cef90233877a4fe"
     },
@@ -37,9 +34,6 @@ TEST_CASES = {
     "München, Bahnstr. 11": {
         "url": "https://www.awm-muenchen.de/entsorgen/abfuhrkalender?tx_awmabfuhrkalender_abfuhrkalender%5Bhausnummer%5D=11&tx_awmabfuhrkalender_abfuhrkalender%5Bleerungszyklus%5D%5BB%5D=1%2F2%3BU&tx_awmabfuhrkalender_abfuhrkalender%5Bleerungszyklus%5D%5BP%5D=1%2F2%3BG&tx_awmabfuhrkalender_abfuhrkalender%5Bleerungszyklus%5D%5BR%5D=001%3BU&tx_awmabfuhrkalender_abfuhrkalender%5Bsection%5D=ics&tx_awmabfuhrkalender_abfuhrkalender%5Bsinglestandplatz%5D=false&tx_awmabfuhrkalender_abfuhrkalender%5Bstandplatzwahl%5D=true&tx_awmabfuhrkalender_abfuhrkalender%5Bstellplatz%5D%5Bbio%5D=70024507&tx_awmabfuhrkalender_abfuhrkalender%5Bstellplatz%5D%5Bpapier%5D=70024507&tx_awmabfuhrkalender_abfuhrkalender%5Bstellplatz%5D%5Brestmuell%5D=70024507&tx_awmabfuhrkalender_abfuhrkalender%5Bstrasse%5D=bahnstr.&tx_awmabfuhrkalender_abfuhrkalender%5Byear%5D={%Y}",
         "version": 1,
-    },
-    "Buxtehude, Am Berg": {
-        "url": "https://abfall.landkreis-stade.de/api_v2/collection_dates/1/ort/10/strasse/90/hausnummern/1/abfallarten/R02-R04-B02-D04-D12-P04-R12-R14-W0-R22-R24-R31/kalender.ics"
     },
     #    "Hausmüllinfo: ASR Chemnitz": {
     #        "url": "https://asc.hausmuell.info/ics/ics.php",
@@ -88,22 +82,13 @@ TEST_CASES = {
         },
         "year_field": "year",
     },
-    "Detmold": {
-        "url": "https://abfuhrkalender.detmold.de/icsmaker.php",
-        "method": "GET",
-        "params": {"strid": 338},
-        "year_field": "year",
-    },
-    "EAW Rheingau Taunus": {
-        "url": "https://www.eaw-rheingau-taunus.de/abfallsammlung/abfuhrtermine/feed.ics?tx_vierwdeaw_garbagecalendarics%5Baction%5D=ics&tx_vierwdeaw_garbagecalendarics%5Bcontroller%5D=GarbageCalendar&tx_vierwdeaw_garbagecalendarics%5Bstreet%5D=38",
-        "split_at": ",",
-    },
-    "Recollect, Ottawa": {
+    "ReCollect, Ottawa": {
         "url": "https://recollect.a.ssl.fastly.net/api/places/BCCDF30E-578B-11E4-AD38-5839C200407A/services/208/events.en.ics",
-        "split_at": "\\, [and ]*",
+        "split_at": "\\, (?:and )?|(?: and )",
     },
-    "Frankfurt am Main, Achenbachstrasse 3": {
-        "url": "https://www.fes-frankfurt.de/abfallkalender/QWNoZW5iYWNoc3RyLnwzfDYwNTk2.ics"
+    "ReCollect, Simcoe County": {
+        "url": "https://recollect.a.ssl.fastly.net/api/places/08E862E8-8190-11E2-A8A6-C758AE7205AF/services/226/events.en.ics",
+        "split_at": "\\, (?:and )?|(?: and )",
     },
     "Erlensee, Am Haspel": {
         "url": "https://sperrmuell.erlensee.de/?type=reminder",
@@ -125,29 +110,60 @@ HEADERS = {"user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
 _LOGGER = logging.getLogger(__name__)
 
 
+PARAM_TRANSLATIONS = {
+    "en": {
+        "version": "(Deprecated) Version, has no effect anymore",
+    },
+    "de": {
+        "url": "URL",
+        "file": "Datei",
+        "offset": "Offset",
+        "params": "Parameter",
+        "year_field": "Jahresfeld",
+        "method": "Methode",
+        "regex": "Regulärer Ausdruck",
+        "title_template": "Titelvorlage",
+        "split_at": "Trennen bei",
+        "version": "(Veraltet) Version, hat keine Auswirkung mehr",
+        "verify_ssl": "SSL-Verifizierung aktivieren",
+        "headers": "Headers",
+    },
+}
+
+
 class Source:
     def __init__(
         self,
-        url=None,
-        file=None,
-        offset=None,
-        params=None,
-        year_field=None,
-        method="GET",
-        regex=None,
-        split_at=None,
-        version=2,
-        verify_ssl=True,
-        headers={},
+        url: str | None = None,
+        file: str | None = None,
+        offset: int | None = None,
+        params: dict | None = None,
+        year_field: str | None = None,
+        method: Literal["POST", "GET"] = "GET",
+        regex: str | None = None,
+        title_template: str = "{{date.summary}}",
+        split_at: str | None = None,
+        version: int | None = None,
+        verify_ssl: bool = True,
+        headers: dict = {},
     ):
-        self._url = url
+        self._url = re.sub("^webcal", "https", url) if url else None
         self._file = file
         if bool(self._url is not None) == bool(self._file is not None):
-            raise RuntimeError("Specify either url or file")
-        if version == 1:
-            self._ics = ICS_v1(offset=offset, split_at=split_at, regex=regex)
-        else:
-            self._ics = ICS(offset=offset, split_at=split_at, regex=regex)
+            raise SourceArgumentExceptionMultiple(
+                ("url", "file"), "Specify either url or file"
+            )
+        if version is not None:
+            _LOGGER.warning(
+                "The 'version' parameter is deprecated and has no effect anymore."
+            )
+
+        self._ics = ICS(
+            offset=offset,
+            split_at=split_at,
+            regex=regex,
+            title_template=title_template,
+        )
         self._params = params
         self._year_field = year_field  # replace this field in params with current year
         self._method = method  # The method to send the params
@@ -167,7 +183,10 @@ class Source:
                 # replace year in params
                 if self._year_field is not None:
                     if self._params is None:
-                        raise RuntimeError("year_field specified without params")
+                        raise SourceArgumentExceptionMultiple(
+                            ("params", "year_field"),
+                            "year_field specified without params",
+                        )
                     self._params[self._year_field] = str(now.year)
 
                 entries = self.fetch_url(url, self._params)
@@ -200,9 +219,12 @@ class Source:
                 url, data=params, headers=self._headers, verify=self._verify_ssl
             )
         else:
-            raise RuntimeError(
-                "Error: unknown method to fetch URL, use GET or POST; got {self._method}"
+            raise SourceArgumentNotFoundWithSuggestions(
+                "method",
+                self._method,
+                ["GET", "POST"],
             )
+
         r.raise_for_status()
 
         if r.apparent_encoding == "UTF-8-SIG":
@@ -212,13 +234,17 @@ class Source:
 
         return self._convert(r.text)
 
-    def fetch_file(self, file):
+    def fetch_file(self, file: str):
         try:
-            f = open(file)
+            path = Path(file)
+            with path.open() as f:
+                text = f.read()
         except FileNotFoundError as e:
             _LOGGER.error(f"Working directory: '{getcwd()}'")
-            raise
-        return self._convert(f.read())
+            raise SourceArgumentException(
+                "file", f"File '{path.resolve()}' not found"
+            ) from e
+        return self._convert(text)
 
     def _convert(self, data):
         dates = self._ics.convert(data)

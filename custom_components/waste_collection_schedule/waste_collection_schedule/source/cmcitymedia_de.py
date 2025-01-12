@@ -1,5 +1,4 @@
 import datetime
-import ssl
 
 import requests
 from waste_collection_schedule import Collection
@@ -13,22 +12,19 @@ TEST_CASES = {
     "Blankenheim": {"hpid": 415, "realmid": 41500},
     "Oberstadion": {"hpid": 447, "district": 1349},
 }
+TEST_CASES.update({s["region"]: {"hpid": s["hpid"]} for s in SERVICE_MAP})
 
 
 def EXTRA_INFO():
-    return [{"title": s["region"], "url": URL} for s in SERVICE_MAP]
+    return [
+        {"title": s["region"], "url": URL, "default_params": {"hpid": s["hpid"]}}
+        for s in SERVICE_MAP
+        if not s.get("disabled", False)
+    ]
 
 
-API_URL = "https://sslslim.cmcitymedia.de/v1/{}/waste/{}/dates"
+API_URL = "http://slim.cmcitymedia.de/v1/{}/waste/{}/dates"
 DATE_FORMAT = "%Y-%m-%d"
-
-
-class TLSAdapter(requests.adapters.HTTPAdapter):
-    def init_poolmanager(self, *args, **kwargs):
-        ctx = ssl.create_default_context()
-        ctx.set_ciphers("DEFAULT@SECLEVEL=1")
-        kwargs["ssl_context"] = ctx
-        return super().init_poolmanager(*args, **kwargs)
 
 
 class Source:
@@ -39,15 +35,12 @@ class Source:
         )
         self.realmid = realmid if realmid else self.service["realm"]
         self.district = district
-        self.session = requests.Session()
-        self.session.mount("https://", TLSAdapter())
 
     def fetch(self):
-
         entries = []
 
         district_param = f"?district={self.district}" if self.district else ""
-        result = self.session.get(
+        result = requests.get(
             API_URL.format(self.hpid, self.service["realm"]) + district_param
         )
 

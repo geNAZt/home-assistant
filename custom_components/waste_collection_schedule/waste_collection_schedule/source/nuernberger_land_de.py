@@ -1,5 +1,5 @@
 import requests
-from waste_collection_schedule import Collection
+from waste_collection_schedule import Collection  # type: ignore[attr-defined]
 from waste_collection_schedule.service.ICS import ICS
 
 TITLE = "Abfallwirtschaft Nürnberger Land"
@@ -12,6 +12,7 @@ TEST_CASES = {
 }
 
 API_URL = "https://abfuhrkalender.nuernberger-land.de/waste_calendar"
+FILTER = "rm:bio:p:dsd:poison"
 
 ICON_MAP = {
     "Restmüll": "mdi:trash-can",
@@ -29,7 +30,7 @@ class Source:
 
     def fetch(self):
         # fetch the ical
-        r = requests.get(f"{API_URL}/ical?id={self._id}")
+        r = requests.get(f"{API_URL}/ical?id={self._id}&filter={FILTER}")
         r.raise_for_status()
 
         # replace non-ascii character in UID, otherwise ICS converter will fail
@@ -39,7 +40,7 @@ class Source:
                 line = line.replace("ä", "ae")
                 line = line.replace("ö", "oe")
                 line = line.replace("ü", "ue")
-            ics += line
+            ics += line.strip()
             ics += "\n"
 
         dates = self._ics.convert(ics)

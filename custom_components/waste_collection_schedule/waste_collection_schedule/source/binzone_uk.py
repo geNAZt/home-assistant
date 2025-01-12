@@ -29,7 +29,7 @@ TEST_CASES = {
 ICON_MAP = {
     "GREY BIN": "mdi:trash-can",
     "GREEN BIN": "mdi:recycle",
-    "GARDEN WASTE": "mdi:leaf",
+    "GARDEN WASTE BIN": "mdi:leaf",
     "SMALL ELECTRICAL ITEMS": "mdi:hair-dryer",
     "FOOD BIN": "mdi:food-apple",
     "TEXTILES": "mdi:hanger",
@@ -78,7 +78,7 @@ class Source:
             bin_info = bin.text.split("-")
             try:
                 # No date validation since year isn't included on webpage
-                bin_date = bin_info[0].strip()
+                bin_date = bin_info[0].strip().replace("Your usual collection day is different this week", "")
                 bin_type = bin_info[1].strip()
             except Exception as ex:
                 raise ValueError(f"Error parsing bin data: {ex}")

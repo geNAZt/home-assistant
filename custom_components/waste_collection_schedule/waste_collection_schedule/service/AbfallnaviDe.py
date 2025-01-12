@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 
-import datetime
 import json
+from datetime import datetime
 
 import requests
+from waste_collection_schedule.exceptions import (
+    SourceArgumentNotFoundWithSuggestions,
+    SourceArgumentRequiredWithSuggestions,
+)
 
 SERVICE_DOMAINS = [
     {
@@ -12,14 +16,24 @@ SERVICE_DOMAINS = [
         "service_id": "aachen",
     },
     {
-        "title": "AWA Entsorgungs GmbH",
-        "url": "https://www.awa-gmbh.de/",
-        "service_id": "zew2",
+        "title": "Abfallwirtschaft Stadt Nürnberg",
+        "url": "https://www.nuernberg.de/",
+        "service_id": "nuernberg",
     },
     {
         "title": "Abfallwirtschaftsbetrieb Bergisch Gladbach",
         "url": "https://www.bergischgladbach.de/",
         "service_id": "aw-bgl2",
+    },
+    {
+        "title": "AWA Entsorgungs GmbH",
+        "url": "https://www.awa-gmbh.de/",
+        "service_id": "zew2",
+    },
+    {
+        "title": "AWG Kreis Warendorf",
+        "url": "https://www.awg-waf.de/",
+        "service_id": "krwaf",
     },
     {
         "title": "Bergischer Abfallwirtschaftverbund",
@@ -47,9 +61,19 @@ SERVICE_DOMAINS = [
         "service_id": "dorsten",
     },
     {
-        "title": "Gütersloh",
+        "title": "EGW Westmünsterland",
+        "url": "https://www.egw.de/",
+        "service_id": "wml2",
+    },
+    {
+        "title": "Gütersloh (Stadt)",
         "url": "https://www.guetersloh.de/",
         "service_id": "gt2",
+    },
+    {
+        "title": "Kreis Gütersloh GEG",
+        "url": "https://www.geg-gt.de/",
+        "service_id": "krwaf",
     },
     {
         "title": "Halver",
@@ -62,29 +86,19 @@ SERVICE_DOMAINS = [
         "service_id": "krhs",
     },
     {
-        "title": "AWG Kreis Warendorf",
-        "url": "https://www.awg-waf.de/",
-        "service_id": "krwaf",
+        "title": "Kronberg im Taunus",
+        "url": "https://www.kronberg.de/",
+        "service_id": "kronberg",
     },
     {
-        "title": "Gemeinde Lindlar",
-        "url": "https://www.lindlar.de/",
-        "service_id": "lindlar",
+        "title": "MHEG Mülheim an der Ruhr",
+        "url": "https://www.mheg.de/",
+        "service_id": "muelheim",
     },
     {
         "title": "Stadt Norderstedt",
         "url": "https://www.betriebsamt-norderstedt.de/",
         "service_id": "nds",
-    },
-    {
-        "title": "Abfallwirtschaft Stadt Nürnberg",
-        "url": "https://www.nuernberg.de/",
-        "service_id": "nuernberg",
-    },
-    {
-        "title": "WBO Wirtschaftsbetriebe Oberhausen",
-        "url": "https://www.wbo-online.de/",
-        "service_id": "oberhausen",
     },
     {
         "title": "Kreis Pinneberg",
@@ -106,20 +120,40 @@ SERVICE_DOMAINS = [
         "url": "https://www.stl-luedenscheid.de/",
         "service_id": "stl",
     },
+    {
+        "title": "GWA - Kreis Unna mbH",
+        "url": "https://www.gwa-online.de/",
+        "service_id": "unna",
+    },
+    {
+        "title": "Kreis Viersen",
+        "url": "https://www.kreis-viersen.de/",
+        "service_id": "viersen",
+    },
+    {
+        "title": "WBO Wirtschaftsbetriebe Oberhausen",
+        "url": "https://www.wbo-online.de/",
+        "service_id": "oberhausen",
+    },
+    {
+        "title": "ZEW Zweckverband Entsorgungsregion West",
+        "url": "https://zew-entsorgung.de/",
+        "service_id": "zew2",
+    },
     #    {
     #        "title": "'Stadt Straelen",
     #        "url": "https://www.straelen.de/",
     #        "service_id": "straelen",
     #    },
-    #    {
-    #        "title": "Kreis Viersen",
-    #        "url": "https://www.kreis-viersen.de/",
-    #        "service_id": "viersen",
-    #    },
     {
-        "title": "EGW Westmünsterland",
-        "url": "https://www.egw.de/",
-        "service_id": "wml2",
+        "title": "Stadt Cuxhaven",
+        "url": "https://www.cuxhaven.de/",
+        "service_id": "cux",
+    },
+    {
+        "title": "Stadt Frankenthal",
+        "url": "https://www.frankenthal.de/",
+        "service_id": "frankenthal",
     },
 ]
 
@@ -128,10 +162,23 @@ class AbfallnaviDe:
     def __init__(self, service_domain):
         self._service_domain = service_domain
         self._service_url = f"https://{service_domain}-abfallapp.regioit.de/abfall-app-{service_domain}/rest"
+        self._service_url_fallback = (
+            f"https://abfallapp.regioit.de/abfall-app-{service_domain}/rest"
+        )
 
     def _fetch(self, path, params=None):
-        r = requests.get(f"{self._service_url}/{path}", params=params)
+        try:
+            r = requests.get(f"{self._service_url}/{path}", params=params)
+        except requests.exceptions.ConnectionError:
+            self._service_url = self._service_url_fallback
+            r = requests.get(f"{self._service_url}/{path}", params=params)
         r.encoding = "utf-8"  # requests doesn't guess the encoding correctly
+        if r.status_code == 404:
+            raise SourceArgumentNotFoundWithSuggestions(
+                "service",
+                self._service_domain,
+                [s["service_id"] for s in SERVICE_DOMAINS],
+            )
         return r.text
 
     def _fetch_json(self, path, params=None):
@@ -148,7 +195,12 @@ class AbfallnaviDe:
     def get_city_id(self, city):
         """Return id for given city string."""
         cities = self.get_cities()
-        return self._find_in_inverted_dict(cities, city)
+        city_id = self._find_in_inverted_dict(cities, city)
+        if not city_id:
+            raise SourceArgumentNotFoundWithSuggestions(
+                "city", city, list(cities.values())
+            )
+        return city_id
 
     def get_streets(self, city_id):
         """Return all streets of a city."""
@@ -158,10 +210,24 @@ class AbfallnaviDe:
             result[street["id"]] = street["name"]
         return result
 
-    def get_street_id(self, city_id, street):
-        """Return id for given street string."""
+    def get_street_ids(self, city_id, street):
+        """Return ids for given street string.
+
+        may return multiple on change of id (may occur on year change)
+        """
         streets = self.get_streets(city_id)
-        return self._find_in_inverted_dict(streets, street)
+        if len(streets) == 1:
+            return list(streets.keys())
+        if street is None:
+            raise SourceArgumentRequiredWithSuggestions(
+                "street", "street is required of this city", list(streets.values())
+            )
+        matches = [id for id, name in streets.items() if name == street]
+        if len(matches) == 0:
+            raise SourceArgumentNotFoundWithSuggestions(
+                "street", street, list(streets.values())
+            )
+        return matches
 
     def get_house_numbers(self, street_id):
         """Return all house numbers of a street."""
@@ -175,7 +241,23 @@ class AbfallnaviDe:
     def get_house_number_id(self, street_id, house_number):
         """Return id for given house number string."""
         house_numbers = self.get_house_numbers(street_id)
-        return self._find_in_inverted_dict(house_numbers, house_number)
+        if len(house_numbers) == 0:
+            return None
+        if len(house_numbers) == 1:
+            return list(house_numbers.keys())[0]
+        if house_number is None:
+            raise SourceArgumentRequiredWithSuggestions(
+                "house_number",
+                "house number is required for this street",
+                list(house_numbers.values()),
+            )
+        id = self._find_in_inverted_dict(house_numbers, house_number)
+        if id is None:
+            raise SourceArgumentNotFoundWithSuggestions(
+                "house_number", house_number, list(house_numbers.values())
+            )
+
+        return id
 
     def get_waste_types(self):
         waste_types = self._fetch_json("fraktionen")
@@ -198,7 +280,7 @@ class AbfallnaviDe:
 
         entries = []
         for r in results:
-            date = datetime.datetime.strptime(r["datum"], "%Y-%m-%d").date()
+            date = datetime.strptime(r["datum"], "%Y-%m-%d").date()
             fraktion = waste_types[r["bezirk"]["fraktionId"]]
             entries.append([date, fraktion])
         return entries
@@ -213,23 +295,22 @@ class AbfallnaviDe:
         """Get dates by strings only for convenience."""
         # find city_id
         city_id = self.get_city_id(city)
-        if city_id is None:
-            raise Exception(f"No id found for city: {city}")
 
         # find street_id
-        street_id = self.get_street_id(city_id, street)
-        if street_id is None:
-            raise Exception(f"No id found for street: {street}")
+        street_ids = self.get_street_ids(city_id, street)
 
-        # find house_number_id (which is optional: not all house number do have an id)
-        house_number_id = self.get_house_number_id(street_id, house_number)
+        dates = []
+        for street_id in street_ids:
+            # find house_number_id (which is optional: not all house number do have an id)
+            house_number_id = self.get_house_number_id(street_id, house_number)
 
-        # return dates for specific house number of street if house number
-        # doesn't have an own id
-        if house_number_id is not None:
-            return self.get_dates_by_house_number_id(house_number_id)
-        else:
-            return self.get_dates_by_street_id(street_id)
+            # return dates for specific house number of street if house number
+            # doesn't have an own id
+            if house_number_id is not None:
+                dates += self.get_dates_by_house_number_id(house_number_id)
+            else:
+                dates += self.get_dates_by_street_id(street_id)
+        return dates
 
     def _find_in_inverted_dict(self, mydict, value):
         inverted_dict = dict(map(reversed, mydict.items()))
@@ -240,7 +321,7 @@ def main():
     aachen = AbfallnaviDe("aachen")
     print(aachen.get_dates("Aachen", "Abteiplatz", "7"))
 
-    lindlar = AbfallnaviDe("lindlar")
+    lindlar = AbfallnaviDe("bav")
     print(lindlar.get_dates("Lindlar", "Aggerweg"))
 
     roe = AbfallnaviDe("roe")

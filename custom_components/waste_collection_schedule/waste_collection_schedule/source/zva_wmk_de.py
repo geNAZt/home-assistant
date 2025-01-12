@@ -13,6 +13,13 @@ TEST_CASES = {
     "Vockerode": {"city": "Meißner - Vockerode", "street": "Feuerwehr"},
 }
 
+PARAM_TRANSLATIONS = {
+    "de": {
+        "street": "Straße",
+        "city": "Ort",
+    }
+}
+
 
 class Source:
     def __init__(self, city, street):
@@ -28,17 +35,26 @@ class Source:
         entries = self._fetch_year(today.year)
         if today.month == 12:
             entries.extend(self._fetch_year(today.year + 1))
-
         return entries
 
     def _fetch_year(self, year):
-        if year == 2022:
-            yearstr = ""
-            street = self._street.upper()
-        else:
-            yearstr = f"-{year}"
-            street = self._street
+        match year:
+                case 2021:
+                        yearstr="-2021"
+                case 2023:
+                        yearstr="-2023"
+                case 2024:
+                        yearstr=""
+                case 2025:
+                        yearstr="-2020"
+                case _:
+                        yearstr="-2020"
+        try:
+            return self._fetch_yearstr(yearstr, self._street)
+        except Exception:
+            return self._fetch_yearstr("", self._street.upper())
 
+    def _fetch_yearstr(self, yearstr, street):
         params = {"city": self._city, "street": street, "type": "all", "link": "ical"}
 
         r = requests.get(
@@ -47,6 +63,8 @@ class Source:
         r.raise_for_status()
 
         dates = self._ics.convert(r.text)
+        if not dates:
+            raise ValueError("No entries found")
 
         entries = []
         for d in dates:
