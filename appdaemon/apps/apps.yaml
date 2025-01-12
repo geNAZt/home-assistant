@@ -100,7 +100,7 @@ heating_kueche:
   module: heating
   class: Heating
   targetTemp: input_number.heating_kueche_degrees
-  onTimePWM: 0.8
+  onTimePWM: 0.7
   output: switch.heating_kuche
   securitySensors:
   - sensor.temperature_kuche_floor_1
