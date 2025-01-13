@@ -6,7 +6,7 @@ from datetime import timedelta, datetime, timezone
 
 ALLOWED_DIFF = 0.1
 SECURITY_OFF_RATE = 0.025
-WINDOW_OPEN_RATE = -0.045
+WINDOW_OPEN_RATE = -0.025
 TIME_SLOT_SECONDS = 30*60
 
 #
@@ -159,7 +159,6 @@ class Heating(hass.Hass):
 
         # Check for open window (heat leaking)
         room_temp_rate = self.room_temperature_rate()
-        self.log("Room temp rate %r" % room_temp_rate)
         if room_temp_rate < WINDOW_OPEN_RATE:
             if heating:
                 self.log("Room has open window. Not heating...")
