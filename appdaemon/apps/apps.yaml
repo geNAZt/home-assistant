@@ -100,7 +100,7 @@ heating_kueche:
   module: heating
   class: Heating
   targetTemp: input_number.heating_kueche_degrees
-  onTimePWM: 0.7
+  onTimePWM: 0.65
   output: switch.heating_kuche
   securitySensors:
   - sensor.temperature_kuche_floor_1
@@ -112,7 +112,7 @@ heating_wohnzimmer:
   module: heating
   class: Heating
   targetTemp: input_number.heating_wohnzimmer_degrees
-  onTimePWM: 0.2
+  onTimePWM: 0.1
   output: switch.heating_wohnzimmer
   securitySensors:
   - sensor.temperature_wohnzimmer_floor_1
@@ -123,7 +123,7 @@ heating_buero_fabian:
   module: heating
   class: Heating
   targetTemp: input_number.heating_buero_fabian_degrees
-  onTimePWM: 0.2
+  onTimePWM: 0.1
   output: switch.heating_buero_fabian
   securitySensors:
   - sensor.temperature_buro_fabian_floor_1
