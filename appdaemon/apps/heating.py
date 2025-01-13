@@ -158,12 +158,12 @@ class Heating(hass.Hass):
             return
 
         # Check for open window (heat leaking)
-        if heating:
-            room_temp_rate = self.room_temperature_rate()
-            if room_temp_rate < WINDOW_OPEN_RATE:
+        room_temp_rate = self.room_temperature_rate()
+        if room_temp_rate < WINDOW_OPEN_RATE:
+            if heating:
                 self.log("Room has open window. Not heating...")
                 self.turn_off(self.args["output"])
-                return
+            return
 
         # Check if diff top to bottom is too strong (heat transfer)
         if heating and self.security_temperature_rate() > SECURITY_OFF_RATE:
