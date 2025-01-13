@@ -112,7 +112,7 @@ heating_wohnzimmer:
   module: heating
   class: Heating
   targetTemp: input_number.heating_wohnzimmer_degrees
-  onTimePWM: 0.15
+  onTimePWM: 0.2
   output: switch.heating_wohnzimmer
   securitySensors:
   - sensor.temperature_wohnzimmer_floor_1
