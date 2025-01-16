@@ -129,3 +129,13 @@ heating_buero_fabian:
   - sensor.temperature_buro_fabian_floor_1
   roomSensors:
   - sensor.temperature_buro_fabian
+heating_bad:
+  module: heating
+  class: Heating
+  targetTemp: input_number.heating_bad_degrees
+  onTimePWM: 0.03
+  output: switch.heating_bad
+  securitySensors:
+  - sensor.temperature_bad
+  roomSensors:
+  - sensor.temperature_bad
