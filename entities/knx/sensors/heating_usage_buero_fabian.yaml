@@ -1,0 +1,5 @@
+name: "Heating Usage Buero Fabian"
+state_address: "4/7/2"
+type: active_energy
+always_callback: true
+state_class: total_increasing
