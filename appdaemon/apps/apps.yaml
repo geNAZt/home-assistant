@@ -133,7 +133,7 @@ heating_bad:
   module: heating
   class: Heating
   targetTemp: input_number.heating_bad_degrees
-  onTimePWM: 0.1
+  onTimePWM: 0.05
   output: switch.heating_bad
   securitySensors:
   - sensor.temperature_bad
