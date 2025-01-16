@@ -1,0 +1,4 @@
+name: "Lux Büro Merja"
+state_address: "5/2/1"
+type: illuminance
+always_callback: true
