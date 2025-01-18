@@ -7,7 +7,7 @@ from datetime import timedelta, datetime, timezone
 ALLOWED_DIFF = 0.1
 SECURITY_OFF_RATE = 0.025
 WINDOW_OPEN_RATE = -0.02
-TIME_SLOT_SECONDS = 30*60
+TIME_SLOT_SECONDS = 10*60
 
 #
 # Heating control
