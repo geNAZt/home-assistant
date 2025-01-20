@@ -156,9 +156,10 @@ class Heating(hass.Hass):
         self._heating_halted_until = 0.0
 
         # Check for security shutdown
-        if heating and self.is_security_shutdown():
-            self.log("Turning off heat due to security")
-            self.turn_off(self.args["output"])
+        if self.is_security_shutdown():
+            if heating:
+                self.log("Turning off heat due to security")
+                self.turn_off(self.args["output"])
             return
 
         # Check for open window (heat leaking)
@@ -170,17 +171,19 @@ class Heating(hass.Hass):
             return
 
         # Check if diff top to bottom is too strong (heat transfer)
-        if heating and self.security_temperature_rate() > SECURITY_OFF_RATE:
-            self.log("Wanted to heat but diff between ceiling and floor temp is too high")
-            self.turn_off(self.args["output"])
+        if self.security_temperature_rate() > SECURITY_OFF_RATE:
+            if heating:
+                self.log("Wanted to heat but diff between ceiling and floor temp is too high")
+                self.turn_off(self.args["output"])
             return
 
         room_temp = self.room_temperature()
 
         # Have we reached target temp?
-        if heating and room_temp >= self.target_temp():       # We reached target temp
-            self.log("Reached target temp")
-            self.turn_off(self.args["output"])
+        if room_temp >= self.target_temp():       # We reached target temp
+            if heating:
+                self.log("Reached target temp")
+                self.turn_off(self.args["output"])
             return
 
         # Do we need to start heating?
