@@ -37,7 +37,7 @@ class Heating(hass.Hass):
         # Attach a listener to all room sensors
         for sensor in self.args["roomSensors"]:
             sens = self.get_entity(sensor)
-            sens.listen_state(self.onChangeRecalc)
+            sens.listen_state(self.onRoomChangeRecalc)
 
         # Ensure that the heater is off
         self.turn_off(self.args["output"])
@@ -56,9 +56,27 @@ class Heating(hass.Hass):
     def onChangeRecalc(self, entity, attribute, old, new, kwargs):
         self.recalc(kwargs=None)
 
+    def onRoomChangeRecalc(self, entity, attribute, old, new, kwargs):
         # Alpha functionality
-        self.log("Attribute %r changed from %r to %r" % (attribute, old, new))
+        if attribute == "state":
+            nf = float(new)
+            of = float(old)
 
+            self.log("Attribute %r changed from %r to %r" % (attribute, old, new))
+
+            if self.target_temp() - nf < 0.000002:
+                if self._on_time > 5:
+                    self._on_time = self._on_time - 5
+                    self._off_time = self._off_time + 5
+                    self.log("Reached target temp, will reduce on time. New PWM %r" % (self._on_time / TIME_SLOT_SECONDS))
+
+            if nf < of:
+                if self._on_time < TIME_SLOT_SECONDS:
+                    self._on_time = self._on_time + 5
+                    self._off_time = self._off_time - 5
+                    self.log("Temp is falling. Raising on time. New PWM %r" % (self._on_time / TIME_SLOT_SECONDS))
+        
+        self.recalc(kwargs=None)
 
     def target_temp(self):
         return float(self.get_state(self.args["targetTemp"], default=0))
