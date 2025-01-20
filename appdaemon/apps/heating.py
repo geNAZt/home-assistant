@@ -56,6 +56,10 @@ class Heating(hass.Hass):
     def onChangeRecalc(self, entity, attribute, old, new, kwargs):
         self.recalc(kwargs=None)
 
+        # Alpha functionality
+        self.log("Attribute %r changed from %r to %r" % (attribute, old, new))
+
+
     def target_temp(self):
         return float(self.get_state(self.args["targetTemp"], default=0))
 
