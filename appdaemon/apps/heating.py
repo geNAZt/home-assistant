@@ -9,6 +9,10 @@ SECURITY_OFF_RATE = 0.025
 WINDOW_OPEN_RATE = -0.02
 TIME_SLOT_SECONDS = 10*60
 
+# Alpha feature control
+FEATURE_ON_OFF_TIME_MANIPULATION_ENABLED = True
+FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS = 30
+
 #
 # Heating control
 #
@@ -58,23 +62,24 @@ class Heating(hass.Hass):
 
     def onRoomChangeRecalc(self, entity, attribute, old, new, kwargs):
         # Alpha functionality
-        if attribute == "state":
-            nf = float(new)
-            of = float(old)
+        if FEATURE_ON_OFF_TIME_MANIPULATION_ENABLED:
+            if attribute == "state":
+                nf = float(new)
+                of = float(old)
 
-            self.log("Attribute %r changed from %r to %r" % (attribute, old, new))
+                self.log("Attribute %r changed from %r to %r" % (attribute, old, new))
 
-            if self.target_temp() - nf < 0.000002:
-                if self._on_time > 5:
-                    self._on_time = self._on_time - 5
-                    self._off_time = self._off_time + 5
-                    self.log("Reached target temp, will reduce on time. New PWM %r" % (self._on_time / TIME_SLOT_SECONDS))
+                if self.target_temp() - nf < 0.000002:
+                    if self._on_time > FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS:
+                        self._on_time = self._on_time - FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS
+                        self._off_time = self._off_time + FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS
+                        self.log("Reached target temp, will reduce on time. New PWM %r" % (self._on_time / TIME_SLOT_SECONDS))
 
-            if nf < of:
-                if self._on_time < TIME_SLOT_SECONDS:
-                    self._on_time = self._on_time + 5
-                    self._off_time = self._off_time - 5
-                    self.log("Temp is falling. Raising on time. New PWM %r" % (self._on_time / TIME_SLOT_SECONDS))
+                if nf < of:
+                    if self._on_time < TIME_SLOT_SECONDS:
+                        self._on_time = self._on_time + FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS
+                        self._off_time = self._off_time - FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS
+                        self.log("Temp is falling. Raising on time. New PWM %r" % (self._on_time / TIME_SLOT_SECONDS))
         
         self.recalc(kwargs=None)
 
