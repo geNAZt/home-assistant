@@ -69,7 +69,7 @@ class Heating(hass.Hass):
 
                 self.log("Attribute %r changed from %r to %r" % (attribute, old, new))
 
-                if self.target_temp() - nf < 0.000002:
+                if nf >= self.target_temp():
                     if self._on_time > FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS:
                         self._on_time = self._on_time - FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS
                         self._off_time = self._off_time + FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS
@@ -79,7 +79,7 @@ class Heating(hass.Hass):
                     if self._on_time < TIME_SLOT_SECONDS:
                         self._on_time = self._on_time + FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS
                         self._off_time = self._off_time - FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS
-                        self.log("Temp is falling. Raising on time. New PWM %r" % (self._on_time / TIME_SLOT_SECONDS))
+                        self.log("Temp is falling. Rising on time. New PWM %r" % (self._on_time / TIME_SLOT_SECONDS))
         
         self.recalc(kwargs=None)
 
