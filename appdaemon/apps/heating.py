@@ -67,7 +67,7 @@ class Heating(hass.Hass):
             if self._on_time < TIME_SLOT_SECONDS:
                 self._on_time = self._on_time + FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS
                 self._off_time = self._off_time - FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS
-                self.log("Temp not high enough. Rising on time. New PWM %r" % (self._on_time / TIME_SLOT_SECONDS))
+                self.debug_value("pwm_percent", (self._on_time / TIME_SLOT_SECONDS))
                 self._manipulation_time = now + FEATURE_ON_OFF_TIME_MANIPULATION_COOLDOWN
 
     def manipulateDown(self):
@@ -76,7 +76,7 @@ class Heating(hass.Hass):
             if self._on_time > FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS:
                 self._on_time = self._on_time - FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS
                 self._off_time = self._off_time + FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS
-                self.log("Reached target temp, will reduce on time. New PWM %r" % (self._on_time / TIME_SLOT_SECONDS))
+                self.debug_value("pwm_percent", (self._on_time / TIME_SLOT_SECONDS))
                 self._manipulation_time = now + FEATURE_ON_OFF_TIME_MANIPULATION_COOLDOWN
 
     def onChangeRecalc(self, entity, attribute, old, new, kwargs):
