@@ -58,7 +58,7 @@ class Heating(hass.Hass):
         self.log("On time %r, off time %r" % (self._on_time, self._off_time))
 
         # Ensure that we run at least once a minute
-        self.run_every(self.recalc, "now", 1)
+        self.run_every(self.recalc, "now", 10)
 
     def manipulateUp(self):
         now = time.time()
@@ -201,6 +201,7 @@ class Heating(hass.Hass):
 
         # Check for open window (heat leaking)
         room_temp_rate = self.room_temperature_rate()
+        self.set_value("input_number.debug_heating_room_temp_rate_%r" % self.name, room_temp_rate)
         if room_temp_rate < WINDOW_OPEN_RATE:
             if heating:
                 self.log("Room has open window. Not heating...")
