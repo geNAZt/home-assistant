@@ -12,6 +12,7 @@ TIME_SLOT_SECONDS = 10*60
 # Alpha feature control
 FEATURE_ON_OFF_TIME_MANIPULATION_ENABLED = True
 FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS = 5
+FEATURE_ON_OFF_TIME_MANIPULATION_COOLDOWN = 5*60
 
 #
 # Heating control
@@ -29,6 +30,7 @@ class Heating(hass.Hass):
 
     _on_time: float
     _off_time: float
+    _manipulation_time: float
 
     def initialize(self):
         self.log("Heating control loaded...")
@@ -51,11 +53,30 @@ class Heating(hass.Hass):
         # Calc on and off time
         self._on_time = TIME_SLOT_SECONDS * float(self.args["onTimePWM"])
         self._off_time = TIME_SLOT_SECONDS - self._on_time
+        self._manipulation_time = 0
 
         self.log("On time %r, off time %r" % (self._on_time, self._off_time))
 
         # Ensure that we run at least once a minute
         self.run_every(self.recalc, "now", 1)
+
+    def manipulateUp(self):
+        now = time.time()
+        if now >= self._manipulation_time:
+            if self._on_time < TIME_SLOT_SECONDS:
+                self._on_time = self._on_time + FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS
+                self._off_time = self._off_time - FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS
+                self.log("Temp not high enough. Rising on time. New PWM %r" % (self._on_time / TIME_SLOT_SECONDS))
+                self._manipulation_time = now + FEATURE_ON_OFF_TIME_MANIPULATION_COOLDOWN
+
+    def manipulateDown(self):
+        now = time.time()
+        if now >= self._manipulation_time:
+            if self._on_time > FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS:
+                self._on_time = self._on_time - FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS
+                self._off_time = self._off_time + FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS
+                self.log("Reached target temp, will reduce on time. New PWM %r" % (self._on_time / TIME_SLOT_SECONDS))
+                self._manipulation_time = now + FEATURE_ON_OFF_TIME_MANIPULATION_COOLDOWN
 
     def onChangeRecalc(self, entity, attribute, old, new, kwargs):
         self.recalc(kwargs=None)
@@ -70,16 +91,9 @@ class Heating(hass.Hass):
                 self.log("Attribute %r changed from %r to %r" % (attribute, old, new))
 
                 if nf >= self.target_temp():
-                    if self._on_time > FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS:
-                        self._on_time = self._on_time - FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS
-                        self._off_time = self._off_time + FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS
-                        self.log("Reached target temp, will reduce on time. New PWM %r" % (self._on_time / TIME_SLOT_SECONDS))
-
+                    self.manipulateDown()
                 if nf < of:
-                    if self._on_time < TIME_SLOT_SECONDS:
-                        self._on_time = self._on_time + FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS
-                        self._off_time = self._off_time - FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS
-                        self.log("Temp is falling. Rising on time. New PWM %r" % (self._on_time / TIME_SLOT_SECONDS))
+                    self.manipulateUp()
         
         self.recalc(kwargs=None)
 
@@ -211,8 +225,13 @@ class Heating(hass.Hass):
 
         # Do we need to start heating?
         diff = self.target_temp() - room_temp
-        if heating == False and diff >= ALLOWED_DIFF:
-            self.log("Starting to heat")
-            self._heating_started = now_seconds
-            self.turn_on(self.args["output"])
+        if room_temp < self.target_temp():
+            if heating == False:
+                self.log("Starting to heat")
+                self._heating_started = now_seconds
+                self.turn_on(self.args["output"])
             return
+        
+        # We are now at target temp, reduce PWM one step if possible
+        if FEATURE_ON_OFF_TIME_MANIPULATION_ENABLED:
+            self.manipulateDown()
