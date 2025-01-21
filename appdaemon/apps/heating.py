@@ -55,8 +55,7 @@ class Heating(hass.Hass):
         self._on_time = TIME_SLOT_SECONDS * float(self.args["onTimePWM"])
         self._off_time = TIME_SLOT_SECONDS - self._on_time
         self._manipulation_time = 0
-
-        self.log("On time %r, off time %r" % (self._on_time, self._off_time))
+        self.debug_value("pwm_percent", (self._on_time / TIME_SLOT_SECONDS))
 
         # Ensure that we run at least once a minute
         self.run_every(self.recalc, "now", 10)
