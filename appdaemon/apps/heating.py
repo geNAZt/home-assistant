@@ -52,7 +52,11 @@ class Heating(hass.Hass):
         self._heating_halted_until = 0.0
 
         # Calc on and off time
-        self._on_time = TIME_SLOT_SECONDS * float(self.args["onTimePWM"])
+        pwm_percent = float(self.args["onTimePWM"])
+        if self.entity_exists("input_number.debug_heating_%s_%s" % (self.name, "pwm_percent")):
+            pwm_percent = float(self.get_state("input_number.debug_heating_%s_%s" % (self.name, "pwm_percent")))
+        
+        self._on_time = TIME_SLOT_SECONDS * pwm_percent
         self._off_time = TIME_SLOT_SECONDS - self._on_time
         self._manipulation_time = 0
         self.debug_value("pwm_percent", (self._on_time / TIME_SLOT_SECONDS))
