@@ -174,7 +174,7 @@ class Heating(hass.Hass):
         return temperature
 
     def debug_value(self, name, value):
-        entity_id = "input_number.debug_heating_%r_%r" % (self.name, name)
+        entity_id = "input_number.debug_heating_%s_%s" % (self.name, name)
         self.set_state(entity_id, state=value, attributes={
             "min": -500,
             "max": 500,
