@@ -13,6 +13,7 @@ TIME_SLOT_SECONDS = 10*60
 FEATURE_ON_OFF_TIME_MANIPULATION_ENABLED = True
 FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS = 5
 FEATURE_ON_OFF_TIME_MANIPULATION_COOLDOWN = 5*60
+FEATURE_ON_OFF_TIME_MANIPULATION_RATE = 0.03
 
 #
 # Heating control
@@ -231,6 +232,11 @@ class Heating(hass.Hass):
                 self.turn_off(self.args["output"])
             return
 
+        # We are now at target temp, reduce PWM one step if possible
+        if FEATURE_ON_OFF_TIME_MANIPULATION_ENABLED:
+            if room_temp_rate >= FEATURE_ON_OFF_TIME_MANIPULATION_RATE:
+                self.manipulateDown()
+
         # Do we need to start heating?
         diff = self.target_temp() - room_temp
         if room_temp < self.target_temp():
@@ -239,7 +245,7 @@ class Heating(hass.Hass):
                 self._heating_started = now_seconds
                 self.turn_on(self.args["output"])
             return
-        
+
         # We are now at target temp, reduce PWM one step if possible
         if FEATURE_ON_OFF_TIME_MANIPULATION_ENABLED:
             self.manipulateDown()
