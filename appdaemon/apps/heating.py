@@ -44,7 +44,7 @@ class Heating(hass.Hass):
         # Attach a listener to all room sensors
         for sensor in self.args["roomSensors"]:
             sens = self.get_entity(sensor)
-            sens.listen_state(self.onRoomChangeRecalc)
+            sens.listen_state(self.onChangeRecalc)
 
         # Ensure that the heater is off
         self.turn_off(self.args["output"])
@@ -79,22 +79,6 @@ class Heating(hass.Hass):
                 self._manipulation_time = now + FEATURE_ON_OFF_TIME_MANIPULATION_COOLDOWN
 
     def onChangeRecalc(self, entity, attribute, old, new, kwargs):
-        self.recalc(kwargs=None)
-
-    def onRoomChangeRecalc(self, entity, attribute, old, new, kwargs):
-        # Alpha functionality
-        if FEATURE_ON_OFF_TIME_MANIPULATION_ENABLED:
-            if attribute == "state":
-                nf = float(new)
-                of = float(old)
-
-                self.log("Attribute %r changed from %r to %r" % (attribute, old, new))
-
-                if nf >= self.target_temp():
-                    self.manipulateDown()
-                if nf < of:
-                    self.manipulateUp()
-        
         self.recalc(kwargs=None)
 
     def target_temp(self):
@@ -236,7 +220,7 @@ class Heating(hass.Hass):
         if room_temp < self.target_temp():
             # We are now at target temp, reduce PWM one step if possible
             if FEATURE_ON_OFF_TIME_MANIPULATION_ENABLED:
-                if room_temp_rate >= FEATURE_ON_OFF_TIME_MANIPULATION_RATE:
+                if room_temp_rate > FEATURE_ON_OFF_TIME_MANIPULATION_RATE:
                     self.manipulateDown()
                 
                 if room_temp_rate < FEATURE_ON_OFF_TIME_MANIPULATION_RATE:
