@@ -2,10 +2,11 @@ sensor:
 - name: Solaredge Battery Input Power
   unit_of_measurement: "kWh"
   device_class: "energy"
+  state_class: total_increasing
   state: >
     {% set energy = states('sensor.solaredge_gespeicherte_energie') | float %}
     {% if energy < 0 %}
-    {{ energy * -1 }}
+    {{ ( states('sensor.solaredge_battery_input_power') | float ) + energy * -1 }}
     {% else %}
-    0
+    {{ states('sensor.solaredge_battery_input_power') | float }}
     {% endif %}
