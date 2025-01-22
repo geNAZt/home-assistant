@@ -6,7 +6,7 @@ sensor:
   state: >
     {% set energy = states('sensor.solaredge_gespeicherte_energie') | float %}
     {% if energy < 0 %}
-    {{ ( states('sensor.solaredge_battery_input_power') | float ) + energy * -1 }}
+    {{ ( states('sensor.solaredge_battery_input_power') | float(0) ) + energy * -1 }}
     {% else %}
-    {{ states('sensor.solaredge_battery_input_power') | float }}
+    {{ states('sensor.solaredge_battery_input_power') | float(0) }}
     {% endif %}
