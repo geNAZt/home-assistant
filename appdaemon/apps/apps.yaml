@@ -101,6 +101,30 @@ light_buro_merja:
   # All presence sensors, if one triggers light will be on
   presenceSensor: 
   - binary_sensor.presence_buro_merja
+light_flur:
+  module: light
+  class: Light
+  wantedLightTemp: 6700 # Optional for working according to https://www.any-lamp.com/blog/which-color-temperature-for-what-room
+  # Input number which sets the target lux, you can dynamically change this. The light will update
+  wantedLux: input_number.light_flur_lux
+  # All light entities, those are controlled the same (so ensure those are the same type of light)
+  light: 
+  - light.light_1_flur
+  - light.light_2_flur
+  - light.light_3_flur
+  - light.light_4_flur
+  - light.light_5_flur
+  - light.light_6_flur
+  # All lux sensors, the amount of lux will be averaged over all of them
+  luxSensor: 
+  - sensor.lux_flur_1
+  - sensor.lux_flur_2
+  - sensor.lux_flur_3
+  # All presence sensors, if one triggers light will be on
+  presenceSensor: 
+  - binary_sensor.presence_flur_1
+  - binary_sensor.presence_flur_2
+  - binary_sensor.presence_flur_3
 heating_speisekammer:
   module: heating
   class: Heating
