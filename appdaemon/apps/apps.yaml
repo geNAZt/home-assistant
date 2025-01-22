@@ -166,3 +166,16 @@ heating_buero_merja:
   - sensor.temperature_buro_merja_floor_2
   roomSensors:
   - sensor.temperature_buro_merja
+heating_flur:
+  module: heating
+  class: Heating
+  targetTemp: input_number.heating_flur_degrees
+  onTimePWM: 0.2
+  output: switch.heating_flur
+  securitySensors:
+  - sensor.temperature_flur_floor_1
+  - sensor.temperature_flur_floor_2
+  roomSensors:
+  - sensor.temperature_flur_1
+  - sensor.temperature_flur_2
+  - sensor.temperature_flur_3
