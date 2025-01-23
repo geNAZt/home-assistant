@@ -1,3 +1,5 @@
+import array
+from typing import Any
 import appdaemon.plugins.hass.hassapi as hass
 import datetime
 import time
@@ -33,13 +35,15 @@ class Heating(hass.Hass):
     _off_time: float
     _manipulation_time: float
 
+    _security_sensors: array
+
     def initialize(self):
         self.log("Heating control loaded...")
 
-        self.find_entity("%s_floor_" % self.name.replace("heating_", ""))
+        self.security_sensors = self.find_entity("temperature_%s_floor_" % self.name.replace("heating_", ""))
 
         # Attach a listener to all security sensors
-        for sensor in self.args["securitySensors"]:
+        for sensor in self.security_sensors:
             sens = self.get_entity(sensor)
             sens.listen_state(self.onChangeRecalc)
 
@@ -112,7 +116,7 @@ class Heating(hass.Hass):
 
     # Check if at least one of the security sensors has a temp high enough
     def is_security_shutdown(self):
-        for sensor in self.args["securitySensors"]:
+        for sensor in self.security_sensors:
             state = self.get_state(sensor, default=0)
             if float(state) > 26.5:
                 return True
