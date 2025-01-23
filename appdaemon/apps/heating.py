@@ -46,6 +46,9 @@ class Heating(hass.Hass):
             sens = self.get_entity(sensor)
             sens.listen_state(self.onChangeRecalc)
 
+        sens = self.get_entity(self.args["wattage"])
+        sens.listen_state(self.onWattageChange)
+
         # Ensure that the heater is off
         self.turn_off(self.args["output"])
         self._heating_started = 0.0
@@ -84,6 +87,9 @@ class Heating(hass.Hass):
 
     def onChangeRecalc(self, entity, attribute, old, new, kwargs):
         self.recalc(kwargs=None)
+
+    def onWattageChange(self, entity, attribute, old, new, kwargs):
+        self.log("Went from %r to %r" % (old, new))
 
     def target_temp(self):
         return float(self.get_state(self.args["targetTemp"], default=0))
