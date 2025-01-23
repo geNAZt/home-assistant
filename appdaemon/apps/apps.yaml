@@ -192,10 +192,10 @@ heating_buero_merja:
   output: switch.heating_buero_merja
   wattage: sensor.heating_usage_buero_merja
   securitySensors:
-  - sensor.temperature_buro_merja_floor_1
-  - sensor.temperature_buro_merja_floor_2
+  - sensor.temperature_buero_merja_floor_1
+  - sensor.temperature_buero_merja_floor_2
   roomSensors:
-  - sensor.temperature_buro_merja
+  - sensor.temperature_buero_merja
 heating_flur:
   module: heating
   class: Heating
