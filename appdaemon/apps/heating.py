@@ -36,6 +36,8 @@ class Heating(hass.Hass):
     def initialize(self):
         self.log("Heating control loaded...")
 
+        self.find_entity("%s_floor_" % self.name)
+
         # Attach a listener to all security sensors
         for sensor in self.args["securitySensors"]:
             sens = self.get_entity(sensor)
@@ -66,6 +68,11 @@ class Heating(hass.Hass):
 
         # Ensure that we run at least once a minute
         self.run_every(self.recalc, "now", 10)
+
+    def find_entity(self, search):
+        states = self.get_state()
+        for entity in states.keys():
+            self.log(entity)
 
     def manipulateUp(self):
         now = time.time()
