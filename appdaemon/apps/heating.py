@@ -70,6 +70,7 @@ class Heating(hass.Hass):
         self.run_every(self.recalc, "now", 10)
 
     def find_entity(self, search):
+        self.log("Seaching for %s" % search)
         states = self.get_state()
         found = []
         for entity in states.keys():
