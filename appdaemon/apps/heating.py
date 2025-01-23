@@ -71,8 +71,13 @@ class Heating(hass.Hass):
 
     def find_entity(self, search):
         states = self.get_state()
+        found = []
         for entity in states.keys():
-            self.log(entity)
+            if entity.find(search) > -1:
+                found.append(entity)
+                self.log(entity)
+
+        return found
 
     def manipulateUp(self):
         now = time.time()
