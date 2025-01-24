@@ -58,6 +58,8 @@ class Heating(hass.Hass):
             sens.listen_state(self.onChangeRecalc)
 
         sens = self.find_entity("%s_current" % self.name.replace("heating_", ""))
+        self.phase = ""
+        
         if len(sens) > 0:
             self.current_entity = sens[0]
             self.phase = self.current_entity.replace("_%s_current" % self.name.replace("heating_", ""), "").replace("sensor.current_", "")
@@ -243,7 +245,7 @@ class Heating(hass.Hass):
             return
 
         # Are we allowed to heat (current control)
-        if "phase" in self and len(self.phase) > 0:
+        if len(self.phase) > 0:
             current_used = float(0)
             ents = self.find_entity("sensor.current_%s" % self.phase)
             for ent in ents:
