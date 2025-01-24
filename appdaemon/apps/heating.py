@@ -123,8 +123,6 @@ class Heating(hass.Hass):
         self.recalc(kwargs=None)
 
     def onCurrentChange(self, entity, attribute, old, new, kwargs):
-        self.log("Current went from %r to %r" % (old, new))
-
         nf = float(new)
         if nf > self.current:
             self.current = nf
@@ -259,7 +257,6 @@ class Heating(hass.Hass):
                     c = self.get_state(ent)
                     current_used += float(c)
             
-            self.log("Used current on phase %s: %r" % (self.phase, current_used))
             if current_used + self.current > 15500:
                 self.log("Can't heat, would trigger breaker")
                 if heating:
