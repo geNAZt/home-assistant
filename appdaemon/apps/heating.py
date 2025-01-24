@@ -41,6 +41,7 @@ class Heating(hass.Hass):
         self.log("Heating control loaded...")
 
         self.security_sensors = self.find_entity("temperature_%s_floor_" % self.name.replace("heating_", ""))
+        self.room_sensors = self.find_entity("temperature_%s_" % self.name.replace("heating_", ""), "_floor_")
 
         # Attach a listener to all security sensors
         for sensor in self.security_sensors:
@@ -48,7 +49,7 @@ class Heating(hass.Hass):
             sens.listen_state(self.onChangeRecalc)
 
         # Attach a listener to all room sensors
-        for sensor in self.args["roomSensors"]:
+        for sensor in self.room_sensors:
             sens = self.get_entity(sensor)
             sens.listen_state(self.onChangeRecalc)
 
@@ -73,14 +74,19 @@ class Heating(hass.Hass):
         # Ensure that we run at least once a minute
         self.run_every(self.recalc, "now", 10)
 
-    def find_entity(self, search):
+    def find_entity(self, search, contains_not=""):
         self.log("Seaching for %s" % search)
         states = self.get_state()
         found = []
         for entity in states.keys():
             if entity.find(search) > -1:
-                found.append(entity)
-                self.log(entity)
+                if len(contains_not) > 0:
+                    if entity.find(contains_not) == -1:
+                        found.append(entity)
+                        self.log(entity)
+                else:
+                    found.append(entity)
+                    self.log(entity)
 
         return found
 
@@ -126,7 +132,7 @@ class Heating(hass.Hass):
     def room_temperature_rate(self):
         rate = float(0)
         now = datetime.now()
-        for sensor in self.args["roomSensors"]:
+        for sensor in self.room_sensors:
             current_value = float(self.get_state(sensor))
             start_time =  now - timedelta(minutes = 30)
             data = self.get_history(entity_id = sensor, start_time = start_time)
@@ -141,7 +147,7 @@ class Heating(hass.Hass):
                     except ValueError:
                         pass
 
-        return float(rate / len(self.args["roomSensors"]))
+        return float(rate / len(self.room_sensors))
     
     def security_temperature_rate(self):
         rate = float(0)
@@ -166,23 +172,10 @@ class Heating(hass.Hass):
 
     def room_temperature(self):
         temperature = float(0)
-        for sensor in self.args["roomSensors"]:
+        for sensor in self.room_sensors:
             temperature += float(self.get_state(sensor))
 
-        return float(temperature / len(self.args["roomSensors"]))
-    
-    def security_temperature(self):
-        temperature = float(0)
-        for sensor in self.args["securitySensors"]:
-            try:
-                temp = float(self.get_state(sensor))
-                if temp > temperature:
-                    temperature = temp
-            except TypeError:
-                self.log("Could not get %r" % sensor)
-                return 9999
-
-        return temperature
+        return float(temperature / len(self.room_sensors))
 
     def debug_value(self, name, value):
         entity_id = "input_number.debug_heating_%s_%s" % (self.name, name)
