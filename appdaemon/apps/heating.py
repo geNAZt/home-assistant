@@ -58,12 +58,17 @@ class Heating(hass.Hass):
             sens.listen_state(self.onChangeRecalc)
 
         sens = self.find_entity("%s_current" % self.name.replace("heating_", ""))
+
         self.phase = ""
-        
+        self.current = float(0)
+
         if len(sens) > 0:
             self.current_entity = sens[0]
             self.phase = self.current_entity.replace("_%s_current" % self.name.replace("heating_", ""), "").replace("sensor.current_", "")
             self.log("Will monitor phase %s for current control" % self.phase) # current_l1_kueche_current
+
+            ent = self.get_entity(sens[0])
+            ent.listen_state(self.onCurrentChange)
 
         # Ensure that the heater is off
         self.turn_off(self.output)
@@ -121,7 +126,11 @@ class Heating(hass.Hass):
         self.recalc(kwargs=None)
 
     def onCurrentChange(self, entity, attribute, old, new, kwargs):
-        self.log("Went from %r to %r" % (old, new))
+        self.log("Current went from %r to %r" % (old, new))
+
+        nf = float(new)
+        if nf > self.current:
+            self.current = nf
 
     def target_temp(self):
         return float(self.get_state(self.args["targetTemp"], default=0))
@@ -254,7 +263,7 @@ class Heating(hass.Hass):
                     current_used += float(c)
             
             self.log("Used current on phase %s: %r" % (self.phase, current_used))
-            if current_used > 15500:
+            if current_used + self.current > 15500:
                 self.log("Can't heat, would trigger breaker")
                 if heating:
                     self.turn_off(self.output)
