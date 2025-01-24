@@ -1,0 +1,5 @@
+name: "Heating Usage Schlafzimmer"
+state_address: "7/7/2"
+type: active_energy
+always_callback: true
+state_class: total_increasing

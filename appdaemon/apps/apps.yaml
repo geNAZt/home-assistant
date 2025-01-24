@@ -129,64 +129,27 @@ heating_speisekammer:
   module: heating
   class: Heating
   targetTemp: input_number.heating_speisekammer_degrees
-  onTimePWM: 0.2
-  output: switch.heating_speisekammer
-  wattage: sensor.heating_usage_speisekammer
-  roomSensors:
-  - sensor.temperature_speisekammer
 heating_kueche:
   module: heating
   class: Heating
   targetTemp: input_number.heating_kueche_degrees
-  onTimePWM: 0.65
-  output: switch.heating_kueche
-  wattage: sensor.heating_usage_kueche
-  roomSensors:
-  - sensor.temperature_kueche
 heating_wohnzimmer:
   module: heating
   class: Heating
   targetTemp: input_number.heating_wohnzimmer_degrees
-  onTimePWM: 0.2
-  output: switch.heating_wohnzimmer
-  wattage: sensor.heating_usage_wohnzimmer
-  roomSensors:
-  - sensor.temperature_wohnzimmer
 heating_buero_fabian:
   module: heating
   class: Heating
   targetTemp: input_number.heating_buero_fabian_degrees
-  onTimePWM: 0.2
-  output: switch.heating_buero_fabian
-  wattage: sensor.heating_usage_buero_fabian
-  roomSensors:
-  - sensor.temperature_buero_fabian
 heating_bad:
   module: heating
   class: Heating
   targetTemp: input_number.heating_bad_degrees
-  onTimePWM: 0.25
-  output: switch.heating_bad
-  wattage: sensor.heating_usage_bad
-  roomSensors:
-  - sensor.temperature_bad
 heating_buero_merja:
   module: heating
   class: Heating
   targetTemp: input_number.heating_buero_merja_degrees
-  onTimePWM: 0.2
-  output: switch.heating_buero_merja
-  wattage: sensor.heating_usage_buero_merja
-  roomSensors:
-  - sensor.temperature_buero_merja
 heating_flur:
   module: heating
   class: Heating
   targetTemp: input_number.heating_flur_degrees
-  onTimePWM: 0.2
-  wattage: sensor.heating_usage_flur
-  output: switch.heating_flur
-  roomSensors:
-  - sensor.temperature_flur_1
-  - sensor.temperature_flur_2
-  - sensor.temperature_flur_3

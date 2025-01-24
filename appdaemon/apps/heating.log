@@ -1,7 +1,7 @@
 A => L2 => NC
-B (Küche) => L1 => 24.6 => 2173 (9450mA)
+DONE: B (Küche) => L1 => 24.6 => 2173 (9450mA)
 C (Büro Merja) => L3 => 16.3 => 3245
-D (Bad) => L1 => 41.6 => 1271
+DONE: D (Bad) => L1 => 41.6 => 1271
 
 A (Speisekammer) => L2 => 101.1 => 515 (2240mA)
 B (Buero Fabian) => L3 => 55 => 961

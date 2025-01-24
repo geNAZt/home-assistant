@@ -1,0 +1,6 @@
+name: "Current L1 Schlafzimmer Current"
+state_address: "7/7/3"
+type: current
+sync_state: expire 1
+always_callback: true
+state_class: measurement
