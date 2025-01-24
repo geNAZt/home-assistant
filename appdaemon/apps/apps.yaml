@@ -128,28 +128,24 @@ light_flur:
 heating_speisekammer:
   module: heating
   class: Heating
-  targetTemp: input_number.heating_speisekammer_degrees
 heating_kueche:
   module: heating
   class: Heating
-  targetTemp: input_number.heating_kueche_degrees
 heating_wohnzimmer:
   module: heating
   class: Heating
-  targetTemp: input_number.heating_wohnzimmer_degrees
 heating_buero_fabian:
   module: heating
   class: Heating
-  targetTemp: input_number.heating_buero_fabian_degrees
 heating_bad:
   module: heating
   class: Heating
-  targetTemp: input_number.heating_bad_degrees
 heating_buero_merja:
   module: heating
   class: Heating
-  targetTemp: input_number.heating_buero_merja_degrees
 heating_flur:
   module: heating
   class: Heating
-  targetTemp: input_number.heating_flur_degrees
+heating_schlafzimmer:
+  module: heating
+  class: Heating

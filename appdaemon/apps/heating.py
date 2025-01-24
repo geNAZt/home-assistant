@@ -40,7 +40,7 @@ class Heating(hass.Hass):
 
         self.security_sensors = self.find_entity("temperature_%s_floor" % self.name.replace("heating_", ""))
         self.room_sensors = self.find_entity("temperature_%s" % self.name.replace("heating_", ""), "_floor")
-        
+
         outputs = self.find_entity("switch.heating_%s" % self.name.replace("heating_", ""))
         if len(outputs) != 1:
             raise Exception("Could not find output switch")
@@ -133,7 +133,7 @@ class Heating(hass.Hass):
             self.current = nf
 
     def target_temp(self):
-        return float(self.get_state(self.args["targetTemp"], default=0))
+        return float(self.get_state("input_number.%s_degrees" % self.name, default=0))
 
     def is_heating(self):
         return self.get_state(self.output) == "on"
