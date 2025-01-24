@@ -35,13 +35,17 @@ class Heating(hass.Hass):
     _off_time: float
     _manipulation_time: float
 
-    _security_sensors: array
-
     def initialize(self):
         self.log("Heating control loaded...")
 
         self.security_sensors = self.find_entity("temperature_%s_floor" % self.name.replace("heating_", ""))
         self.room_sensors = self.find_entity("temperature_%s" % self.name.replace("heating_", ""), "_floor")
+        
+        outputs = self.find_entity("switch.heating_%s" % self.name.replace("heating_", ""))
+        if len(outputs) != 1:
+            raise Exception("Could not find output switch")
+        
+        self.output = outputs[0]
 
         # Attach a listener to all security sensors
         for sensor in self.security_sensors:
@@ -53,16 +57,17 @@ class Heating(hass.Hass):
             sens = self.get_entity(sensor)
             sens.listen_state(self.onChangeRecalc)
 
-        sens = self.get_entity(self.args["wattage"])
-        sens.listen_state(self.onWattageChange)
+        sens = self.find_entity("%s_current")
+        if len(sens) > 0:
+            sens[0].listen_state(self.onCurrentChange)
 
         # Ensure that the heater is off
-        self.turn_off(self.args["output"])
+        self.turn_off(self.output)
         self._heating_started = 0.0
         self._heating_halted_until = 0.0
 
         # Calc on and off time
-        pwm_percent = float(self.args["onTimePWM"])
+        pwm_percent = float(0.2)
         if self.entity_exists("input_number.debug_heating_%s_%s" % (self.name, "pwm_percent")):
             pwm_percent = float(self.get_state("input_number.debug_heating_%s_%s" % (self.name, "pwm_percent")))
         
@@ -111,14 +116,14 @@ class Heating(hass.Hass):
     def onChangeRecalc(self, entity, attribute, old, new, kwargs):
         self.recalc(kwargs=None)
 
-    def onWattageChange(self, entity, attribute, old, new, kwargs):
+    def onCurrentChange(self, entity, attribute, old, new, kwargs):
         self.log("Went from %r to %r" % (old, new))
 
     def target_temp(self):
         return float(self.get_state(self.args["targetTemp"], default=0))
 
     def is_heating(self):
-        return self.get_state(self.args["output"]) == "on"
+        return self.get_state(self.output) == "on"
 
     # Check if at least one of the security sensors has a temp high enough
     def is_security_shutdown(self):
@@ -198,7 +203,7 @@ class Heating(hass.Hass):
         if self._heating_halted_until > now_seconds:
             if heating:
                 self.log("Turning off due to cooldown")
-                self.turn_off(self.args["output"])
+                self.turn_off(self.output)
             return
 
         self._heating_halted_until = 0.0
@@ -207,7 +212,7 @@ class Heating(hass.Hass):
         if self.is_security_shutdown():
             if heating:
                 self.log("Turning off heat due to security")
-                self.turn_off(self.args["output"])
+                self.turn_off(self.output)
             return
 
         # Check for open window (heat leaking)
@@ -216,14 +221,14 @@ class Heating(hass.Hass):
         if room_temp_rate < WINDOW_OPEN_RATE:
             if heating:
                 self.log("Room has open window. Not heating...")
-                self.turn_off(self.args["output"])
+                self.turn_off(self.output)
             return
 
         # Check if diff top to bottom is too strong (heat transfer)
         if self.security_temperature_rate() > SECURITY_OFF_RATE:
             if heating:
                 self.log("Wanted to heat but diff between ceiling and floor temp is too high")
-                self.turn_off(self.args["output"])
+                self.turn_off(self.output)
             return
 
         room_temp = self.room_temperature()
@@ -232,7 +237,7 @@ class Heating(hass.Hass):
         if room_temp >= self.target_temp():       # We reached target temp
             if heating:
                 self.log("Reached target temp")
-                self.turn_off(self.args["output"])
+                self.turn_off(self.output)
             return
 
         # Do we need to start heating?
@@ -249,7 +254,7 @@ class Heating(hass.Hass):
             if heating == False:
                 self.log("Starting to heat")
                 self._heating_started = now_seconds
-                self.turn_on(self.args["output"])
+                self.turn_on(self.output)
                 
             return
 
