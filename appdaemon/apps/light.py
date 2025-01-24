@@ -45,7 +45,7 @@ class Light(hass.Hass):
             if brightness == 0:
                 self.turn_off(light)
             else:
-                self.turn_on(light, brightness = brightness, kelvin = int(self.args["wantedLightTemp"]))
+                self.turn_on(light, brightness = brightness, color_temp_kelvin = int(self.args["wantedLightTemp"]))
 
     def is_present(self):
         for sensor in self.args["presenceSensor"]:
