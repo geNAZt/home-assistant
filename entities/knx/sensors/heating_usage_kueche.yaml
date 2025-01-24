@@ -1,4 +1,4 @@
-name: "Heating Usage Küche"
+name: "Heating Usage Kueche"
 state_address: "2/7/2"
 type: active_energy
 always_callback: true

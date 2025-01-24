@@ -142,14 +142,14 @@ heating_kueche:
   class: Heating
   targetTemp: input_number.heating_kueche_degrees
   onTimePWM: 0.65
-  output: switch.heating_kuche
-  wattage: sensor.heating_usage_kuche
+  output: switch.heating_kueche
+  wattage: sensor.heating_usage_kueche
   securitySensors:
-  - sensor.temperature_kuche_floor_1
-  - sensor.temperature_kuche_floor_2
-  - sensor.temperature_kuche_floor_3
+  - sensor.temperature_kueche_floor_1
+  - sensor.temperature_kueche_floor_2
+  - sensor.temperature_kueche_floor_3
   roomSensors:
-  - sensor.temperature_kuche
+  - sensor.temperature_kueche
 heating_wohnzimmer:
   module: heating
   class: Heating
