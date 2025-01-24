@@ -242,6 +242,22 @@ class Heating(hass.Hass):
                 self.turn_off(self.output)
             return
 
+        # Are we allowed to heat (current control)
+        if len(self.phase) > 0:
+            current_used = float(0)
+            ents = self.find_entity("sensor.current_%s" % self.phase)
+            for ent in ents:
+                if ent != self.current_entity:
+                    c = self.get_state(ent)
+                    current_used += float(c)
+            
+            self.log("Used current on phase %s: %r" % (self.phase, current_used))
+            if current_used > 15500:
+                self.log("Can't heat, would trigger breaker")
+                if heating:
+                    self.turn_off(self.output)
+                return
+
         # Do we need to start heating?
         diff = self.target_temp() - room_temp
         if room_temp < self.target_temp():
