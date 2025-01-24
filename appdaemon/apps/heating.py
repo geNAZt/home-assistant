@@ -59,7 +59,9 @@ class Heating(hass.Hass):
 
         sens = self.find_entity("%s_current" % self.name.replace("heating_", ""))
         if len(sens) > 0:
-            sens[0].listen_state(self.onCurrentChange)
+            self.current_entity = sens[0]
+            self.phase = self.current_entity.replace("%s_current" % self.name.replace("heating_", ""), "").replace("current_", "")
+            self.log("Will monitor phase %s for current control" % self.phase) # current_l1_kueche_current
 
         # Ensure that the heater is off
         self.turn_off(self.output)
