@@ -40,8 +40,8 @@ class Heating(hass.Hass):
     def initialize(self):
         self.log("Heating control loaded...")
 
-        self.security_sensors = self.find_entity("temperature_%s_floor_" % self.name.replace("heating_", ""))
-        self.room_sensors = self.find_entity("temperature_%s_" % self.name.replace("heating_", ""), "_floor_")
+        self.security_sensors = self.find_entity("temperature_%s_floor" % self.name.replace("heating_", ""))
+        self.room_sensors = self.find_entity("temperature_%s" % self.name.replace("heating_", ""), "_floor")
 
         # Attach a listener to all security sensors
         for sensor in self.security_sensors:
