@@ -89,7 +89,6 @@ class Heating(hass.Hass):
         self.run_every(self.recalc, "now", 10)
 
     def find_entity(self, search, contains_not=""):
-        self.log("Seaching for %s" % search)
         states = self.get_state()
         found = []
         for entity in states.keys():
@@ -97,10 +96,8 @@ class Heating(hass.Hass):
                 if len(contains_not) > 0:
                     if entity.find(contains_not) == -1:
                         found.append(entity)
-                        self.log(entity)
                 else:
                     found.append(entity)
-                    self.log(entity)
 
         return found
 
