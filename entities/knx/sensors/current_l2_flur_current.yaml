@@ -1,0 +1,6 @@
+name: "Current L2 Flur Current"
+state_address: "9/7/5"
+type: current
+sync_state: expire 1
+always_callback: true
+state_class: measurement
