@@ -146,7 +146,7 @@ class Heating(hass.Hass):
     def security_temperature_rate(self):
         rate = float(0)
         now = datetime.now()
-        for sensor in self.args["securitySensors"]:
+        for sensor in self.security_sensors:
             current_value = float(self.get_state(sensor))
             start_time =  now - timedelta(minutes = 30)
             data = self.get_history(entity_id = sensor, start_time = start_time)
