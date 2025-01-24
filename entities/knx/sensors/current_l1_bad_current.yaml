@@ -1,0 +1,6 @@
+name: "Current L1 Bad Current"
+state_address: "8/7/3"
+type: current
+sync_state: expire 1
+always_callback: true
+state_class: measurement
