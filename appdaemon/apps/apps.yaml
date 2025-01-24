@@ -132,9 +132,6 @@ heating_speisekammer:
   onTimePWM: 0.2
   output: switch.heating_speisekammer
   wattage: sensor.heating_usage_speisekammer
-  securitySensors:
-  - sensor.temperature_speisekammer_floor_1
-  - sensor.temperature_speisekammer_floor_2
   roomSensors:
   - sensor.temperature_speisekammer
 heating_kueche:
@@ -144,10 +141,6 @@ heating_kueche:
   onTimePWM: 0.65
   output: switch.heating_kueche
   wattage: sensor.heating_usage_kueche
-  securitySensors:
-  - sensor.temperature_kueche_floor_1
-  - sensor.temperature_kueche_floor_2
-  - sensor.temperature_kueche_floor_3
   roomSensors:
   - sensor.temperature_kueche
 heating_wohnzimmer:
@@ -157,9 +150,6 @@ heating_wohnzimmer:
   onTimePWM: 0.2
   output: switch.heating_wohnzimmer
   wattage: sensor.heating_usage_wohnzimmer
-  securitySensors:
-  - sensor.temperature_wohnzimmer_floor_1
-  - sensor.temperature_wohnzimmer_floor_2
   roomSensors:
   - sensor.temperature_wohnzimmer
 heating_buero_fabian:
@@ -169,10 +159,8 @@ heating_buero_fabian:
   onTimePWM: 0.2
   output: switch.heating_buero_fabian
   wattage: sensor.heating_usage_buero_fabian
-  securitySensors:
-  - sensor.temperature_buro_fabian_floor_1
   roomSensors:
-  - sensor.temperature_buro_fabian
+  - sensor.temperature_buero_fabian
 heating_bad:
   module: heating
   class: Heating
@@ -180,8 +168,6 @@ heating_bad:
   onTimePWM: 0.25
   output: switch.heating_bad
   wattage: sensor.heating_usage_bad
-  securitySensors:
-  - sensor.temperature_bad
   roomSensors:
   - sensor.temperature_bad
 heating_buero_merja:
@@ -191,9 +177,6 @@ heating_buero_merja:
   onTimePWM: 0.2
   output: switch.heating_buero_merja
   wattage: sensor.heating_usage_buero_merja
-  securitySensors:
-  - sensor.temperature_buero_merja_floor_1
-  - sensor.temperature_buero_merja_floor_2
   roomSensors:
   - sensor.temperature_buero_merja
 heating_flur:
@@ -203,9 +186,6 @@ heating_flur:
   onTimePWM: 0.2
   wattage: sensor.heating_usage_flur
   output: switch.heating_flur
-  securitySensors:
-  - sensor.temperature_flur_floor_1
-  - sensor.temperature_flur_floor_2
   roomSensors:
   - sensor.temperature_flur_1
   - sensor.temperature_flur_2
