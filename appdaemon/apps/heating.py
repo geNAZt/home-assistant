@@ -243,7 +243,7 @@ class Heating(hass.Hass):
             return
 
         # Are we allowed to heat (current control)
-        if len(self.phase) > 0:
+        if "phase" in self and len(self.phase) > 0:
             current_used = float(0)
             ents = self.find_entity("sensor.current_%s" % self.phase)
             for ent in ents:
