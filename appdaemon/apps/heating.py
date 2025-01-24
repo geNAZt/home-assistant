@@ -57,7 +57,7 @@ class Heating(hass.Hass):
             sens = self.get_entity(sensor)
             sens.listen_state(self.onChangeRecalc)
 
-        sens = self.find_entity("%s_current")
+        sens = self.find_entity("%s_current" % self.name.replace("heating_", ""))
         if len(sens) > 0:
             sens[0].listen_state(self.onCurrentChange)
 
