@@ -101,7 +101,7 @@ class Heating(hass.Hass):
 
         return found
 
-    def manipulateUp(self):
+    def manipulateUp(self, log):
         now = time.time()
         if now >= self._manipulation_time:
             if self._on_time < TIME_SLOT_SECONDS:
@@ -109,8 +109,9 @@ class Heating(hass.Hass):
                 self._off_time = self._off_time - FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS
                 self.debug_value("pwm_percent", (self._on_time / TIME_SLOT_SECONDS))
                 self._manipulation_time = now + FEATURE_ON_OFF_TIME_MANIPULATION_COOLDOWN
+                self.log("PWM goes up, %s" % log)
 
-    def manipulateDown(self):
+    def manipulateDown(self, log):
         now = time.time()
         if now >= self._manipulation_time:
             if self._on_time > FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS:
@@ -118,6 +119,7 @@ class Heating(hass.Hass):
                 self._off_time = self._off_time + FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS
                 self.debug_value("pwm_percent", (self._on_time / TIME_SLOT_SECONDS))
                 self._manipulation_time = now + FEATURE_ON_OFF_TIME_MANIPULATION_COOLDOWN
+                self.log("PWM goes down, %s" % log)
 
     def onChangeRecalc(self, entity, attribute, old, new, kwargs):
         self.recalc(kwargs=None)
@@ -269,10 +271,10 @@ class Heating(hass.Hass):
             # We are now at target temp, reduce PWM one step if possible
             if FEATURE_ON_OFF_TIME_MANIPULATION_ENABLED:
                 if room_temp_rate > FEATURE_ON_OFF_TIME_MANIPULATION_RATE:
-                    self.manipulateDown()
+                    self.manipulateDown("temperature rises too fast")
                 
                 if room_temp_rate < FEATURE_ON_OFF_TIME_MANIPULATION_RATE:
-                    self.manipulateUp()
+                    self.manipulateUp("temperature rises too slow")
 
             if heating == False:
                 self.log("Starting to heat")
@@ -283,4 +285,4 @@ class Heating(hass.Hass):
 
         # We are now at target temp, reduce PWM one step if possible
         if FEATURE_ON_OFF_TIME_MANIPULATION_ENABLED:
-            self.manipulateDown()
+            self.manipulateDown("reached target temp")
