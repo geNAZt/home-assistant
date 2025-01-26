@@ -57,6 +57,9 @@ class Heating(hass.Hass):
             sens = self.get_entity(sensor)
             sens.listen_state(self.onChangeRecalc)
 
+        input_entity = self.get_entity("input_number.%s_degrees" % self.name)
+        input_entity.listen_state(self.onTargetTempChange)
+
         sens = self.find_entity("%s_current" % self.name.replace("heating_", ""))
 
         self.phase = ""
@@ -101,25 +104,34 @@ class Heating(hass.Hass):
 
         return found
 
+    def pwmSet(self, on, off):
+        now = time.time()
+        self._on_time = on
+        self._off_time = off
+        self.debug_value("pwm_percent", (self._on_time / TIME_SLOT_SECONDS))
+        self._manipulation_time = now + FEATURE_ON_OFF_TIME_MANIPULATION_COOLDOWN
+
     def manipulateUp(self, log):
         now = time.time()
         if now >= self._manipulation_time:
             if self._on_time < TIME_SLOT_SECONDS:
-                self._on_time = self._on_time + FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS
-                self._off_time = self._off_time - FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS
-                self.debug_value("pwm_percent", (self._on_time / TIME_SLOT_SECONDS))
-                self._manipulation_time = now + FEATURE_ON_OFF_TIME_MANIPULATION_COOLDOWN
+                self.pwmSet(self._on_time + FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS, self._off_time - FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS)
                 self.log("PWM goes up, %s" % log)
 
     def manipulateDown(self, log):
         now = time.time()
         if now >= self._manipulation_time:
             if self._on_time > FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS:
-                self._on_time = self._on_time - FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS
-                self._off_time = self._off_time + FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS
-                self.debug_value("pwm_percent", (self._on_time / TIME_SLOT_SECONDS))
-                self._manipulation_time = now + FEATURE_ON_OFF_TIME_MANIPULATION_COOLDOWN
+                self.pwmSet(self._on_time - FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS, self._off_time + FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS)
                 self.log("PWM goes down, %s" % log)
+
+    def onTargetTempChange(self, entity, attribute, old, new, kwargs):
+        of = float(old)
+        nf = float(new)
+
+        if nf > of:
+            self.pwmSet(TIME_SLOT_SECONDS, 0)
+
 
     def onChangeRecalc(self, entity, attribute, old, new, kwargs):
         self.recalc(kwargs=None)
