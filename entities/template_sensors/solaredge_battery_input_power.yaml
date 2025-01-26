@@ -1,6 +1,6 @@
 sensor: 
 - name: Solaredge Battery Input Power
-  unit_of_measurement: "kWh"
+  unit_of_measurement: "kW"
   device_class: "energy"
   state_class: total_increasing
   state: >
