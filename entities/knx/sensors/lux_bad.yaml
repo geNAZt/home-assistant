@@ -1,0 +1,4 @@
+name: "Lux Bad"
+state_address: "8/0/1"
+type: illuminance
+always_callback: true
