@@ -1,0 +1,5 @@
+name: "Light Usage Bad"
+state_address: "8/6/2"
+type: active_energy
+always_callback: true
+state_class: total_increasing
