@@ -1,0 +1,15 @@
+alias: Licht aus bad
+description: ""
+triggers:
+  - trigger: state
+    entity_id:
+      - binary_sensor.presence_bad
+    from: "on"
+    to: "off"
+actions:
+  - action: light.turn_off
+    metadata: {}
+    data: {}
+    target:
+      entity_id: light.light_bad
+mode: single
