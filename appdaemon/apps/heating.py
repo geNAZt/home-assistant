@@ -232,6 +232,8 @@ class Heating(hass.Hass):
 
         # Check for security shutdown
         if self.is_security_shutdown():
+            if FEATURE_ON_OFF_TIME_MANIPULATION_ENABLED:
+                self.manipulateDown("security cut")
             if heating:
                 self.log("Turning off heat due to security")
                 self.turn_off(self.output)
