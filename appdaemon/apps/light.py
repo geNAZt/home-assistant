@@ -104,6 +104,7 @@ class Light(hass.Hass):
         
         # Should we turn on?
         if data["service"] == "turn_on":
+            self.log(data)
             self._pid.setpoint = float(data["service_data"]["brightness_pct"]) * 3
 
             # This can also set brightness and temp attributes
