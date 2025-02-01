@@ -19,7 +19,7 @@ class Light(hass.Hass):
                 "min_color_temp_kelvin": 2700,
                 "max_color_temp_kelvin": 6700,
                 "supported_color_modes": ["color_temp"],
-                "friendly_name": "Licht %s" % self.name.replace("light_", ""),
+                "friendly_name": "Licht %s" % self.name.replace("light_", "").replace("_", " "),
                 "supported_features": 0,
                 "brightness_pct": 100,
                 "color_temp_kelvin": 6700,
