@@ -114,7 +114,7 @@ class Light(hass.Hass):
         if data["service"] == "turn_off":
             self.set_state(self.virtual_entity_name, state="off")
 
-        self.recalc()
+        self.recalc(kwargs=None)
 
     def set_light_to(self, brightness):
         if brightness > 255:
