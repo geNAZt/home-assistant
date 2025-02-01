@@ -10,17 +10,9 @@ class Light(hass.Hass):
     _presence: bool
     _pid: PID
     _lastUpdate: int
+    _on: bool
 
     def initialize(self):
-        # Get state for lux
-        wanted_lux = float(300)
-        if self.entity_exists("input_number.state_light_%s_%s" % (self.name, "wanted_lux")):
-            wanted_lux = float(self.get_state("input_number.state_light_%s_%s" % (self.name, "wanted_lux")))
-
-        # Setup the PID controller
-        self._pid = PID(2.0, 0.5, 2.0, setpoint=wanted_lux)
-        self._pid.output_limits = (-10, 40)
-
         # Generate virtual light entity
         self.virtual_entity_name = "light.room_%s" % self.name.replace("light_", "")
         if not self.entity_exists(self.virtual_entity_name):
@@ -32,9 +24,16 @@ class Light(hass.Hass):
                 "supported_features": 0,
                 "min_mireds": 149,
                 "max_mireds": 370,
+                "brightness_pct": 100,
+                "color_temp_kelvin": 6700,
             })
 
         self.listen_event(self.onEvent, event="call_service")
+        self._on = True
+
+        # Setup the PID controller
+        self._pid = PID(2.0, 0.5, 2.0, setpoint=float(self.get_state(self.virtual_entity_name, attribute="brightness_pct")) * 3)
+        self._pid.output_limits = (-10, 40)
     
         # Attach a listener to all presence sensors
         self.presence_sensors = self.find_entity("binary_sensor.presence_%s[_0-9]*" % self.name.replace("light_", ""))
@@ -99,7 +98,22 @@ class Light(hass.Hass):
         if not found:
             return
         
-        self.log(data)
+        # Should we turn on?
+        if data["service"] == "turn_on":
+            self._pid.setpoint = float(data["service_data"]["brightness_pct"]) * 3
+
+            # This can also set brightness and temp attributes
+            self.set_state(self.virtual_entity_name, state="on", attributes={
+                "brightness_pct": data["service_data"]["brightness_pct"],
+                "color_temp_kelvin": data["service_data"]["color_temp_kelvin"],
+            })
+
+            self._on = True
+
+        if data["service"] == "turn_off":
+            self._on = False
+
+        self.recalc()
 
     def set_light_to(self, brightness):
         if brightness > 255:
@@ -110,7 +124,7 @@ class Light(hass.Hass):
             if brightness == 0:
                 self.turn_off(light)
             else:
-                self.turn_on(light, brightness = brightness, color_temp_kelvin = 6700)
+                self.turn_on(light, brightness = brightness, color_temp_kelvin = float(self.get_state(self.virtual_entity_name, attribute="color_temp_kelvin")))
 
     def is_present(self):
         for sensor in self.presence_sensors:
@@ -118,10 +132,6 @@ class Light(hass.Hass):
                 return True
         
         return False
-
-    def onWantedLuxChange(self, entity, attribute, old, new, kwargs):
-        self.log("Wanted lux changed: %r" % new)
-        self._pid.setpoint = float(new)
 
     def onLuxChange(self, entity, attribute, old, new, kwargs):
         now = time.monotonic()
@@ -141,6 +151,11 @@ class Light(hass.Hass):
                 self.set_light_to(0)
 
     def recalc(self, kwargs):
+        # Check if we got disabled
+        if not self._on:
+            self.set_light_to(0)
+            return
+
         # Check if presence is triggered
         if self._presence == False:
             self.set_light_to(0)
