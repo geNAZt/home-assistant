@@ -85,6 +85,9 @@ class Light(hass.Hass):
         })
 
     def onEvent(self, event_name, data, kwargs):
+        if data["domain"] != "light":
+            return
+
         found = False
         for entity in data["service_data"]["entity_id"]:
             if entity == self.virtual_entity_name:
