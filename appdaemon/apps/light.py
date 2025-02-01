@@ -21,8 +21,6 @@ class Light(hass.Hass):
                 "supported_color_modes": ["color_temp"],
                 "friendly_name": "Licht %s" % self.name.replace("light_", ""),
                 "supported_features": 0,
-                "min_mireds": 149,
-                "max_mireds": 370,
                 "brightness_pct": 100,
                 "color_temp_kelvin": 6700,
             })
