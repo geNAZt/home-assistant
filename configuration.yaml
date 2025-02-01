@@ -4,3 +4,4 @@ homeassistant:
   external_url: "https://home.genazt.me"
 
 template: !include_dir_list ./entities/template_sensors/
+climate: 
