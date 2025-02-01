@@ -8,123 +8,24 @@ api:
 light_speisekammer:
   module: light
   class: Light
-  wantedLightTemp: 6700 # Optional for working according to https://www.any-lamp.com/blog/which-color-temperature-for-what-room
-  # Input number which sets the target lux, you can dynamically change this. The light will update
-  wantedLux: input_number.light_speisekammer_lux
-  # All light entities, those are controlled the same (so ensure those are the same type of light)
-  light: 
-  - light.light_1_speisekammer
-  - light.light_2_speisekammer
-  # All lux sensors, the amount of lux will be averaged over all of them
-  luxSensor: 
-  - sensor.lux_speisekammer
-  # All presence sensors, if one triggers light will be on
-  presenceSensor: 
-  - binary_sensor.presence_speisekammer
 light_kueche:
   module: light
   class: Light
-  wantedLightTemp: 6700 # Optional for working according to https://www.any-lamp.com/blog/which-color-temperature-for-what-room
-  # Input number which sets the target lux, you can dynamically change this. The light will update
-  wantedLux: input_number.light_kueche_lux
-  # All light entities, those are controlled the same (so ensure those are the same type of light)
-  light: 
-  - light.light_1_kuche
-  - light.light_2_kuche
-  - light.light_3_kuche
-  # All lux sensors, the amount of lux will be averaged over all of them
-  luxSensor: 
-  - sensor.lux_kuche
-  # All presence sensors, if one triggers light will be on
-  presenceSensor: 
-  - binary_sensor.presence_kuche
 light_schlafzimmer:
   module: light
   class: Light
-  wantedLightTemp: 6700 # Optional for working according to https://www.any-lamp.com/blog/which-color-temperature-for-what-room
-  # Input number which sets the target lux, you can dynamically change this. The light will update
-  wantedLux: input_number.light_schlafzimmer_lux
-  # All light entities, those are controlled the same (so ensure those are the same type of light)
-  light: 
-  - light.light_1_schlafzimmer
-  - light.light_2_schlafzimmer
-  # All lux sensors, the amount of lux will be averaged over all of them
-  luxSensor: 
-  - sensor.lux_schlafzimmer
-  # All presence sensors, if one triggers light will be on
-  presenceSensor: 
-  - binary_sensor.presence_schlafzimmer
 light_wohnzimmer:
   module: light
   class: Light
-  wantedLightTemp: 6700 # Optional for working according to https://www.any-lamp.com/blog/which-color-temperature-for-what-room
-  # Input number which sets the target lux, you can dynamically change this. The light will update
-  wantedLux: input_number.light_wohnzimmer_lux
-  # All light entities, those are controlled the same (so ensure those are the same type of light)
-  light: 
-  - light.light_1_wohnzimmer
-  - light.light_2_wohnzimmer
-  # All lux sensors, the amount of lux will be averaged over all of them
-  luxSensor: 
-  - sensor.lux_wohnzimmer
-  # All presence sensors, if one triggers light will be on
-  presenceSensor: 
-  - binary_sensor.presence_wohnzimmer
 light_buro_fabian:
   module: light
   class: Light
-  wantedLightTemp: 6700 # Optional for working according to https://www.any-lamp.com/blog/which-color-temperature-for-what-room
-  # Input number which sets the target lux, you can dynamically change this. The light will update
-  wantedLux: input_number.light_buero_fabian_lux
-  # All light entities, those are controlled the same (so ensure those are the same type of light)
-  light: 
-  - light.light_1_buro_fabian
-  # All lux sensors, the amount of lux will be averaged over all of them
-  luxSensor: 
-  - sensor.lux_buro_fabian
-  # All presence sensors, if one triggers light will be on
-  presenceSensor: 
-  - binary_sensor.presence_buro_fabian
 light_buro_merja:
   module: light
   class: Light
-  wantedLightTemp: 6700 # Optional for working according to https://www.any-lamp.com/blog/which-color-temperature-for-what-room
-  # Input number which sets the target lux, you can dynamically change this. The light will update
-  wantedLux: input_number.light_buero_merja_lux
-  # All light entities, those are controlled the same (so ensure those are the same type of light)
-  light: 
-  - light.light_1_buro_merja
-  - light.light_2_buro_merja
-  # All lux sensors, the amount of lux will be averaged over all of them
-  luxSensor: 
-  - sensor.lux_buro_merja
-  # All presence sensors, if one triggers light will be on
-  presenceSensor: 
-  - binary_sensor.presence_buro_merja
 light_flur:
   module: light
   class: Light
-  wantedLightTemp: 6700 # Optional for working according to https://www.any-lamp.com/blog/which-color-temperature-for-what-room
-  # Input number which sets the target lux, you can dynamically change this. The light will update
-  wantedLux: input_number.light_flur_lux
-  # All light entities, those are controlled the same (so ensure those are the same type of light)
-  light: 
-  - light.light_1_flur
-  - light.light_2_flur
-  - light.light_3_flur
-  - light.light_4_flur
-  - light.light_5_flur
-  - light.light_6_flur
-  # All lux sensors, the amount of lux will be averaged over all of them
-  luxSensor: 
-  - sensor.lux_flur_1
-  - sensor.lux_flur_2
-  - sensor.lux_flur_3
-  # All presence sensors, if one triggers light will be on
-  presenceSensor: 
-  - binary_sensor.presence_flur_1
-  - binary_sensor.presence_flur_2
-  - binary_sensor.presence_flur_3
 heating_speisekammer:
   module: heating
   class: Heating
