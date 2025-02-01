@@ -107,6 +107,8 @@ class Heating(hass.Hass):
         self.run_every(self.recalc, "now", 10)
 
     def onEvent(self, event_name, data, kwargs):
+        self.log(data)
+
         if data["domain"] != "climate":
             return
 
