@@ -107,11 +107,12 @@ class Heating(hass.Hass):
         self.run_every(self.recalc, "now", 10)
 
     def onEvent(self, event_name, data, kwargs):
-        self.log(data)
-
-        if data["domain"] != "climate":
+        if not "service_data" in data:
             return
-
+        
+        if not "entity_id" in data["service_data"]:
+            return
+    
         # This is a nasty hack since it can happen that an array or string is given
         found = data["service_data"]["entity_id"] == self.virtual_entity_name
         if not found:

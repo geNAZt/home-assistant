@@ -145,7 +145,10 @@ class Light(hass.Hass):
         return red, green, blue
 
     def onEvent(self, event_name, data, kwargs):
-        if data["domain"] != "light":
+        if not "service_data" in data:
+            return
+        
+        if not "entity_id" in data["service_data"]:
             return
 
         # This is a nasty hack since it can happen that an array or string is given
