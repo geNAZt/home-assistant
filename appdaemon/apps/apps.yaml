@@ -17,10 +17,10 @@ light_schlafzimmer:
 light_wohnzimmer:
   module: light
   class: Light
-light_buro_fabian:
+light_buero_fabian:
   module: light
   class: Light
-light_buro_merja:
+light_buero_merja:
   module: light
   class: Light
 light_flur:
