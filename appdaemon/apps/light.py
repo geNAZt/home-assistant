@@ -88,14 +88,7 @@ class Light(hass.Hass):
         if data["domain"] != "light":
             return
 
-        found = False
-        for entity in data["service_data"]["entity_id"]:
-            if entity == self.virtual_entity_name:
-                found = True
-                break
-
-        if not found:
-            return
+        
         
         self.log(data)
 
