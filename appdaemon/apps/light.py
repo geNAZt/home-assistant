@@ -115,6 +115,7 @@ class Light(hass.Hass):
             self._on = True
 
         if data["service"] == "turn_off":
+            self.set_state(self.virtual_entity_name, state="off")
             self._on = False
 
         self.recalc()
