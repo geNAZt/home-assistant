@@ -21,10 +21,6 @@ class Light(hass.Hass):
         self._pid = PID(2.0, 0.5, 2.0, setpoint=wanted_lux)
         self._pid.output_limits = (-10, 40)
 
-        # Get presence state
-        self._presence = self.is_present()
-        self._restoreValue = 0    
-
         # Generate virtual light entity
         self.virtual_entity_name = "light.room_%s" % self.name.replace("light_", "")
         if not self.entity_exists(self.virtual_entity_name):
@@ -58,6 +54,10 @@ class Light(hass.Hass):
 
         # Get lights
         self.lights = self.find_entity("light.light_[0-9]_%s" % self.name.replace("light_", ""))
+
+        # Get presence state
+        self._presence = self.is_present()
+        self._restoreValue = 0    
 
         # Kick it off
         self._lastUpdate = 0
