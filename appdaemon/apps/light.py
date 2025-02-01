@@ -111,6 +111,9 @@ class Light(hass.Hass):
                 attr["brightness"] = attr["brightness_pct"] * 2.55
                 del attr["brightness_pct"]
 
+            if "color_temp_kelvin":
+                attr["color_temp"] = attr["color_temp_kelvin"]
+
             self.set_state(self.virtual_entity_name, state="on", attributes=attr)
 
         if data["service"] == "turn_off":
