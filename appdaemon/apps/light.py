@@ -129,7 +129,7 @@ class Light(hass.Hass):
             if brightness == 0:
                 self.turn_off(light)
             else:
-                self.turn_on(light, brightness = brightness, color_temp_kelvin = float(self.get_state(self.virtual_entity_name, attribute="color_temp_kelvin")))
+                self.turn_on(light, brightness = brightness, color_temp_kelvin = float(self.get_state(self.virtual_entity_name, attribute="color_temp_kelvin", default=6700)))
 
     def is_present(self):
         for sensor in self.presence_sensors:
