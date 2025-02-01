@@ -108,6 +108,8 @@ class Light(hass.Hass):
 
             if "brightness_pct" in attr:
                 self._pid.setpoint = attr["brightness_pct"] * 3
+                attr["brightness"] = attr["brightness_pct"] * 2.55
+                del attr["brightness_pct"]
 
             self.set_state(self.virtual_entity_name, state="on", attributes=attr)
 
