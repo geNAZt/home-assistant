@@ -88,12 +88,13 @@ class Light(hass.Hass):
         if data["domain"] != "light":
             return
 
-        found = False
-        for entity in data["service_data"]["entity_id"]:
-            self.log("Try to match %s against %s" % (entity, self.virtual_entity_name))
-            if entity == self.virtual_entity_name:
-                found = True
-                break
+        # This is a nasty hack since it can happen that an array or string is given
+        found = data["service_data"]["entity_id"] == self.virtual_entity_name
+        if not found:
+            for entity in data["service_data"]["entity_id"]:
+                if entity == self.virtual_entity_name:
+                    found = True
+                    break
 
         if not found:
             return
