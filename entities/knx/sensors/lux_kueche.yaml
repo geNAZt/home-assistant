@@ -1,4 +1,4 @@
-name: "Lux Küche"
+name: "Lux Kueche"
 state_address: "2/1/1"
 type: illuminance
 always_callback: true
