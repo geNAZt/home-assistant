@@ -24,7 +24,7 @@ class Light(hass.Hass):
         # Generate virtual light entity
         self.virtual_entity_name = "light.room_%s" % self.name.replace("light_", "")
         if not self.entity_exists(self.virtual_entity_name):
-            self.set_state(self.virtual_entity_name, {
+            self.set_state(self.virtual_entity_name, state=0, attributes={
                 "min_color_temp_kelvin": 2700,
                 "max_color_temp_kelvin": 6700,
                 "supported_color_modes": ["color_temp"],
