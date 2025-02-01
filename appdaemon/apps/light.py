@@ -10,7 +10,6 @@ class Light(hass.Hass):
     _presence: bool
     _pid: PID
     _lastUpdate: int
-    _on: bool
 
     def initialize(self):
         # Generate virtual light entity
@@ -29,7 +28,6 @@ class Light(hass.Hass):
             })
 
         self.listen_event(self.onEvent, event="call_service")
-        self._on = True
 
         # Setup the PID controller
         self._pid = PID(2.0, 0.5, 2.0, setpoint=float(self.get_state(self.virtual_entity_name, attribute="brightness_pct", default=100)) * 3)
@@ -104,20 +102,17 @@ class Light(hass.Hass):
         
         # Should we turn on?
         if data["service"] == "turn_on":
-            self.log(data)
-            self._pid.setpoint = float(data["service_data"]["brightness_pct"]) * 3
+            # Take over attributes
+            attr = data["service_data"].copy()
+            del attr["entity_id"]
 
-            # This can also set brightness and temp attributes
-            self.set_state(self.virtual_entity_name, state="on", attributes={
-                "brightness_pct": data["service_data"]["brightness_pct"],
-                "color_temp_kelvin": data["service_data"]["color_temp_kelvin"],
-            })
+            if "brightness_pct" in attr:
+                self._pid.setpoint = attr["brightness_pct"] * 3
 
-            self._on = True
+            self.set_state(self.virtual_entity_name, state="on", attributes=attr)
 
         if data["service"] == "turn_off":
             self.set_state(self.virtual_entity_name, state="off")
-            self._on = False
 
         self.recalc()
 
@@ -158,12 +153,13 @@ class Light(hass.Hass):
 
     def recalc(self, kwargs):
         # Check if we got disabled
-        if not self._on:
+        active = self.get_state(self.virtual_entity_name)
+        if active == "off":
             self.set_light_to(0)
             return
 
         # Check if presence is triggered
-        if self._presence == False:
+        if not self._presence:
             self.set_light_to(0)
             return
 
