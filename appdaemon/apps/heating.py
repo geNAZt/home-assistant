@@ -46,10 +46,10 @@ class Heating(hass.Hass):
                 "target_temperature_step": 0.1,
                 "target_temperature_low": 16.0,
                 "target_temperature_high": 25.0,
-                "target_temperature": 21.0,
+                "temperature": 21.0,
                 "hvac_action": "heating",
                 "current_temperature": 0,
-                "supported_features": 2,
+                "supported_features": 1,
             })
 
         self.listen_event(self.onEvent, event="call_service")
