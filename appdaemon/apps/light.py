@@ -85,8 +85,6 @@ class Light(hass.Hass):
         })
 
     def onEvent(self, event_name, data, kwargs):
-        self.log(data)
-        
         if data["service_data"]["entity_id"] != self.virtual_entity_name:
             return
         
