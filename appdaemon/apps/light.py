@@ -32,7 +32,7 @@ class Light(hass.Hass):
         self._on = True
 
         # Setup the PID controller
-        self._pid = PID(2.0, 0.5, 2.0, setpoint=float(self.get_state(self.virtual_entity_name, attribute="brightness_pct")) * 3)
+        self._pid = PID(2.0, 0.5, 2.0, setpoint=float(self.get_state(self.virtual_entity_name, attribute="brightness_pct", default=100)) * 3)
         self._pid.output_limits = (-10, 40)
     
         # Attach a listener to all presence sensors
