@@ -36,7 +36,22 @@ class Heating(hass.Hass):
     _manipulation_time: float
 
     def initialize(self):
-        self.log("Heating control loaded...")
+        # Generate virtual light entity
+        self.virtual_entity_name = "climate.room_%s" % self.name.replace("heating_", "")
+        if not self.entity_exists(self.virtual_entity_name):
+            self.set_state(self.virtual_entity_name, state="idle", attributes={
+                "hvac_modes": ["heat"],
+                "friendly_name": "Climate %s" % self.name.replace("heating_", "").replace("_", " "),
+                "temperature_unit": "temp_celsius",
+                "target_temperature_step": 0.1,
+                "target_temperature_low": 16.0,
+                "target_temperature_high": 25.0,
+                "target_temperature": 21.0,
+                "hvac_action": "heating",
+                "current_temperature": 0,
+            })
+
+        self.listen_event(self.onEvent, event="call_service")
 
         self.security_sensors = self.find_entity("temperature_%s_floor" % self.name.replace("heating_", ""))
         self.room_sensors = self.find_entity("temperature_%s" % self.name.replace("heating_", ""), "_floor")
@@ -90,6 +105,23 @@ class Heating(hass.Hass):
 
         # Ensure that we run at least once a minute
         self.run_every(self.recalc, "now", 10)
+
+    def onEvent(self, event_name, data, kwargs):
+        if data["domain"] != "climate":
+            return
+
+        # This is a nasty hack since it can happen that an array or string is given
+        found = data["service_data"]["entity_id"] == self.virtual_entity_name
+        if not found:
+            for entity in data["service_data"]["entity_id"]:
+                if entity == self.virtual_entity_name:
+                    found = True
+                    break
+
+        if not found:
+            return
+        
+        self.log(data)
 
     def find_entity(self, search, contains_not=""):
         states = self.get_state()
