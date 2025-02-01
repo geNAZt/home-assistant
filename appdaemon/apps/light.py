@@ -37,23 +37,27 @@ class Light(hass.Hass):
     
         # Attach a listener to all presence sensors
         self.presence_sensors = self.find_entity("binary_sensor.presence_%s[_0-9]*" % self.name.replace("light_", ""))
+        if len(self.presence_sensors) == 0:
+            raise Exception("not enough presence sensors")
+
         for sensor in self.presence_sensors:
             presenceEntity = self.get_entity(sensor)
             presenceEntity.listen_state(self.onPresenceChange, new = "off")
             presenceEntity.listen_state(self.onPresenceChange, new = "on")
 
         self.lux_sensors = self.find_entity("sensor.lux_%s[_0-9]*" % self.name.replace("light_", ""))
+        if len(self.lux_sensors) == 0:
+            raise Exception("not enough lux sensors")
+
         for sensor in self.lux_sensors:
             luxEntity = self.get_entity(sensor)
             luxEntity.listen_state(self.onLuxChange)
 
-        # Listen if input changes so we can set setpoint of pid accordingly
-        inputEntity = self.get_entity("input_number.state_light_%s_%s" % (self.name, "wanted_lux"))
-        inputEntity.listen_state(self.onWantedLuxChange)
-
         # Get lights
         self.lights = self.find_entity("light.light_[0-9]_%s" % self.name.replace("light_", ""))
-
+        if len(self.lights) == 0:
+            raise Exception("not enough lights")
+        
         # Get presence state
         self._presence = self.is_present()
         self._restoreValue = 0    
