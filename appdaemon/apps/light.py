@@ -172,7 +172,7 @@ class Light(hass.Hass):
 
             if "color_temp_kelvin" in attr:
                 r,g,b = self.convert_K_to_RGB(attr["color_temp_kelvin"])
-                attr["rgb_color"] = [r,g,b]
+                attr["rgb_color"] = [round(r),round(g),round(b)]
 
             self.set_state(self.virtual_entity_name, state="on", attributes=attr)
 
