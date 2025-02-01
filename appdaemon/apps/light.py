@@ -170,7 +170,7 @@ class Light(hass.Hass):
                 attr["brightness"] = attr["brightness_pct"] * 2.55
                 del attr["brightness_pct"]
 
-            if "color_temp_kelvin":
+            if "color_temp_kelvin" in attr:
                 r,g,b = self.convert_K_to_RGB(attr["color_temp_kelvin"])
                 attr["rgb_color"] = [r,g,b]
 
