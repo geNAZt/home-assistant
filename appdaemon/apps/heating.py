@@ -40,7 +40,7 @@ class Heating(hass.Hass):
         self.virtual_entity_name = "climate.room_%s" % self.name.replace("heating_", "")
         if not self.entity_exists(self.virtual_entity_name):
             self.set_state(self.virtual_entity_name, state="idle", attributes={
-                "hvac_modes": ["heat"],
+                "hvac_modes": ["heat","off"],
                 "friendly_name": "Climate %s" % self.name.replace("heating_", "").replace("_", " "),
                 "temperature_unit": "temp_celsius",
                 "target_temperature_step": 0.1,
@@ -49,6 +49,7 @@ class Heating(hass.Hass):
                 "target_temperature": 21.0,
                 "hvac_action": "heating",
                 "current_temperature": 0,
+                "supported_features": 1,
             })
 
         self.listen_event(self.onEvent, event="call_service")
