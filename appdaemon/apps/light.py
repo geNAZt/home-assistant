@@ -14,8 +14,8 @@ class Light(hass.Hass):
 
     def initialize(self):
         # Open database
-        db = TinyDB("/config/light_states.json")
-        self.table = db.table('lights', cache_size=0)
+        db = TinyDB("/config/light_state_%s.json" % self.name.replace("light_", ""))
+        self.table = db.table('lights', cache_size=30)
         self.query = Query()
 
         # Generate virtual light entity

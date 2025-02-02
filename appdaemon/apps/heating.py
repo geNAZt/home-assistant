@@ -35,8 +35,8 @@ class Heating(hass.Hass):
     _manipulation_time: float
 
     def initialize(self):
-        db = TinyDB("/config/climate_states.json")
-        self.table = db.table('climate', cache_size=0)
+        db = TinyDB("/config/climate_state_%s.json" % self.name.replace("heating_", ""))
+        self.table = db.table('climate', cache_size=30)
         self.query = Query()
 
         # Generate virtual light entity
@@ -147,15 +147,15 @@ class Heating(hass.Hass):
                 self.pwmSet(TIME_SLOT_SECONDS, 0)
 
             self.set_state(self.virtual_entity_name, attributes={"temperature": temp})
-            self.table.update({"temperature": temp}, doc_ids=[self.db_doc_id])
+            self.table.update({'temperature': temp}, doc_ids=[self.db_doc_id])
         
         if data["service"] == "set_hvac_mode":
             if data["service_data"]["hvac_mode"] == "off":
                 self.set_state(self.virtual_entity_name, state="off")
-                self.table.update({"state": "off"}, doc_ids=[self.db_doc_id])
+                self.table.update({'state': "off"}, doc_ids=[self.db_doc_id])
             else:
                 self.set_state(self.virtual_entity_name, state="idle")
-                self.table.update({"state": "idle"}, doc_ids=[self.db_doc_id])
+                self.table.update({'state': "idle"}, doc_ids=[self.db_doc_id])
 
     def find_entity(self, search, contains_not=""):
         states = self.get_state()
