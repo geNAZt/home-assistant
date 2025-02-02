@@ -49,11 +49,11 @@ class Heating(hass.Hass):
         docs = self.table.search(self.query.entity_id == self.virtual_entity_name)
         if len(docs) > 0:
             self.db_doc_id = docs[0].doc_id
-
             self.log("DB view: %r" % docs[0])
-            state = docs[0].state
-            temperature = docs[0].temperature
-            pwm_percent = docs[0].pwm_percent
+            
+            state = docs[0]["state"]
+            temperature = docs[0]["temperature"]
+            pwm_percent = docs[0]["pwm_percent"]
         else:
             self.db_doc_id = self.table.insert({
                 'entity_id': self.virtual_entity_name, 
