@@ -268,12 +268,18 @@ class Heating(hass.Hass):
 
         now_seconds = time.time()
         self._heating_started = now_seconds
+        self.set_heating()
+        
+    def set_heating(self):
         self.table.update({'state': 'heat'})
         self.set_state(self.virtual_entity_name, state='heat')
 
     def turn_heat_off(self, log):
         self.log(log)
         self.turn_off(self.output)
+        self.set_idle()
+
+    def set_idle(self):
         self.table.update({'state': 'idle'})
         self.set_state(self.virtual_entity_name, state='idle')
 
@@ -301,6 +307,9 @@ class Heating(hass.Hass):
         if self._heating_halted_until > now_seconds:
             if heating:
                 self.turn_heat_off("Turning off due to cooldown")
+            else:
+                self.set_idle()
+            
             return
 
         self._heating_halted_until = 0.0
@@ -311,6 +320,9 @@ class Heating(hass.Hass):
                 self.manipulateDown("security cut")
             if heating:
                 self.turn_heat_off("Turning off heat due to security")
+            else:
+                self.set_idle()
+
             return
 
         # Check for open window (heat leaking)
@@ -318,20 +330,28 @@ class Heating(hass.Hass):
         if room_temp_rate < WINDOW_OPEN_RATE:
             if heating:
                 self.turn_heat_off("Room has open window. Not heating...")
+            else:
+                self.set_idle()
+
             return
 
         # Check if diff top to bottom is too strong (heat transfer)
         if self.security_temperature_rate() > SECURITY_OFF_RATE:
             if heating:
                 self.turn_heat_off("Wanted to heat but diff between ceiling and floor temp is too high")
+            else:
+                self.set_idle()
+
             return
 
         # Have we reached target temp?
         if room_temp >= self.target_temp():       # We reached target temp
             if heating:
                 self.turn_heat_off("Reached target temp")
+            else:
+                self.set_idle()
 
-           # We are now at target temp, reduce PWM one step if possible
+            # We are now at target temp, reduce PWM one step if possible
             if FEATURE_ON_OFF_TIME_MANIPULATION_ENABLED:
                 self.manipulateDown("reached target temp")
                 return
@@ -363,6 +383,8 @@ class Heating(hass.Hass):
 
             if heating == False:
                 self.turn_heat_on("Starting to heat")
+            else:
+                self.set_heating()
                 
             return
 
