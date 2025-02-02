@@ -14,7 +14,7 @@ class Light(hass.Hass):
 
     def initialize(self):
         # Open database
-        db = TinyDB("/conf/light_states.json")
+        db = TinyDB("/config/light_states.json")
         self.table = db.table('lights', cache_size=0)
         self.query = Query()
 
