@@ -140,7 +140,6 @@ class Heating(hass.Hass):
         if not found:
             return
         
-        self.log(data)
         if data["service"] == "set_temperature":
             temp = float(data["service_data"]["temperature"])
             doc = self.table.get(doc_id=self.db_doc_id)
@@ -287,6 +286,9 @@ class Heating(hass.Hass):
                 self.turn_heat_off("Climate control is off")
             return
 
+        room_temp = self.room_temperature()
+        self.set_state(self.virtual_entity_name, attributes={"current_temperature": room_temp})
+
         now_seconds = time.time()
 
         # Check for heating length
@@ -323,9 +325,6 @@ class Heating(hass.Hass):
             if heating:
                 self.turn_heat_off("Wanted to heat but diff between ceiling and floor temp is too high")
             return
-
-        room_temp = self.room_temperature()
-        self.set_state(self.virtual_entity_name, attributes={"current_temperature": room_temp})
 
         # Have we reached target temp?
         if room_temp >= self.target_temp():       # We reached target temp
