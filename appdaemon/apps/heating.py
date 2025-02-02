@@ -141,7 +141,7 @@ class Heating(hass.Hass):
             return
         
         if data["service"] == "set_temperature":
-            temp = float(data["service_data"]["temperature"])
+            temp = round(float(data["service_data"]["temperature"]),1)
             doc = self.table.get(doc_id=self.db_doc_id)
             if temp > doc["temperature"]:
                 self.pwmSet(TIME_SLOT_SECONDS, 0)
