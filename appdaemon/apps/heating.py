@@ -36,7 +36,7 @@ class Heating(hass.Hass):
 
     def initialize(self):
         db = TinyDB("/config/climate_state_%s.json" % self.name.replace("heating_", ""))
-        self.table = db.table('climate', cache_size=30)
+        self.table = db.table('climate', cache_size=0)
         self.query = Query()
 
         # Generate virtual light entity
@@ -324,6 +324,7 @@ class Heating(hass.Hass):
             return
 
         room_temp = self.room_temperature()
+        self.set_state(self.virtual_entity_name, attributes={"current_temperature": room_temp})
 
         # Have we reached target temp?
         if room_temp >= self.target_temp():       # We reached target temp
@@ -351,7 +352,6 @@ class Heating(hass.Hass):
                 return
 
         # Do we need to start heating?
-        diff = self.target_temp() - room_temp
         if room_temp < self.target_temp():
             # We are now at target temp, reduce PWM one step if possible
             if FEATURE_ON_OFF_TIME_MANIPULATION_ENABLED:
