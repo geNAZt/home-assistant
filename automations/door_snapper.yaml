@@ -1,0 +1,23 @@
+- alias: Door snapper
+  description: ""
+  triggers:
+    - trigger: state
+      entity_id:
+        - input_button.snapper_door
+  conditions: []
+  actions:
+    - action: switch.turn_on
+      metadata: {}
+      data: {}
+      target:
+        entity_id: switch.snapper_door
+    - delay:
+        hours: 0
+        minutes: 0
+        seconds: 10
+    - action: switch.turn_off
+      metadata: {}
+      data: {}
+      target:
+        entity_id: switch.snapper_door
+  mode: single
