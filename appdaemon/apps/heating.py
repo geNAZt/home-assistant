@@ -2,6 +2,7 @@ import appdaemon.plugins.hass.hassapi as hass
 import datetime
 import time
 
+from tinydb import TinyDB, Query
 from datetime import timedelta, datetime, timezone
 
 ALLOWED_DIFF = 0.1
@@ -34,21 +35,44 @@ class Heating(hass.Hass):
     _manipulation_time: float
 
     def initialize(self):
+        db = TinyDB("/config/climate_states.json")
+        self.table = db.table('climate', cache_size=0)
+        self.query = Query()
+
         # Generate virtual light entity
         self.virtual_entity_name = "climate.room_%s" % self.name.replace("heating_", "")
-        if not self.entity_exists(self.virtual_entity_name):
-            self.set_state(self.virtual_entity_name, state="idle", attributes={
-                "hvac_modes": ["heat","off"],
-                "friendly_name": "Climate %s" % self.name.replace("heating_", "").replace("_", " "),
-                "temperature_unit": "temp_celsius",
-                "target_temp_step": 0.1,
-                "min_temp": 16.0,
-                "max_temp": 25.0,
-                "temperature": 21.0,
-                "hvac_action": "heating",
-                "current_temperature": 0,
-                "supported_features": 1,
+        
+        temperature = 21.0
+        state = "heat"
+        pwm_percent = 0.2
+
+        docs = self.table.search(self.query.entity_id == self.virtual_entity_name)
+        if len(docs) > 0:
+            self.db_doc_id = docs[0].doc_id
+
+            state = docs[0].state
+            temperature = docs[0].temperature
+            pwm_percent = docs[0].pwm_percent
+        else:
+            self.db_doc_id = self.table.insert({
+                'entity_id': self.virtual_entity_name, 
+                'state': state, 
+                'temperature': temperature, 
+                'pwm_percent': pwm_percent
             })
+
+        self.set_state(self.virtual_entity_name, state=state, attributes={
+            "hvac_modes": ["heat","off"],
+            "friendly_name": "Climate %s" % self.name.replace("heating_", "").replace("_", " "),
+            "temperature_unit": "temp_celsius",
+            "target_temp_step": 0.1,
+            "min_temp": 16.0,
+            "max_temp": 25.0,
+            "temperature": temperature,
+            "hvac_action": "heating",
+            "current_temperature": 0,
+            "supported_features": 1,
+        })
 
         self.listen_event(self.onEvent, event="call_service")
 
@@ -71,9 +95,6 @@ class Heating(hass.Hass):
             sens = self.get_entity(sensor)
             sens.listen_state(self.onChangeRecalc)
 
-        input_entity = self.get_entity("input_number.%s_degrees" % self.name)
-        input_entity.listen_state(self.onTargetTempChange)
-
         sens = self.find_entity("%s_current" % self.name.replace("heating_", ""))
 
         self.phase = ""
@@ -92,15 +113,10 @@ class Heating(hass.Hass):
         self._heating_started = 0.0
         self._heating_halted_until = 0.0
 
-        # Calc on and off time
-        pwm_percent = float(0.2)
-        if self.entity_exists("input_number.debug_heating_%s_%s" % (self.name, "pwm_percent")):
-            pwm_percent = float(self.get_state("input_number.debug_heating_%s_%s" % (self.name, "pwm_percent")))
-        
+        # Calc on and off time        
         self._on_time = TIME_SLOT_SECONDS * pwm_percent
         self._off_time = TIME_SLOT_SECONDS - self._on_time
         self._manipulation_time = 0
-        self.debug_value("pwm_percent", (self._on_time / TIME_SLOT_SECONDS))
 
         # Ensure that we run at least once a minute
         self.run_every(self.recalc, "now", 10)
@@ -124,6 +140,22 @@ class Heating(hass.Hass):
             return
         
         self.log(data)
+        if data["service"] == "set_temperature":
+            temp = float(data["service_data"]["temperature"])
+            doc = self.table.get(doc_id=self.db_doc_id)
+            if temp > doc.temperature:
+                self.pwmSet(TIME_SLOT_SECONDS, 0)
+
+            self.set_state(self.virtual_entity_name, attributes={"temperature": temp})
+            self.table.update({"temperature": temp}, doc_ids=[self.db_doc_id])
+        
+        if data["service"] == "set_hvac_mode":
+            if data["service_data"]["hvac_mode"] == "off":
+                self.set_state(self.virtual_entity_name, state="off")
+                self.table.update({"state": "off"}, doc_ids=[self.db_doc_id])
+            else:
+                self.set_state(self.virtual_entity_name, state="idle")
+                self.table.update({"state": "idle"}, doc_ids=[self.db_doc_id])
 
     def find_entity(self, search, contains_not=""):
         states = self.get_state()
@@ -142,7 +174,7 @@ class Heating(hass.Hass):
         now = time.time()
         self._on_time = on
         self._off_time = off
-        self.debug_value("pwm_percent", (self._on_time / TIME_SLOT_SECONDS))
+        self.table.update({"pwm_percent": (self._on_time / TIME_SLOT_SECONDS)}, doc_ids=[self.db_doc_id])
         self._manipulation_time = now + FEATURE_ON_OFF_TIME_MANIPULATION_COOLDOWN
 
     def manipulateUp(self, log):
@@ -159,14 +191,6 @@ class Heating(hass.Hass):
                 self.pwmSet(self._on_time - FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS, self._off_time + FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS)
                 self.log("PWM goes down, %s" % log)
 
-    def onTargetTempChange(self, entity, attribute, old, new, kwargs):
-        of = float(old)
-        nf = float(new)
-
-        if nf > of:
-            self.pwmSet(TIME_SLOT_SECONDS, 0)
-
-
     def onChangeRecalc(self, entity, attribute, old, new, kwargs):
         self.recalc(kwargs=None)
 
@@ -176,7 +200,7 @@ class Heating(hass.Hass):
             self.current = nf
 
     def target_temp(self):
-        return float(self.get_state("input_number.%s_degrees" % self.name, default=0))
+        return float(self.get_state(self.virtual_entity_name, attribute="temperature", default=0))
 
     def is_heating(self):
         return self.get_state(self.output) == "on"
@@ -238,15 +262,30 @@ class Heating(hass.Hass):
 
         return float(temperature / len(self.room_sensors))
 
-    def debug_value(self, name, value):
-        entity_id = "input_number.debug_heating_%s_%s" % (self.name, name)
-        self.set_state(entity_id, state=value, attributes={
-            "min": -500,
-            "max": 500,
-        })
+    def turn_heat_on(self, log):
+        self.log(log)
+        self.turn_on(self.output)
+
+        now_seconds = time.time()
+        self._heating_started = now_seconds
+        self.table.update({'state': 'heat'})
+        self.set_state(self.virtual_entity_name, state='heat')
+
+    def turn_heat_off(self, log):
+        self.log(log)
+        self.turn_off(self.output)
+        self.table.update({'state': 'idle'})
+        self.set_state(self.virtual_entity_name, state='idle')
 
     def recalc(self, kwargs):
         heating = self.is_heating()
+
+        state = self.get_state(self.virtual_entity_name)
+        if state == "off":
+            if heating:
+                self.turn_heat_off("Climate control is off")
+            return
+
         now_seconds = time.time()
 
         # Check for heating length
@@ -258,8 +297,7 @@ class Heating(hass.Hass):
         # Check if we are paused
         if self._heating_halted_until > now_seconds:
             if heating:
-                self.log("Turning off due to cooldown")
-                self.turn_off(self.output)
+                self.turn_heat_off("Turning off due to cooldown")
             return
 
         self._heating_halted_until = 0.0
@@ -269,24 +307,20 @@ class Heating(hass.Hass):
             if FEATURE_ON_OFF_TIME_MANIPULATION_ENABLED:
                 self.manipulateDown("security cut")
             if heating:
-                self.log("Turning off heat due to security")
-                self.turn_off(self.output)
+                self.turn_heat_off("Turning off heat due to security")
             return
 
         # Check for open window (heat leaking)
         room_temp_rate = self.room_temperature_rate()
-        self.debug_value("room_temp_rate", room_temp_rate)
         if room_temp_rate < WINDOW_OPEN_RATE:
             if heating:
-                self.log("Room has open window. Not heating...")
-                self.turn_off(self.output)
+                self.turn_heat_off("Room has open window. Not heating...")
             return
 
         # Check if diff top to bottom is too strong (heat transfer)
         if self.security_temperature_rate() > SECURITY_OFF_RATE:
             if heating:
-                self.log("Wanted to heat but diff between ceiling and floor temp is too high")
-                self.turn_off(self.output)
+                self.turn_heat_off("Wanted to heat but diff between ceiling and floor temp is too high")
             return
 
         room_temp = self.room_temperature()
@@ -294,8 +328,7 @@ class Heating(hass.Hass):
         # Have we reached target temp?
         if room_temp >= self.target_temp():       # We reached target temp
             if heating:
-                self.log("Reached target temp")
-                self.turn_off(self.output)
+                self.turn_heat_off("Reached target temp")
 
            # We are now at target temp, reduce PWM one step if possible
             if FEATURE_ON_OFF_TIME_MANIPULATION_ENABLED:
@@ -312,9 +345,9 @@ class Heating(hass.Hass):
                     current_used += float(c)
             
             if current_used + self.current > 15500:
-                self.log("Can't heat, would trigger breaker")
                 if heating:
-                    self.turn_off(self.output)
+                    self.turn_heat_off("Can't heat, would trigger breaker")
+
                 return
 
         # Do we need to start heating?
@@ -329,9 +362,7 @@ class Heating(hass.Hass):
                     self.manipulateUp("temperature rises too slow")
 
             if heating == False:
-                self.log("Starting to heat")
-                self._heating_started = now_seconds
-                self.turn_on(self.output)
+                self.turn_heat_on("Starting to heat")
                 
             return
 
