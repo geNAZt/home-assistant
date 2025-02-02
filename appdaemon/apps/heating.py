@@ -50,7 +50,7 @@ class Heating(hass.Hass):
         if len(docs) > 0:
             self.db_doc_id = docs[0].doc_id
             self.log("DB view: %r" % docs[0])
-            
+
             state = docs[0]["state"]
             temperature = docs[0]["temperature"]
             pwm_percent = docs[0]["pwm_percent"]
@@ -144,7 +144,7 @@ class Heating(hass.Hass):
         if data["service"] == "set_temperature":
             temp = float(data["service_data"]["temperature"])
             doc = self.table.get(doc_id=self.db_doc_id)
-            if temp > doc.temperature:
+            if temp > doc["temperature"]:
                 self.pwmSet(TIME_SLOT_SECONDS, 0)
 
             self.set_state(self.virtual_entity_name, attributes={"temperature": temp})

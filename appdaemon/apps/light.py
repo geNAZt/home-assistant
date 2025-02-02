@@ -29,9 +29,9 @@ class Light(hass.Hass):
         if len(docs) > 0:
             self.db_doc_id = docs[0].doc_id
 
-            state = docs[0].state
-            color = docs[0].color
-            brightness = docs[0].brightness
+            state = docs[0]["state"]
+            color = docs[0]["color"]
+            brightness = docs[0]["brightness"]
         else:
             self.db_doc_id = self.table.insert({
                 'entity_id': self.virtual_entity_name, 
@@ -245,7 +245,7 @@ class Light(hass.Hass):
             self._presence = self.is_present()
             if self._presence:
                 doc = self.table.get(doc_id=self.db_doc_id)
-                self.set_light_to(doc.restore)
+                self.set_light_to(doc["restore"])
         else: 
             self._presence = self.is_present()
             if self._presence == False:
