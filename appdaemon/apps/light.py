@@ -3,28 +3,57 @@ import time
 import re
 import math
 
+from tinydb import TinyDB, Query
 from simple_pid import PID
 
 class Light(hass.Hass):
 
-    _restoreValue: float
     _presence: bool
     _pid: PID
     _lastUpdate: int
 
     def initialize(self):
+        # Open database
+        db = TinyDB("/conf/light_states.json")
+        self.table = db.table('lights', cache_size=0)
+        self.query = Query()
+
         # Generate virtual light entity
         self.virtual_entity_name = "light.room_%s" % self.name.replace("light_", "")
-        if not self.entity_exists(self.virtual_entity_name):
-            self.set_state(self.virtual_entity_name, state="off", attributes={
-                "min_color_temp_kelvin": 2700,
-                "max_color_temp_kelvin": 6700,
-                "supported_color_modes": ["color_temp"],
-                "friendly_name": "Licht %s" % self.name.replace("light_", "").replace("_", " "),
-                "supported_features": 0,
-                "brightness_pct": 100,
-                "color_temp_kelvin": 6700,
+
+        brightness = 255
+        color = 6700
+        state = "on"
+
+        docs = self.table.search(self.query.entity_id == self.virtual_entity_name)
+        if len(docs) > 0:
+            self.db_doc_id = docs[0].doc_id
+
+            state = docs[0].state
+            color = docs[0].color
+            brightness = docs[0].brightness
+        else:
+            self.db_doc_id = self.table.insert({
+                'entity_id': self.virtual_entity_name, 
+                'state': state, 
+                'color': color, 
+                'brightness': brightness,
+                'restore': 0
             })
+
+        self.log("We are doc id %r" % self.db_doc_id)
+
+        r,g,b = self.convert_K_to_RGB(color)
+        self.set_state(self.virtual_entity_name, state=state, attributes={
+            "min_color_temp_kelvin": 2700,
+            "max_color_temp_kelvin": 6700,
+            "supported_color_modes": ["color_temp"],
+            "friendly_name": "Licht %s" % self.name.replace("light_", "").replace("_", " "),
+            "supported_features": 0,
+            "brightness": brightness,
+            "color_temp_kelvin": color,
+            "rgb_color": [round(r),round(g),round(b)]
+        })
 
         self.listen_event(self.onEvent, event="call_service")
 
@@ -57,7 +86,6 @@ class Light(hass.Hass):
         
         # Get presence state
         self._presence = self.is_present()
-        self._restoreValue = 0    
 
         # Kick it off
         self._lastUpdate = 0
@@ -83,7 +111,6 @@ class Light(hass.Hass):
             "min": -500,
             "max": 500,
         })
-
 
     def convert_K_to_RGB(self, colour_temperature):
         """
@@ -173,13 +200,18 @@ class Light(hass.Hass):
                 attr["brightness"] = round(attr["brightness_pct"] * 2.55)
                 del attr["brightness_pct"]
 
+                self.table.update({'state': 'on', 'brightness': attr["brightness"]}, doc_ids=[self.db_doc_id])
+
             if "color_temp_kelvin" in attr:
                 r,g,b = self.convert_K_to_RGB(attr["color_temp_kelvin"])
                 attr["rgb_color"] = [round(r),round(g),round(b)]
 
+                self.table.update({'state': 'on', 'color': attr["color_temp_kelvin"]}, doc_ids=[self.db_doc_id])
+
             self.set_state(self.virtual_entity_name, state="on", attributes=attr)
 
         if data["service"] == "turn_off":
+            self.table.update({'state': 'off'}, doc_ids=[self.db_doc_id])
             self.set_state(self.virtual_entity_name, state="off")
 
         self.recalc(kwargs=None)
@@ -188,7 +220,6 @@ class Light(hass.Hass):
         if brightness > 255:
             brightness = 255
 
-        #self.log("Setting light level to %d" % brightness)
         for light in self.lights:
             if brightness == 0:
                 self.turn_off(light)
@@ -213,7 +244,8 @@ class Light(hass.Hass):
         if self._presence == False:
             self._presence = self.is_present()
             if self._presence:
-                self.set_light_to(self._restoreValue)
+                doc = self.table.get(doc_id=self.db_doc_id)
+                self.set_light_to(doc.restore)
         else: 
             self._presence = self.is_present()
             if self._presence == False:
@@ -239,8 +271,6 @@ class Light(hass.Hass):
         lux = lux / len(self.lux_sensors)
         power = self._pid(lux)
 
-        #self.log("Presence: %r, Lux: %r, Wanted change: %r" % (self._presence, lux, power))
-
         # Calc new brightness
         currentBrightness = self.get_state(self.lights[0], attribute="brightness", default=0)
         if currentBrightness == None:
@@ -251,10 +281,9 @@ class Light(hass.Hass):
         # Check what we change
         if adjustedBrightness <= 0:
             self.set_light_to(0)
-            #self.log("Turned light off")
         else:
             diff = abs(adjustedBrightness - currentBrightness)
 
             if diff > 1:
-                self._restoreValue = adjustedBrightness
+                self.table.update({'restore': adjustedBrightness}, doc_ids=[self.db_doc_id])
                 self.set_light_to(adjustedBrightness)

@@ -1,5 +1,3 @@
-import array
-from typing import Any
 import appdaemon.plugins.hass.hassapi as hass
 import datetime
 import time
