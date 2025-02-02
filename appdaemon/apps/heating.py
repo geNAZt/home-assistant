@@ -174,7 +174,9 @@ class Heating(hass.Hass):
         now = time.time()
         self._on_time = on
         self._off_time = off
-        self.table.update({"pwm_percent": (self._on_time / TIME_SLOT_SECONDS)}, doc_ids=[self.db_doc_id])
+        pwm_percent = (self._on_time / TIME_SLOT_SECONDS)
+        self.table.update({"pwm_percent": pwm_percent}, doc_ids=[self.db_doc_id])
+        self.set_state(self.virtual_entity_name, attributes={"pwm_percent": pwm_percent})
         self._manipulation_time = now + FEATURE_ON_OFF_TIME_MANIPULATION_COOLDOWN
 
     def manipulateUp(self, log):
@@ -209,6 +211,7 @@ class Heating(hass.Hass):
     def is_security_shutdown(self):
         for sensor in self.security_sensors:
             state = self.get_state(sensor, default=0)
+            self.set_state(self.virtual_entity_name, attributes={"sec_%s" % sensor: state})
             if float(state) > 26.5:
                 return True
             
@@ -258,7 +261,9 @@ class Heating(hass.Hass):
     def room_temperature(self):
         temperature = float(0)
         for sensor in self.room_sensors:
-            temperature += float(self.get_state(sensor))
+            cur_temp = float(self.get_state(sensor))
+            self.set_state(self.virtual_entity_name, attributes={"room_%s" % sensor: cur_temp})
+            temperature += cur_temp
 
         return float(temperature / len(self.room_sensors))
 
@@ -269,7 +274,7 @@ class Heating(hass.Hass):
         now_seconds = time.time()
         self._heating_started = now_seconds
         self.set_heating()
-        
+
     def set_heating(self):
         self.table.update({'state': 'heat'})
         self.set_state(self.virtual_entity_name, state='heat')
@@ -327,6 +332,8 @@ class Heating(hass.Hass):
 
         # Check for open window (heat leaking)
         room_temp_rate = self.room_temperature_rate()
+        self.set_state(self.virtual_entity_name, attributes={"room_temp_rate": room_temp_rate})
+
         if room_temp_rate < WINDOW_OPEN_RATE:
             if heating:
                 self.turn_heat_off("Room has open window. Not heating...")
