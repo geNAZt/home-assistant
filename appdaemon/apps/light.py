@@ -89,7 +89,6 @@ class Light(hass.Hass):
 
         # Kick it off
         self._lastUpdate = 0
-        self.set_light_to(90)
 
     def find_entity(self, search, contains_not=""):
         states = self.get_state()
@@ -217,6 +216,8 @@ class Light(hass.Hass):
         self.recalc(kwargs=None)
 
     def set_light_to(self, brightness):
+        self.log("Set light to %r" % brightness)
+
         if brightness > 255:
             brightness = 255
 
