@@ -14,7 +14,7 @@
     - delay:
         hours: 0
         minutes: 0
-        seconds: 10
+        seconds: 1
     - action: switch.turn_off
       metadata: {}
       data: {}
