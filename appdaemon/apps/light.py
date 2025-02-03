@@ -235,6 +235,12 @@ class Light(hass.Hass):
         return False
 
     def onLuxChange(self, entity, attribute, old, new, kwargs):
+        # Check if we got disabled
+        active = self.get_state(self.virtual_entity_name)
+        if active == "off":
+            self.set_light_to(0)
+            return
+
         now = time.monotonic()
         dt = now - self._lastUpdate if (now - self._lastUpdate) else 1e-16
         if dt > 4:
@@ -242,6 +248,12 @@ class Light(hass.Hass):
             self._lastUpdate = now
 
     def onPresenceChange(self, entity, attribute, old, new, kwargs):
+        # Check if we got disabled
+        active = self.get_state(self.virtual_entity_name)
+        if active == "off":
+            self.set_light_to(0)
+            return
+
         if self._presence == False:
             self._presence = self.is_present()
             if self._presence:
