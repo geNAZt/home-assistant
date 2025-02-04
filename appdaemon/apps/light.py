@@ -169,7 +169,6 @@ class Light(hass.Hass):
             del attr["entity_id"]
 
             if "brightness_pct" in attr:
-                self._pid.setpoint = round(attr["brightness_pct"] * 3)
                 attr["brightness"] = round(attr["brightness_pct"] * 2.55)
                 del attr["brightness_pct"]
 
