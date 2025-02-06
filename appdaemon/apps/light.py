@@ -172,14 +172,15 @@ class Light(hass.Hass):
                 attr["brightness"] = round(attr["brightness_pct"] * 2.55)
                 del attr["brightness_pct"]
 
-                self.table.update({'state': 'on', 'brightness': attr["brightness"]}, doc_ids=[self.db_doc_id])
+                self.table.update({'brightness': attr["brightness"]}, doc_ids=[self.db_doc_id])
 
             if "color_temp_kelvin" in attr:
                 r,g,b = self.convert_K_to_RGB(attr["color_temp_kelvin"])
                 attr["rgb_color"] = [round(r),round(g),round(b)]
 
-                self.table.update({'state': 'on', 'color': attr["color_temp_kelvin"]}, doc_ids=[self.db_doc_id])
+                self.table.update({'color': attr["color_temp_kelvin"]}, doc_ids=[self.db_doc_id])
 
+            self.table.update({'state': 'on'}, doc_ids=[self.db_doc_id])
             self.set_state(self.virtual_entity_name, state="on", attributes=attr)
             
 
