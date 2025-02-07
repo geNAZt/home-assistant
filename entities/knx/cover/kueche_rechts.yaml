@@ -1,0 +1,8 @@
+name: "Rollade Kueche rechts"
+move_long_address: "2/7/11"
+stop_address: "2/7/12"
+position_address: "2/7/13"
+position_state_address: "2/7/14"
+travelling_time_down: 26
+travelling_time_up: 26
+#invert_position: true
