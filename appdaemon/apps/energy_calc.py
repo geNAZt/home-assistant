@@ -16,5 +16,5 @@ class EnergyCalc(hass.Hass):
         future = datetime(present.year, present.month, present.day, 12) + timedelta(1)
         
         self.log("Getting updated energy prices until %s" % future.isoformat())
-        resp = self.call_service("tibber/get_prices", end=future.isoformat(), return_result=True, hass_result=True)
+        resp = self.call_service("tibber/get_prices", end=future.isoformat(), return_result=True, hass_result=True, hass_timeout=10)
         self.log("Response %r" % resp)
