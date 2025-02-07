@@ -2,6 +2,8 @@ alexa:
   smart_home:
     locale: de-DE
     filter:
+      include_domains:
+      - climate
       include_entity_globs:
       - "light.room_*"
       - "climate.*"
