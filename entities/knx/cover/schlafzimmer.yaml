@@ -1,0 +1,8 @@
+name: "Rollade Buero Fabian"
+move_long_address: "4/7/5"
+stop_address: "4/7/6"
+position_address: "4/7/7"
+position_state_address: "4/7/8"
+travelling_time_down: 26
+travelling_time_up: 26
+#invert_position: true

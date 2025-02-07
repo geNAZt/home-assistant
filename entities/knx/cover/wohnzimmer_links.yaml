@@ -1,0 +1,8 @@
+name: "Rollade Wohnzimmer links"
+move_long_address: "3/7/6"
+stop_address: "3/7/7"
+position_address: "3/7/8"
+position_state_address: "3/7/9"
+travelling_time_down: 26
+travelling_time_up: 26
+#invert_position: true
