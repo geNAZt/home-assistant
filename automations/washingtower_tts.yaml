@@ -4,7 +4,7 @@
   trigger:
   - platform: state
     entity_id: sensor.washing_machine_status_2
-    to: Finished
+    to: program_ended
   condition: []
   action:
   - service: notify.alexa_media
@@ -25,7 +25,7 @@
   trigger:
   - platform: state
     entity_id: sensor.tumble_dryer_status_2
-    to: Finished
+    to: program_ended
   condition: []
   action:
   - service: notify.alexa_media
