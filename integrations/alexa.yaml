@@ -2,8 +2,10 @@ alexa:
   smart_home:
     locale: de-DE
     filter:
+      include_domains:
+      - climate
+      - cover
       include_entities:
       - input_button.snapper_door
       include_entity_globs:
       - "light.room_*"
-      - "climate.*"
