@@ -3,5 +3,5 @@ alexa:
     locale: de-DE
     filter:
       include_entity_globs:
-      - light.room_*
-      - climate.*
+      - "light.room_*"
+      - "climate.*"
