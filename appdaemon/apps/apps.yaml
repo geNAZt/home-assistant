@@ -1,4 +1,7 @@
 ---
+energy_calc:
+  module: energy_calc
+  class: EnergyCalc
 bed:
   module: bed
   class: Bed
