@@ -3,7 +3,7 @@
   description: ''
   trigger:
   - platform: state
-    entity_id: sensor.washing_machine_status
+    entity_id: sensor.washing_machine_status_2
     to: Finished
   condition: []
   action:
@@ -24,7 +24,7 @@
   description: ''
   trigger:
   - platform: state
-    entity_id: sensor.tumble_dryer_status
+    entity_id: sensor.tumble_dryer_status_2
     to: Finished
   condition: []
   action:
