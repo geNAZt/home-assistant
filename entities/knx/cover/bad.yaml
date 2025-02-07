@@ -5,4 +5,4 @@ position_address: "8/7/7"
 position_state_address: "8/7/8"
 travelling_time_down: 16
 travelling_time_up: 16
-#invert_position: true
+device_class: shutter
