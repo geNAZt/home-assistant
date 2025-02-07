@@ -1,0 +1,8 @@
+name: "Rollade Kueche links"
+move_long_address: "2/7/7"
+stop_address: "2/7/8"
+position_address: "2/7/9"
+position_state_address: "2/7/10"
+travelling_time_down: 26
+travelling_time_up: 26
+#invert_position: true
