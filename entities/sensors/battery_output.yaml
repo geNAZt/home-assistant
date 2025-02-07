@@ -1,4 +1,3 @@
 platform: integration
 source: sensor.solaredge_battery_output_power
 name: solar_battery_output
-unit_prefix: k

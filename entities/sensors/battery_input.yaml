@@ -1,4 +1,3 @@
 platform: integration
 source: sensor.solaredge_battery_input_power
 name: solar_battery_input
-unit_prefix: k
