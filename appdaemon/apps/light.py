@@ -246,6 +246,11 @@ class Light(hass.Hass):
             self.set_light_to(0)
             return
 
+        # Check for presence
+        if not self.is_present():
+            self.set_light_to(0)
+            return
+
         # Get the actual lux
         lux = 0
         for luxSensor in self.lux_sensors:
