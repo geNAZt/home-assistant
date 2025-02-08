@@ -6,7 +6,7 @@
       offset: "00:30:00"
   conditions: []
   actions:
-    - action: cover.close_cover
+    - action: cover.open_cover
       metadata: {}
       data: {}
       target:
