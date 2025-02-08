@@ -276,7 +276,7 @@ class Heating(hass.Hass):
         self.set_heating()
 
     def set_heating(self):
-        self.table.update({'state': 'heat'})
+        self.table.update({'state': 'heat'}, doc_ids=[self.db_doc_id])
         self.set_state(self.virtual_entity_name, state='heat')
 
     def turn_heat_off(self, log):
@@ -285,7 +285,7 @@ class Heating(hass.Hass):
         self.set_idle()
 
     def set_idle(self):
-        self.table.update({'state': 'idle'})
+        self.table.update({'state': 'idle'}, doc_ids=[self.db_doc_id])
         self.set_state(self.virtual_entity_name, state='idle')
 
     def recalc(self, kwargs):
@@ -388,7 +388,7 @@ class Heating(hass.Hass):
                 if room_temp_rate < FEATURE_ON_OFF_TIME_MANIPULATION_RATE:
                     self.manipulateUp("temperature rises too slow")
 
-            if heating == False:
+            if heating is False:
                 self.turn_heat_on("Starting to heat")
             else:
                 self.set_heating()

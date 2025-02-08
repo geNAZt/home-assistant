@@ -262,7 +262,8 @@ class Light(hass.Hass):
         # Calc new brightness
         currentBrightness = self.get_state(self.lights[0], attribute="brightness", default=0)
         if currentBrightness is None:
-            currentBrightness = 0
+            doc = self.table.get(doc_id=self.db_doc_id)
+            currentBrightness = float(doc["restore"])
 
         adjustedBrightness = float(currentBrightness) + power
         if adjustedBrightness <= 0:
