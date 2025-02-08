@@ -1,0 +1,33 @@
+- alias: Water cycling pump
+  description: ""
+  triggers:
+    - trigger: state
+      entity_id:
+        - binary_sensor.presence_bad
+      to: "on"
+  conditions:
+    - condition: time
+      after: input_datetime.water_cycling_pump
+  actions:
+    - action: switch.turn_on
+      metadata: {}
+      data: {}
+      target:
+        entity_id: switch.water_cycling_pump
+    - action: input_datetime.set_datetime
+      metadata: {}
+      data:
+        timestamp: "{{ as_timestamp(now()) + 3600 }}"
+      target:
+        entity_id: input_datetime.water_cycling_pump
+    - delay:
+        hours: 0
+        minutes: 1
+        seconds: 0
+        milliseconds: 0
+    - action: switch.turn_off
+      metadata: {}
+      data: {}
+      target:
+        entity_id: switch.water_cycling_pump
+  mode: single
