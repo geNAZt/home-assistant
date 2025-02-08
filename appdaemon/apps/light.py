@@ -260,9 +260,9 @@ class Light(hass.Hass):
             currentBrightness = 0
 
         adjustedBrightness = float(currentBrightness) + power
-
         if adjustedBrightness <= 0:
             self.set_light_to(0)
+            return
 
         diff = abs(adjustedBrightness - currentBrightness)
         if diff > 1:
