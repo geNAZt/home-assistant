@@ -256,6 +256,9 @@ class Light(hass.Hass):
 
         # Calc new brightness
         currentBrightness = self.get_state(self.lights[0], attribute="brightness", default=0)
+        if currentBrightness is None:
+            currentBrightness = 0
+
         adjustedBrightness = float(currentBrightness) + power
 
         if adjustedBrightness <= 0:
