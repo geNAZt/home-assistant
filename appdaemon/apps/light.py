@@ -1,12 +1,16 @@
 import appdaemon.plugins.hass.hassapi as hass
 import re
 import math
+import time
 
 from tinydb import TinyDB, Query
+from simple_pid import PID
 
 class Light(hass.Hass):
 
     _presence: bool
+    _pid: PID
+    _lastUpdate: int
 
     def initialize(self):
         # Open database
@@ -52,6 +56,10 @@ class Light(hass.Hass):
         })
 
         self.listen_event(self.onEvent, event="call_service")
+
+        # Setup the PID controller
+        self._pid = PID(2.0, 0.5, 2.0, setpoint=float(brightness / 2.55) * 3)
+        self._pid.output_limits = (-10, 40)
     
         # Attach a listener to all presence sensors
         self.presence_sensors = self.find_entity("binary_sensor.presence_%s[_0-9]*" % self.name.replace("light_", ""))
@@ -63,6 +71,14 @@ class Light(hass.Hass):
             presenceEntity.listen_state(self.onPresenceChange, new = "off")
             presenceEntity.listen_state(self.onPresenceChange, new = "on")
 
+        self.lux_sensors = self.find_entity("sensor.lux_%s[_0-9]*" % self.name.replace("light_", ""))
+        if len(self.lux_sensors) == 0:
+            raise Exception("not enough lux sensors")
+        
+        for sensor in self.lux_sensors:
+            luxEntity = self.get_entity(sensor)
+            luxEntity.listen_state(self.onLuxChange)
+
         # Get lights
         self.lights = self.find_entity("light.light_[0-9]_%s" % self.name.replace("light_", ""))
         if len(self.lights) == 0:
@@ -70,6 +86,9 @@ class Light(hass.Hass):
         
         # Get presence state
         self._presence = self.is_present()
+
+        # Kick it off
+        self._lastUpdate = 0
 
     def find_entity(self, search, contains_not=""):
         states = self.get_state()
@@ -169,6 +188,7 @@ class Light(hass.Hass):
             del attr["entity_id"]
 
             if "brightness_pct" in attr:
+                self._pid.setpoint = round(attr["brightness_pct"] * 3)
                 attr["brightness"] = round(attr["brightness_pct"] * 2.55)
                 del attr["brightness_pct"]
 
@@ -209,6 +229,13 @@ class Light(hass.Hass):
         
         return False
 
+    def onLuxChange(self, entity, attribute, old, new, kwargs):        
+        now = time.monotonic()
+        dt = now - self._lastUpdate if (now - self._lastUpdate) else 1e-16
+        if dt > 4:
+            self.update()
+            self._lastUpdate = now
+
     def onPresenceChange(self, entity, attribute, old, new, kwargs):
         self.update()
 
@@ -219,8 +246,23 @@ class Light(hass.Hass):
             self.set_light_to(0)
             return
 
-        if self.is_present():
-            self.set_light_to(self.get_state(self.virtual_entity_name, attribute="brightness", default=0))
-        else:
+        # Get the actual lux
+        lux = 0
+        for luxSensor in self.lux_sensors:
+            lux += float(self.get_state(luxSensor))
+
+        lux = lux / len(self.lux_sensors)
+        power = self._pid(lux)
+
+        # Calc new brightness
+        currentBrightness = self.get_state(self.lights[0], attribute="brightness", default=0)
+        adjustedBrightness = float(currentBrightness) + power
+
+        if adjustedBrightness <= 0:
             self.set_light_to(0)
+
+        diff = abs(adjustedBrightness - currentBrightness)
+        if diff > 1:
+                self.table.update({'restore': adjustedBrightness}, doc_ids=[self.db_doc_id])
+                self.set_light_to(adjustedBrightness)
 
