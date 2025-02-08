@@ -1,0 +1,5 @@
+name: "Water Heating pump usage"
+state_address: "0/2/0"
+type: active_energy
+always_callback: true
+state_class: total_increasing
