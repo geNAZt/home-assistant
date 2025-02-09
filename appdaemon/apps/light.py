@@ -274,6 +274,6 @@ class Light(hass.Hass):
 
         diff = abs(adjustedBrightness - currentBrightness)
         if diff > 1:
-                self.table.update({'restore': adjustedBrightness}, doc_ids=[self.db_doc_id])
-                self.set_light_to(adjustedBrightness)
+            self.table.update({'restore': adjustedBrightness}, doc_ids=[self.db_doc_id])
+            self.set_light_to(adjustedBrightness)
 
