@@ -3,6 +3,7 @@ import re
 import math
 import time
 
+from datetime import timedelta, datetime, timezone
 from tinydb import TinyDB, Query
 from simple_pid import PID
 
@@ -240,6 +241,23 @@ class Light(hass.Hass):
     def onPresenceChange(self, entity, attribute, old, new, kwargs):
         self.update()
 
+    def avg_lux(self):
+        rate = float(0)
+        amount = 0
+
+        now = datetime.now()
+        for sensor in self.lights:
+            rate += float(self.get_state(sensor))
+            amount += 1
+
+            start_time =  now - timedelta(minutes = 30)
+            data = self.get_history(entity_id = sensor, start_time = start_time)
+            if len(data) > 0:
+                for d in data:
+                    self.log(d[0])
+
+        return rate / float(amount)
+
     def update(self):
         # Check if we got disabled
         active = self.get_state(self.virtual_entity_name)
@@ -257,6 +275,7 @@ class Light(hass.Hass):
         for luxSensor in self.lux_sensors:
             lux += float(self.get_state(luxSensor))
 
+        self.avg_lux()
         lux = lux / len(self.lux_sensors)
         power = self._pid(lux)
 
