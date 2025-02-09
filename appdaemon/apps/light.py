@@ -274,6 +274,11 @@ class Light(hass.Hass):
         # Get the actual lux
         power = self._pid(self.avg_lux())
 
+        # If lux diff is not big enough ignore PID output
+        diff = abs(self._pid.setpoint - self.avg_lux())
+        if diff <= 5:
+            return
+
         # Calc new brightness
         currentBrightness = self.get_state(self.lights[0], attribute="brightness", default=0)
         if currentBrightness is None:
