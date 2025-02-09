@@ -252,7 +252,8 @@ class Light(hass.Hass):
 
             start_time =  now - timedelta(minutes = 30)
             data = self.get_history(entity_id = sensor, start_time = start_time)
-            self.log(data)
+            for d in data:
+                self.log(d[0])
 
         return rate / float(amount)
 
