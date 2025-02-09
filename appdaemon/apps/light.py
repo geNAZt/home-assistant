@@ -250,11 +250,12 @@ class Light(hass.Hass):
             rate += float(self.get_state(sensor))
             amount += 1
 
-            start_time =  now - timedelta(minutes = 30)
+            start_time =  now - timedelta(minutes = 5)
             data = self.get_history(entity_id = sensor, start_time = start_time)
             for d in data:
                 for da in d:
-                    self.log(da)
+                    rate += float(da["state"])
+                    amount += 1
 
         return rate / float(amount)
 
@@ -275,7 +276,7 @@ class Light(hass.Hass):
         for luxSensor in self.lux_sensors:
             lux += float(self.get_state(luxSensor))
 
-        self.avg_lux()
+        self.log(self.avg_lux())
         lux = lux / len(self.lux_sensors)
         power = self._pid(lux)
 
