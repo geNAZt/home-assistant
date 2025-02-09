@@ -234,7 +234,7 @@ class Light(hass.Hass):
     def onLuxChange(self, entity, attribute, old, new, kwargs):        
         now = time.monotonic()
         dt = now - self._lastUpdate if (now - self._lastUpdate) else 1e-16
-        if dt > 4:
+        if dt > 30:
             self.update()
             self._lastUpdate = now
 
