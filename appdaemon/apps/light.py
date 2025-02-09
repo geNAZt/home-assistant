@@ -246,7 +246,7 @@ class Light(hass.Hass):
         amount = 0
 
         now = datetime.now()
-        for sensor in self.lights:
+        for sensor in self.lux_sensors:
             rate += float(self.get_state(sensor))
             amount += 1
 
