@@ -272,13 +272,7 @@ class Light(hass.Hass):
             return
 
         # Get the actual lux
-        lux = 0
-        for luxSensor in self.lux_sensors:
-            lux += float(self.get_state(luxSensor))
-
-        self.log(self.avg_lux())
-        lux = lux / len(self.lux_sensors)
-        power = self._pid(lux)
+        power = self._pid(self.avg_lux())
 
         # Calc new brightness
         currentBrightness = self.get_state(self.lights[0], attribute="brightness", default=0)
