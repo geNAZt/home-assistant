@@ -9,7 +9,7 @@
   conditions:
     - condition: numeric_state
       entity_id: sensor.lux_bad
-      below: 100
+      below: 300
     - condition: time
       after: "06:00:00"
       before: "23:00:00"
