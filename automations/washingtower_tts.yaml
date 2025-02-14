@@ -15,9 +15,7 @@
       title: Küche
       target:
       - media_player.fabians_echo_dot
-      - media_player.fabians_2_echo_dot
-      - media_player.fabians_3_echo_dot
-      - media_player.fabians_echo_show
+      - media_player.kuche
   mode: single
 - id: '1643279499229'
   alias: TTS on Dryer ready
@@ -33,9 +31,7 @@
       message: Trockner fertig
       target:
       - media_player.fabians_echo_dot
-      - media_player.fabians_2_echo_dot
-      - media_player.fabians_3_echo_dot
-      - media_player.fabians_echo_show
+      - media_player.kuche
       data:
         type: tts
   mode: single
