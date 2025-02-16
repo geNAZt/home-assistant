@@ -350,14 +350,18 @@ class Heating(hass.Hass):
                 self.set_idle()
 
             return
+        
+        target = self.target_temp()
+        if room_temp > target and heating and FEATURE_ON_OFF_TIME_MANIPULATION_ENABLED:
+            self.manipulateDown("overshoot on room temp")
 
         # Have we reached target temp?
-        if room_temp >= self.target_temp():       # We reached target temp
+        if room_temp == self.target_temp():       # We reached target temp
             if heating:
                 self.turn_heat_off("Reached target temp")
             else:
                 self.set_idle()
-                
+
             return
 
         # Are we allowed to heat (current control)
