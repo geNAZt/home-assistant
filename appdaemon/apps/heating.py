@@ -357,11 +357,8 @@ class Heating(hass.Hass):
                 self.turn_heat_off("Reached target temp")
             else:
                 self.set_idle()
-
-            # We are now at target temp, reduce PWM one step if possible
-            if FEATURE_ON_OFF_TIME_MANIPULATION_ENABLED:
-                self.manipulateDown("reached target temp")
-                return
+                
+            return
 
         # Are we allowed to heat (current control)
         if len(self.phase) > 0:
