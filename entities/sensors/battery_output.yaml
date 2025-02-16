@@ -1,3 +1,6 @@
 platform: integration
 source: sensor.solaredge_battery_output_power
 name: solar_battery_output
+method: left
+max_sub_interval:
+  seconds: 30
