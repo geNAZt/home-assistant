@@ -143,8 +143,6 @@ class Heating(hass.Hass):
         if data["service"] == "set_temperature":
             temp = round(float(data["service_data"]["temperature"]),1)
             doc = self.table.get(doc_id=self.db_doc_id)
-            if temp > doc["temperature"]:
-                self.pwmSet(TIME_SLOT_SECONDS, 0)
 
             self.set_state(self.virtual_entity_name, attributes={"temperature": temp})
             self.table.update({'temperature': temp}, doc_ids=[self.db_doc_id])
