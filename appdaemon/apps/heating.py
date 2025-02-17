@@ -354,7 +354,7 @@ class Heating(hass.Hass):
             self.manipulateDown("overshoot on room temp")
 
         # Have we reached target temp?
-        if room_temp == self.target_temp():       # We reached target temp
+        if room_temp >= self.target_temp():       # We reached target temp
             if heating:
                 self.turn_heat_off("Reached target temp")
             else:
