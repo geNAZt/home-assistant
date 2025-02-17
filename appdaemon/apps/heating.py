@@ -363,7 +363,7 @@ class Heating(hass.Hass):
             self.manipulateDown("overshoot on room temp")
 
         # Have we reached target temp?
-        if room_temp >= self.target_temp():       # We reached target temp
+        if room_temp >= target:       # We reached target temp
             if heating:
                 self.turn_heat_off("Reached target temp")
             else:
@@ -386,7 +386,7 @@ class Heating(hass.Hass):
 
                 return
         
-        diff_room_temp = self.target_temp() - room_temp
+        diff_room_temp = target - room_temp
 
         # Check for PV
         max_current = 15500 * 3
@@ -415,12 +415,11 @@ class Heating(hass.Hass):
         if diff_room_temp > ALLOWED_DIFF:
             # We are now at target temp, reduce PWM one step if possible
             if FEATURE_ON_OFF_TIME_MANIPULATION_ENABLED:
-                if heating is False:
-                    if room_temp_rate > FEATURE_ON_OFF_TIME_MANIPULATION_RATE:
-                        self.manipulateDown("temperature rises too fast")
+                if room_temp_rate > FEATURE_ON_OFF_TIME_MANIPULATION_RATE:
+                    self.manipulateDown("temperature rises too fast")
                     
-                    if room_temp_rate < FEATURE_ON_OFF_TIME_MANIPULATION_RATE:
-                        self.manipulateUp("temperature rises too slow")
+                if room_temp_rate < FEATURE_ON_OFF_TIME_MANIPULATION_RATE:
+                    self.manipulateUp("temperature rises too slow")
 
             if heating is False:
                 self.turn_heat_on("Starting to heat")
