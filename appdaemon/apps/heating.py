@@ -6,7 +6,7 @@ import time
 from tinydb import TinyDB, Query
 from datetime import timedelta, datetime, timezone
 
-ALLOWED_DIFF = 0.1
+ALLOWED_DIFF = 0.0
 SECURITY_OFF_RATE = 0.025
 WINDOW_OPEN_RATE = -0.02
 TIME_SLOT_SECONDS = 30*60
@@ -16,6 +16,13 @@ FEATURE_ON_OFF_TIME_MANIPULATION_ENABLED = True
 FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS = 5
 FEATURE_ON_OFF_TIME_MANIPULATION_COOLDOWN = 10*60
 FEATURE_ON_OFF_TIME_MANIPULATION_RATE = 0.0066       # 0.2 degree per half hour
+
+# Battery max output
+FEATURE_TRACK_PV_ENABLED = True
+FEATURE_TRACK_PV_BATTERY_MAX_DISCHARGE = 21000
+FEATURE_TRACK_PV_MAX_TEMP_OFFSET = 0.5
+FEATURE_TRACK_PV_MIN_BATTERY = 15
+
 
 #
 # Heating control
@@ -122,6 +129,11 @@ class Heating(hass.Hass):
 
         # Ensure that we run at least once a minute
         self.run_every(self.recalc, "now", 10)
+
+        # PV tracking
+        if FEATURE_TRACK_PV_ENABLED:
+            self.pv_battery_entity = self.find_entity("solaredge_speicherniveau")
+
 
     def onEvent(self, event_name, data, kwargs):
         if "service_data" not in data:
@@ -374,16 +386,32 @@ class Heating(hass.Hass):
 
                 return
         
+        diff_room_temp = self.target_temp() - room_temp
+
+        # Check for PV
+        max_current = 15500 * 3
+        if FEATURE_TRACK_PV_ENABLED:
+            battery_charge = self.get_state(self.pv_battery_entity)
+            if battery_charge > FEATURE_TRACK_PV_MIN_BATTERY and diff_room_temp <= FEATURE_TRACK_PV_MAX_TEMP_OFFSET:
+                max_current = FEATURE_TRACK_PV_BATTERY_MAX_DISCHARGE
+
         current_used = float(0)
         ents = self.find_entity("sensor.current_l[1-3]_")
         for ent in ents:
-            c = self.get_state(ent)
-            current_used += float(c)
+            if ent != self.current_entity:
+                c = self.get_state(ent)
+                current_used += float(c)
         
-        self.log("Current used %r mA" % current_used)
+        if current_used + self.current > max_current:
+            if heating:
+                self.turn_heat_off("Can't heat, would exceed max usage")
+                
+            return
+        
+        self.log("Current used %r mA" % (current_used + self.current))
 
         # Do we need to start heating?
-        if room_temp < self.target_temp():
+        if diff_room_temp > ALLOWED_DIFF:
             # We are now at target temp, reduce PWM one step if possible
             if FEATURE_ON_OFF_TIME_MANIPULATION_ENABLED:
                 if room_temp_rate > FEATURE_ON_OFF_TIME_MANIPULATION_RATE:
