@@ -391,7 +391,7 @@ class Heating(hass.Hass):
         # Check for PV
         max_current = 15500 * 3
         if FEATURE_TRACK_PV_ENABLED:
-            battery_charge = self.get_state(self.pv_battery_entity)
+            battery_charge = float(self.get_state(self.pv_battery_entity))
             if battery_charge > FEATURE_TRACK_PV_MIN_BATTERY and diff_room_temp <= FEATURE_TRACK_PV_MAX_TEMP_OFFSET:
                 max_current = FEATURE_TRACK_PV_BATTERY_MAX_DISCHARGE
 
