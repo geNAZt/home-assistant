@@ -209,8 +209,6 @@ class Light(hass.Hass):
 
     def set_light_to(self, brightness):
         color = float(self.get_state(self.virtual_entity_name, attribute="color_temp_kelvin", default=6700))
-        self.log("Set light to %r with color %r" % (brightness, color))
-
         if brightness > 255:
             brightness = 255
 
