@@ -415,11 +415,12 @@ class Heating(hass.Hass):
         if diff_room_temp > ALLOWED_DIFF:
             # We are now at target temp, reduce PWM one step if possible
             if FEATURE_ON_OFF_TIME_MANIPULATION_ENABLED:
-                if room_temp_rate > FEATURE_ON_OFF_TIME_MANIPULATION_RATE:
-                    self.manipulateDown("temperature rises too fast")
-                
-                if room_temp_rate < FEATURE_ON_OFF_TIME_MANIPULATION_RATE:
-                    self.manipulateUp("temperature rises too slow")
+                if heating is False:
+                    if room_temp_rate > FEATURE_ON_OFF_TIME_MANIPULATION_RATE:
+                        self.manipulateDown("temperature rises too fast")
+                    
+                    if room_temp_rate < FEATURE_ON_OFF_TIME_MANIPULATION_RATE:
+                        self.manipulateUp("temperature rises too slow")
 
             if heating is False:
                 self.turn_heat_on("Starting to heat")
