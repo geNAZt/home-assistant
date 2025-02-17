@@ -377,9 +377,8 @@ class Heating(hass.Hass):
         current_used = float(0)
         ents = self.find_entity("sensor.current_l[1-3]_")
         for ent in ents:
-            if ent != self.current_entity:
-                c = self.get_state(ent)
-                current_used += float(c)
+            c = self.get_state(ent)
+            current_used += float(c)
         
         self.log("Current used %r mA" % current_used)
 
