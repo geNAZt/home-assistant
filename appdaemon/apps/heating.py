@@ -1,3 +1,4 @@
+import re
 import appdaemon.plugins.hass.hassapi as hass
 import datetime
 import time
@@ -78,7 +79,7 @@ class Heating(hass.Hass):
         self.listen_event(self.onEvent, event="call_service")
 
         self.security_sensors = self.find_entity("temperature_%s_floor" % self.name.replace("heating_", ""))
-        self.room_sensors = self.find_entity("temperature_%s" % self.name.replace("heating_", ""), "_floor")
+        self.room_sensors = self.find_entity("temperature_%s(?!_floor)" % self.name.replace("heating_", ""))
 
         outputs = self.find_entity("switch.heating_%s" % self.name.replace("heating_", ""))
         if len(outputs) != 1:
@@ -123,10 +124,10 @@ class Heating(hass.Hass):
         self.run_every(self.recalc, "now", 10)
 
     def onEvent(self, event_name, data, kwargs):
-        if not "service_data" in data:
+        if "service_data" not in data:
             return
         
-        if not "entity_id" in data["service_data"]:
+        if "entity_id" not in data["service_data"]:
             return
     
         # This is a nasty hack since it can happen that an array or string is given
@@ -142,8 +143,7 @@ class Heating(hass.Hass):
         
         if data["service"] == "set_temperature":
             temp = round(float(data["service_data"]["temperature"]),1)
-            doc = self.table.get(doc_id=self.db_doc_id)
-
+            
             self.set_state(self.virtual_entity_name, attributes={"temperature": temp})
             self.table.update({'temperature': temp}, doc_ids=[self.db_doc_id])
         
@@ -155,16 +155,13 @@ class Heating(hass.Hass):
                 self.set_state(self.virtual_entity_name, state="idle")
                 self.table.update({'state': "idle"}, doc_ids=[self.db_doc_id])
 
-    def find_entity(self, search, contains_not=""):
+    def find_entity(self, search):
         states = self.get_state()
         found = []
         for entity in states.keys():
-            if entity.find(search) > -1:
-                if len(contains_not) > 0:
-                    if entity.find(contains_not) == -1:
-                        found.append(entity)
-                else:
-                    found.append(entity)
+            r = re.search(search, entity)
+            if r is not None:
+                found.append(entity)
 
         return found
 
@@ -376,6 +373,15 @@ class Heating(hass.Hass):
                     self.turn_heat_off("Can't heat, would trigger breaker")
 
                 return
+        
+        current_used = float(0)
+        ents = self.find_entity("sensor.current_l[1-3]_")
+        for ent in ents:
+            if ent != self.current_entity:
+                c = self.get_state(ent)
+                current_used += float(c)
+        
+        self.log("Current used %r mA" % current_used)
 
         # Do we need to start heating?
         if room_temp < self.target_temp():

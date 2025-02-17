@@ -91,17 +91,13 @@ class Light(hass.Hass):
         # Kick it off
         self._lastUpdate = 0
 
-    def find_entity(self, search, contains_not=""):
+    def find_entity(self, search):
         states = self.get_state()
         found = []
         for entity in states.keys():
             r = re.search(search, entity)
             if r is not None:
-                if len(contains_not) > 0:
-                    if entity.find(contains_not) == -1:
-                        found.append(entity)
-                else:
-                    found.append(entity)
+                found.append(entity)
 
         return found
 
