@@ -132,7 +132,7 @@ class Heating(hass.Hass):
 
         # PV tracking
         if FEATURE_TRACK_PV_ENABLED:
-            self.pv_battery_entity = self.find_entity("solaredge_speicherniveau")
+            self.pv_battery_entity = self.find_entity("solaredge_speicherniveau")[0]
 
 
     def onEvent(self, event_name, data, kwargs):
