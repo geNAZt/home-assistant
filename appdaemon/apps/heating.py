@@ -22,6 +22,7 @@ FEATURE_TRACK_PV_ENABLED = True
 FEATURE_TRACK_PV_BATTERY_MAX_DISCHARGE = 21000
 FEATURE_TRACK_PV_MAX_TEMP_OFFSET = 0.5
 FEATURE_TRACK_PV_MIN_BATTERY = 15
+FEATURE_TRACK_PV_PV_PRODUCTION_CUTOFF = 0.2
 
 
 #
@@ -133,7 +134,7 @@ class Heating(hass.Hass):
         # PV tracking
         if FEATURE_TRACK_PV_ENABLED:
             self.pv_battery_entity = self.find_entity("solaredge_speicherniveau")[0]
-
+            self.pv_current_production = self.find_entity("solaredge_solar_energie")[0]
 
     def onEvent(self, event_name, data, kwargs):
         if "service_data" not in data:
@@ -391,9 +392,17 @@ class Heating(hass.Hass):
         # Check for PV
         max_current = 15500 * 3
         if FEATURE_TRACK_PV_ENABLED:
-            battery_charge = float(self.get_state(self.pv_battery_entity))
-            if battery_charge > FEATURE_TRACK_PV_MIN_BATTERY and diff_room_temp <= FEATURE_TRACK_PV_MAX_TEMP_OFFSET:
-                max_current = FEATURE_TRACK_PV_BATTERY_MAX_DISCHARGE
+            if diff_room_temp <= FEATURE_TRACK_PV_MAX_TEMP_OFFSET:
+                # Check for battery
+                battery_charge = float(self.get_state(self.pv_battery_entity))
+                if battery_charge > FEATURE_TRACK_PV_MIN_BATTERY:
+                    max_current = FEATURE_TRACK_PV_BATTERY_MAX_DISCHARGE
+                
+                # Check for additional PV input
+                pv_production = float(self.get_state(self.pv_current_production))
+                if pv_production > FEATURE_TRACK_PV_PV_PRODUCTION_CUTOFF:
+                    pv_current = (pv_production * 1000) / float(230) # Rough estimate since we don't have a voltage tracker on PV
+                    self.log("PV currently produces %r A" % pv_current)
 
         current_used = float(0)
         ents = self.find_entity("sensor.current_l[1-3]_")
@@ -408,8 +417,6 @@ class Heating(hass.Hass):
             else:
                 self.log("will not heat for usage saving")
             return
-        
-        self.log("Current used %r mA" % (current_used + self.current))
 
         # Do we need to start heating?
         if diff_room_temp > ALLOWED_DIFF:
