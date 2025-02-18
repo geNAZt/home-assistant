@@ -393,16 +393,21 @@ class Heating(hass.Hass):
         max_current = 15500 * 3
         if FEATURE_TRACK_PV_ENABLED:
             if diff_room_temp <= FEATURE_TRACK_PV_MAX_TEMP_OFFSET:
+                new_current = float(0)
+
                 # Check for battery
                 battery_charge = float(self.get_state(self.pv_battery_entity))
                 if battery_charge > FEATURE_TRACK_PV_MIN_BATTERY:
-                    max_current = FEATURE_TRACK_PV_BATTERY_MAX_DISCHARGE
+                    new_current += FEATURE_TRACK_PV_BATTERY_MAX_DISCHARGE
                 
                 # Check for additional PV input
                 pv_production = float(self.get_state(self.pv_current_production))
                 if pv_production > FEATURE_TRACK_PV_PV_PRODUCTION_CUTOFF:
                     pv_current = (pv_production * 1000) / float(230) # Rough estimate since we don't have a voltage tracker on PV
-                    self.log("PV currently produces %r A" % pv_current)
+                    new_current += pv_current * 1000
+
+                if new_current > 0:
+                    max_current = new_current
 
         current_used = float(0)
         ents = self.find_entity("sensor.current_l[1-3]_")
