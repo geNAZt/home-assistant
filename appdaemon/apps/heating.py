@@ -420,7 +420,7 @@ class Heating(hass.Hass):
             if heating:
                 self.turn_heat_off("Can't heat, would exceed max usage")
             else:
-                self.log("will not heat for usage saving")
+                self.log("will not heat for usage saving - having %r but wanting %r" % (max_current, current_used + self.current))
             return
 
         # Do we need to start heating?
