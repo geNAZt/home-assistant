@@ -11,7 +11,7 @@
       entity_id: sensor.lux_bad
       below: 300
     - condition: time
-      after: "09:00:00"
+      after: "08:00:00"
       before: "22:00:00"
   actions:
     - action: light.turn_on
