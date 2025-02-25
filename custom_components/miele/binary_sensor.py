@@ -1,130 +1,316 @@
+"""Platform for Miele binary_sensor integration."""
+
+from __future__ import annotations
+
+from collections.abc import Callable
+from dataclasses import dataclass
 import logging
-from datetime import timedelta
+from typing import Any, Final
 
-from homeassistant.components.binary_sensor import BinarySensorEntity
-from homeassistant.helpers.entity import Entity
+from homeassistant.components.binary_sensor import (
+    BinarySensorDeviceClass,
+    BinarySensorEntity,
+    BinarySensorEntityDescription,
+)
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity import EntityCategory
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.typing import ConfigType
+from homeassistant.helpers.update_coordinator import (
+    DataUpdateCoordinator,
+)
 
-from custom_components.miele import CAPABILITIES, DATA_DEVICES
-from custom_components.miele import DOMAIN as MIELE_DOMAIN
-
-PLATFORMS = ["miele"]
+from . import get_coordinator
+from .const import MieleAppliance
+from .entity import MieleEntity
 
 _LOGGER = logging.getLogger(__name__)
 
-ALL_DEVICES = []
+
+@dataclass
+class MieleBinarySensorDescription(BinarySensorEntityDescription):
+    """Class describing Miele binary sensor entities."""
+
+    data_tag: str | None = None
+    type_key: str = "ident|type|value_localized"
+    convert: Callable[[Any], Any] | None = None
 
 
-def state_capability(type, state):
-    type_str = str(type)
-    if state in CAPABILITIES[type_str]:
-        return True
+@dataclass
+class MieleBinarySensorDefinition:
+    """Class for defining binary sensor entities."""
+
+    types: tuple[MieleAppliance, ...]
+    description: MieleBinarySensorDescription = None
 
 
-def _map_key(key):
-    if key == "signalInfo":
-        return "Info"
-    elif key == "signalFailure":
-        return "Failure"
-    elif key == "signalDoor":
-        return "Door"
-    elif key == "mobileStart":
-        return "MobileStart"
+BINARY_SENSOR_TYPES: Final[tuple[MieleBinarySensorDefinition, ...]] = (
+    MieleBinarySensorDefinition(
+        types=[
+            MieleAppliance.WASHING_MACHINE,
+            MieleAppliance.WASHING_MACHINE_SEMI_PROFESSIONAL,
+            MieleAppliance.TUMBLE_DRYER,
+            MieleAppliance.TUMBLE_DRYER_SEMI_PROFESSIONAL,
+            MieleAppliance.DISHWASHER,
+            MieleAppliance.DISH_WARMER,
+            MieleAppliance.OVEN,
+            MieleAppliance.OVEN_MICROWAVE,
+            MieleAppliance.STEAM_OVEN,
+            MieleAppliance.MICROWAVE,
+            MieleAppliance.FRIDGE,
+            MieleAppliance.FREEZER,
+            MieleAppliance.FRIDGE_FREEZER,
+            MieleAppliance.WASHER_DRYER,
+            MieleAppliance.STEAM_OVEN_COMBI,
+            MieleAppliance.WINE_CABINET,
+            MieleAppliance.WINE_CONDITIONING_UNIT,
+            MieleAppliance.WINE_STORAGE_CONDITIONING_UNIT,
+            MieleAppliance.STEAM_OVEN_MICRO,
+            MieleAppliance.WINE_CABINET_FREEZER,
+            MieleAppliance.STEAM_OVEN_MK2,
+        ],
+        description=MieleBinarySensorDescription(
+            key="door",
+            data_tag="state|signalDoor",
+            device_class=BinarySensorDeviceClass.DOOR,
+            translation_key="door",
+        ),
+    ),
+    MieleBinarySensorDefinition(
+        types=[
+            MieleAppliance.WASHING_MACHINE,
+            MieleAppliance.WASHING_MACHINE_SEMI_PROFESSIONAL,
+            MieleAppliance.TUMBLE_DRYER,
+            MieleAppliance.TUMBLE_DRYER_SEMI_PROFESSIONAL,
+            MieleAppliance.DISHWASHER,
+            MieleAppliance.OVEN,
+            MieleAppliance.OVEN_MICROWAVE,
+            MieleAppliance.STEAM_OVEN,
+            MieleAppliance.MICROWAVE,
+            MieleAppliance.COFFEE_SYSTEM,
+            MieleAppliance.HOOD,
+            MieleAppliance.FRIDGE,
+            MieleAppliance.FREEZER,
+            MieleAppliance.FRIDGE_FREEZER,
+            MieleAppliance.ROBOT_VACUUM_CLEANER,
+            MieleAppliance.WASHER_DRYER,
+            MieleAppliance.DISH_WARMER,
+            MieleAppliance.STEAM_OVEN_COMBI,
+            MieleAppliance.WINE_CABINET,
+            MieleAppliance.WINE_CONDITIONING_UNIT,
+            MieleAppliance.WINE_STORAGE_CONDITIONING_UNIT,
+            MieleAppliance.STEAM_OVEN_MICRO,
+            MieleAppliance.DIALOG_OVEN,
+            MieleAppliance.WINE_CABINET_FREEZER,
+            MieleAppliance.STEAM_OVEN_MK2,
+        ],
+        description=MieleBinarySensorDescription(
+            key="info",
+            data_tag="state|signalInfo",
+            device_class=BinarySensorDeviceClass.PROBLEM,
+            translation_key="info",
+            entity_category=EntityCategory.DIAGNOSTIC,
+        ),
+    ),
+    MieleBinarySensorDefinition(
+        types=[
+            MieleAppliance.WASHING_MACHINE,
+            MieleAppliance.WASHING_MACHINE_SEMI_PROFESSIONAL,
+            MieleAppliance.TUMBLE_DRYER,
+            MieleAppliance.TUMBLE_DRYER_SEMI_PROFESSIONAL,
+            MieleAppliance.DISHWASHER,
+            MieleAppliance.OVEN,
+            MieleAppliance.OVEN_MICROWAVE,
+            MieleAppliance.HOB_HIGHLIGHT,
+            MieleAppliance.STEAM_OVEN,
+            MieleAppliance.MICROWAVE,
+            MieleAppliance.COFFEE_SYSTEM,
+            MieleAppliance.HOOD,
+            MieleAppliance.FRIDGE,
+            MieleAppliance.FREEZER,
+            MieleAppliance.FRIDGE_FREEZER,
+            MieleAppliance.ROBOT_VACUUM_CLEANER,
+            MieleAppliance.WASHER_DRYER,
+            MieleAppliance.DISH_WARMER,
+            MieleAppliance.HOB_INDUCTION,
+            MieleAppliance.STEAM_OVEN_COMBI,
+            MieleAppliance.WINE_CABINET,
+            MieleAppliance.WINE_CONDITIONING_UNIT,
+            MieleAppliance.WINE_STORAGE_CONDITIONING_UNIT,
+            MieleAppliance.STEAM_OVEN_MICRO,
+            MieleAppliance.DIALOG_OVEN,
+            MieleAppliance.WINE_CABINET_FREEZER,
+            MieleAppliance.STEAM_OVEN_MK2,
+            MieleAppliance.HOB_INDUCT_EXTR,
+        ],
+        description=MieleBinarySensorDescription(
+            key="failure",
+            data_tag="state|signalFailure",
+            device_class=BinarySensorDeviceClass.PROBLEM,
+            translation_key="failure",
+            icon="mdi:alert",
+            entity_category=EntityCategory.DIAGNOSTIC,
+        ),
+    ),
+    MieleBinarySensorDefinition(
+        types=[
+            MieleAppliance.WASHING_MACHINE,
+            MieleAppliance.WASHING_MACHINE_SEMI_PROFESSIONAL,
+            MieleAppliance.TUMBLE_DRYER,
+            MieleAppliance.TUMBLE_DRYER_SEMI_PROFESSIONAL,
+            MieleAppliance.DISHWASHER,
+            MieleAppliance.DISH_WARMER,
+            MieleAppliance.OVEN,
+            MieleAppliance.OVEN_MICROWAVE,
+            MieleAppliance.STEAM_OVEN,
+            MieleAppliance.MICROWAVE,
+            MieleAppliance.COFFEE_SYSTEM,
+            MieleAppliance.HOOD,
+            MieleAppliance.FRIDGE,
+            MieleAppliance.FREEZER,
+            MieleAppliance.FRIDGE_FREEZER,
+            MieleAppliance.ROBOT_VACUUM_CLEANER,
+            MieleAppliance.WASHER_DRYER,
+            MieleAppliance.STEAM_OVEN_COMBI,
+            MieleAppliance.WINE_CABINET,
+            MieleAppliance.WINE_CONDITIONING_UNIT,
+            MieleAppliance.WINE_STORAGE_CONDITIONING_UNIT,
+            MieleAppliance.STEAM_OVEN_MICRO,
+            MieleAppliance.DIALOG_OVEN,
+            MieleAppliance.WINE_CABINET_FREEZER,
+            MieleAppliance.STEAM_OVEN_MK2,
+            MieleAppliance.HOB_INDUCT_EXTR,
+        ],
+        description=MieleBinarySensorDescription(
+            key="remoteEnable",
+            data_tag="state|remoteEnable|fullRemoteControl",
+            translation_key="remote_control",
+            icon="mdi:remote",
+            entity_category=EntityCategory.DIAGNOSTIC,
+        ),
+    ),
+    MieleBinarySensorDefinition(
+        types=[
+            MieleAppliance.WASHING_MACHINE,
+            MieleAppliance.WASHING_MACHINE_SEMI_PROFESSIONAL,
+            MieleAppliance.TUMBLE_DRYER,
+            MieleAppliance.TUMBLE_DRYER_SEMI_PROFESSIONAL,
+            MieleAppliance.DISHWASHER,
+            MieleAppliance.OVEN,
+            MieleAppliance.OVEN_MICROWAVE,
+            MieleAppliance.STEAM_OVEN,
+            MieleAppliance.MICROWAVE,
+            MieleAppliance.COFFEE_SYSTEM,
+            MieleAppliance.HOOD,
+            MieleAppliance.FRIDGE,
+            MieleAppliance.FREEZER,
+            MieleAppliance.FRIDGE_FREEZER,
+            MieleAppliance.ROBOT_VACUUM_CLEANER,
+            MieleAppliance.WASHER_DRYER,
+            MieleAppliance.STEAM_OVEN_COMBI,
+            MieleAppliance.WINE_CABINET,
+            MieleAppliance.WINE_CONDITIONING_UNIT,
+            MieleAppliance.WINE_STORAGE_CONDITIONING_UNIT,
+            MieleAppliance.STEAM_OVEN_MICRO,
+            MieleAppliance.DIALOG_OVEN,
+            MieleAppliance.WINE_CABINET_FREEZER,
+            MieleAppliance.STEAM_OVEN_MK2,
+            MieleAppliance.HOB_INDUCT_EXTR,
+        ],
+        description=MieleBinarySensorDescription(
+            key="smartGrid",
+            data_tag="state|remoteEnable|smartGrid",
+            translation_key="smart_grid",
+            icon="mdi:view-grid-plus-outline",
+            entity_category=EntityCategory.DIAGNOSTIC,
+            entity_registry_enabled_default=False,
+        ),
+    ),
+    MieleBinarySensorDefinition(
+        types=[
+            MieleAppliance.WASHING_MACHINE,
+            MieleAppliance.WASHING_MACHINE_SEMI_PROFESSIONAL,
+            MieleAppliance.TUMBLE_DRYER,
+            MieleAppliance.TUMBLE_DRYER_SEMI_PROFESSIONAL,
+            MieleAppliance.DISHWASHER,
+            MieleAppliance.DISH_WARMER,
+            MieleAppliance.OVEN,
+            MieleAppliance.OVEN_MICROWAVE,
+            MieleAppliance.STEAM_OVEN,
+            MieleAppliance.MICROWAVE,
+            MieleAppliance.COFFEE_SYSTEM,
+            MieleAppliance.HOOD,
+            MieleAppliance.FRIDGE,
+            MieleAppliance.FREEZER,
+            MieleAppliance.FRIDGE_FREEZER,
+            MieleAppliance.ROBOT_VACUUM_CLEANER,
+            MieleAppliance.WASHER_DRYER,
+            MieleAppliance.STEAM_OVEN_COMBI,
+            MieleAppliance.WINE_CABINET,
+            MieleAppliance.WINE_CONDITIONING_UNIT,
+            MieleAppliance.WINE_STORAGE_CONDITIONING_UNIT,
+            MieleAppliance.STEAM_OVEN_MICRO,
+            MieleAppliance.DIALOG_OVEN,
+            MieleAppliance.WINE_CABINET_FREEZER,
+            MieleAppliance.STEAM_OVEN_MK2,
+            MieleAppliance.HOB_INDUCT_EXTR,
+        ],
+        description=MieleBinarySensorDescription(
+            key="mobileStart",
+            data_tag="state|remoteEnable|mobileStart",
+            translation_key="mobile_start",
+            icon="mdi:cellphone-wireless",
+            entity_category=EntityCategory.DIAGNOSTIC,
+            entity_registry_enabled_default=False,
+        ),
+    ),
+)
 
 
-# pylint: disable=W0612
-def setup_platform(hass, config, add_devices, discovery_info=None):
-    global ALL_DEVICES
+async def async_setup_entry(
+    hass: HomeAssistant,
+    config_entry: ConfigType,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
+    """Set up the sensor platform."""
+    coordinator = await get_coordinator(hass, config_entry)
 
-    devices = hass.data[MIELE_DOMAIN][DATA_DEVICES]
-    for k, device in devices.items():
-        device_state = device["state"]
-        device_type = device["ident"]["type"]["value_raw"]
+    entities = [
+        MieleBinarySensor(coordinator, idx, ent, definition.description)
+        for idx, ent in enumerate(coordinator.data)
+        for definition in BINARY_SENSOR_TYPES
+        if coordinator.data[ent]["ident|type|value_raw"] in definition.types
+    ]
 
-        binary_devices = []
-        if "signalInfo" in device_state and state_capability(
-            type=device_type, state="signalInfo"
-        ):
-            binary_devices.append(MieleBinarySensor(hass, device, "signalInfo"))
-        if "signalFailure" in device_state and state_capability(
-            type=device_type, state="signalFailure"
-        ):
-            binary_devices.append(MieleBinarySensor(hass, device, "signalFailure"))
-        if "signalDoor" in device_state and state_capability(
-            type=device_type, state="signalDoor"
-        ):
-            binary_devices.append(MieleBinarySensor(hass, device, "signalDoor"))
-        if "remoteEnable" in device_state and state_capability(
-            type=device_type, state="remoteEnable"
-        ):
-            remote_state = device_state["remoteEnable"]
-            if "mobileStart" in remote_state:
-                binary_devices.append(
-                    MieleBinarySensor(hass, device, "remoteEnable.mobileStart")
-                )
-
-        add_devices(binary_devices)
-        ALL_DEVICES = ALL_DEVICES + binary_devices
+    async_add_entities(entities)
 
 
-def update_device_state():
-    for device in ALL_DEVICES:
-        try:
-            device.async_schedule_update_ha_state(True)
-        except (AssertionError, AttributeError):
-            _LOGGER.debug(
-                "Component most likely is disabled manually, if not please report to developer"
-                "{}".format(device.entity_id)
-            )
+class MieleBinarySensor(MieleEntity, BinarySensorEntity):
+    """Representation of a Binary Sensor."""
 
+    entity_description: MieleBinarySensorDescription
 
-class MieleBinarySensor(BinarySensorEntity):
-    def __init__(self, hass, device, key):
-        self._hass = hass
-        self._device = device
-        self._keys = key.split(".")
-        self._key = self._keys[-1]
-        self._ha_key = _map_key(self._key)
-
-    @property
-    def device_id(self):
-        """Return the unique ID for this sensor."""
-        return self._device["ident"]["deviceIdentLabel"]["fabNumber"]
-
-    @property
-    def unique_id(self):
-        """Return the unique ID for this sensor."""
-        return self.device_id + "_" + self._ha_key
-
-    @property
-    def name(self):
-        """Return the name of the sensor."""
-        ident = self._device["ident"]
-
-        result = ident["deviceName"]
-        if len(result) == 0:
-            return ident["type"]["value_localized"] + " " + self._ha_key
-        else:
-            return result + " " + self._ha_key
+    def __init__(
+        self,
+        coordinator: DataUpdateCoordinator,
+        idx,
+        ent,
+        description: MieleBinarySensorDescription,
+    ):
+        """Initialize the sensor."""
+        super().__init__(coordinator, idx, ent, description)
+        _LOGGER.debug("init sensor %s", ent)
 
     @property
     def is_on(self):
         """Return the state of the sensor."""
-        current_val = self._device["state"]
-        for k in self._keys:
-            current_val = current_val[k]
-        return bool(current_val)
+        return self.coordinator.data[self._ent][self.entity_description.data_tag]
 
     @property
-    def device_class(self):
-        if self._key == "signalDoor":
-            return "door"
-        elif self._key == "mobileStart":
-            return "running"
-        else:
-            return "problem"
+    def available(self):
+        """Return the availability of the entity."""
 
-    async def async_update(self):
-        if not self.device_id in self._hass.data[MIELE_DOMAIN][DATA_DEVICES]:
-            _LOGGER.debug("Miele device not found: {}".format(self.device_id))
-        else:
-            self._device = self._hass.data[MIELE_DOMAIN][DATA_DEVICES][self.device_id]
+        if not self.coordinator.last_update_success:
+            return False
+
+        return self.coordinator.data[self._ent]["state|status|value_raw"] != 255
