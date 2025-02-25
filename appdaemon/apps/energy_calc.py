@@ -17,4 +17,8 @@ class EnergyCalc(hass.Hass):
         current_value = float(self.get_state(EXPORT_SENSOR))
         start_time =  now - timedelta(minutes = 5)
         data = self.get_history(entity_id = EXPORT_SENSOR, start_time = start_time)
-        self.log(data)
+        history_state = float(data[0][0]['state'])
+
+        if current_value >= history_state:
+            hourly = current_value - history_state * 12
+            self.log("Exporting %r Wh" % (hourly))
