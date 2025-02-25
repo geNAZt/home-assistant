@@ -46,7 +46,7 @@ class EnergyCalc(hass.Hass):
             if data[0][0]['attributes']['unit_of_measurement'] == 'kWh':
                 hourly *= 1000
 
-            self.log("%r Wh (h %r, c %r)" % (hourly, history_state, current_value))
+            self.log("%r %r Wh (h %r, c %r)" % (entity, hourly, history_state, current_value))
             return hourly
         
         return 0
