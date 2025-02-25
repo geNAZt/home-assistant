@@ -37,12 +37,12 @@ class EnergyCalc(hass.Hass):
 
     def calc_wattage(self, entity, now):
         current_value = float(self.get_state(entity))
-        start_time =  now - timedelta(minutes = 30)
+        start_time =  now - timedelta(minutes = 6)
         data = self.get_history(entity_id = entity, start_time = start_time)
         history_state = float(data[0][0]['state'])
 
         if current_value >= history_state:
-            hourly = (current_value - history_state) * 2
+            hourly = (current_value - history_state) * 10
             if data[0][0]['attributes']['unit_of_measurement'] == 'kWh':
                 hourly *= 1000
 
