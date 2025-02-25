@@ -2,19 +2,20 @@ import appdaemon.plugins.hass.hassapi as hass
 
 from datetime import timedelta, datetime, timezone
 
+EXPORT_SENSOR = "sensor.solaredge_exportierte_energies"
+
 class EnergyCalc(hass.Hass):
 
     def initialize(self):
         self.update()
-        self.run_daily(self.run_daily_c, "15:30:00")
+        self.run_every(self.run_every_c, "now", 5*60)
 
-    def run_daily_c(self, **kwargs):
+    def run_every_c(self, **kwargs):
         self.update()
 
     def update(self):
-        present = datetime.now()
-        future = datetime(present.year, present.month, present.day, 12) + timedelta(1)
-        
-        self.log("Getting updated energy prices until %s" % future.isoformat())
-        resp = self.call_service("tibber/get_prices", end=future.isoformat(), return_result=True, hass_result=True, hass_timeout=10)
-        self.log("Response %r" % resp)
+        now = datetime.now()
+        current_value = float(self.get_state(EXPORT_SENSOR))
+        start_time =  now - timedelta(minutes = 5)
+        data = self.get_history(entity_id = EXPORT_SENSOR, start_time = start_time)
+        self.log(data)
