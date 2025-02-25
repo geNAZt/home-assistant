@@ -15,7 +15,7 @@ class EnergyCalc(hass.Hass):
 
     def update(self):
         now = datetime.now()
-        current_value = float(self.get_state(EXPORT_SENSOR))
+       # current_value = float(self.get_state(EXPORT_SENSOR))
         start_time =  now - timedelta(minutes = 5)
         data = self.get_history(entity_id = EXPORT_SENSOR, start_time = start_time)
         self.log(data)
