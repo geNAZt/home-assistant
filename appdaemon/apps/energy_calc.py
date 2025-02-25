@@ -41,10 +41,8 @@ class EnergyCalc(hass.Hass):
         data = self.get_history(entity_id = entity, start_time = start_time)
         history_state = float(data[0][0]['state'])
 
-        self.log("    > %r - %r" % (entity, data))
-
         if current_value >= history_state:
-            hourly = (current_value - history_state) * 12
+            hourly = (current_value - history_state) * 2
             if data[0][0]['attributes']['unit_of_measurement'] == 'kWh':
                 hourly *= 1000
 
