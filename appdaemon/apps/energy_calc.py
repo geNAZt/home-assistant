@@ -7,10 +7,9 @@ EXPORT_SENSOR = "sensor.solaredge_exportierte_energie"
 class EnergyCalc(hass.Hass):
 
     def initialize(self):
-        self.update()
         self.run_every(self.run_every_c, "now", 5*60)
 
-    def run_every_c(self, **kwargs):
+    def run_every_c(self, c):
         self.update()
 
     def update(self):
