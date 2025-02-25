@@ -21,4 +21,4 @@ class EnergyCalc(hass.Hass):
 
         if current_value >= history_state:
             hourly = current_value - history_state * 12
-            self.log("Exporting %r Wh" % (hourly))
+            self.log("Exporting %r Wh (h %r, c %r)" % (hourly, history_state, current_value))
