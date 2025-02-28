@@ -7,20 +7,15 @@
       from: "off"
       to: "on"
   conditions:
-    - condition: time
-      after: input_datetime.water_cycling_pump
+  - condition: numeric_state
+    entity_id: input_number.water_cycling_pump_reset
+    below: 0
   actions:
     - action: switch.turn_on
       metadata: {}
       data: {}
       target:
         entity_id: switch.water_cycling_pump
-    - action: input_datetime.set_datetime
-      metadata: {}
-      data:
-        timestamp: "{{ as_timestamp(now()) + 300 }}"
-      target:
-        entity_id: input_datetime.water_cycling_pump
     - delay:
         hours: 0
         minutes: 2
@@ -31,4 +26,10 @@
       data: {}
       target:
         entity_id: switch.water_cycling_pump
+    - action: input_number.set_value
+      metadata: {}
+      data:
+        value: 10
+      target:
+        entity_id: input_number.water_cycling_pump_reset
   mode: single
