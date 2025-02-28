@@ -1,0 +1,5 @@
+platform: integration
+source: sensor.solar_panel_production_w
+method: left
+unit_prefix: k
+name: solar_panel_production_kwh 

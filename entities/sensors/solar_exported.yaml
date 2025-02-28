@@ -1,0 +1,5 @@
+platform: integration
+source: sensor.solar_exported_power_w
+method: left
+unit_prefix: k
+name: solar_exported_power_kwh 

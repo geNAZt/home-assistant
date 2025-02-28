@@ -1,0 +1,120 @@
+utility_meter:
+  solar_panel_production_daily:
+    source: sensor.solar_panel_production_kwh
+    name: Solar Panel Production Daily
+    cycle: daily
+  solar_battery_in_daily:
+    source: sensor.solar_battery_in_kwh
+    name: Solar Battery In Daily
+    cycle: daily 
+  solar_battery_out_daily:
+    source: sensor.solar_battery_out_kwh
+    name: Solar Battery Out Daily
+    cycle: daily
+  solar_house_consumption_daily:
+    source: sensor.solar_house_consumption_kwh
+    name: Solar House Consumption Daily
+    cycle: daily 
+  solar_imported_power_daily:
+    source: sensor.solar_imported_power_kwh
+    name: Solar Imported Power Daily
+    cycle: daily 
+  solar_imported_power_daily_solaredge:
+    source: sensor.pv_m1_imported_kwh
+    name: Solar Imported Power Daily Solar Edge
+    cycle: daily 
+  solar_exported_power_daily:
+    source: sensor.solar_exported_power_kwh
+    name: Solar Exported Power Daily
+    cycle: daily
+  solar_panel_to_house_daily:
+    source: sensor.solar_panel_to_house_kwh
+    name: Solar Panel To House Daily
+    cycle: daily
+
+  solar_panel_to_house_weekly:
+    source: sensor.solar_panel_to_house_kwh
+    name: Solar Panel To House Weekly
+    cycle: weekly
+  solar_imported_power_weekly:
+    source: sensor.solar_imported_power_kwh
+    name: Solar Imported Power Weekly
+    cycle: weekly 
+  solar_house_consumption_weekly:
+    source: sensor.solar_house_consumption_kwh
+    name: Solar House Consumption Weekly
+    cycle: weekly 
+  solar_panel_production_weekly:
+    source: sensor.solar_panel_production_kwh
+    name: Solar Panel Production Weekly
+    cycle: weekly
+  solar_battery_in_weekly:
+    source: sensor.solar_battery_in_kwh
+    name: Solar Battery In Weekly
+    cycle: weekly 
+  solar_battery_out_weekly:
+    source: sensor.solar_battery_out_kwh
+    name: Solar Battery Out Weekly
+    cycle: weekly
+  solar_exported_power_weekly:
+    source: sensor.solar_exported_power_kwh
+    name: Solar Exported Power Weekly
+    cycle: weekly
+    
+  solar_panel_to_house_monthly:
+    source: sensor.solar_panel_to_house_kwh
+    name: Solar Panel To House Monthly
+    cycle: monthly
+  solar_imported_power_monthly:
+    source: sensor.solar_imported_power_kwh
+    name: Solar Imported Power Monthly
+    cycle: monthly 
+  solar_house_consumption_monthly:
+    source: sensor.solar_house_consumption_kwh
+    name: Solar House Consumption Monthly
+    cycle: monthly 
+  solar_panel_production_monthly:
+    source: sensor.solar_panel_production_kwh
+    name: Solar Panel Production Monthly
+    cycle: monthly
+  solar_battery_in_monthly:
+    source: sensor.solar_battery_in_kwh
+    name: Solar Battery In Monthly
+    cycle: monthly 
+  solar_battery_out_monthly:
+    source: sensor.solar_battery_out_kwh
+    name: Solar Battery Out Monthly
+    cycle: monthly
+  solar_exported_power_monthly:
+    source: sensor.solar_exported_power_kwh
+    name: Solar Exported Power Monthly
+    cycle: monthly
+    
+  solar_panel_to_house_yearly:
+    source: sensor.solar_panel_to_house_kwh
+    name: Solar Panel To House Yearly
+    cycle: yearly
+  solar_imported_power_yearly:
+    source: sensor.solar_imported_power_kwh
+    name: Solar Imported Power Yearly
+    cycle: yearly 
+  solar_house_consumption_yearly:
+    source: sensor.solar_house_consumption_kwh
+    name: Solar House Consumption Yearly
+    cycle: yearly 
+  solar_panel_production_yearly:
+    source: sensor.solar_panel_production_kwh
+    name: Solar Panel Production Yearly
+    cycle: yearly
+  solar_battery_in_yearly:
+    source: sensor.solar_battery_in_kwh
+    name: Solar Battery In Yearly
+    cycle: yearly 
+  solar_battery_out_yearly:
+    source: sensor.solar_battery_out_kwh
+    name: Solar Battery Out Yearly
+    cycle: yearly
+  solar_exported_power_yearly:
+    source: sensor.solar_exported_power_kwh
+    name: Solar Exported Power Yearly
+    cycle: yearly

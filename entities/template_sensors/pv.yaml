@@ -1,0 +1,183 @@
+sensor:
+- name: "Solar Selfconsumption Ratio"
+  unique_id: solar_selfconsumption_ratio
+  icon: mdi:percent-outline
+  state: >
+    {% if (((states('sensor.solar_panel_to_house_daily')| float(0)) + (states('sensor.solar_battery_in_daily')| float(0)) + (states('sensor.solar_exported_power_daiy')| float(0))) <= 0) %}
+      0
+    {% else %}
+      {{((((states('sensor.solar_panel_to_house_daily')| float(0)) + (states('sensor.solar_battery_in_daily')| float(0))) / ((states('sensor.solar_panel_to_house_daily')| float(0)) + (states('sensor.solar_battery_in_daily')| float(0)) + (states('sensor.solar_exported_power_daily')| float(0)))) * 100) | round (0) }}
+    {% endif %}
+- name: "Solar Autarkie Ratio"
+  unique_id: solar_autarkie_ratio
+  icon: mdi:percent-outline
+  state: >
+    {% if ((states('sensor.solar_house_consumption_daily') | float(0)) <= 0) %}
+      0
+    {% else %}
+      {{((1 - ((states('sensor.solar_imported_power_daily') | float(0)) / (states('sensor.solar_house_consumption_daily') | float(0)))) * 100 ) | round (0)}}   
+    {% endif %}  
+
+- name: "Solar Inverter Effectiveness"
+  unique_id: solar_inverter_effectiveness
+  icon: mdi:percent-outline
+  unit_of_measurement: '%'
+  state: >
+    {% if ((states('sensor.pv_dc_power') | float(0)) < 100) or ((states('sensor.pv_ac_power') | float(0)) < 100)%}
+      {{(states('sensor.solar_inverter_effectiveness'))}}
+    {% else %}
+      {% if is_state('sensor.solar_inverter_effectiveness', 'unknown') %}
+        1
+      {% elif ((states('sensor.pv_ac_power') | float(0)) <= 0) %}
+        {{(states('sensor.solar_inverter_effectiveness'))}}
+      {% elif ((states('sensor.pv_dc_power') | float(0)) <= 0) %}
+        {{(states('sensor.solar_inverter_effectiveness'))}}
+      {% else %}
+        {{(states('sensor.pv_ac_power') | float(0)) / (states('sensor.pv_dc_power') | float(0))}}
+      {% endif %}
+    {% endif %}
+    
+- name: "Solar Battery Effectiveness"
+  unique_id: solar_battery_effectiveness
+  icon: mdi:percent-outline
+  unit_of_measurement: '%'
+  state: >       
+    {% if (((states('sensor.pv_dc_power') | float(0)) + (states('sensor.pv_battery1_power') | float(0))) <= 0 ) %}
+      {% if ((states('sensor.pv_battery1_power')| float(0)) >= 0) %}
+        {{(states('sensor.solar_battery_effectiveness'))}}
+      {% elif ((states('sensor.pv_dc_power') | float(0)) <= 0) %}
+        {{(states('sensor.solar_battery_effectiveness'))}}  
+      {% else %}
+        {{1 - ((((states('sensor.pv_battery1_power') | float(0)) * -1) - (states('sensor.pv_dc_power') | float(0))) /  ((states('sensor.pv_battery1_power') | float(0)) * -1))}}
+      {% endif %} 
+    {% elif is_state('sensor.solar_battery_effectiveness', 'unknown') %}
+      1
+    {% elif is_state('sensor.solar_battery_effectiveness', 0) %}
+      1
+    {% else %}
+      {{(states('sensor.solar_battery_effectiveness'))}}
+    {% endif %}
+- name: "Solar Panel Production W"
+  unique_id: solar_panel_production_w
+  unit_of_measurement: 'W'
+  icon: mdi:solar-power
+  state: >  
+    {% if ((states('sensor.pv_dc_power') | float(0)) + (states('sensor.pv_battery1_power') | float(0)) <= 0) %}
+      0
+    {% elif (is_state('sensor.pv_dc_power', 'unknown')) or (is_state('sensor.pv_battery1_power', 'unknown'))%}
+      0
+    {% else %}
+      {{((states('sensor.pv_dc_power') | float(0)) + (states('sensor.pv_battery1_power') | float(0)))}}
+    {% endif %}      
+- name: "Solar Panel To House W"
+  unique_id: solar_panel_to_house_w
+  unit_of_measurement: 'W'
+  icon: mdi:solar-power
+  state: > 
+    {% if ((states('sensor.pv_battery1_power') | float(0)) >= 0) and ((states('sensor.pv_m1_ac_power') | float(0)) > 0) %}
+      {{(states('sensor.pv_ac_power') | float(0) - states('sensor.pv_m1_ac_power') | float(0))}}
+    {% elif ((states('sensor.pv_battery1_power') | float(0)) >= 0) and ((states('sensor.pv_m1_ac_power') | float(0)) < 0) %}
+      {{states('sensor.pv_ac_power') | float(0)}}
+    {% elif ((states('sensor.pv_battery1_power') | float(0)) < 0)%}
+      {% if ((states('sensor.pv_dc_power') | float(0) + states('sensor.pv_battery1_power') | float(0)) < 0 ) %}
+        0
+      {% else %}
+        {{((states('sensor.pv_dc_power') | float(0)) + (states('sensor.pv_battery1_power') | float(0))) * (states('sensor.solar_inverter_effectiveness') | float(0))}}
+      {% endif %}   
+    {% else %}
+      0
+    {% endif %}  
+
+- name: "Solar Grid To House W"
+  unique_id: solar_grid_to_house_w
+  unit_of_measurement: 'W'
+  icon: mdi:transmission-tower-export
+  state: > 
+    {% if ((states('sensor.pv_m1_ac_power') | float(0)) <= 0) %}
+      {{((states('sensor.pv_m1_ac_power') | float(0)) *-1)}}
+    {% else %}
+      0
+    {% endif %}
+- name: "Solar Panel To Grid W"
+  unique_id: solar_panel_to_grid_w
+  unit_of_measurement: 'W'
+  icon: mdi:solar-power
+  state: >  
+    {% if ((states('sensor.pv_m1_ac_power') | float(0)) > 0) %}
+      {{(states('sensor.pv_m1_ac_power') | float(0))}}
+    {% else %}
+      0
+    {% endif %}   
+- name: "Solar Battery To House W"
+  unique_id: solar_battery_to_house_w
+  unit_of_measurement: 'W'
+  icon: mdi:battery-negative
+  state: >   
+    {% if ((states('sensor.pv_battery1_power') | float(0)) < 0) %}
+      {{((states('sensor.pv_battery1_power') | float(0)) * -1) * (states('sensor.solar_battery_effectiveness')| float(0)) * (states('sensor.solar_inverter_effectiveness')| float(0))}}
+    {% else %}
+      0
+    {% endif %} 
+- name: "Solar Panel To Battery W"
+  unique_id: solar_panel_to_battery_w
+  unit_of_measurement: 'W'
+  icon: mdi:solar-power
+  state: >    
+    {% if ((states('sensor.pv_battery1_power') | float(0)) > 0) %}
+      {% if ((states('sensor.solar_grid_to_battery_w') | float(0)) > 0) %}
+        0
+      {% else %}
+        {{(states('sensor.pv_battery1_power') | float(0))}}
+      {% endif %} 
+    {% else %}
+      0
+    {% endif %}
+
+- name: "Solar Grid To Battery W"
+  unique_id: solar_grid_to_battery_w
+  unit_of_measurement: 'W'
+  icon: mdi:battery-positive
+  state: >    
+    {% if (is_state('sensor.pv_ac_power', '0')) and ((states('sensor.pv_battery1_power') | float(0)) > 0) %}
+      {{(states('sensor.pv_battery1_power') | float(0))}}
+    {% else %}
+      0
+    {% endif %} 
+- name: "Solar Battery In W"
+  unique_id: solar_battery_in_w
+  unit_of_measurement: 'W'
+  icon: mdi:battery-positive
+  state: >           
+    {{(states('sensor.solar_grid_to_battery_w') | float(0)) + (states('sensor.solar_panel_to_battery_w') | float(0))}}  
+- name: "Solar House Consumption W"
+  unique_id: solar_house_consumption_w
+  unit_of_measurement: 'W'
+  icon: mdi:home
+  state: >             
+    {{(states('sensor.solar_panel_to_house_w') | float(0)) + (states('sensor.solar_battery_to_house_w') | float(0)) + (states('sensor.solar_grid_to_house_w') | float(0))}}  
+- name: "Solar Imported Power W"
+  unique_id: solar_imported_power_w
+  unit_of_measurement: 'W'
+  icon: mdi:transmission-tower-export
+  state: >          
+    {% if ((states('sensor.pv_m1_ac_power') | float(0)) <= 0) %}
+      {{((states('sensor.pv_m1_ac_power') | float(0)) *-1)}}
+    {% else %}
+      0
+    {% endif %}       
+- name: "Solar Exported Power W"
+  unique_id: solar_exported_power_w
+  unit_of_measurement: 'W'
+  icon: mdi:transmission-tower-import
+  state: >            
+    {% if ((states('sensor.pv_m1_ac_power') | float(0)) > 0) %}
+      {{(states('sensor.pv_m1_ac_power') | float(0))}}
+    {% else %}
+      0
+    {% endif %}        
+- name: "Solar Lifetime Production"
+  unique_id: solar_lifetime_production
+  unit_of_measurement: 'MWh'
+  icon: mdi:solar-power
+  state: >    
+    {{(((states('sensor.pv_ac_energy_kwh') | float(0)) / 1000) | round (2))}}

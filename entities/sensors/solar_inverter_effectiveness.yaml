@@ -1,0 +1,8 @@
+platform: statistics
+name: "Solar Inverter Effectiveness Average"
+unique_id: solar_inverter_effectiveness_average
+state_characteristic: mean
+sampling_size: 1200
+max_age:
+  hours: 24
+entity_id: sensor.solar_inverter_effectiveness
