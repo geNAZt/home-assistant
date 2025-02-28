@@ -1,5 +1,5 @@
 name: Water cycling pump reset
-min: 10
+min: -9999999999
 max: 3600
 step: 1
 unit_of_measurement: min
