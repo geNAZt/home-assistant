@@ -2,7 +2,7 @@ alias: Water cycling pump reset
 description: ""
 triggers:
   - trigger: time_pattern
-    minutes: "1"
+    minutes: "*"
 conditions: []
 actions:
   - action: input_number.decrement
