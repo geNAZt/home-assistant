@@ -248,8 +248,9 @@ class Light(hass.Hass):
             data = self.get_history(entity_id = sensor, start_time = start_time)
             for d in data:
                 for da in d:
-                    rate += float(da["state"])
-                    amount += 1
+                    if da["state"] != "unavailable":
+                        rate += float(da["state"])
+                        amount += 1
 
         return rate / float(amount)
 
