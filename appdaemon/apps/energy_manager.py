@@ -75,6 +75,8 @@ class EnergyManager(hass.Hass):
         if ec in self._turned_on:
             return
 
+        self.log("  > Checking for turn on: %r, %r, %r, %r" % (ec.group, ec.name, ec.phase, ec.current))
+
         # Check for phase control
         if len(ec.phase) > 0:
             if not self._check_phase(ec):
