@@ -54,6 +54,7 @@ class Heating(hass.Hass):
         temperature = 21.0
         state = "heat"
         pwm_percent = 0.2
+        current = 0
 
         docs = self.table.search(self.query.entity_id == self.virtual_entity_name)
         if len(docs) > 0:
@@ -63,12 +64,14 @@ class Heating(hass.Hass):
             state = docs[0]["state"]
             temperature = docs[0]["temperature"]
             pwm_percent = docs[0]["pwm_percent"]
+            current = docs[0]["currernt"]
         else:
             self.db_doc_id = self.table.insert({
                 'entity_id': self.virtual_entity_name, 
                 'state': state, 
                 'temperature': temperature, 
-                'pwm_percent': pwm_percent
+                'pwm_percent': pwm_percent,
+                'current': 0,
             })
 
         self.set_state(self.virtual_entity_name, state=state, attributes={
@@ -83,6 +86,8 @@ class Heating(hass.Hass):
             "current_temperature": 0,
             "supported_features": 1,
         })
+
+        self.currrent = current
 
         self.listen_event(self.onEvent, event="call_service")
 
@@ -208,6 +213,7 @@ class Heating(hass.Hass):
         nf = float(new)
         if nf > self.current:
             self.current = nf
+            self.table.update({'current': self.current}, doc_ids=[self.db_doc_id])
 
     def target_temp(self):
         return float(self.get_state(self.virtual_entity_name, attribute="temperature", default=0))
