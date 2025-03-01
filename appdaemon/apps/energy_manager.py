@@ -103,7 +103,7 @@ class EnergyManager(hass.Hass):
         self._turned_on.remove(ec)
 
     def _add_phase(self, ec: EnergyConsumer):
-        self.log("    > Checking phase %s for %s/%s wanting %d mA" % (ec.phase, ec.group, ec.name, ec.current))
+        self.log("    > Adding phase %s for %s/%s wanting %d mA" % (ec.phase, ec.group, ec.name, ec.current))
 
         # We want to check if the usage would trip breakers
         if ec.group in self._phase_control:
@@ -138,10 +138,11 @@ class EnergyManager(hass.Hass):
         return True
     
     def _remove_phase(self, ec: EnergyConsumer):
-        with self._lock:
-            phases = self._phase_control[ec.group]
-            entities = phases[ec.phase]
-            del entities[ec.name]
+        self.log("    > Remove phase %s for %s/%s wanting %d mA" % (ec.phase, ec.group, ec.name, ec.current))
+
+        phases = self._phase_control[ec.group]
+        entities = phases[ec.phase]
+        del entities[ec.name]
 
     def _allowed_to_consume(self, ec: EnergyConsumer):
         max_current = 15500 * 3
