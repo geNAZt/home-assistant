@@ -24,17 +24,20 @@ class EnergyManager(hass.Hass):
 
     def ensure_state(self, entity_id, state):
         self._state_values[entity_id] = state
-        self.set_state(entity_id, state=state)
+        self._set_state(entity_id, state)
         if entity_id not in self._state_callbacks:
             self._state_callbacks[entity_id] = self.listen_state(self._ensure_state_callback, entity_id)
 
     def _ensure_state_callback(self, entity, attribute, old, new, cb_args):
         value = self._state_values[entity]
         if new != value:
-            if entity.startswith("select."):
-                self.select_option(entity, value)
-            else:
-                self.set_state(entity, state=value)
+            self._set_state(entity, value)
+
+    def _set_state(self, entity, value):
+        if entity.startswith("select."):
+            self.select_option(entity, value)
+        else:
+            self.set_state(entity, state=value)
 
     def run_every_c(self, c):
         self.update()
