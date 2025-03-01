@@ -124,6 +124,9 @@ class Heating(hass.Hass):
 
             ent = self.get_entity(sens[0])
             ent.listen_state(self.onCurrentChange)
+        
+        else:
+            raise Exception("No current measurement defined")
 
         # Ensure that the heater is off
         self.turn_off(self.output)
@@ -300,6 +303,9 @@ class Heating(hass.Hass):
         self.turn_off(self.output)
         self.set_idle()
 
+        energy_manager = self.get_app("energy_manager")
+        energy_manager.remove_phase("heating", self.phase, self.name)
+
     def set_idle(self):
         self.table.update({'state': 'idle'}, doc_ids=[self.db_doc_id])
         self.set_state(self.virtual_entity_name, state='idle')
@@ -382,12 +388,11 @@ class Heating(hass.Hass):
 
         # Are we allowed to heat (current control)
         energy_manager = self.get_app("energy_manager")
-        if len(self.phase) > 0:
-            if not energy_manager.add_phase("heating", self.phase, self.name, self.current):
-                if heating:
-                    self.turn_heat_off("Can't heat, would trigger breaker")
+        if not energy_manager.add_phase("heating", self.phase, self.name, self.current):
+            if heating:
+                self.turn_heat_off("Can't heat, would trigger breaker")
 
-                return
+            return
         
         diff_room_temp = target - room_temp
 

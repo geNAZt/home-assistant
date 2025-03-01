@@ -74,6 +74,12 @@ class EnergyManager(hass.Hass):
                 self._phase_control[group] = {phase: {key: wanted}}
 
             return True
+    
+    def remove_phase(self, group, phase, key):
+        with self._lock:
+            phases = self._phase_control[group]
+            entities = phases[phase]
+            del entities[key]
 
     def run_every_c(self, c):
         self.update()
