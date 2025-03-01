@@ -18,6 +18,7 @@ class EnergyManager(hass.Hass):
         # Ensure that solaredge is configured correctly
         self.ensure_state("select.pv_storage_ac_charge_policy", "Always Allowed")
         self.ensure_state("select.pv_storage_control_mode", "Remote Control")
+        self.ensure_state("select.pv_storage_remote_command_mode", "Maximize self consumption")
 
         self.run_every(self.run_every_c, "now", 5*60)
 
