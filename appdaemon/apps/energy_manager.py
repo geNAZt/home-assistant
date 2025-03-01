@@ -30,8 +30,8 @@ class EnergyManager(hass.Hass):
 
     def _ensure_state_callback(self, entity, attribute, old, new, cb_args):
         value = self._state_values[entity]
-        #if new != value:
-            #self.set_state(entity, state=value)
+        if new != value:
+            self.run_in(lambda c: self.set_state(entity, state=value), 10)
 
     def run_every_c(self, c):
         self.update()
