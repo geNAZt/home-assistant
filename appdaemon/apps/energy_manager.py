@@ -191,6 +191,6 @@ class EnergyManager(hass.Hass):
             if battery_charge < 60:
                 self.ensure_state("select.pv_storage_remote_command_mode", "Charge from PV and AC")
             else:
-                self.ensure_state("select.pv_storage_remote_command_mode", "Maximize self consumption")
+                self.ensure_state("select.pv_storage_remote_command_mode", "Off")
         else:
             self.ensure_state("select.pv_storage_remote_command_mode", "Maximize self consumption")
