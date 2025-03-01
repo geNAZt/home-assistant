@@ -187,7 +187,7 @@ class EnergyManager(hass.Hass):
         # Concept here is that we want to skip pricy hours in the morning by precharging our battery with the kWh needed.
         # When looking intoo tibber pricing data the sweetsspot is around 3a.m for this. We need to charge until we hit PV operation.
         # For this we need to estimate how much energy we need per hour and when sunrise is
-        if now.hour() > 19:
+        if now.hour > 19:
             self.ensure_state("select.pv_storage_remote_command_mode", "Charge from PV and AC")
         else:
             self.ensure_state("select.pv_storage_remote_command_mode", "Maximize self consumption")
