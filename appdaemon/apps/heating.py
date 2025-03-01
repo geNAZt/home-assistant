@@ -59,8 +59,8 @@ class Heating(hass.Hass):
             pwm_percent = docs[0]["pwm_percent"]
 
             if "current" in docs[0]:
-                self.log("Restoring current...")
                 self.current = float(docs[0]["current"])
+                self.log("Restoring current %d" % self.current)
         else:
             self.db_doc_id = self.table.insert({
                 'entity_id': self.virtual_entity_name, 
