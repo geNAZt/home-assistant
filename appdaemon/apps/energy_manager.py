@@ -1,8 +1,11 @@
+import threading
 import appdaemon.plugins.hass.hassapi as hass
 
 from datetime import datetime
 
 class EnergyManager(hass.Hass):
+
+    _lock = threading.Lock
 
     _phase_control = dict
 
@@ -11,6 +14,8 @@ class EnergyManager(hass.Hass):
     _state_values = dict
 
     def initialize(self):
+        self._lock = threading.Lock()
+
         # Init state system
         self._state_callbacks = {}
         self._state_values = {}
@@ -38,6 +43,33 @@ class EnergyManager(hass.Hass):
             self.select_option(entity, value)
         else:
             self.set_state(entity, state=value)
+
+    def add_phase(self, group, phase, key, wanted):
+        with self._lock:
+            # We want to check if the usage would trip breakers
+            if group in self._phase_control:
+                # Check if the phase is known
+                phases = self._phase_control[group]
+                if phase in phases:
+                    entities = phases[phase]
+                    v = float(0)
+                    for skey, value in entities.items(): 
+                        if skey != key:
+                            v += value
+
+                    if v + wanted > 15500:
+                        del entities[key]
+
+                        self.log("%r wanted to use phase %r in group %r but not enough capacity" % (key, phase, group))
+                        return False
+                    
+                    entities[key] = wanted
+                else:
+                    phases[phase] = {key: wanted}
+            else:
+                self._phase_control[group] = {phase: {key: wanted}}
+
+            return True
 
     def run_every_c(self, c):
         self.update()

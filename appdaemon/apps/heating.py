@@ -381,15 +381,9 @@ class Heating(hass.Hass):
             return
 
         # Are we allowed to heat (current control)
+        energy_manager = self.get_app("energy_manager")
         if len(self.phase) > 0:
-            current_used = float(0)
-            ents = self.find_entity("sensor.current_%s" % self.phase)
-            for ent in ents:
-                if ent != self.current_entity:
-                    c = self.get_state(ent)
-                    current_used += float(c)
-            
-            if current_used + self.current > 15500:
+            if not energy_manager.add_phase("heating", self.phase, self.name, self.current):
                 if heating:
                     self.turn_heat_off("Can't heat, would trigger breaker")
 
