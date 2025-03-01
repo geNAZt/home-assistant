@@ -64,7 +64,9 @@ class Heating(hass.Hass):
             state = docs[0]["state"]
             temperature = docs[0]["temperature"]
             pwm_percent = docs[0]["pwm_percent"]
-            current = docs[0]["currernt"]
+
+            if "current" in docs[0]:
+                current = docs[0]["current"]
         else:
             self.db_doc_id = self.table.insert({
                 'entity_id': self.virtual_entity_name, 
