@@ -14,6 +14,10 @@ class EnergyConsumer:
     turn_on: callable
     turn_off: callable
 
+    def update_current(self, current):
+        if current > self.current:
+            self.current = current
+
 class EnergyManager(hass.Hass):
 
     _lock: threading.Lock

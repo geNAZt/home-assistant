@@ -60,7 +60,7 @@ class Heating(hass.Hass):
 
             if "current" in docs[0]:
                 self.log("Restoring current...")
-                self.current = docs[0]["current"]
+                self.current = float(docs[0]["current"])
         else:
             self.db_doc_id = self.table.insert({
                 'entity_id': self.virtual_entity_name, 
@@ -134,6 +134,8 @@ class Heating(hass.Hass):
 
         # Ensure that we run at least once a minute
         self.run_every(self.recalc, "now", 10)
+
+        self.log("Register with current %d", self.current)
 
         energy_manager = self.get_app("energy_manager")
         self._ec = energy_manager.register_consumer("heating", self.name, self.phase, self.current, 
@@ -210,6 +212,8 @@ class Heating(hass.Hass):
 
     def onCurrentChange(self, entity, attribute, old, new, kwargs):
         nf = float(new)
+        
+        self._ec.update_current(nf)
         if nf > self.current:
             self.current = nf
             self.table.update({'current': self.current}, doc_ids=[self.db_doc_id])
