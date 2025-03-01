@@ -25,6 +25,9 @@ class EnergyManager(hass.Hass):
         self.ensure_state("select.pv_storage_control_mode", "Remote Control")
         self.ensure_state("select.pv_storage_remote_command_mode", "Maximize self consumption")
 
+        # Phase control
+        self._phase_control = {}
+
         self.run_every(self.run_every_c, "now", 5*60)
 
     def ensure_state(self, entity_id, state):
