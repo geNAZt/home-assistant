@@ -294,6 +294,9 @@ class Heating(hass.Hass):
         self._heating_started = now_seconds
         self.set_heating()
 
+        energy_manager = self.get_app("energy_manager")
+        energy_manager.add_phase("heating", self.phase, self.name, self.current)
+
     def set_heating(self):
         self.table.update({'state': 'heat'}, doc_ids=[self.db_doc_id])
         self.set_state(self.virtual_entity_name, state='heat')
@@ -388,7 +391,7 @@ class Heating(hass.Hass):
 
         # Are we allowed to heat (current control)
         energy_manager = self.get_app("energy_manager")
-        if not energy_manager.add_phase("heating", self.phase, self.name, self.current):
+        if not energy_manager.check_phase("heating", self.phase, self.name, self.current):
             if heating:
                 self.turn_heat_off("Can't heat, would trigger breaker")
 
