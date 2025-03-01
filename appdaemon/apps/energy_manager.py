@@ -166,8 +166,7 @@ class EnergyManager(hass.Hass):
         current_used = float(0)
         for ent in self._turned_on:
             if ent.group != ec.group or ent.name != ec.name:
-                c = self.get_state(ent)
-                current_used += float(c)
+                current_used += ent.current
         
         self.log("    > Current used %d, wanting to add %d. Checking against %d" % (current_used, ec.current, max_current))
 
