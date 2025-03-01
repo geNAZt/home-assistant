@@ -46,6 +46,7 @@ class EnergyManager(hass.Hass):
 
     def add_phase(self, group, phase, key, wanted):
         with self._lock:
+            self.log("    > Checking phase %r for %r/%r wanting %r mA" % (phase, group, key, wanted))
             # We want to check if the usage would trip breakers
             if group in self._phase_control:
                 # Check if the phase is known
