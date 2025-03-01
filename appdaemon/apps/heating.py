@@ -17,14 +17,6 @@ FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS = 5
 FEATURE_ON_OFF_TIME_MANIPULATION_COOLDOWN = 10*60
 FEATURE_ON_OFF_TIME_MANIPULATION_RATE = 0.0066       # 0.2 degree per half hour
 
-# Battery max output
-FEATURE_TRACK_PV_ENABLED = True
-FEATURE_TRACK_PV_BATTERY_MAX_DISCHARGE = 21000
-FEATURE_TRACK_PV_MAX_TEMP_OFFSET = 0.5
-FEATURE_TRACK_PV_MIN_BATTERY = 15
-FEATURE_TRACK_PV_PV_PRODUCTION_CUTOFF = 0.2
-
-
 #
 # Heating control
 #
@@ -42,6 +34,8 @@ class Heating(hass.Hass):
     _on_time: float
     _off_time: float
     _manipulation_time: float
+
+    _ec: any
 
     def initialize(self):
         db = TinyDB("/config/climate_state_%s.json" % self.name.replace("heating_", ""))
@@ -141,10 +135,10 @@ class Heating(hass.Hass):
         # Ensure that we run at least once a minute
         self.run_every(self.recalc, "now", 10)
 
-        # PV tracking
-        if FEATURE_TRACK_PV_ENABLED:
-            self.pv_battery_entity = self.find_entity("solaredge_speicherniveau")[0]
-            self.pv_current_production = self.find_entity("solaredge_solar_energie")[0]
+        energy_manager = self.get_app("energy_manager")
+        self._ec = energy_manager.register_consumer("heating", self.name, self.phase, self.current, 
+                                                    lambda: self.turn_heat_on(), 
+                                                    lambda: self.turn_heat_off())
 
     def onEvent(self, event_name, data, kwargs):
         if "service_data" not in data:
@@ -286,28 +280,20 @@ class Heating(hass.Hass):
 
         return float(temperature / len(self.room_sensors))
 
-    def turn_heat_on(self, log):
-        self.log(log)
+    def turn_heat_on(self):
         self.turn_on(self.output)
 
         now_seconds = time.time()
         self._heating_started = now_seconds
         self.set_heating()
 
-        energy_manager = self.get_app("energy_manager")
-        energy_manager.add_phase("heating", self.phase, self.name, self.current)
-
     def set_heating(self):
         self.table.update({'state': 'heat'}, doc_ids=[self.db_doc_id])
         self.set_state(self.virtual_entity_name, state='heat')
 
-    def turn_heat_off(self, log):
-        self.log(log)
+    def turn_heat_off(self):
         self.turn_off(self.output)
         self.set_idle()
-
-        energy_manager = self.get_app("energy_manager")
-        energy_manager.remove_phase("heating", self.phase, self.name)
 
     def set_idle(self):
         self.table.update({'state': 'idle'}, doc_ids=[self.db_doc_id])
@@ -316,10 +302,12 @@ class Heating(hass.Hass):
     def recalc(self, kwargs):
         heating = self.is_heating()
 
+        energy_manager = self.get_app("energy_manager")
+
         state = self.get_state(self.virtual_entity_name)
         if state == "off":
             if heating:
-                self.turn_heat_off("Climate control is off")
+                energy_manager.turn_off(self._ec)
             return
 
         room_temp = self.room_temperature()
@@ -336,7 +324,7 @@ class Heating(hass.Hass):
         # Check if we are paused
         if self._heating_halted_until > now_seconds:
             if heating:
-                self.turn_heat_off("Turning off due to cooldown")
+                energy_manager.turn_off(self._ec)
             else:
                 self.set_idle()
             
@@ -348,8 +336,9 @@ class Heating(hass.Hass):
         if self.is_security_shutdown():
             if FEATURE_ON_OFF_TIME_MANIPULATION_ENABLED:
                 self.manipulateDown("security cut")
+
             if heating:
-                self.turn_heat_off("Turning off heat due to security")
+                energy_manager.turn_off(self._ec)
             else:
                 self.set_idle()
 
@@ -361,7 +350,7 @@ class Heating(hass.Hass):
 
         if room_temp_rate < WINDOW_OPEN_RATE:
             if heating:
-                self.turn_heat_off("Room has open window. Not heating...")
+                energy_manager.turn_off(self._ec)
             else:
                 self.set_idle()
 
@@ -370,7 +359,7 @@ class Heating(hass.Hass):
         # Check if diff top to bottom is too strong (heat transfer)
         if self.security_temperature_rate() > SECURITY_OFF_RATE:
             if heating:
-                self.turn_heat_off("Wanted to heat but diff between ceiling and floor temp is too high")
+                energy_manager.turn_off(self._ec)
             else:
                 self.set_idle()
 
@@ -383,56 +372,23 @@ class Heating(hass.Hass):
         # Have we reached target temp?
         if room_temp >= target:       # We reached target temp
             if heating:
-                self.turn_heat_off("Reached target temp")
+                energy_manager.turn_off(self._ec)
             else:
                 self.set_idle()
-
-            return
-
-        # Are we allowed to heat (current control)
-        energy_manager = self.get_app("energy_manager")
-        if not energy_manager.check_phase("heating", self.phase, self.name, self.current):
-            if heating:
-                self.turn_heat_off("Can't heat, would trigger breaker")
 
             return
         
         diff_room_temp = target - room_temp
 
         # Check for PV
-        max_current = 15500 * 3
-        if FEATURE_TRACK_PV_ENABLED:
-            if diff_room_temp <= FEATURE_TRACK_PV_MAX_TEMP_OFFSET:
-                new_current = float(0)
-
-                # Check for battery
-                battery_charge = float(self.get_state(self.pv_battery_entity))
-                if battery_charge > FEATURE_TRACK_PV_MIN_BATTERY:
-                    new_current += FEATURE_TRACK_PV_BATTERY_MAX_DISCHARGE
-                
-                # Check for additional PV input
-                pv_production = float(self.get_state(self.pv_current_production))
-                if pv_production > FEATURE_TRACK_PV_PV_PRODUCTION_CUTOFF:
-                    pv_current = (pv_production * 1000) / float(230) # Rough estimate since we don't have a voltage tracker on PV
-                    new_current += pv_current * 1000
-
-                if new_current > 0:
-                    max_current = new_current
-
-        current_used = float(0)
-        ents = self.find_entity("sensor.current_l[1-3]_")
-        for ent in ents:
-            if ent != self.current_entity:
-                c = self.get_state(ent)
-                current_used += float(c)
-        
-        if current_used + self.current > max_current:
+        if not energy_manager.allowed_to_consume("heating", self.name, self.current):
             if heating:
                 self.turn_heat_off("Can't heat, would exceed max usage")
             else:
-                self.log("will not heat for usage saving - having %r but wanting %r" % (max_current, current_used + self.current))
+                self.log("will not heat for usage saving")
+            
             return
-
+        
         # Do we need to start heating?
         if diff_room_temp > ALLOWED_DIFF:
             # We are now at target temp, reduce PWM one step if possible
@@ -444,7 +400,7 @@ class Heating(hass.Hass):
                     self.manipulateUp("temperature rises too slow")
 
             if heating is False:
-                self.turn_heat_on("Starting to heat")
+                energy_manager.turn_on(self._ec)
             else:
                 self.set_heating()
                 
