@@ -49,7 +49,7 @@ class EnergyManager(hass.Hass):
 
     def add_phase(self, group, phase, key, wanted):
         with self._lock:
-            self.log("    > Checking phase %r for %r/%r wanting %r mA" % (phase, group, key, wanted))
+            self.log("    > Checking phase %s for %s/%s wanting %d mA" % (phase, group, key, wanted))
             # We want to check if the usage would trip breakers
             if group in self._phase_control:
                 # Check if the phase is known
@@ -64,7 +64,7 @@ class EnergyManager(hass.Hass):
                     if v + wanted > 15500:
                         del entities[key]
 
-                        self.log("%r wanted to use phase %r in group %r but not enough capacity" % (key, phase, group))
+                        self.log("%s wanted to use phase %s in group %s but not enough capacity" % (key, phase, group))
                         return False
                     
                     entities[key] = wanted
