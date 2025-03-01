@@ -32,7 +32,7 @@ class EnergyManager(hass.Hass):
         value = self._state_values[entity]
         self.log("Old value: %r, New value: %r, Restore: %r, Entity: %r" % (old, new, value, entity))
         if new != value:
-            self.set_state(entity, value)
+            self.set_state(entity, state=value)
 
     def run_every_c(self, c):
         self.update()
