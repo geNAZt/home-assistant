@@ -1,4 +1,3 @@
-Iimport threading
 import appdaemon.plugins.hass.hassapi as hass
 import adbase as ad
 
