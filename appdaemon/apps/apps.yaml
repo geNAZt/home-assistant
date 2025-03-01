@@ -1,7 +1,7 @@
 ---
-energy_calc:
-  module: energy_calc
-  class: EnergyCalc
+energy_manager:
+  module: energy_manager
+  class: EnergyManager
 bed:
   module: bed
   class: Bed
