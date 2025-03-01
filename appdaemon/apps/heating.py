@@ -54,7 +54,6 @@ class Heating(hass.Hass):
         temperature = 21.0
         state = "heat"
         pwm_percent = 0.2
-        current = 0
 
         docs = self.table.search(self.query.entity_id == self.virtual_entity_name)
         if len(docs) > 0:
@@ -66,7 +65,8 @@ class Heating(hass.Hass):
             pwm_percent = docs[0]["pwm_percent"]
 
             if "current" in docs[0]:
-                current = docs[0]["current"]
+                self.log("Restoring current...")
+                self.current = docs[0]["current"]
         else:
             self.db_doc_id = self.table.insert({
                 'entity_id': self.virtual_entity_name, 
@@ -75,6 +75,8 @@ class Heating(hass.Hass):
                 'pwm_percent': pwm_percent,
                 'current': 0,
             })
+
+            self.current = 0
 
         self.set_state(self.virtual_entity_name, state=state, attributes={
             "hvac_modes": ["heat","off"],
