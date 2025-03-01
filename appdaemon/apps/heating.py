@@ -378,19 +378,8 @@ class Heating(hass.Hass):
 
             return
         
-        diff_room_temp = target - room_temp
-
-        # Check for PV
-        if not energy_manager.allowed_to_consume("heating", self.name, self.current):
-            if heating:
-                self.turn_heat_off("Can't heat, would exceed max usage")
-            else:
-                self.log("will not heat for usage saving")
-            
-            return
-        
         # Do we need to start heating?
-        if diff_room_temp > ALLOWED_DIFF:
+        if (target - room_temp) > ALLOWED_DIFF:
             # We are now at target temp, reduce PWM one step if possible
             if FEATURE_ON_OFF_TIME_MANIPULATION_ENABLED:
                 if room_temp_rate > FEATURE_ON_OFF_TIME_MANIPULATION_RATE:
