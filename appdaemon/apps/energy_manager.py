@@ -1,5 +1,6 @@
 import threading
 import appdaemon.plugins.hass.hassapi as hass
+import adbase as ad
 
 from datetime import datetime
 from dataclasses import dataclass
@@ -20,8 +21,6 @@ class EnergyConsumer:
 
 class EnergyManager(hass.Hass):
 
-    _lock: threading.Lock
-
     _phase_control: dict
 
     # State control
@@ -33,8 +32,6 @@ class EnergyManager(hass.Hass):
     _turned_on: list
 
     def initialize(self):
-        self._lock = threading.Lock()
-
         # Init state system
         self._state_callbacks = {}
         self._state_values = {}
@@ -72,36 +69,36 @@ class EnergyManager(hass.Hass):
         else:
             self.set_state(entity, state=value)
 
+    @ad.global_lock
     def turn_on(self, ec: EnergyConsumer):
-        with self._lock:
-            # Check if already turned on
-            if ec in self._turned_on:
+        # Check if already turned on
+        if ec in self._turned_on:
+            return
+
+        # Check for phase control
+        if len(ec.phase) > 0:
+            if not self._check_phase(ec):
                 return
 
-            # Check for phase control
+        # Check for additional max consumption
+        if self._allowed_to_consume(ec):
             if len(ec.phase) > 0:
-                if not self._check_phase(ec):
-                    return
-                
-            # Check for additional max consumption
-            if self._allowed_to_consume(ec):
-                if len(ec.phase) > 0:
-                    self._add_phase(ec)
+                self._add_phase(ec)
 
-                ec.turn_on()
-                self._turned_on.append(ec)
-    
+            ec.turn_on()
+            self._turned_on.append(ec)
+
+    @ad.global_lock
     def turn_off(self, ec: EnergyConsumer):
-         with self._lock:
-            # Check if already turned on
-            if ec not in self._turned_on:
-                return
-            
-            if len(ec.phase) > 0:
-                self._remove_phase(ec)
+        # Check if already turned on
+        if ec not in self._turned_on:
+            return
+        
+        if len(ec.phase) > 0:
+            self._remove_phase(ec)
 
-            ec.turn_off()
-            self._turned_on.remove(ec)
+        ec.turn_off()
+        self._turned_on.remove(ec)
 
     def _add_phase(self, ec: EnergyConsumer):
         self.log("    > Checking phase %s for %s/%s wanting %d mA" % (ec.phase, ec.group, ec.name, ec.current))
