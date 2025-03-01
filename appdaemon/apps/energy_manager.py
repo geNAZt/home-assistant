@@ -1,4 +1,4 @@
-import threading
+Iimport threading
 import appdaemon.plugins.hass.hassapi as hass
 import adbase as ad
 
@@ -92,6 +92,8 @@ class EnergyManager(hass.Hass):
 
     @ad.global_lock
     def turn_off(self, ec: EnergyConsumer):
+        ec.turn_off()
+
         # Check if already turned on
         if ec not in self._turned_on:
             return
@@ -99,7 +101,6 @@ class EnergyManager(hass.Hass):
         if len(ec.phase) > 0:
             self._remove_phase(ec)
 
-        ec.turn_off()
         self._turned_on.remove(ec)
 
     def _add_phase(self, ec: EnergyConsumer):
