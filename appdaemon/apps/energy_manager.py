@@ -5,13 +5,13 @@ from datetime import datetime
 
 class EnergyManager(hass.Hass):
 
-    _lock = threading.Lock
+    _lock: threading.Lock
 
-    _phase_control = dict
+    _phase_control: dict
 
     # State control
-    _state_callbacks = dict
-    _state_values = dict
+    _state_callbacks: dict
+    _state_values: dict
 
     def initialize(self):
         self._lock = threading.Lock()
