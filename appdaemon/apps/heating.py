@@ -109,7 +109,6 @@ class Heating(hass.Hass):
         sens = self.find_entity("%s_current" % self.name.replace("heating_", ""))
 
         self.phase = ""
-        self.current = float(0)
 
         if len(sens) > 0:
             self.current_entity = sens[0]
