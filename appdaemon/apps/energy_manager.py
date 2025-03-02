@@ -49,6 +49,8 @@ class EnergyManager(hass.Hass):
         # 
         self._turned_on = []
 
+        self._resetting_charging = False
+
         self.run_every(self.run_every_c, "now", 5*60)
 
     def register_consumer(self, group, name, phase, current, turn_on, turn_off):
