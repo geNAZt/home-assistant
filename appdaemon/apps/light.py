@@ -76,7 +76,7 @@ class Light(hass.Hass):
 
         # Setup the PID controller
         self._pid = PID(2.0, 0.5, 2.0, setpoint=float(brightness / 2.55) * 3)
-        self._pid.output_limits = (-10, 40)
+        self._pid.output_limits = (-10, 30)
     
         # Attach a listener to all presence sensors
         self.presence_sensors = self.find_entity("binary_sensor.presence_%s[_0-9]*" % self.name.replace("light_", ""))
