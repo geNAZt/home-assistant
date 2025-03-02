@@ -300,6 +300,10 @@ class Light(hass.Hass):
         return rate / float(amount)
 
     def update(self):
+        # Are we inited yet?
+        if self._state != 1:
+            return
+
         # Check if we got disabled
         active = self.get_state(self.virtual_entity_name)
         if active == "off":
