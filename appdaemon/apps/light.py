@@ -118,6 +118,12 @@ class Light(hass.Hass):
     def _simulation_off_init(self, c):
         self._lux_off = self.avg_lux()
         self.log("Off lux: %d" % self._lux_off)
+        self.set_light_to(255)
+        self.run_in(self._simulation_on_init, FEATURE_SIMULATION_ON_TIME)
+
+    def _simulation_on_init(self, c):
+        lux = self.avg_lux()
+        self.log("On lux: %d - Abs %d" % (lux, lux - self._lux_off))
         self._state = 1
 
     def is_feature_enabled(self, feature, default=False):
