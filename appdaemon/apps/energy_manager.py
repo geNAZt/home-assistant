@@ -30,9 +30,6 @@ class EnergyManager(hass.Hass):
 
     _turned_on: list
 
-    # 
-    _resetting_charging: bool
-
     def initialize(self):
         # Init state system
         self._state_callbacks = {}
@@ -48,8 +45,6 @@ class EnergyManager(hass.Hass):
 
         # 
         self._turned_on = []
-
-        self._resetting_charging = False
 
         self.run_every(self.run_every_c, "now", 5*60)
 
@@ -184,10 +179,6 @@ class EnergyManager(hass.Hass):
     def run_every_c(self, c):
         self.update()
 
-    def _reset_charger(self, c):
-        self.ensure_state("select.pv_storage_remote_command_mode", "Maximize self consumption"),
-        self._resetting_charging = False
-
     def update(self):
         now = datetime.now()
 
@@ -208,11 +199,4 @@ class EnergyManager(hass.Hass):
             else:
                 self.ensure_state("select.pv_storage_remote_command_mode", "Off")
         else:
-            if battery_charge < 100 and export_watt > 100 and panel_to_battery < 1 and not self._resetting_charging:
-                # There seems to be a bug where self consumption doesn't want to load anymore
-                self._resetting_charging = True
-                self.ensure_state("select.pv_storage_remote_command_mode", "Charge from PV first")
-                self.run_in(self._reset_charger, 10 * 60)
-            
-            if not self._resetting_charging:
-                self.ensure_state("select.pv_storage_remote_command_mode", "Maximize self consumption")
+            self.ensure_state("select.pv_storage_remote_command_mode", "Maximize self consumption")
