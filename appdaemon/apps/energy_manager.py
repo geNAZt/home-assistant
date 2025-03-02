@@ -30,6 +30,9 @@ class EnergyManager(hass.Hass):
 
     _turned_on: list
 
+    # 
+    _resetting_charging: bool
+
     def initialize(self):
         # Init state system
         self._state_callbacks = {}
@@ -179,19 +182,35 @@ class EnergyManager(hass.Hass):
     def run_every_c(self, c):
         self.update()
 
+    def _reset_charger(self, c):
+        self.ensure_state("select.pv_storage_remote_command_mode", "Maximize self consumption"),
+        self._resetting_charging = False
+
     def update(self):
         now = datetime.now()
+
+        # Get current state
+        export_watt = float(self.get_state("sensor.solar_exported_power_w"))
+        battery_charge = float(self.get_state("sensor.pv_battery1_state_of_charge"))
+        panel_to_battery = float(self.get_state("sensor.solar_panel_to_battery_w"))
 
         # Control AC charging
         # 
         # Concept here is that we want to skip pricy hours in the morning by precharging our battery with the kWh needed.
         # When looking intoo tibber pricing data the sweetsspot is around 3a.m for this. We need to charge until we hit PV operation.
         # For this we need to estimate how much energy we need per hour and when sunrise is
+
         if now.hour <= 4:
-            battery_charge = float(self.get_state("sensor.pv_battery1_state_of_charge"))
             if battery_charge < 60:
                 self.ensure_state("select.pv_storage_remote_command_mode", "Charge from PV and AC")
             else:
                 self.ensure_state("select.pv_storage_remote_command_mode", "Off")
         else:
-            self.ensure_state("select.pv_storage_remote_command_mode", "Maximize self consumption")
+            if battery_charge < 100 and export_watt > 100 and panel_to_battery < 1 and not self._resetting_chargings:
+                # There seems to be a bug where self consumption doesn't want to load anymore
+                self._resetting_charging = True
+                self.ensure_state("select.pv_storage_remote_command_mode", "Off")
+                self.run_in(self._reset_charger, 10)
+            
+            if not self._resetting_charging:
+                self.ensure_state("select.pv_storage_remote_command_mode", "Maximize self consumption")
