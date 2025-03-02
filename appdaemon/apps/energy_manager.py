@@ -211,8 +211,8 @@ class EnergyManager(hass.Hass):
             if battery_charge < 100 and export_watt > 100 and panel_to_battery < 1 and not self._resetting_charging:
                 # There seems to be a bug where self consumption doesn't want to load anymore
                 self._resetting_charging = True
-                self.ensure_state("select.pv_storage_remote_command_mode", "Off")
-                self.run_in(self._reset_charger, 10)
+                self.ensure_state("select.pv_storage_remote_command_mode", "Charge from PV first")
+                self.run_in(self._reset_charger, 10 * 60)
             
             if not self._resetting_charging:
                 self.ensure_state("select.pv_storage_remote_command_mode", "Maximize self consumption")
