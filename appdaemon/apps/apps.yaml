@@ -23,6 +23,8 @@ light_wohnzimmer:
 light_buero_fabian:
   module: light
   class: Light
+  features:
+    simulation: true
 light_buero_merja:
   module: light
   class: Light

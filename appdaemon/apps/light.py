@@ -7,13 +7,29 @@ from datetime import timedelta, datetime, timezone
 from tinydb import TinyDB, Query
 from simple_pid import PID
 
+
+##
+#
+# Lights should try to illuminate a room to a minimum target lux. That target lux can be overriden by the virtual
+# light entity which will be created per room. 
+# 
+# To properly light a room the lux of the room should be tracked and even if no person is present a simulation should 
+# be made to ensure that when a light turns on the target lux of the room can be reached ASAP
+
+FEATURE_SIMULATION_OFF_TIME = 60 # Training basis to track illumination
+FEATURE_SIMULATION_ON_TIME = 60  # Training basis for on time
+
 class Light(hass.Hass):
 
     _presence: bool
     _pid: PID
     _lastUpdate: int
 
+    _state: int
+
     def initialize(self):
+        self._state = 0
+
         # Open database
         db = TinyDB("/config/light_state_%s.json" % self.name.replace("light_", ""))
         self.table = db.table('lights', cache_size=0)
@@ -85,11 +101,34 @@ class Light(hass.Hass):
         if len(self.lights) == 0:
             raise Exception("not enough lights")
         
+        # 
+        if self.is_feature_enabled("simulation", False):
+            # We need to turn off lights, wait for off time
+            self.set_light_to(0)
+            self.run_in(self._simulation_off_init, FEATURE_SIMULATION_OFF_TIME)
+        else:
+            self._state = 1
+
         # Get presence state
         self._presence = self.is_present()
 
         # Kick it off
         self._lastUpdate = 0
+
+    def _simulation_off_init(self, c):
+        self._lux_off = self.avg_lux()
+        self.log("Off lux: %d" % self._lux_off)
+        self._state = 1
+
+    def is_feature_enabled(self, feature, default=False):
+        if "features" not in self.args:
+            return default
+        
+        fe = self.args["features"]
+        if feature not in fe:
+            return default
+        
+        return bool(fe[feature])
 
     def find_entity(self, search):
         states = self.get_state()
@@ -244,7 +283,7 @@ class Light(hass.Hass):
             rate += float(self.get_state(sensor))
             amount += 1
 
-            start_time =  now - timedelta(minutes = 5)
+            start_time =  now - timedelta(seconds = 30)
             data = self.get_history(entity_id = sensor, start_time = start_time)
             for d in data:
                 for da in d:
