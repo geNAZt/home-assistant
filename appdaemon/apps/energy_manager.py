@@ -242,6 +242,8 @@ class EnergyManager(hass.Hass):
             battery_charge_in_kwh = self._get_current_battery_capacity()
 
             time_sunrise = datetime.fromisoformat(self.get_state("sensor.sun_next_rising"))
+
+            self.lig("sunrise %s" % time_sunrise)
             time_till_sunrise = (stop_charging - time_sunrise).total_seconds()
 
             minutes, rest = divmod(time_till_sunrise, 60)
