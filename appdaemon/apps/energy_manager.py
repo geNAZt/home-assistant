@@ -225,7 +225,7 @@ class EnergyManager(hass.Hass):
         return side_a + side_b + side_c
 
     def update(self):
-        now = datetime.now(timezone.utc)
+        now = datetime.now()
 
         self.log("now %s" % now)
 
@@ -235,7 +235,7 @@ class EnergyManager(hass.Hass):
         # When looking intoo tibber pricing data the sweetsspot is around 3a.m for this. We need to charge until we hit PV operation.
         # For this we need to estimate how much energy we need per hour and when sunrise is
         if now.hour < 2:
-            stop_charging = datetime(now.year, now.month, now.day, 2, 0, 0, 0)
+            stop_charging = datetime(now.year, now.month, now.day, 2, 0, 0, 0, now.tzinfo)
 
             tomorrow_estimate = self._estimated_production_tomorrow()
             battery_remaining_capacity = self._get_remaining_battery_capacity()
