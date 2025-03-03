@@ -17,7 +17,7 @@ from simple_pid import PID
 # be made to ensure that when a light turns on the target lux of the room can be reached ASAP
 
 FEATURE_SIMULATION_OFF_TIME = 60 # Training basis to track illumination
-FEATURE_SIMULATION_ON_TIME = 60  # Training basis for on time
+FEATURE_SIMULATION_ON_TIME = 10  # Training basis for on time
 
 class Light(hass.Hass):
 
@@ -25,6 +25,7 @@ class Light(hass.Hass):
     _pid: PID
     _lastUpdate: int
 
+    _simulation_init: int
     _state: int
 
     def initialize(self):
@@ -105,6 +106,7 @@ class Light(hass.Hass):
         if self.is_feature_enabled("simulation", False):
             # We need to turn off lights, wait for off time
             self.set_light_to(0)
+            self._simulation_init = 255
             self.run_in(self._simulation_off_init, FEATURE_SIMULATION_OFF_TIME)
         else:
             self._state = 1
@@ -118,19 +120,18 @@ class Light(hass.Hass):
     def _simulation_off_init(self, c):
         self._lux_off = self.avg_lux()
         self.log("Off lux: %d" % self._lux_off)
-        self.set_light_to(255)
+        self.set_light_to(self._simulation_init)
         self.run_in(self._simulation_on_init, FEATURE_SIMULATION_ON_TIME)
 
     def _simulation_on_init(self, c):
         lux = self.avg_lux()
-        self.log("On 100%% lux: %d - Abs %d" % (lux, lux - self._lux_off))
-        self.set_light_to(128)
-        self.run_in(self._simulation_on_half_init, FEATURE_SIMULATION_ON_TIME)
-    
-    def _simulation_on_half_init(self, c):
-        lux = self.avg_lux()
-        self.log("On 50 %% lux: %d - Abs %d" % (lux, lux - self._lux_off))
-        self._state = 1
+        self.log("On %d lux: %d - Abs %d" % (self._simulation_init, lux, lux - self._lux_off))
+        self._simulation_init -= 25.5
+        if self._simulation_init > 0:
+            self.set_light_to(self._simulation_init)
+            self.run_in(self._simulation_on_init, FEATURE_SIMULATION_ON_TIME)
+        else:
+            self._state = 1
 
     def is_feature_enabled(self, feature, default=False):
         if "features" not in self.args:
