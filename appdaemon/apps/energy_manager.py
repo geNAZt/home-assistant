@@ -185,10 +185,12 @@ class EnergyManager(hass.Hass):
             new_current += 21000
         
         # Check for additional PV input
-        pv_production = float(self.get_state("sensor.solar_panel_to_house_w"))
-        if pv_production > 100:
-            pv_current = pv_production / float(230) # Rough estimate since we don't have a voltage tracker on PV
-            self.log("    > PV detected - adding %d Wh" % pv_production)
+        pv_production = float(self.get_state("sensor.solar_panel_production_w"))
+        battery_charge = float(self.get_state("sensor.solar_panel_to_battery_w"))
+        pv_over_production = pv_production - battery_charge
+        if pv_over_production > 100:
+            pv_current = pv_over_production / float(230) # Rough estimate since we don't have a voltage tracker on PV
+            self.log("    > PV detected - adding %d Wh" % pv_over_production)
             new_current += pv_current * 1000
                 
         if new_current > 0:
