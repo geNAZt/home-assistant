@@ -244,7 +244,7 @@ class EnergyManager(hass.Hass):
             time_sunrise = datetime.fromisoformat(self.get_state("sensor.sun_next_rising"))
 
             self.log("sunrise %s" % time_sunrise)
-            time_till_sunrise = (stop_charging - time_sunrise).total_seconds()
+            time_till_sunrise = (time_sunrise - stop_charging).total_seconds()
 
             minutes, rest = divmod(time_till_sunrise, 60)
 
