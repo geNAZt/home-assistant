@@ -5,6 +5,11 @@ from datetime import datetime
 from dataclasses import dataclass
 
 @dataclass
+class AdditionalConsumer:
+    stage: str
+    watt: float
+
+@dataclass
 class EnergyConsumer:
     group: str
     name: str
@@ -30,6 +35,8 @@ class EnergyManager(hass.Hass):
 
     _turned_on: list
 
+    _consumptions: dict
+
     def initialize(self):
         # Init state system
         self._state_callbacks = {}
@@ -45,6 +52,7 @@ class EnergyManager(hass.Hass):
 
         # 
         self._turned_on = []
+        self._consumptions = {}
 
         self.run_every(self.run_every_c, "now", 5*60)
 
@@ -247,3 +255,48 @@ class EnergyManager(hass.Hass):
                 self.ensure_state("select.pv_storage_remote_command_mode", "Maximize self consumption")
         else:
             self.ensure_state("select.pv_storage_remote_command_mode", "Maximize self consumption")
+
+        exported_watt = float(self.get_state("sensor.solar_exported_power_w"))
+        panel_to_house_w = float(self.get_state("sensor.solar_panel_to_house_w"))
+
+        # 
+        #
+        if "consumption" in self.args:
+            consumptions = self.args["consumption"]
+            
+            for key, value in consumptions.items():
+                if key in self._consumptions:
+                    c = self._consumptions[key]
+                    if c.watt > panel_to_house_w:
+                        # We need to turn off
+                        stage = value[c.stage]
+                        self.turn_off(stage["switch"])
+                        del self._consumptions[key]
+
+                        self.log("Removing consumption: %s" % key)
+                    else:
+                        panel_to_house_w -= c.watt
+
+            for key, value in consumptions.items():
+                if key in self._consumptions:
+                    c = self._consumptions[key]
+                    for ik, iv in value.items():
+                        if iv["usage"] > c.watt:
+                            # Do we have enough capacity?
+                            diff = iv["usage"] - c.watt
+                            if exported_watt >= diff:
+                                self.log("Leveing up consumption: %s, %s, %d" % (key, ik, iv["usage"]))
+
+                                stage = value[c.stage]
+                                self.turn_off(stage["switch"])
+
+                                c.stage = ik
+                                c.watt = iv["usage"]
+                                self.turn_on(iv["switch"])
+                else:
+                    for ik, iv in value.items():
+                        if exported_watt >= iv["usage"]:
+                            self.turn_on(iv["switch"])
+                            self.log("Adding consumption: %s, %s, %d" % (key, ik, iv["usage"]))
+                            self._consumptions[key] = AdditionalConsumer(ik, iv["usage"])
+                            break
