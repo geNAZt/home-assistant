@@ -225,7 +225,7 @@ class EnergyManager(hass.Hass):
         return side_a + side_b + side_c
 
     def update(self):
-        now = datetime.now()
+        now = self.get_now()
 
         self.log("now %s" % now)
 
