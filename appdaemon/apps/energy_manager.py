@@ -1,7 +1,7 @@
 import appdaemon.plugins.hass.hassapi as hass
 import adbase as ad
 
-from datetime import datetime
+from datetime import datetime, timezone 
 from dataclasses import dataclass
 
 @dataclass
@@ -225,7 +225,7 @@ class EnergyManager(hass.Hass):
         return side_a + side_b + side_c
 
     def update(self):
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
 
         # Control AC charging
         # 
