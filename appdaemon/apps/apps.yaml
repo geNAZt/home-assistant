@@ -22,6 +22,8 @@ api:
 light_speisekammer:
   module: light
   class: Light
+  features:
+    simulation: true
 light_kueche:
   module: light
   class: Light
