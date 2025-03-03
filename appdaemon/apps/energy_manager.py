@@ -227,6 +227,8 @@ class EnergyManager(hass.Hass):
     def update(self):
         now = datetime.now(timezone.utc)
 
+        self.log("now %s" % now)
+
         # Control AC charging
         # 
         # Concept here is that we want to skip pricy hours in the morning by precharging our battery with the kWh needed.
