@@ -312,7 +312,7 @@ class Heating(hass.Hass):
         state = self.get_state(self.virtual_entity_name)
         if state == "off":
             if heating:
-                energy_manager.turn_off(self._ec)
+                energy_manager.em_turn_off(self._ec)
             return
 
         room_temp = self.room_temperature()
@@ -329,7 +329,7 @@ class Heating(hass.Hass):
         # Check if we are paused
         if self._heating_halted_until > now_seconds:
             if heating:
-                energy_manager.turn_off(self._ec)
+                energy_manager.em_turn_off(self._ec)
             else:
                 self.set_idle()
             
@@ -343,7 +343,7 @@ class Heating(hass.Hass):
                 self.manipulateDown("security cut")
 
             if heating:
-                energy_manager.turn_off(self._ec)
+                energy_manager.em_turn_off(self._ec)
             else:
                 self.set_idle()
 
@@ -355,7 +355,7 @@ class Heating(hass.Hass):
 
         if room_temp_rate < WINDOW_OPEN_RATE:
             if heating:
-                energy_manager.turn_off(self._ec)
+                energy_manager.em_turn_off(self._ec)
             else:
                 self.set_idle()
 
@@ -364,7 +364,7 @@ class Heating(hass.Hass):
         # Check if diff top to bottom is too strong (heat transfer)
         if self.security_temperature_rate() > SECURITY_OFF_RATE:
             if heating:
-                energy_manager.turn_off(self._ec)
+                energy_manager.em_turn_off(self._ec)
             else:
                 self.set_idle()
 
@@ -377,7 +377,7 @@ class Heating(hass.Hass):
             self.manipulateDown("overshoot on room temp")
 
             if heating:
-                energy_manager.turn_off(self._ec)
+                energy_manager.em_turn_off(self._ec)
             else:
                 self.set_idle()
 
@@ -394,7 +394,7 @@ class Heating(hass.Hass):
                     self.manipulateUp("temperature rises too slow")
 
             if heating is False:
-                energy_manager.turn_on(self._ec)
+                energy_manager.em_turn_on(self._ec)
             else:
                 self.set_heating()
                 

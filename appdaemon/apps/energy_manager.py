@@ -77,7 +77,7 @@ class EnergyManager(hass.Hass):
             self.set_state(entity, state=value)
 
     @ad.global_lock
-    def turn_on(self, ec: EnergyConsumer):
+    def em_turn_on(self, ec: EnergyConsumer):
         # Check if already turned on
         if ec in self._turned_on:
             return
@@ -98,7 +98,7 @@ class EnergyManager(hass.Hass):
             self._turned_on.append(ec)
 
     @ad.global_lock
-    def turn_off(self, ec: EnergyConsumer):
+    def em_turn_off(self, ec: EnergyConsumer):
         ec.turn_off()
 
         # Check if already turned on
