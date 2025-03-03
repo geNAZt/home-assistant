@@ -17,7 +17,7 @@ from simple_pid import PID
 # be made to ensure that when a light turns on the target lux of the room can be reached ASAP
 
 FEATURE_SIMULATION_OFF_TIME = 60 # Training basis to track illumination
-FEATURE_SIMULATION_ON_TIME = 10  # Training basis for on time
+FEATURE_SIMULATION_ON_TIME = 60  # Training basis for on time
 
 class Light(hass.Hass):
 
