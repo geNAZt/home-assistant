@@ -2,6 +2,9 @@
 energy_manager:
   module: energy_manager
   class: EnergyManager
+  groups:
+    heating:
+      can_be_delayed: true
 bed:
   module: bed
   class: Bed

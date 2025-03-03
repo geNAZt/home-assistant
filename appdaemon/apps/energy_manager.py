@@ -144,6 +144,28 @@ class EnergyManager(hass.Hass):
         entities = phases[ec.phase]
         del entities[ec.name]
 
+    def _can_be_delayed(self, ec: EnergyConsumer):
+        if "groups" in self.args:
+            groups = self.args["groups"]
+            if ec.group in groups:
+                group = groups[ec.group]
+                if "can_be_delayed" in group:
+                    return bool(group["can_be_delayed"])
+                
+        return False
+
+    def _get_remaining_battery_capacity(self):
+        battery_max_capacity = float(self.get_state("sensor.pv_battery1_size_max")) / 1000 # Given in Wh
+        battery_charge = float(self.get_state("sensor.pv_battery1_state_of_charge")) / 100 # Given in full number percent
+        battery_capacity_used = battery_max_capacity * battery_charge
+        return battery_max_capacity - battery_capacity_used
+    
+    def _get_current_battery_capacity(self):
+        battery_max_capacity = float(self.get_state("sensor.pv_battery1_size_max")) / 1000 # Given in Wh
+        battery_charge = float(self.get_state("sensor.pv_battery1_state_of_charge")) / 100 # Given in full number percent
+        battery_capacity_used = battery_max_capacity * battery_charge
+        return battery_capacity_used
+
     def _allowed_to_consume(self, ec: EnergyConsumer):
         max_current = 15500 * 3
         new_current = float(0)
@@ -163,6 +185,13 @@ class EnergyManager(hass.Hass):
                 
         if new_current > 0:
             max_current = new_current
+        else:
+            # Check if this consumption can be delayed
+            if self._can_be_delayed(ec):
+                tomorrow_estimate = self._estimated_production_tomorrow()
+                battery_remaining_capacity = self._get_remaining_battery_capacity()
+                if tomorrow_estimate >= battery_remaining_capacity:
+                    max_current = 0
 
         current_used = float(0)
         for ent in self._turned_on:
@@ -179,24 +208,42 @@ class EnergyManager(hass.Hass):
     def run_every_c(self, c):
         self.update()
 
+    def _estimated_production_tomorrow(self):
+        side_a = float(self.get_state("sensor.energy_production_tomorrow"))
+        side_b = float(self.get_state("sensor.energy_production_tomorrow_2"))
+        side_c = float(self.get_state("sensor.energy_production_tomorrow_3"))
+        return side_a + side_b + side_c
+
     def update(self):
         now = datetime.now()
-
-        # Get current state
-        export_watt = float(self.get_state("sensor.solar_exported_power_w"))
-        battery_charge = float(self.get_state("sensor.pv_battery1_state_of_charge"))
-        panel_to_battery = float(self.get_state("sensor.solar_panel_to_battery_w"))
 
         # Control AC charging
         # 
         # Concept here is that we want to skip pricy hours in the morning by precharging our battery with the kWh needed.
         # When looking intoo tibber pricing data the sweetsspot is around 3a.m for this. We need to charge until we hit PV operation.
         # For this we need to estimate how much energy we need per hour and when sunrise is
+        if now.hour < 2:
+            stop_charging = datetime(now.year, now.month, now.day, 2, 0, 0, 0)
 
-        if now.hour <= 4:
-            if battery_charge < 60:
-                self.ensure_state("select.pv_storage_remote_command_mode", "Charge from PV and AC")
+            tomorrow_estimate = self._estimated_production_tomorrow()
+            battery_remaining_capacity = self._get_remaining_battery_capacity()
+            battery_charge_in_kwh = self._get_current_battery_capacity()
+
+            time_sunrise = datetime.fromisoformat(self.get_state("sensor.sun_next_rising"))
+            time_till_sunrise = (stop_charging - time_sunrise).total_seconds()
+
+            minutes, rest = divmod(time_till_sunrise, 60)
+
+            # We simply asssume that we consume 2500 watt per hour for now until we found a way to predict this
+            needed_watt_per_minute = 2500 / 60
+            needed_kwh = (minutes * needed_watt_per_minute) / 1000
+
+            if tomorrow_estimate < battery_remaining_capacity:
+                if battery_charge_in_kwh < needed_kwh:
+                    self.ensure_state("select.pv_storage_remote_command_mode", "Charge from PV and AC")
+                else:
+                    self.ensure_state("select.pv_storage_remote_command_mode", "Off")
             else:
-                self.ensure_state("select.pv_storage_remote_command_mode", "Off")
+                self.ensure_state("select.pv_storage_remote_command_mode", "Maximize self consumption")
         else:
             self.ensure_state("select.pv_storage_remote_command_mode", "Maximize self consumption")
