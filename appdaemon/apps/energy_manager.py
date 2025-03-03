@@ -246,6 +246,8 @@ class EnergyManager(hass.Hass):
             needed_watt_per_minute = 2500 / 60
             needed_kwh = (minutes * needed_watt_per_minute) / 1000
 
+            self.log("Wanting to charge %d kWh" % needed_kwh)
+
             if tomorrow_estimate < battery_remaining_capacity:
                 if battery_charge_in_kwh < needed_kwh:
                     self.ensure_state("select.pv_storage_remote_command_mode", "Charge from PV and AC")
@@ -261,6 +263,7 @@ class EnergyManager(hass.Hass):
 
         # 
         #
+        self.log("Checking for additional consumption")
         if "consumption" in self.args:
             consumptions = self.args["consumption"]
             
