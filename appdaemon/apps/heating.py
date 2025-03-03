@@ -372,10 +372,11 @@ class Heating(hass.Hass):
         
         target = self.target_temp()
 
-        # Have we reached target temp?
-        if room_temp >= target:       # We reached target temp
+        if room_temp > target and heating and FEATURE_ON_OFF_TIME_MANIPULATION_ENABLED:
             self.manipulateDown("overshoot on room temp")
 
+        # Have we reached target temp?
+        if room_temp >= target:       # We reached target temp
             if heating:
                 energy_manager.em_turn_off(self._ec)
             else:
