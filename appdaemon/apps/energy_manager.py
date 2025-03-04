@@ -180,8 +180,8 @@ class EnergyManager(hass.Hass):
 
         # Check for battery
         battery_charge = float(self.get_state("sensor.pv_battery1_state_of_charge"))
-        if battery_charge > 10:
-            self.log("    > Battery charge over 10% - adding 5000 Wh")
+        if battery_charge > 20:
+            self.log("    > Battery charge over 20% - adding 5000 Wh")
             new_current += 21000
         
         # Check for additional PV input
