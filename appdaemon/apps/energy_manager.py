@@ -1,12 +1,12 @@
 import appdaemon.plugins.hass.hassapi as hass
 import adbase as ad
 
-from datetime import datetime, timezone 
+from datetime import datetime 
 from dataclasses import dataclass
 
 @dataclass
 class AdditionalConsumer:
-    stage: str
+    stage: int
     watt: float
 
 @dataclass
@@ -291,12 +291,12 @@ class EnergyManager(hass.Hass):
             for key, value in consumptions.items():
                 if key in self._consumptions:
                     c = self._consumptions[key]
-                    for ik, iv in value.items():
+                    for ik, iv in value:
                         if iv["usage"] > c.watt:
                             # Do we have enough capacity?
                             diff = iv["usage"] - c.watt
                             if exported_watt >= diff:
-                                self.log("Leveing up consumption: %s, %s, %d" % (key, ik, iv["usage"]))
+                                self.log("Leveing up consumption: %s, %d, %d" % (key, ik, iv["usage"]))
 
                                 stage = value[c.stage]
                                 self.turn_off(stage["switch"])
@@ -305,9 +305,9 @@ class EnergyManager(hass.Hass):
                                 c.watt = iv["usage"]
                                 self.turn_on(iv["switch"])
                 else:
-                    for ik, iv in value.items():
+                    for ik, iv in value:
                         if exported_watt >= iv["usage"]:
                             self.turn_on(iv["switch"])
-                            self.log("Adding consumption: %s, %s, %d" % (key, ik, iv["usage"]))
+                            self.log("Adding consumption: %s, %d, %d" % (key, ik, iv["usage"]))
                             self._consumptions[key] = AdditionalConsumer(ik, iv["usage"])
                             break

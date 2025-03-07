@@ -7,12 +7,10 @@ energy_manager:
       can_be_delayed: true
   consumption:
     water_heating_pump:
-      stage1: 
-        usage: 500
-        switch: switch.water_heater_pv_switch_powerr_usage_stage_1
-      stage2:
-        usage: 1600
+      - usage: 1600
         switch: switch.water_heater_pv_switch_powerr_usage_stage_2
+      - usage: 500
+        switch: switch.water_heater_pv_switch_powerr_usage_stage_1
 bed:
   module: bed
   class: Bed
