@@ -291,7 +291,7 @@ class EnergyManager(hass.Hass):
             for key, value in consumptions.items():
                 if key in self._consumptions:
                     c = self._consumptions[key]
-                    for ik, iv in value:
+                    for ik, iv in enumerate(value):
                         if iv["usage"] > c.watt:
                             # Do we have enough capacity?
                             diff = iv["usage"] - c.watt
@@ -305,7 +305,7 @@ class EnergyManager(hass.Hass):
                                 c.watt = iv["usage"]
                                 self.turn_on(iv["switch"])
                 else:
-                    for ik, iv in value:
+                    for ik, iv in enumerate(value):
                         if exported_watt >= iv["usage"]:
                             self.turn_on(iv["switch"])
                             self.log("Adding consumption: %s, %d, %d" % (key, ik, iv["usage"]))
