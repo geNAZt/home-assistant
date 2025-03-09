@@ -29,7 +29,7 @@
     - action: input_number.set_value
       metadata: {}
       data:
-        value: 60
+        value: 360
       target:
         entity_id: input_number.water_cycling_pump_reset
   mode: single
