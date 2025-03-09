@@ -1,12 +1,12 @@
 import appdaemon.plugins.hass.hassapi as hass
 import adbase as ad
 
-from datetime import datetime
+from datetime import datetime 
 from dataclasses import dataclass
 
 @dataclass
 class AdditionalConsumer:
-    stage: str
+    stage: int
     watt: float
 
 @dataclass
@@ -180,8 +180,8 @@ class EnergyManager(hass.Hass):
 
         # Check for battery
         battery_charge = float(self.get_state("sensor.pv_battery1_state_of_charge"))
-        if battery_charge > 10:
-            self.log("    > Battery charge over 10% - adding 5000 Wh")
+        if battery_charge > 20:
+            self.log("    > Battery charge over 20% - adding 5000 Wh")
             new_current += 21000
         
         # Check for additional PV input
@@ -225,7 +225,9 @@ class EnergyManager(hass.Hass):
         return side_a + side_b + side_c
 
     def update(self):
-        now = datetime.now()
+        now = self.get_now()
+
+        self.log("now %s" % now)
 
         # Control AC charging
         # 
@@ -233,16 +235,20 @@ class EnergyManager(hass.Hass):
         # When looking intoo tibber pricing data the sweetsspot is around 3a.m for this. We need to charge until we hit PV operation.
         # For this we need to estimate how much energy we need per hour and when sunrise is
         if now.hour < 2:
-            stop_charging = datetime(now.year, now.month, now.day, 2, 0, 0, 0)
+            stop_charging = datetime(now.year, now.month, now.day, 2, 0, 0, 0, now.tzinfo)
 
             tomorrow_estimate = self._estimated_production_tomorrow()
             battery_remaining_capacity = self._get_remaining_battery_capacity()
             battery_charge_in_kwh = self._get_current_battery_capacity()
 
             time_sunrise = datetime.fromisoformat(self.get_state("sensor.sun_next_rising"))
-            time_till_sunrise = (stop_charging - time_sunrise).total_seconds()
+
+            self.log("sunrise %s" % time_sunrise)
+            time_till_sunrise = (time_sunrise - stop_charging).total_seconds()
 
             minutes, rest = divmod(time_till_sunrise, 60)
+
+            self.log("m %d, r %d, t %d" % (minutes, rest, time_till_sunrise))
 
             # We simply asssume that we consume 2500 watt per hour for now until we found a way to predict this
             needed_watt_per_minute = 2500 / 60
@@ -285,12 +291,12 @@ class EnergyManager(hass.Hass):
             for key, value in consumptions.items():
                 if key in self._consumptions:
                     c = self._consumptions[key]
-                    for ik, iv in value.items():
+                    for ik, iv in enumerate(value):
                         if iv["usage"] > c.watt:
                             # Do we have enough capacity?
                             diff = iv["usage"] - c.watt
                             if exported_watt >= diff:
-                                self.log("Leveing up consumption: %s, %s, %d" % (key, ik, iv["usage"]))
+                                self.log("Leveing up consumption: %s, %d, %d" % (key, ik, iv["usage"]))
 
                                 stage = value[c.stage]
                                 self.turn_off(stage["switch"])
@@ -299,9 +305,9 @@ class EnergyManager(hass.Hass):
                                 c.watt = iv["usage"]
                                 self.turn_on(iv["switch"])
                 else:
-                    for ik, iv in value.items():
+                    for ik, iv in enumerate(value):
                         if exported_watt >= iv["usage"]:
                             self.turn_on(iv["switch"])
-                            self.log("Adding consumption: %s, %s, %d" % (key, ik, iv["usage"]))
+                            self.log("Adding consumption: %s, %d, %d" % (key, ik, iv["usage"]))
                             self._consumptions[key] = AdditionalConsumer(ik, iv["usage"])
                             break
