@@ -248,7 +248,7 @@ class EnergyManager(hass.Hass):
 
             minutes, rest = divmod(time_till_sunrise, 60)
 
-            self.log("m %d, r %d, t %d" % (minutes, rest, time_till_sunrise))
+            self.log("m %d, r %d, t %d, te %d" % (minutes, rest, time_till_sunrise, tomorrow_estimate))
 
             # We simply asssume that we consume 2500 watt per hour for now until we found a way to predict this
             needed_watt_per_minute = 2500 / 60
