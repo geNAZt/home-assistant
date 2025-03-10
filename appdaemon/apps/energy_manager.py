@@ -254,7 +254,7 @@ class EnergyManager(hass.Hass):
             needed_watt_per_minute = 1000 / 60
             needed_kwh = (minutes * needed_watt_per_minute) / 1000
 
-            self.log("Wanting to charge %d kWh" % needed_kwh)
+            self.log("Wanting to charge %d kWh, having %d kWh in battery" % (needed_kwh, battery_charge_in_kwh))
 
             if tomorrow_estimate / 2 < battery_remaining_capacity:
                 if battery_charge_in_kwh < needed_kwh:
