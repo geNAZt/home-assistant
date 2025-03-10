@@ -163,14 +163,14 @@ class EnergyManager(hass.Hass):
         return False
 
     def _get_remaining_battery_capacity(self):
-        battery_max_capacity = float(self.get_state("sensor.pv_battery1_size_max")) / 1000 # Given in Wh
-        battery_charge = float(self.get_state("sensor.pv_battery1_state_of_charge")) / 100 # Given in full number percent
+        battery_max_capacity = float(self.get_state("sensor.pv_battery1_size_max")) / float(1000) # Given in Wh
+        battery_charge = float(self.get_state("sensor.pv_battery1_state_of_charge")) / float(100) # Given in full number percent
         battery_capacity_used = battery_max_capacity * battery_charge
         return battery_max_capacity - battery_capacity_used
     
     def _get_current_battery_capacity(self):
-        battery_max_capacity = float(self.get_state("sensor.pv_battery1_size_max")) / 1000 # Given in Wh
-        battery_charge = float(self.get_state("sensor.pv_battery1_state_of_charge")) / 100 # Given in full number percent
+        battery_max_capacity = float(self.get_state("sensor.pv_battery1_size_max")) / float(1000) # Given in Wh
+        battery_charge = float(self.get_state("sensor.pv_battery1_state_of_charge")) / float(100) # Given in full number percent
         battery_capacity_used = battery_max_capacity * battery_charge
         return battery_capacity_used
 
