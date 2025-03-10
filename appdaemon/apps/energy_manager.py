@@ -256,7 +256,7 @@ class EnergyManager(hass.Hass):
 
             self.log("Wanting to charge %d kWh" % needed_kwh)
 
-            if tomorrow_estimate < battery_remaining_capacity:
+            if tomorrow_estimate / 2 < battery_remaining_capacity:
                 if battery_charge_in_kwh < needed_kwh:
                     self.ensure_state("select.pv_storage_remote_command_mode", "Charge from PV and AC")
                 else:
