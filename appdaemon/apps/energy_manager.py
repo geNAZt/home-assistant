@@ -18,6 +18,7 @@ class EnergyConsumer:
 
     turn_on: callable
     turn_off: callable
+    can_be_delayed: callable
 
     def update_current(self, current):
         if current > self.current:
@@ -56,8 +57,8 @@ class EnergyManager(hass.Hass):
 
         self.run_every(self.run_every_c, "now", 5*60)
 
-    def register_consumer(self, group, name, phase, current, turn_on, turn_off):
-        return EnergyConsumer(group, name, phase, current, turn_on, turn_off)
+    def register_consumer(self, group, name, phase, current, turn_on, turn_off, can_be_delayed):
+        return EnergyConsumer(group, name, phase, current, turn_on, turn_off, can_be_delayed)
 
     def ensure_state(self, entity_id, state):
         self._state_values[entity_id] = state
@@ -153,14 +154,7 @@ class EnergyManager(hass.Hass):
         del entities[ec.name]
 
     def _can_be_delayed(self, ec: EnergyConsumer):
-        if "groups" in self.args:
-            groups = self.args["groups"]
-            if ec.group in groups:
-                group = groups[ec.group]
-                if "can_be_delayed" in group:
-                    return bool(group["can_be_delayed"])
-                
-        return False
+        return ec.can_be_delayed()
 
     def _get_remaining_battery_capacity(self):
         battery_max_capacity = float(self.get_state("sensor.pv_battery1_size_max")) / float(1000) # Given in Wh

@@ -2,9 +2,6 @@
 energy_manager:
   module: energy_manager
   class: EnergyManager
-  groups:
-    heating:
-      can_be_delayed: true
   consumption:
     water_heating_pump:
       - usage: 1600
@@ -43,24 +40,40 @@ light_flur:
 heating_speisekammer:
   module: heating
   class: Heating
+  dependencies:
+  - energy_manager
 heating_kueche:
   module: heating
   class: Heating
+  dependencies:
+  - energy_manager
 heating_wohnzimmer:
   module: heating
   class: Heating
+  dependencies:
+  - energy_manager
 heating_buero_fabian:
   module: heating
   class: Heating
+  dependencies:
+  - energy_manager
 heating_bad:
   module: heating
   class: Heating
+  dependencies:
+  - energy_manager
 heating_buero_merja:
   module: heating
   class: Heating
+  dependencies:
+  - energy_manager
 heating_flur:
   module: heating
   class: Heating
+  dependencies:
+  - energy_manager
 heating_schlafzimmer:
   module: heating
   class: Heating
+  dependencies:
+  - energy_manager

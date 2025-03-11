@@ -140,8 +140,14 @@ class Heating(hass.Hass):
 
         energy_manager = self.get_app("energy_manager")
         self._ec = energy_manager.register_consumer("heating", self.name, self.phase, self.current, 
-                                                    lambda: self.turn_heat_on(), 
-                                                    lambda: self.turn_heat_off())
+                                                    self.turn_heat_on, 
+                                                    self.turn_heat_off,
+                                                    self.can_be_delayed)
+
+    def can_be_delayed(self):
+        target = self.target_temp()
+        room_temp = self.room_temperature()
+        return (target - room_temp) <= 0.5
 
     def onEvent(self, event_name, data, kwargs):
         if "service_data" not in data:
