@@ -147,6 +147,8 @@ class Heating(hass.Hass):
     def can_be_delayed(self):
         target = self.target_temp()
         room_temp = self.room_temperature()
+
+        self.log("Room temp for delay: %.3f r, %.3f t" % (room_temp, target))
         return (target - room_temp) <= 0.5
 
     def onEvent(self, event_name, data, kwargs):
