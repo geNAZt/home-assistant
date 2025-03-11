@@ -95,6 +95,7 @@ class EnergyManager(hass.Hass):
             if len(ec.phase) > 0:
                 self._add_phase(ec)
 
+            self.log("  > Turning on %s/%s" % (ec.name, ec.group))
             ec.turn_on()
             self._turned_on.append(ec)
 
