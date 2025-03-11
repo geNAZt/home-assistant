@@ -186,21 +186,24 @@ class EnergyManager(hass.Hass):
             pv_current = pv_over_production / float(230) # Rough estimate since we don't have a voltage tracker on PV
             self.log("    > PV detected - adding %d Wh" % pv_over_production)
             new_current += pv_current * 1000
-                
-        if new_current > 0:
-            max_current = new_current
-        else:
-            # Check if this consumption can be delayed
-            if self._can_be_delayed(ec):
-                tomorrow_estimate = self._estimated_production_tomorrow()
-                battery_remaining_capacity = self._get_remaining_battery_capacity()
-                if tomorrow_estimate >= battery_remaining_capacity:
-                    max_current = 0
 
         current_used = float(0)
         for ent in self._turned_on:
             if ent.group != ec.group or ent.name != ec.name:
                 current_used += ent.current
+
+        if new_current > 0:
+            # Check if PV is enough, if not can we delay?
+            if current_used + ec.current > new_current:
+                if self._can_be_delayed(ec):
+                    max_current = new_current
+        else:
+            # Check if this consumption can be delayed
+            if self._can_be_delayed(ec):
+                tomorrow_estimate = self._estimated_production_tomorrow()
+                battery_remaining_capacity = self._get_remaining_battery_capacity()
+                if tomorrow_estimate / 2 >= battery_remaining_capacity:
+                    max_current = 0
         
         self.log("    > Current used %d, wanting to add %d. Checking against %d" % (current_used, ec.current, max_current))
 
