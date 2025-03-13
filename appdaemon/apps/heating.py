@@ -380,7 +380,7 @@ class Heating(hass.Hass):
         
         target = self.target_temp()
 
-        if room_temp > target and heating and FEATURE_ON_OFF_TIME_MANIPULATION_ENABLED:
+        if room_temp > target and FEATURE_ON_OFF_TIME_MANIPULATION_ENABLED:
             self.manipulateDown("overshoot on room temp")
 
         # Have we reached target temp?
