@@ -4,6 +4,8 @@ import adbase as ad
 from datetime import datetime 
 from dataclasses import dataclass
 
+MIN_BATTERY_CHARGE = 0.1
+
 @dataclass
 class AdditionalConsumer:
     stage: int
@@ -159,15 +161,18 @@ class EnergyManager(hass.Hass):
 
     def _get_remaining_battery_capacity(self):
         battery_max_capacity = float(self.get_state("sensor.pv_battery1_size_max")) / float(1000) # Given in Wh
+        # We need to remove MIN_BATTERY_CHARGE as buffer since we can't deep discharge the battery
+        battery_min_capacity = battery_max_capacity * MIN_BATTERY_CHARGE
         battery_charge = float(self.get_state("sensor.pv_battery1_state_of_charge")) / float(100) # Given in full number percent
         battery_capacity_used = battery_max_capacity * battery_charge
-        return battery_max_capacity - battery_capacity_used
+        return (battery_max_capacity - battery_capacity_used) - battery_min_capacity
     
     def _get_current_battery_capacity(self):
         battery_max_capacity = float(self.get_state("sensor.pv_battery1_size_max")) / float(1000) # Given in Wh
+        battery_min_capacity = battery_max_capacity * MIN_BATTERY_CHARGE
         battery_charge = float(self.get_state("sensor.pv_battery1_state_of_charge")) / float(100) # Given in full number percent
         battery_capacity_used = battery_max_capacity * battery_charge
-        return battery_capacity_used
+        return battery_capacity_used - battery_min_capacity
 
     def _allowed_to_consume(self, ec: EnergyConsumer):
         max_current = 15500 * 3
