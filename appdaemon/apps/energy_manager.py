@@ -180,7 +180,7 @@ class EnergyManager(hass.Hass):
 
         # Check for battery
         battery_charge = float(self.get_state("sensor.pv_battery1_state_of_charge"))
-        if battery_charge > 20:
+        if battery_charge > 10:
             self.log("    > Battery charge over 20% - adding 5000 Wh")
             new_current += 21000
         
@@ -251,7 +251,7 @@ class EnergyManager(hass.Hass):
 
             minutes, rest = divmod(time_till_sunrise, 60)
 
-            self.log("m %d, r %d, t %d, te %.3f" % (minutes, rest, time_till_sunrise, tomorrow_estimate))
+            self.log("m %d, t %d, te %.3f" % (minutes, time_till_sunrise, tomorrow_estimate))
 
             # We simply asssume that we consume 1000 watt per hour for now until we found a way to predict this
             needed_watt_per_minute = 1000 / 60
