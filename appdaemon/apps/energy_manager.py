@@ -222,10 +222,18 @@ class EnergyManager(hass.Hass):
         self.update()
 
     def _estimated_production_tomorrow(self):
-        side_a = float(self.get_state("sensor.energy_production_tomorrow"))
-        side_b = float(self.get_state("sensor.energy_production_tomorrow_2"))
-        side_c = float(self.get_state("sensor.energy_production_tomorrow_3"))
-        return side_a + side_b + side_c
+        now = self.get_now()
+
+        if now.hour < 2:
+            side_a = float(self.get_state("sensor.energy_production_today"))
+            side_b = float(self.get_state("sensor.energy_production_today_2"))
+            side_c = float(self.get_state("sensor.energy_production_today_3"))
+            return side_a + side_b + side_c
+        else:
+            side_a = float(self.get_state("sensor.energy_production_tomorrow"))
+            side_b = float(self.get_state("sensor.energy_production_tomorrow_2"))
+            side_c = float(self.get_state("sensor.energy_production_tomorrow_3"))
+            return side_a + side_b + side_c
 
     def update(self):
         now = self.get_now()
