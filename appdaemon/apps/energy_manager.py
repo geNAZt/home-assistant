@@ -208,7 +208,7 @@ class EnergyManager(hass.Hass):
             if self._can_be_delayed(ec):
                 tomorrow_estimate = self._estimated_production_tomorrow()
                 battery_remaining_capacity = self._get_remaining_battery_capacity()
-                if tomorrow_estimate / 2 >= battery_remaining_capacity:
+                if tomorrow_estimate >= battery_remaining_capacity:
                     max_current = 0
         
         self.log("    > Current used %d, wanting to add %d. Checking against %d" % (current_used, ec.current, max_current))
@@ -229,8 +229,6 @@ class EnergyManager(hass.Hass):
 
     def update(self):
         now = self.get_now()
-
-        self.log("now %s" % now)
 
         # Control AC charging
         # 
