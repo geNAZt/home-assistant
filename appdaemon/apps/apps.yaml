@@ -14,6 +14,9 @@ bed:
 api:
   module: api
   class: API
+light_bad:
+  module: light
+  class: Light
 light_speisekammer:
   module: light
   class: Light
