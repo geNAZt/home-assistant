@@ -1,7 +1,7 @@
 import appdaemon.plugins.hass.hassapi as hass
 import adbase as ad
 
-from datetime import datetime 
+from datetime import datetime, timedelta 
 from dataclasses import dataclass
 
 MIN_BATTERY_CHARGE = 0.1
@@ -235,6 +235,25 @@ class EnergyManager(hass.Hass):
             side_c = float(self.get_state("sensor.energy_production_tomorrow_3"))
             return side_a + side_b + side_c
 
+    def _average_state(self, entity, time: timedelta):
+        rate = float(0)
+        amount = 0
+
+        now = datetime.now()
+            
+        rate += float(self.get_state(entity))
+        amount += 1
+
+        start_time =  now - time
+        data = self.get_history(entity_id = entity, start_time = start_time)
+        for d in data:
+            for da in d:
+                if da["state"] != "unavailable" and da["state"] != "unknown":
+                    rate += float(da["state"])
+                    amount += 1
+
+        return rate / float(amount)
+
     def update(self):
         now = self.get_now()
 
@@ -275,8 +294,8 @@ class EnergyManager(hass.Hass):
         else:
             self.ensure_state("select.pv_storage_remote_command_mode", "Maximize self consumption")
 
-        exported_watt = float(self.get_state("sensor.solar_exported_power_w"))
-        panel_to_house_w = float(self.get_state("sensor.solar_panel_to_house_w"))
+        exported_watt = self._average_state("sensor.solar_exported_power_w", timedelta(minutes=1))
+        panel_to_house_w = self._average_state("sensor.solar_panel_to_house_w", timedelta(minutes=1))
 
         # 
         #
