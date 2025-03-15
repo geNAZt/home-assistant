@@ -299,7 +299,7 @@ class EnergyManager(hass.Hass):
 
         # 
         #
-        self.log("Checking for additional consumption")
+        self.log("Checking for additional consumption, exported %.2f w, produced %.2f w" % (exported_watt, panel_to_house_w))
         if "consumption" in self.args:
             consumptions = self.args["consumption"]
             
