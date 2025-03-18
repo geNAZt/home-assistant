@@ -119,7 +119,6 @@ class Heating(hass.Hass):
 
             ent = self.get_entity(sens[0])
             ent.listen_state(self.onCurrentChange)
-        
         else:
             raise Exception("No current measurement defined")
 
@@ -138,6 +137,10 @@ class Heating(hass.Hass):
 
         self.log("Register with current %d", self.current)
 
+        self.presence_sensors = self.find_entity("binary_sensor.presence_%s[_0-9]*" % self.name.replace("heating_", ""))
+        if len(self.presence_sensors) == 0:
+            raise Exception("not enough presence sensors")
+
         energy_manager = self.get_app("energy_manager")
         self._ec = energy_manager.register_consumer("heating", self.name, self.phase, self.current, 
                                                     self.turn_heat_on, 
@@ -150,6 +153,13 @@ class Heating(hass.Hass):
 
         self.log("Room temp for delay: %.3f r, %.3f t" % (room_temp, target))
         return (target - room_temp) <= 0.5
+
+    def is_present(self):
+        for sensor in self.presence_sensors:
+            if self.get_state(sensor) == "on":
+                return True
+        
+        return False
 
     def onEvent(self, event_name, data, kwargs):
         if "service_data" not in data:
@@ -228,7 +238,11 @@ class Heating(hass.Hass):
             self.table.update({'current': self.current}, doc_ids=[self.db_doc_id])
 
     def target_temp(self):
-        return float(self.get_state(self.virtual_entity_name, attribute="temperature", default=0))
+        target = float(self.get_state(self.virtual_entity_name, attribute="temperature", default=0))
+        if self.is_present():
+            return target
+        else:
+            return max(target - 2, 16.0)
 
     def is_heating(self):
         return self.get_state(self.output) == "on"
