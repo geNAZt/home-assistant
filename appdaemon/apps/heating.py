@@ -427,11 +427,11 @@ class Heating(hass.Hass):
             return
 
     def optimize_energy_usage(self):
-        current_power = self.current * 230  # Assuming 230V system
+        current_power = self.current * 230  # Assuming 230V system, given in Watt per hour
         heating_time = time.time() - self._heating_started
         
         # Calculate energy used in this cycle
-        energy_used = (current_power * heating_time) / 3600  # kWh
+        energy_used = (current_power / 3600) * heating_time # watt seconds
         
         # Store historical data
         self.table.update({
