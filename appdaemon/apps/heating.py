@@ -246,6 +246,18 @@ class Heating(hass.Hass):
             
         return False
     
+    def calculate_optimal_time_slot(self):
+        room_temp = self.room_temperature()
+        target = self.target_temp()
+        diff = target - room_temp
+        
+        # Adjust time slot based on temperature difference
+        if diff > 2:
+            return TIME_SLOT_SECONDS * 0.8  # Shorter cycles when far from target
+        elif diff < 0.5:
+            return TIME_SLOT_SECONDS * 1.2  # Longer cycles when close to target
+        return TIME_SLOT_SECONDS
+
     def room_temperature_rate(self):
         rate = float(0)
         now = datetime.now()
@@ -308,6 +320,7 @@ class Heating(hass.Hass):
         self.set_state(self.virtual_entity_name, state='heat')
 
     def turn_heat_off(self):
+        self.optimize_energy_usage()
         self.turn_off(self.output)
         self.set_idle()
 
@@ -332,8 +345,9 @@ class Heating(hass.Hass):
         now_seconds = time.time()
 
         # Check for heating length
-        if heating and now_seconds - self._heating_started > TIME_SLOT_SECONDS * self._pwm_percents:
-            self._heating_halted_until = now_seconds + TIME_SLOT_SECONDS * (1-self._pwm_percent)
+        time_slot = self.calculate_optimal_time_slot()
+        if heating and now_seconds - self._heating_started > time_slot * self._pwm_percent:
+            self._heating_halted_until = now_seconds + time_slot * (1-self._pwm_percent)
             self._heating_started = 0.0
             self.log("Setting heating pause until %r" % self._heating_halted_until)
 
@@ -412,4 +426,74 @@ class Heating(hass.Hass):
                 
             return
 
- 
+    def optimize_energy_usage(self):
+        current_power = self.current * 230  # Assuming 230V system
+        heating_time = time.time() - self._heating_started
+        
+        # Calculate energy used in this cycle
+        energy_used = (current_power * heating_time) / 3600  # kWh
+        
+        # Store historical data
+        self.table.update({
+            'energy_history': self.table.get(doc_id=self.db_doc_id).get('energy_history', []) + [{
+                'timestamp': time.time(),
+                'energy': energy_used,
+                'temperature_diff': self.target_temp() - self.room_temperature()
+            }]
+        }, doc_ids=[self.db_doc_id])
+        
+        # Analyze energy efficiency
+        if len(self.table.get(doc_id=self.db_doc_id).get('energy_history', [])) > 10:
+            self.analyze_energy_efficiency()
+
+    def analyze_energy_efficiency(self):
+        """
+        Analyzes historical energy usage data to optimize heating patterns.
+        Looks for patterns in energy consumption and adjusts PWM accordingly.
+        """
+        # Get historical data
+        energy_history = self.table.get(doc_id=self.db_doc_id).get('energy_history', [])
+        if len(energy_history) < 10:  # Need at least 10 data points for meaningful analysis
+            return
+
+        # Calculate average energy usage per degree of temperature difference
+        total_energy = sum(entry['energy'] for entry in energy_history)
+        total_temp_diff = sum(entry['temperature_diff'] for entry in energy_history)
+        
+        if total_temp_diff == 0:
+            return
+            
+        avg_energy_per_degree = total_energy / total_temp_diff
+        
+        # Calculate efficiency trend
+        recent_entries = energy_history[-5:]  # Look at last 5 entries
+        recent_energy = sum(entry['energy'] for entry in recent_entries)
+        recent_temp_diff = sum(entry['temperature_diff'] for entry in recent_entries)
+        
+        if recent_temp_diff == 0:
+            return
+            
+        recent_energy_per_degree = recent_energy / recent_temp_diff
+        
+        # Log efficiency metrics
+        self.set_state(self.virtual_entity_name, attributes={
+            "avg_energy_per_degree": round(avg_energy_per_degree, 3),
+            "recent_energy_per_degree": round(recent_energy_per_degree, 3),
+            "efficiency_trend": round(recent_energy_per_degree - avg_energy_per_degree, 3)
+        })
+        
+        # Adjust PWM based on efficiency analysis
+        if recent_energy_per_degree > avg_energy_per_degree * 1.1:  # 10% worse than average
+            self.log(f"Energy efficiency decreased by {round((recent_energy_per_degree/avg_energy_per_degree - 1) * 100, 1)}%")
+            self.manipulateDown("poor energy efficiency detected")
+        elif recent_energy_per_degree < avg_energy_per_degree * 0.9:  # 10% better than average
+            self.log(f"Energy efficiency improved by {round((1 - recent_energy_per_degree/avg_energy_per_degree) * 100, 1)}%")
+            self.manipulateUp("good energy efficiency detected")
+        
+        # Clean up old data (keep last 24 hours)
+        current_time = time.time()
+        energy_history = [entry for entry in energy_history 
+                        if current_time - entry['timestamp'] < 24 * 3600]
+        
+        # Update database with cleaned history
+        self.table.update({'energy_history': energy_history}, doc_ids=[self.db_doc_id])
