@@ -31,10 +31,8 @@ class Heating(hass.Hass):
     _heating_started: float
     _heating_halted_until: float
 
-    _on_time: float
-    _off_time: float
     _manipulation_time: float
-
+    _pwm_percent: float
     _ec: any
 
     def initialize(self):
@@ -128,9 +126,7 @@ class Heating(hass.Hass):
         self._heating_halted_until = 0.0
 
         # Calc on and off time        
-        self._on_time = TIME_SLOT_SECONDS * pwm_percent
-        self._off_time = TIME_SLOT_SECONDS - self._on_time
-        self._manipulation_time = 0
+        self._set_pwm(pwm_percent)
 
         # Ensure that we run at least once a minute
         self.run_every(self.recalc, "now", 10)
@@ -144,15 +140,7 @@ class Heating(hass.Hass):
         energy_manager = self.get_app("energy_manager")
         self._ec = energy_manager.register_consumer("heating", self.name, self.phase, self.current, 
                                                     self.turn_heat_on, 
-                                                    self.turn_heat_off,
-                                                    self.can_be_delayed)
-
-    def can_be_delayed(self):
-        target = self.target_temp()
-        room_temp = self.room_temperature()
-
-        self.log("Room temp for delay: %.3f r, %.3f t" % (room_temp, target))
-        return (target - room_temp) <= 0.5
+                                                    self.turn_heat_off)
 
     def is_present(self):
         for sensor in self.presence_sensors:
@@ -203,27 +191,26 @@ class Heating(hass.Hass):
 
         return found
 
-    def pwmSet(self, on, off):
+    def set_pwm(self, pwm_percent):
         now = time.time()
-        self._on_time = on
-        self._off_time = off
-        pwm_percent = (self._on_time / TIME_SLOT_SECONDS)
         self.table.update({"pwm_percent": pwm_percent}, doc_ids=[self.db_doc_id])
         self.set_state(self.virtual_entity_name, attributes={"pwm_percent": pwm_percent})
+        self._pwm_percent = pwm_percent
         self._manipulation_time = now + FEATURE_ON_OFF_TIME_MANIPULATION_COOLDOWN
+
 
     def manipulateUp(self, log):
         now = time.time()
         if now >= self._manipulation_time:
-            if self._on_time < TIME_SLOT_SECONDS:
-                self.pwmSet(self._on_time + FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS, self._off_time - FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS)
+            if self._pwm_percent < 1.0:
+                self.set_pwm(self._pwm_percent + 0.01)
                 self.log("PWM goes up, %s" % log)
 
     def manipulateDown(self, log):
         now = time.time()
         if now >= self._manipulation_time:
-            if self._on_time > FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS:
-                self.pwmSet(self._on_time - FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS, self._off_time + FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS)
+            if self._pwm_percent > 0:
+                self.set_pwm(self._pwm_percent - 0.01)
                 self.log("PWM goes down, %s" % log)
 
     def onChangeRecalc(self, entity, attribute, old, new, kwargs):
@@ -343,8 +330,8 @@ class Heating(hass.Hass):
         now_seconds = time.time()
 
         # Check for heating length
-        if heating and now_seconds - self._heating_started > self._on_time:
-            self._heating_halted_until = now_seconds + self._off_time
+        if heating and now_seconds - self._heating_started > TIME_SLOT_SECONDS * self._pwm_percents:
+            self._heating_halted_until = now_seconds + TIME_SLOT_SECONDS * (1-self._pwm_percent)
             self._heating_started = 0.0
             self.log("Setting heating pause until %r" % self._heating_halted_until)
 
