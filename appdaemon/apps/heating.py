@@ -224,7 +224,7 @@ class Heating(hass.Hass):
             self.table.update({'current': self.current}, doc_ids=[self.db_doc_id])
 
     def target_temp(self):
-        target = float(self.get_state(self.virtual_entity_name, attribute="temperature", default=0))
+        target = self.table.search(self.query.entity_id == self.virtual_entity_name)[0]["temperature"]
         if self.is_present():
             self.set_state(self.virtual_entity_name, attributes={"temperature": target})
             return target
