@@ -126,7 +126,7 @@ class Heating(hass.Hass):
         self._heating_halted_until = 0.0
 
         # Calc on and off time        
-        self._set_pwm(pwm_percent)
+        self.set_pwm(pwm_percent)
 
         # Ensure that we run at least once a minute
         self.run_every(self.recalc, "now", 10)
