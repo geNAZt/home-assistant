@@ -198,7 +198,6 @@ class Heating(hass.Hass):
         self._pwm_percent = pwm_percent
         self._manipulation_time = now + FEATURE_ON_OFF_TIME_MANIPULATION_COOLDOWN
 
-
     def manipulateUp(self, log):
         now = time.time()
         if now >= self._manipulation_time:
@@ -227,9 +226,12 @@ class Heating(hass.Hass):
     def target_temp(self):
         target = float(self.get_state(self.virtual_entity_name, attribute="temperature", default=0))
         if self.is_present():
+            self.set_state(self.virtual_entity_name, attributes={"temperature": target})
             return target
         else:
-            return max(target - 2, 16.0)
+            target = max(target - 2, 16.0)
+            self.set_state(self.virtual_entity_name, attributes={"temperature": target})
+            return target
 
     def is_heating(self):
         return self.get_state(self.output) == "on"
