@@ -7,15 +7,10 @@ from tinydb import TinyDB, Query
 from datetime import timedelta, datetime, timezone
 
 ALLOWED_DIFF = 0.0
-SECURITY_OFF_RATE = 0.025
-WINDOW_OPEN_RATE = -0.02
 TIME_SLOT_SECONDS = 30*60
 
 # Alpha feature control
-FEATURE_ON_OFF_TIME_MANIPULATION_ENABLED = True
-FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS = 5
-FEATURE_ON_OFF_TIME_MANIPULATION_COOLDOWN = 10*60
-FEATURE_ON_OFF_TIME_MANIPULATION_RATE = 0.0066       # 0.2 degree per half hour
+FEATURE_ON_OFF_TIME_MANIPULATION_COOLDOWN = 60
 
 #
 # Heating control
@@ -328,6 +323,54 @@ class Heating(hass.Hass):
         self.table.update({'state': 'idle'}, doc_ids=[self.db_doc_id])
         self.set_state(self.virtual_entity_name, state='idle')
 
+    def optimize_heating_based_on_rates(self):
+        room_temp_rate = self.room_temperature_rate()
+        security_temp_rate = self.security_temperature_rate()
+        
+        # If temperature is rising too quickly, reduce PWM
+        if room_temp_rate > 0.1:  # More than 0.1°C per minute
+            self.manipulateDown("temperature rising too fast")
+            return True
+            
+        # If floor temperature is rising too quickly, reduce PWM
+        if security_temp_rate > 0.05:  # More than 0.05°C per minute
+            self.manipulateDown("floor temperature rising too fast")
+            return True
+            
+        return False
+
+    def detect_heat_loss(self):
+        room_temp = self.room_temperature()
+        outside_temp = float(self.get_state("weather.homee", attribute="temperature", default=0))
+        
+        # Calculate heat loss rate
+        temp_diff = room_temp - outside_temp
+        heat_loss_rate = self.room_temperature_rate()
+        
+        # If heat loss is high compared to temperature difference
+        if heat_loss_rate < -0.05 and temp_diff > 10:
+            self.log("High heat loss detected - possible window open or insulation issue")
+            return True
+            
+        return False
+
+    def smart_pwm_adjustment(self):
+        room_temp = self.room_temperature()
+        target = self.target_temp()
+        diff = target - room_temp
+        
+        # More aggressive PWM reduction when close to target
+        if diff < 0.5:
+            self.manipulateDown("close to target temperature")
+            return True
+            
+        # Gradual PWM increase when far from target
+        if diff > 2:
+            self.manipulateUp("far from target temperature")
+            return True
+            
+        return False
+
     def recalc(self, kwargs):
         heating = self.is_heating()
 
@@ -364,9 +407,6 @@ class Heating(hass.Hass):
 
         # Check for security shutdown
         if self.is_security_shutdown():
-            if FEATURE_ON_OFF_TIME_MANIPULATION_ENABLED:
-                self.manipulateDown("security cut")
-
             if heating:
                 energy_manager.em_turn_off(self._ec)
             else:
@@ -374,20 +414,15 @@ class Heating(hass.Hass):
 
             return
 
-        # Check for open window (heat leaking)
-        room_temp_rate = self.room_temperature_rate()
-        self.set_state(self.virtual_entity_name, attributes={"room_temp_rate": room_temp_rate})
-
-        if room_temp_rate < WINDOW_OPEN_RATE:
+        # Run energy optimization checks
+        if self.optimize_heating_based_on_rates():
             if heating:
                 energy_manager.em_turn_off(self._ec)
             else:
                 self.set_idle()
-
             return
 
-        # Check if diff top to bottom is too strong (heat transfer)
-        if self.security_temperature_rate() > SECURITY_OFF_RATE:
+        if self.detect_heat_loss():
             if heating:
                 energy_manager.em_turn_off(self._ec)
             else:
@@ -395,10 +430,13 @@ class Heating(hass.Hass):
 
             return
         
-        target = self.target_temp()
+        self.smart_pwm_adjustment()
 
-        if room_temp > target and FEATURE_ON_OFF_TIME_MANIPULATION_ENABLED:
-            self.manipulateDown("overshoot on room temp")
+        # Check for open window (heat leaking)
+        room_temp_rate = self.room_temperature_rate()
+        self.set_state(self.virtual_entity_name, attributes={"room_temp_rate": room_temp_rate})
+
+        target = self.target_temp()
 
         # Have we reached target temp?
         if room_temp >= target:       # We reached target temp
@@ -411,14 +449,6 @@ class Heating(hass.Hass):
         
         # Do we need to start heating?
         if (target - room_temp) > ALLOWED_DIFF:
-            # We are now at target temp, reduce PWM one step if possible
-            if FEATURE_ON_OFF_TIME_MANIPULATION_ENABLED:
-                if room_temp_rate > FEATURE_ON_OFF_TIME_MANIPULATION_RATE:
-                    self.manipulateDown("temperature rises too fast")
-                    
-                if room_temp_rate < FEATURE_ON_OFF_TIME_MANIPULATION_RATE:
-                    self.manipulateUp("temperature rises too slow")
-
             if heating is False:
                 energy_manager.em_turn_on(self._ec)
             else:
