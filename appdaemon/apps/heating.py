@@ -364,12 +364,12 @@ class Heating(hass.Hass):
         diff = target - room_temp
         
         # More aggressive PWM reduction when close to target
-        if diff < 0.5:
+        if diff < 0.2:
             self.manipulateDown("close to target temperature")
             return True
             
         # Gradual PWM increase when far from target
-        if diff > 2:
+        if diff > 0.5:
             self.manipulateUp("far from target temperature")
             return True
             
