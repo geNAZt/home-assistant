@@ -398,7 +398,6 @@ class Heating(hass.Hass):
         time_slot = self.calculate_optimal_time_slot()
         if heating and now_seconds - self._heating_started > time_slot * self._pwm_percent:
             self._heating_halted_until = now_seconds + time_slot * (1-self._pwm_percent)
-            self._heating_started = 0.0
             self.log("Setting heating pause until %r" % self._heating_halted_until)
 
         # Check if we are paused
@@ -409,8 +408,6 @@ class Heating(hass.Hass):
                 self.set_idle()
             
             return
-
-        self._heating_halted_until = 0.0
 
         # Check for security shutdown
         if self.is_security_shutdown():
