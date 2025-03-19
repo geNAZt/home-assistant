@@ -108,6 +108,11 @@ class Heating(hass.Hass):
             sens = self.get_entity(sensor)
             sens.listen_state(self.onChangeRecalc)
 
+        # Attach a listener to all presence sensors
+        self.presence_sensors = self.find_entity("binary_sensor.presence_%s[_0-9]*" % self.name.replace("heating_", ""))
+        if len(self.presence_sensors) == 0:
+            raise Exception("not enough presence sensors")
+
         sens = self.find_entity("%s_current" % self.name.replace("heating_", ""))
 
         self.phase = ""
@@ -193,7 +198,17 @@ class Heating(hass.Hass):
 
         return found
 
+    def is_present(self):
+        for sensor in self.presence_sensors:
+            if self.get_state(sensor) == "on":
+                return True
+        
+        return False
+
     def pwmSet(self, on, off):
+        if not self.is_present():
+            return
+
         now = time.time()
         self._on_time = on
         self._off_time = off
@@ -228,7 +243,14 @@ class Heating(hass.Hass):
             self.table.update({'current': self.current}, doc_ids=[self.db_doc_id])
 
     def target_temp(self):
-        return float(self.get_state(self.virtual_entity_name, attribute="temperature", default=0))
+        target = self.table.search(self.query.entity_id == self.virtual_entity_name)[0]["temperature"]
+        if self.is_present():
+            self.set_state(self.virtual_entity_name, attributes={"temperature": target})
+            return target
+        else:
+            target = max(target - 2, 16.0)
+            self.set_state(self.virtual_entity_name, attributes={"temperature": target})
+            return target
 
     def is_heating(self):
         return self.get_state(self.output) == "on"
@@ -305,6 +327,7 @@ class Heating(hass.Hass):
         self.set_state(self.virtual_entity_name, state='heat')
 
     def turn_heat_off(self):
+        self.optimize_energy_usage()
         self.turn_off(self.output)
         self.set_idle()
 
@@ -331,7 +354,6 @@ class Heating(hass.Hass):
         # Check for heating length
         if heating and now_seconds - self._heating_started > self._on_time:
             self._heating_halted_until = now_seconds + self._off_time
-            self._heating_started = 0.0
             self.log("Setting heating pause until %r" % self._heating_halted_until)
 
         # Check if we are paused
@@ -342,8 +364,6 @@ class Heating(hass.Hass):
                 self.set_idle()
             
             return
-
-        self._heating_halted_until = 0.0
 
         # Check for security shutdown
         if self.is_security_shutdown():
@@ -409,4 +429,74 @@ class Heating(hass.Hass):
                 
             return
 
- 
+    def optimize_energy_usage(self):
+        current_power = self.current * 230  # Assuming 230V system, given in Watt per hour
+        heating_time = time.time() - self._heating_started
+        
+        # Calculate energy used in this cycle
+        energy_used = (current_power / 3600) * heating_time # watt seconds
+        
+        # Store historical data
+        self.table.update({
+            'energy_history': self.table.get(doc_id=self.db_doc_id).get('energy_history', []) + [{
+                'timestamp': time.time(),
+                'energy': energy_used,
+                'temperature_diff': self.target_temp() - self.room_temperature()
+            }]
+        }, doc_ids=[self.db_doc_id])
+        
+        # Analyze energy efficiency
+        if len(self.table.get(doc_id=self.db_doc_id).get('energy_history', [])) > 10:
+            self.analyze_energy_efficiency()
+
+    def analyze_energy_efficiency(self):
+        """
+        Analyzes historical energy usage data to optimize heating patterns.
+        Looks for patterns in energy consumption and adjusts PWM accordingly.
+        """
+        # Get historical data
+        energy_history = self.table.get(doc_id=self.db_doc_id).get('energy_history', [])
+        if len(energy_history) < 10:  # Need at least 10 data points for meaningful analysis
+            return
+
+        # Calculate average energy usage per degree of temperature difference
+        total_energy = sum(entry['energy'] for entry in energy_history)
+        total_temp_diff = sum(entry['temperature_diff'] for entry in energy_history)
+        
+        if total_temp_diff == 0:
+            return
+            
+        avg_energy_per_degree = total_energy / total_temp_diff
+        
+        # Calculate efficiency trend
+        recent_entries = energy_history[-5:]  # Look at last 5 entries
+        recent_energy = sum(entry['energy'] for entry in recent_entries)
+        recent_temp_diff = sum(entry['temperature_diff'] for entry in recent_entries)
+        
+        if recent_temp_diff == 0:
+            return
+            
+        recent_energy_per_degree = recent_energy / recent_temp_diff
+        
+        # Log efficiency metrics
+        self.set_state(self.virtual_entity_name, attributes={
+            "avg_energy_per_degree": round(avg_energy_per_degree, 3),
+            "recent_energy_per_degree": round(recent_energy_per_degree, 3),
+            "efficiency_trend": round(recent_energy_per_degree - avg_energy_per_degree, 3)
+        })
+        
+        # Adjust PWM based on efficiency analysis
+        if recent_energy_per_degree > avg_energy_per_degree * 1.1:  # 10% worse than average
+            self.log(f"Energy efficiency decreased by {round((recent_energy_per_degree/avg_energy_per_degree - 1) * 100, 1)}%")
+            self.manipulateDown("poor energy efficiency detected")
+        elif recent_energy_per_degree < avg_energy_per_degree * 0.9:  # 10% better than average
+            self.log(f"Energy efficiency improved by {round((1 - recent_energy_per_degree/avg_energy_per_degree) * 100, 1)}%")
+            self.manipulateUp("good energy efficiency detected")
+        
+        # Clean up old data (keep last 24 hours)
+        current_time = time.time()
+        energy_history = [entry for entry in energy_history 
+                        if current_time - entry['timestamp'] < 24 * 3600]
+        
+        # Update database with cleaned history
+        self.table.update({'energy_history': energy_history}, doc_ids=[self.db_doc_id])
