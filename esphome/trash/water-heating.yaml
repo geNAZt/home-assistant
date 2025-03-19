@@ -1,6 +1,6 @@
 esphome:
   name: water-heating
-  friendly_name: Water Heating
+  friendly_name: Water Heating PV
 
 esp8266:
   board: esp01_1m
@@ -20,11 +20,4 @@ ota:
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
-
-  # Enable fallback hotspot (captive portal) in case wifi connection fails
-  ap:
-    ssid: "Water-Heating Fallback Hotspot"
-    password: "okTUBzL29Qj9"
-
-captive_portal:
     
