@@ -188,6 +188,13 @@ class Heating(hass.Hass):
 
     def set_pwm(self, pwm_percent):
         now = time.time()
+
+        # Clamp pwm_percent to 0-1
+        if pwm_percent > 1.0:
+            pwm_percent = 1.0
+        elif pwm_percent < 0:
+            pwm_percent = 0
+
         self.table.update({"pwm_percent": pwm_percent}, doc_ids=[self.db_doc_id])
         self.set_state(self.virtual_entity_name, attributes={"pwm_percent": pwm_percent})
         self._pwm_percent = pwm_percent
