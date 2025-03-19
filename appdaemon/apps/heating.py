@@ -395,7 +395,8 @@ class Heating(hass.Hass):
         time_slot = self.calculate_optimal_time_slot()
         if heating and now_seconds - self._heating_started > time_slot * self._pwm_percent:
             self._heating_halted_until = now_seconds + time_slot * (1-self._pwm_percent)
-            self.log("Setting heating pause until %r" % self._heating_halted_until)
+            d = datetime.fromtimestamp(self._heating_halted_until)
+            self.log("Setting heating pause until %s" % d.strftime('%Y-%m-%dT%H:%M:%SZ'))
 
         # Check if we are paused
         if self._heating_halted_until > now_seconds:
