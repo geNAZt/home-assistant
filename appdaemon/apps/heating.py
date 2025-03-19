@@ -204,14 +204,14 @@ class Heating(hass.Hass):
         now = time.time()
         if now >= self._manipulation_time:
             if self._pwm_percent < 1.0:
-                self.set_pwm(self._pwm_percent + 0.01)
+                self.set_pwm(self._pwm_percent + 0.05)
                 self.log("PWM goes up, %s" % log)
 
     def manipulateDown(self, log):
         now = time.time()
         if now >= self._manipulation_time:
             if self._pwm_percent > 0:
-                self.set_pwm(self._pwm_percent - 0.01)
+                self.set_pwm(self._pwm_percent - 0.05)
                 self.log("PWM goes down, %s" % log)
 
     def onChangeRecalc(self, entity, attribute, old, new, kwargs):
