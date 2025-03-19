@@ -206,9 +206,6 @@ class Heating(hass.Hass):
         return False
 
     def pwmSet(self, on, off):
-        if not self.is_present():
-            return
-
         now = time.time()
         self._on_time = on
         self._off_time = off
@@ -218,6 +215,9 @@ class Heating(hass.Hass):
         self._manipulation_time = now + FEATURE_ON_OFF_TIME_MANIPULATION_COOLDOWN
 
     def manipulateUp(self, log):
+        if not self.is_present():
+            return
+
         now = time.time()
         if now >= self._manipulation_time:
             if self._on_time < TIME_SLOT_SECONDS:
@@ -225,6 +225,9 @@ class Heating(hass.Hass):
                 self.log("PWM goes up, %s" % log)
 
     def manipulateDown(self, log):
+        if not self.is_present():
+            return
+
         now = time.time()
         if now >= self._manipulation_time:
             if self._on_time > FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS:
