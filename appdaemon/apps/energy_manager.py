@@ -20,6 +20,7 @@ class EnergyConsumer:
 
     turn_on: callable
     turn_off: callable
+    can_be_delayed: callable
 
     def update_current(self, current):
         if current > self.current:
@@ -58,8 +59,8 @@ class EnergyManager(hass.Hass):
 
         self.run_every(self.run_every_c, "now", 5*60)
 
-    def register_consumer(self, group, name, phase, current, turn_on, turn_off):
-        return EnergyConsumer(group, name, phase, current, turn_on, turn_off)
+    def register_consumer(self, group, name, phase, current, turn_on, turn_off, can_be_delayed):
+        return EnergyConsumer(group, name, phase, current, turn_on, turn_off, can_be_delayed)
 
     def ensure_state(self, entity_id, state):
         self._state_values[entity_id] = state
@@ -83,6 +84,8 @@ class EnergyManager(hass.Hass):
         # Check if already turned on
         if ec in self._turned_on:
             return
+
+        self.log("  > Checking for turn on: %r, %r, %r, %r" % (ec.group, ec.name, ec.phase, ec.current))
 
         # Check for phase control
         if len(ec.phase) > 0:
@@ -112,6 +115,8 @@ class EnergyManager(hass.Hass):
         self._turned_on.remove(ec)
 
     def _add_phase(self, ec: EnergyConsumer):
+        self.log("    > Adding phase %s for %s/%s wanting %d mA" % (ec.phase, ec.group, ec.name, ec.current))
+
         # We want to check if the usage would trip breakers
         if ec.group in self._phase_control:
             # Check if the phase is known
@@ -145,9 +150,14 @@ class EnergyManager(hass.Hass):
         return True
     
     def _remove_phase(self, ec: EnergyConsumer):
+        self.log("    > Remove phase %s for %s/%s wanting %d mA" % (ec.phase, ec.group, ec.name, ec.current))
+
         phases = self._phase_control[ec.group]
         entities = phases[ec.phase]
         del entities[ec.name]
+
+    def _can_be_delayed(self, ec: EnergyConsumer):
+        return ec.can_be_delayed()
 
     def _get_remaining_battery_capacity(self):
         battery_max_capacity = float(self.get_state("sensor.pv_battery1_size_max")) / float(1000) # Given in Wh
@@ -171,6 +181,7 @@ class EnergyManager(hass.Hass):
         # Check for battery
         battery_charge = float(self.get_state("sensor.pv_battery1_state_of_charge"))
         if battery_charge > 15:
+            self.log("    > Battery charge over 15% - adding 5000 Wh")
             new_current += 21000
         
         # Check for additional PV input
@@ -188,7 +199,19 @@ class EnergyManager(hass.Hass):
                 current_used += ent.current
 
         if new_current > 0:
-            max_current = new_current
+            # Check if PV is enough, if not can we delay?
+            if current_used + ec.current > new_current:
+                if self._can_be_delayed(ec):
+                    max_current = new_current
+        else:
+            # Check if this consumption can be delayed
+            if self._can_be_delayed(ec):
+                tomorrow_estimate = self._estimated_production_tomorrow()
+                battery_remaining_capacity = self._get_remaining_battery_capacity()
+                if tomorrow_estimate >= battery_remaining_capacity:
+                    max_current = 0
+        
+        self.log("    > Current used %d, wanting to add %d. Checking against %d" % (current_used, ec.current, max_current))
 
         if current_used + ec.current > max_current:
             return False

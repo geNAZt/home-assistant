@@ -7,10 +7,15 @@ from tinydb import TinyDB, Query
 from datetime import timedelta, datetime, timezone
 
 ALLOWED_DIFF = 0.0
-TIME_SLOT_SECONDS = 10*60
+SECURITY_OFF_RATE = 0.025
+WINDOW_OPEN_RATE = -0.02
+TIME_SLOT_SECONDS = 30*60
 
 # Alpha feature control
-FEATURE_ON_OFF_TIME_MANIPULATION_COOLDOWN = 60
+FEATURE_ON_OFF_TIME_MANIPULATION_ENABLED = True
+FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS = 5
+FEATURE_ON_OFF_TIME_MANIPULATION_COOLDOWN = 10*60
+FEATURE_ON_OFF_TIME_MANIPULATION_RATE = 0.0066       # 0.2 degree per half hour
 
 #
 # Heating control
@@ -26,8 +31,10 @@ class Heating(hass.Hass):
     _heating_started: float
     _heating_halted_until: float
 
+    _on_time: float
+    _off_time: float
     _manipulation_time: float
-    _pwm_percent: float
+
     _ec: any
 
     def initialize(self):
@@ -112,6 +119,7 @@ class Heating(hass.Hass):
 
             ent = self.get_entity(sens[0])
             ent.listen_state(self.onCurrentChange)
+        
         else:
             raise Exception("No current measurement defined")
 
@@ -121,28 +129,27 @@ class Heating(hass.Hass):
         self._heating_halted_until = 0.0
 
         # Calc on and off time        
-        self.set_pwm(pwm_percent)
+        self._on_time = TIME_SLOT_SECONDS * pwm_percent
+        self._off_time = TIME_SLOT_SECONDS - self._on_time
+        self._manipulation_time = 0
 
         # Ensure that we run at least once a minute
         self.run_every(self.recalc, "now", 10)
 
         self.log("Register with current %d", self.current)
 
-        self.presence_sensors = self.find_entity("binary_sensor.presence_%s[_0-9]*" % self.name.replace("heating_", ""))
-        if len(self.presence_sensors) == 0:
-            raise Exception("not enough presence sensors")
-
         energy_manager = self.get_app("energy_manager")
         self._ec = energy_manager.register_consumer("heating", self.name, self.phase, self.current, 
                                                     self.turn_heat_on, 
-                                                    self.turn_heat_off)
+                                                    self.turn_heat_off,
+                                                    self.can_be_delayed)
 
-    def is_present(self):
-        for sensor in self.presence_sensors:
-            if self.get_state(sensor) == "on":
-                return True
-        
-        return False
+    def can_be_delayed(self):
+        target = self.target_temp()
+        room_temp = self.room_temperature()
+
+        self.log("Room temp for delay: %.3f r, %.3f t" % (room_temp, target))
+        return (target - room_temp) <= 0.5
 
     def onEvent(self, event_name, data, kwargs):
         if "service_data" not in data:
@@ -186,32 +193,27 @@ class Heating(hass.Hass):
 
         return found
 
-    def set_pwm(self, pwm_percent):
+    def pwmSet(self, on, off):
         now = time.time()
-
-        # Clamp pwm_percent to 0-1
-        if pwm_percent > 1.0:
-            pwm_percent = 1.0
-        elif pwm_percent < 0:
-            pwm_percent = 0
-
+        self._on_time = on
+        self._off_time = off
+        pwm_percent = (self._on_time / TIME_SLOT_SECONDS)
         self.table.update({"pwm_percent": pwm_percent}, doc_ids=[self.db_doc_id])
         self.set_state(self.virtual_entity_name, attributes={"pwm_percent": pwm_percent})
-        self._pwm_percent = pwm_percent
         self._manipulation_time = now + FEATURE_ON_OFF_TIME_MANIPULATION_COOLDOWN
 
     def manipulateUp(self, log):
         now = time.time()
         if now >= self._manipulation_time:
-            if self._pwm_percent < 1.0:
-                self.set_pwm(self._pwm_percent + 0.05)
+            if self._on_time < TIME_SLOT_SECONDS:
+                self.pwmSet(self._on_time + FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS, self._off_time - FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS)
                 self.log("PWM goes up, %s" % log)
 
     def manipulateDown(self, log):
         now = time.time()
         if now >= self._manipulation_time:
-            if self._pwm_percent > 0:
-                self.set_pwm(self._pwm_percent - 0.05)
+            if self._on_time > FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS:
+                self.pwmSet(self._on_time - FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS, self._off_time + FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS)
                 self.log("PWM goes down, %s" % log)
 
     def onChangeRecalc(self, entity, attribute, old, new, kwargs):
@@ -226,14 +228,7 @@ class Heating(hass.Hass):
             self.table.update({'current': self.current}, doc_ids=[self.db_doc_id])
 
     def target_temp(self):
-        target = self.table.search(self.query.entity_id == self.virtual_entity_name)[0]["temperature"]
-        if self.is_present():
-            self.set_state(self.virtual_entity_name, attributes={"temperature": target})
-            return target
-        else:
-            target = max(target - 2, 16.0)
-            self.set_state(self.virtual_entity_name, attributes={"temperature": target})
-            return target
+        return float(self.get_state(self.virtual_entity_name, attribute="temperature", default=0))
 
     def is_heating(self):
         return self.get_state(self.output) == "on"
@@ -248,18 +243,6 @@ class Heating(hass.Hass):
             
         return False
     
-    def calculate_optimal_time_slot(self):
-        room_temp = self.room_temperature()
-        target = self.target_temp()
-        diff = target - room_temp
-        
-        # Adjust time slot based on temperature difference
-        if diff > 2:
-            return TIME_SLOT_SECONDS * 0.5  # Shorter cycles when far from target
-        elif diff < 0.5:
-            return TIME_SLOT_SECONDS * 2  # Longer cycles when close to target
-        return TIME_SLOT_SECONDS
-
     def room_temperature_rate(self):
         rate = float(0)
         now = datetime.now()
@@ -322,58 +305,12 @@ class Heating(hass.Hass):
         self.set_state(self.virtual_entity_name, state='heat')
 
     def turn_heat_off(self):
-        self.optimize_energy_usage()
         self.turn_off(self.output)
         self.set_idle()
 
     def set_idle(self):
         self.table.update({'state': 'idle'}, doc_ids=[self.db_doc_id])
         self.set_state(self.virtual_entity_name, state='idle')
-
-    def optimize_heating_based_on_rates(self):
-        room_temp_rate = self.room_temperature_rate()
-        security_temp_rate = self.security_temperature_rate()
-        
-        # If temperature is rising too quickly, reduce PWM
-        if room_temp_rate > 0.1:  # More than 0.1°C per minute
-            self.manipulateDown("temperature rising too fast")
-            
-        # If floor temperature is rising too quickly, reduce PWM
-        if security_temp_rate > 0.05:  # More than 0.05°C per minute
-            self.manipulateDown("floor temperature rising too fast")
-            
-
-    def detect_heat_loss(self):
-        room_temp = self.room_temperature()
-        outside_temp = float(self.get_state("weather.homee", attribute="temperature", default=0))
-        
-        # Calculate heat loss rate
-        temp_diff = room_temp - outside_temp
-        heat_loss_rate = self.room_temperature_rate()
-        
-        # If heat loss is high compared to temperature difference
-        if heat_loss_rate < -0.05 and temp_diff > 10:
-            self.log("High heat loss detected - possible window open or insulation issue")
-            return True
-            
-        return False
-
-    def smart_pwm_adjustment(self):
-        room_temp = self.room_temperature()
-        target = self.target_temp()
-        diff = target - room_temp
-        
-        # More aggressive PWM reduction when close to target
-        if diff < 0.2:
-            self.manipulateDown("close to target temperature")
-            return True
-            
-        # Gradual PWM increase when far from target
-        if diff > 0.5:
-            self.manipulateUp("far from target temperature")
-            return True
-            
-        return False
 
     def recalc(self, kwargs):
         heating = self.is_heating()
@@ -392,11 +329,10 @@ class Heating(hass.Hass):
         now_seconds = time.time()
 
         # Check for heating length
-        time_slot = self.calculate_optimal_time_slot()
-        if heating and now_seconds - self._heating_started > time_slot * self._pwm_percent:
-            self._heating_halted_until = now_seconds + time_slot * (1-self._pwm_percent)
-            d = datetime.fromtimestamp(self._heating_halted_until)
-            self.log("Setting heating pause until %s" % d.strftime('%Y-%m-%dT%H:%M:%SZ'))
+        if heating and now_seconds - self._heating_started > self._on_time:
+            self._heating_halted_until = now_seconds + self._off_time
+            self._heating_started = 0.0
+            self.log("Setting heating pause until %r" % self._heating_halted_until)
 
         # Check if we are paused
         if self._heating_halted_until > now_seconds:
@@ -407,8 +343,13 @@ class Heating(hass.Hass):
             
             return
 
+        self._heating_halted_until = 0.0
+
         # Check for security shutdown
         if self.is_security_shutdown():
+            if FEATURE_ON_OFF_TIME_MANIPULATION_ENABLED:
+                self.manipulateDown("security cut")
+
             if heating:
                 energy_manager.em_turn_off(self._ec)
             else:
@@ -416,10 +357,20 @@ class Heating(hass.Hass):
 
             return
 
-        # Run energy optimization checks
-        self.optimize_heating_based_on_rates()
-           
-        if self.detect_heat_loss():
+        # Check for open window (heat leaking)
+        room_temp_rate = self.room_temperature_rate()
+        self.set_state(self.virtual_entity_name, attributes={"room_temp_rate": room_temp_rate})
+
+        if room_temp_rate < WINDOW_OPEN_RATE:
+            if heating:
+                energy_manager.em_turn_off(self._ec)
+            else:
+                self.set_idle()
+
+            return
+
+        # Check if diff top to bottom is too strong (heat transfer)
+        if self.security_temperature_rate() > SECURITY_OFF_RATE:
             if heating:
                 energy_manager.em_turn_off(self._ec)
             else:
@@ -427,13 +378,10 @@ class Heating(hass.Hass):
 
             return
         
-        self.smart_pwm_adjustment()
-
-        # Check for open window (heat leaking)
-        room_temp_rate = self.room_temperature_rate()
-        self.set_state(self.virtual_entity_name, attributes={"room_temp_rate": room_temp_rate})
-
         target = self.target_temp()
+
+        if room_temp > target and FEATURE_ON_OFF_TIME_MANIPULATION_ENABLED:
+            self.manipulateDown("overshoot on room temp")
 
         # Have we reached target temp?
         if room_temp >= target:       # We reached target temp
@@ -446,6 +394,14 @@ class Heating(hass.Hass):
         
         # Do we need to start heating?
         if (target - room_temp) > ALLOWED_DIFF:
+            # We are now at target temp, reduce PWM one step if possible
+            if FEATURE_ON_OFF_TIME_MANIPULATION_ENABLED:
+                if room_temp_rate > FEATURE_ON_OFF_TIME_MANIPULATION_RATE:
+                    self.manipulateDown("temperature rises too fast")
+                    
+                if room_temp_rate < FEATURE_ON_OFF_TIME_MANIPULATION_RATE:
+                    self.manipulateUp("temperature rises too slow")
+
             if heating is False:
                 energy_manager.em_turn_on(self._ec)
             else:
@@ -453,74 +409,4 @@ class Heating(hass.Hass):
                 
             return
 
-    def optimize_energy_usage(self):
-        current_power = self.current * 230  # Assuming 230V system, given in Watt per hour
-        heating_time = time.time() - self._heating_started
-        
-        # Calculate energy used in this cycle
-        energy_used = (current_power / 3600) * heating_time # watt seconds
-        
-        # Store historical data
-        self.table.update({
-            'energy_history': self.table.get(doc_id=self.db_doc_id).get('energy_history', []) + [{
-                'timestamp': time.time(),
-                'energy': energy_used,
-                'temperature_diff': self.target_temp() - self.room_temperature()
-            }]
-        }, doc_ids=[self.db_doc_id])
-        
-        # Analyze energy efficiency
-        if len(self.table.get(doc_id=self.db_doc_id).get('energy_history', [])) > 10:
-            self.analyze_energy_efficiency()
-
-    def analyze_energy_efficiency(self):
-        """
-        Analyzes historical energy usage data to optimize heating patterns.
-        Looks for patterns in energy consumption and adjusts PWM accordingly.
-        """
-        # Get historical data
-        energy_history = self.table.get(doc_id=self.db_doc_id).get('energy_history', [])
-        if len(energy_history) < 10:  # Need at least 10 data points for meaningful analysis
-            return
-
-        # Calculate average energy usage per degree of temperature difference
-        total_energy = sum(entry['energy'] for entry in energy_history)
-        total_temp_diff = sum(entry['temperature_diff'] for entry in energy_history)
-        
-        if total_temp_diff == 0:
-            return
-            
-        avg_energy_per_degree = total_energy / total_temp_diff
-        
-        # Calculate efficiency trend
-        recent_entries = energy_history[-5:]  # Look at last 5 entries
-        recent_energy = sum(entry['energy'] for entry in recent_entries)
-        recent_temp_diff = sum(entry['temperature_diff'] for entry in recent_entries)
-        
-        if recent_temp_diff == 0:
-            return
-            
-        recent_energy_per_degree = recent_energy / recent_temp_diff
-        
-        # Log efficiency metrics
-        self.set_state(self.virtual_entity_name, attributes={
-            "avg_energy_per_degree": round(avg_energy_per_degree, 3),
-            "recent_energy_per_degree": round(recent_energy_per_degree, 3),
-            "efficiency_trend": round(recent_energy_per_degree - avg_energy_per_degree, 3)
-        })
-        
-        # Adjust PWM based on efficiency analysis
-        if recent_energy_per_degree > avg_energy_per_degree * 1.1:  # 10% worse than average
-            self.log(f"Energy efficiency decreased by {round((recent_energy_per_degree/avg_energy_per_degree - 1) * 100, 1)}%")
-            self.manipulateDown("poor energy efficiency detected")
-        elif recent_energy_per_degree < avg_energy_per_degree * 0.9:  # 10% better than average
-            self.log(f"Energy efficiency improved by {round((1 - recent_energy_per_degree/avg_energy_per_degree) * 100, 1)}%")
-            self.manipulateUp("good energy efficiency detected")
-        
-        # Clean up old data (keep last 24 hours)
-        current_time = time.time()
-        energy_history = [entry for entry in energy_history 
-                        if current_time - entry['timestamp'] < 24 * 3600]
-        
-        # Update database with cleaned history
-        self.table.update({'energy_history': energy_history}, doc_ids=[self.db_doc_id])
+ 
