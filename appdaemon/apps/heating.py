@@ -7,7 +7,7 @@ from tinydb import TinyDB, Query
 from datetime import timedelta, datetime, timezone
 
 ALLOWED_DIFF = 0.0
-TIME_SLOT_SECONDS = 30*60
+TIME_SLOT_SECONDS = 10*60
 
 # Alpha feature control
 FEATURE_ON_OFF_TIME_MANIPULATION_COOLDOWN = 60
@@ -255,9 +255,9 @@ class Heating(hass.Hass):
         
         # Adjust time slot based on temperature difference
         if diff > 2:
-            return TIME_SLOT_SECONDS * 0.8  # Shorter cycles when far from target
+            return TIME_SLOT_SECONDS * 0.5  # Shorter cycles when far from target
         elif diff < 0.5:
-            return TIME_SLOT_SECONDS * 1.2  # Longer cycles when close to target
+            return TIME_SLOT_SECONDS * 2  # Longer cycles when close to target
         return TIME_SLOT_SECONDS
 
     def room_temperature_rate(self):
