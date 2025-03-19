@@ -337,14 +337,11 @@ class Heating(hass.Hass):
         # If temperature is rising too quickly, reduce PWM
         if room_temp_rate > 0.1:  # More than 0.1°C per minute
             self.manipulateDown("temperature rising too fast")
-            return True
             
         # If floor temperature is rising too quickly, reduce PWM
         if security_temp_rate > 0.05:  # More than 0.05°C per minute
             self.manipulateDown("floor temperature rising too fast")
-            return True
             
-        return False
 
     def detect_heat_loss(self):
         room_temp = self.room_temperature()
@@ -419,13 +416,8 @@ class Heating(hass.Hass):
             return
 
         # Run energy optimization checks
-        if self.optimize_heating_based_on_rates():
-            if heating:
-                energy_manager.em_turn_off(self._ec)
-            else:
-                self.set_idle()
-            return
-
+        self.optimize_heating_based_on_rates()
+           
         if self.detect_heat_loss():
             if heating:
                 energy_manager.em_turn_off(self._ec)
