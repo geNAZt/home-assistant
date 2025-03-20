@@ -215,9 +215,6 @@ class Heating(hass.Hass):
         self._manipulation_time = now + FEATURE_ON_OFF_TIME_MANIPULATION_COOLDOWN
 
     def manipulateUp(self, log):
-        if not self.is_present():
-            return
-
         now = time.time()
         if now >= self._manipulation_time:
             if self._on_time < TIME_SLOT_SECONDS:
@@ -251,7 +248,7 @@ class Heating(hass.Hass):
             self.set_state(self.virtual_entity_name, attributes={"temperature": target})
             return target
         else:
-            target = max(target - 2, 16.0)
+            target = max(target - 1, 16.0)
             self.set_state(self.virtual_entity_name, attributes={"temperature": target})
             return target
 
