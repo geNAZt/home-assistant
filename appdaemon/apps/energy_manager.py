@@ -22,6 +22,8 @@ class EnergyConsumer:
     turn_off: callable
     can_be_delayed: callable
 
+    consume_more: callable
+
     def update_current(self, current):
         if current > self.current:
             self.current = current
@@ -37,6 +39,7 @@ class EnergyManager(hass.Hass):
     # 
 
     _turned_on: list
+    _known: list
 
     _consumptions: dict
 
@@ -59,8 +62,10 @@ class EnergyManager(hass.Hass):
 
         self.run_every(self.run_every_c, "now", 5*60)
 
-    def register_consumer(self, group, name, phase, current, turn_on, turn_off, can_be_delayed):
-        return EnergyConsumer(group, name, phase, current, turn_on, turn_off, can_be_delayed)
+    def register_consumer(self, group, name, phase, current, turn_on, turn_off, can_be_delayed, consume_more):
+        ec = EnergyConsumer(group, name, phase, current, turn_on, turn_off, can_be_delayed, consume_more)
+        self._known.append(ec)
+        return ec
 
     def ensure_state(self, entity_id, state):
         self._state_values[entity_id] = state
@@ -332,10 +337,17 @@ class EnergyManager(hass.Hass):
                                 c.stage = ik
                                 c.watt = iv["usage"]
                                 self.turn_on(iv["switch"])
+                                exported_watt -= iv["usage"]
                 else:
                     for ik, iv in enumerate(value):
                         if exported_watt >= iv["usage"]:
                             self.turn_on(iv["switch"])
                             self.log("Adding consumption: %s, %d, %d" % (key, ik, iv["usage"]))
                             self._consumptions[key] = AdditionalConsumer(ik, iv["usage"])
+                            exported_watt -= iv["usage"]
                             break
+
+        if exported_watt > 0:                
+            for ec in self._known:
+                ec.consume_more()                
+                    

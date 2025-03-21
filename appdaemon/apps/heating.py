@@ -14,7 +14,7 @@ TIME_SLOT_SECONDS = 30*60
 # Alpha feature control
 FEATURE_ON_OFF_TIME_MANIPULATION_ENABLED = True
 FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS = 5
-FEATURE_ON_OFF_TIME_MANIPULATION_COOLDOWN = 10*60
+FEATURE_ON_OFF_TIME_MANIPULATION_COOLDOWN = 60
 FEATURE_ON_OFF_TIME_MANIPULATION_RATE = 0.0066       # 0.2 degree per half hour
 
 #
@@ -147,14 +147,23 @@ class Heating(hass.Hass):
         self._ec = energy_manager.register_consumer("heating", self.name, self.phase, self.current, 
                                                     self.turn_heat_on, 
                                                     self.turn_heat_off,
-                                                    self.can_be_delayed)
+                                                    self.can_be_delayed,
+                                                    self.consume_more)
 
     def can_be_delayed(self):
         target = self.target_temp()
         room_temp = self.room_temperature()
 
         self.log("Room temp for delay: %.3f r, %.3f t" % (room_temp, target))
-        return (target - room_temp) <= 0.5
+        res = (target - room_temp) <= 0.5
+        if res:
+            self.manipulateDown("delay")
+            
+        return res
+    
+    def consume_more(self):
+        self.manipulateUp("excess PV")
+        return
 
     def onEvent(self, event_name, data, kwargs):
         if "service_data" not in data:
