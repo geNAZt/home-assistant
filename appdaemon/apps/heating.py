@@ -158,11 +158,14 @@ class Heating(hass.Hass):
         res = (target - room_temp) <= 0.5
         if res:
             self.manipulateDown("delay")
-            
+
         return res
     
     def consume_more(self):
-        self.manipulateUp("excess PV")
+        target = self.target_temp()
+        room_temp = self.room_temperature()
+        if room_temp < target:
+            self.manipulateUp("excess PV")
         return
 
     def onEvent(self, event_name, data, kwargs):
