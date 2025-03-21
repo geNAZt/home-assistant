@@ -58,6 +58,7 @@ class EnergyManager(hass.Hass):
 
         # 
         self._turned_on = []
+        self._known = []
         self._consumptions = {}
 
         self.run_every(self.run_every_c, "now", 5*60)
