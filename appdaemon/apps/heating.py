@@ -48,10 +48,15 @@ class Heating(hass.Hass):
         temperature = 21.0
         state = "heat"
         pwm_percent = 0.2
+        docs = []
 
         self.current = float(0)
 
-        docs = self.table.search(self.query.entity_id == self.virtual_entity_name)
+        try:
+            docs = self.table.search(self.query.entity_id == self.virtual_entity_name)
+        except:
+            db.drop_tables()
+
         if len(docs) > 0:
             self.db_doc_id = docs[0].doc_id
             self.log("DB view: %r" % docs[0])
