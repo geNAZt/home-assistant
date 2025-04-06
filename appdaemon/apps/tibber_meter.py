@@ -235,8 +235,7 @@ class TibberInternalAPI:
 
 class TibberMeter(hass.Hass):
     def initialize(self):
-        runtime = datetime.time(23, 55, 0)
-        self.run_daily(self.run_every_c, runtime)
+        self.run_daily(self.run_every_c, "23:55:00")
 
     def run_every_c(self, c):
         # First login with credentials
