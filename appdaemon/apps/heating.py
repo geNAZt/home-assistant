@@ -167,7 +167,7 @@ class Heating(hass.Hass):
         return res
     
     def consume_more(self):
-        target = self.target_temp()
+        target = self.table.search(self.query.entity_id == self.virtual_entity_name)[0]["temperature"]
         room_temp = self.room_temperature()
         if room_temp < target:
             self.manipulateUp("excess PV")
