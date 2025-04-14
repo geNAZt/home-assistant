@@ -171,6 +171,8 @@ class Heating(hass.Hass):
         room_temp = self.room_temperature()
         if room_temp < target:
             self.manipulateUp("excess PV")
+            self._ignore_presence_until = time.time() + 6*60
+            
         return
 
     def onEvent(self, event_name, data, kwargs):
@@ -216,6 +218,10 @@ class Heating(hass.Hass):
         return found
 
     def is_present(self):
+        # We are present when the ignore presence until is in the future
+        if time.time() < self._ignore_presence_until:
+            return True
+
         for sensor in self.presence_sensors:
             if self.get_state(sensor) == "on":
                 return True
