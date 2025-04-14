@@ -143,6 +143,8 @@ class Heating(hass.Hass):
         self._off_time = TIME_SLOT_SECONDS - self._on_time
         self._manipulation_time = 0
 
+        self._ignore_presence_until = 0
+
         # Ensure that we run at least once a minute
         self.run_every(self.recalc, "now", 10)
 
