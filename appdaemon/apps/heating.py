@@ -161,7 +161,6 @@ class Heating(hass.Hass):
         target = self.target_temp()
         room_temp = self.room_temperature()
 
-        self.log("Room temp for delay: %.3f r, %.3f t" % (room_temp, target))
         res = (target - room_temp) <= 0.5
         if res:
             self.manipulateDown("delay")
