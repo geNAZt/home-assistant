@@ -192,8 +192,13 @@ class Heating(hass.Hass):
             return
         
         if data["service"] == "set_temperature":
-            temp = round(float(data["service_data"]["temperature"]),1)
-            
+            temp = round(float(data["service_data"]["temperature"]), 1)
+            old_temp = self.table.search(self.query.entity_id == self.virtual_entity_name)[0]["temperature"]
+
+            # Reset pwm to 100%
+            if temp > old_temp:
+                self.pwmSet(TIME_SLOT_SECONDS, 0)
+
             self.set_state(self.virtual_entity_name, attributes={"temperature": temp})
             self.table.update({'temperature': temp}, doc_ids=[self.db_doc_id])
         
