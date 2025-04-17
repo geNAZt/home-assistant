@@ -143,6 +143,8 @@ class Heating(hass.Hass):
         self._off_time = TIME_SLOT_SECONDS - self._on_time
         self._manipulation_time = 0
 
+        self._ignore_presence_until = 0
+
         # Ensure that we run at least once a minute
         self.run_every(self.recalc, "now", 10)
 
@@ -167,10 +169,12 @@ class Heating(hass.Hass):
         return res
     
     def consume_more(self):
-        target = self.target_temp()
+        target = self.table.search(self.query.entity_id == self.virtual_entity_name)[0]["temperature"]
         room_temp = self.room_temperature()
         if room_temp < target:
             self.manipulateUp("excess PV")
+            self._ignore_presence_until = time.time() + 6*60
+            
         return
 
     def onEvent(self, event_name, data, kwargs):
@@ -221,6 +225,10 @@ class Heating(hass.Hass):
         return found
 
     def is_present(self):
+        # We are present when the ignore presence until is in the future
+        if time.time() < self._ignore_presence_until:
+            return True
+
         for sensor in self.presence_sensors:
             if self.get_state(sensor) == "on":
                 return True
@@ -282,7 +290,7 @@ class Heating(hass.Hass):
         for sensor in self.security_sensors:
             state = self.get_state(sensor, default=0)
             self.set_state(self.virtual_entity_name, attributes={"sec_%s" % sensor: state})
-            if float(state) > 29:
+            if float(state) > 25:
                 return True
             
         return False

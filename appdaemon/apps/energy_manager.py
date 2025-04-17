@@ -91,8 +91,6 @@ class EnergyManager(hass.Hass):
         if ec in self._turned_on:
             return
 
-        self.log("  > Checking for turn on: %r, %r, %r, %r" % (ec.group, ec.name, ec.phase, ec.current))
-
         # Check for phase control
         if len(ec.phase) > 0:
             if not self._check_phase(ec):
@@ -121,8 +119,6 @@ class EnergyManager(hass.Hass):
         self._turned_on.remove(ec)
 
     def _add_phase(self, ec: EnergyConsumer):
-        self.log("    > Adding phase %s for %s/%s wanting %d mA" % (ec.phase, ec.group, ec.name, ec.current))
-
         # We want to check if the usage would trip breakers
         if ec.group in self._phase_control:
             # Check if the phase is known
@@ -156,8 +152,6 @@ class EnergyManager(hass.Hass):
         return True
     
     def _remove_phase(self, ec: EnergyConsumer):
-        self.log("    > Remove phase %s for %s/%s wanting %d mA" % (ec.phase, ec.group, ec.name, ec.current))
-
         phases = self._phase_control[ec.group]
         entities = phases[ec.phase]
         del entities[ec.name]
@@ -187,7 +181,6 @@ class EnergyManager(hass.Hass):
         # Check for battery
         battery_charge = float(self.get_state("sensor.pv_battery1_state_of_charge"))
         if battery_charge > 15:
-            self.log("    > Battery charge over 15% - adding 5000 Wh")
             new_current += 21000
         
         # Check for additional PV input
@@ -196,7 +189,6 @@ class EnergyManager(hass.Hass):
         pv_over_production = pv_production - battery_charge
         if pv_over_production > 100:
             pv_current = pv_over_production / float(230) # Rough estimate since we don't have a voltage tracker on PV
-            self.log("    > PV detected - adding %d Wh" % pv_over_production)
             new_current += pv_current * 1000
 
         current_used = float(0)
@@ -217,8 +209,6 @@ class EnergyManager(hass.Hass):
                 if tomorrow_estimate >= battery_remaining_capacity:
                     max_current = 0
         
-        self.log("    > Current used %d, wanting to add %d. Checking against %d" % (current_used, ec.current, max_current))
-
         if current_used + ec.current > max_current:
             return False
         
