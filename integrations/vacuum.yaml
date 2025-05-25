@@ -1,0 +1,5 @@
+vacuum:
+- platform: xiaomi_vacuum
+  host: 192.168.1.163
+  token: "6b583132647654636461504a4c53344f"
+  name: "Kitchen"
