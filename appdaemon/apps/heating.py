@@ -304,9 +304,8 @@ class Heating(hass.Hass):
             if len(data) > 0:
                 if len(data[0]) > 0:
                     try:
-                        print(data[0][0])
                         state = float(data[0][0]['state'])
-                        date = datetime.fromisoformat(data[0][0]['last_changed'])
+                        date = data[0][0]['last_changed']
                         diffTime = now.astimezone(timezone.utc) - date
                         rate_current = ((current_value - state) / float(diffTime.seconds)) * 60.0
                         rate += rate_current
@@ -326,7 +325,7 @@ class Heating(hass.Hass):
                 if len(data[0]) > 0:
                     try:
                         state = float(data[0][0]['state'])
-                        date = datetime.fromisoformat(data[0][0]['last_changed'])
+                        date = data[0][0]['last_changed']
                         diffTime = now.astimezone(timezone.utc) - date
                         rate_current = ((current_value - state) / float(diffTime.seconds)) * 60.0
                         if rate_current > rate:
