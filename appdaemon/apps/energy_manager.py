@@ -81,7 +81,7 @@ class EnergyManager(hass.Hass):
 
     def _set_state(self, entity, value):
         if entity.startswith("select."):
-            self.select_option(entity, value)
+            self.call_service("select/select_option", entity_id=entity, option=value)
         else:
             self.set_state(entity, state=value)
 
