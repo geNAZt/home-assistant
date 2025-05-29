@@ -304,6 +304,7 @@ class Heating(hass.Hass):
             if len(data) > 0:
                 if len(data[0]) > 0:
                     try:
+                        print(data[0][0])
                         state = float(data[0][0]['state'])
                         date = datetime.fromisoformat(data[0][0]['last_changed'])
                         diffTime = now.astimezone(timezone.utc) - date
