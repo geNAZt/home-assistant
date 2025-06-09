@@ -28,6 +28,11 @@ class Light(hass.Hass):
     _simulation_init: int
     _state: int
 
+    _lux_history = []
+    _lux_history_size = 5
+    _last_brightness_change = 0
+    _min_brightness_change_interval = 30  # seconds
+
     def initialize(self):
         self._state = 0
 
@@ -76,8 +81,8 @@ class Light(hass.Hass):
         self.listen_event(self.onEvent, event="call_service")
 
         # Setup the PID controller
-        self._pid = PID(2.0, 0.5, 2.0, setpoint=float(brightness / 2.55) * 3)
-        self._pid.output_limits = (-10, 31)
+        self._pid = PID(0.5, 0.1, 0.5, setpoint=float(brightness / 2.55) * 3)
+        self._pid.output_limits = (-5, 15)
     
         # Attach a listener to all presence sensors
         self.presence_sensors = self.find_entity("binary_sensor.presence_%s[_0-9]*" % self.name.replace("light_", ""))
@@ -293,18 +298,26 @@ class Light(hass.Hass):
 
         now = datetime.now()
         for sensor in self.lux_sensors:
-            rate += float(self.get_state(sensor))
+            current_lux = float(self.get_state(sensor))
+            rate += current_lux
             amount += 1
 
-            start_time =  now - timedelta(seconds = 30)
-            data = self.get_history(entity_id = sensor, start_time = start_time)
+            start_time = now - timedelta(seconds=30)
+            data = self.get_history(entity_id=sensor, start_time=start_time)
             for d in data:
                 for da in d:
                     if da["state"] != "unavailable" and da["state"] != "unknown":
                         rate += float(da["state"])
                         amount += 1
 
-        return rate / float(amount)
+        # Calculate average and add to history
+        avg = rate / float(amount)
+        self._lux_history.append(avg)
+        if len(self._lux_history) > self._lux_history_size:
+            self._lux_history.pop(0)
+        
+        # Return smoothed average
+        return sum(self._lux_history) / len(self._lux_history)
 
     def update(self):
         # Are we inited yet?
@@ -323,11 +336,17 @@ class Light(hass.Hass):
             return
 
         # Get the actual lux
-        power = 300
+        avg_lux = self.avg_lux()
+        power = self._pid(avg_lux)
 
         # If lux diff is not big enough ignore PID output
-        diff = abs(self._pid.setpoint - self.avg_lux())
-        if diff <= 5:
+        diff = abs(self._pid.setpoint - avg_lux)
+        if diff <= 15:  # Increased threshold from 5 to 15
+            return
+
+        # Check if enough time has passed since last brightness change
+        now = time.monotonic()
+        if now - self._last_brightness_change < self._min_brightness_change_interval:
             return
 
         # Calc new brightness
@@ -342,7 +361,8 @@ class Light(hass.Hass):
             return
 
         diff = abs(adjustedBrightness - currentBrightness)
-        if diff > 1:
+        if diff > 5:  # Increased threshold from 1 to 5
+            self._last_brightness_change = now
             self.table.update({'restore': adjustedBrightness}, doc_ids=[self.db_doc_id])
             self.set_light_to(adjustedBrightness)
 
