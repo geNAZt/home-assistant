@@ -323,7 +323,7 @@ class Light(hass.Hass):
             return
 
         # Get the actual lux
-        power = self._pid(self.avg_lux())
+        power = 300
 
         # If lux diff is not big enough ignore PID output
         diff = abs(self._pid.setpoint - self.avg_lux())
