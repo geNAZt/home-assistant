@@ -336,35 +336,35 @@ class Light(hass.Hass):
             return
 
         # Get the actual lux
-        /*avg_lux = self.avg_lux()
-        power = self._pid(avg_lux)
+        #avg_lux = self.avg_lux()
+        #power = self._pid(avg_lux)
 
         # If lux diff is not big enough ignore PID output
-        diff = abs(self._pid.setpoint - avg_lux)
-        if diff <= 15:  # Increased threshold from 5 to 15
-            return
+        #diff = abs(self._pid.setpoint - avg_lux)
+        #if diff <= 15:  # Increased threshold from 5 to 15
+        #    return
 
         # Check if enough time has passed since last brightness change
-        now = time.monotonic()
-        if now - self._last_brightness_change < self._min_brightness_change_interval:
-            return
+        #now = time.monotonic()
+        #if now - self._last_brightness_change < self._min_brightness_change_interval:
+        #    return
 
         # Calc new brightness
-        currentBrightness = self.get_state(self.lights[0], attribute="brightness", default=0)
-        if currentBrightness is None:
-            doc = self.table.get(doc_id=self.db_doc_id)
-            currentBrightness = float(doc["restore"])
+        #currentBrightness = self.get_state(self.lights[0], attribute="brightness", default=0)
+        #if currentBrightness is None:
+        #    doc = self.table.get(doc_id=self.db_doc_id)
+        #    currentBrightness = float(doc["restore"])
 
-        adjustedBrightness = float(currentBrightness) + power
-        if adjustedBrightness <= 0:
-            self.set_light_to(0)
-            return
+        #adjustedBrightness = float(currentBrightness) + power
+        #if adjustedBrightness <= 0:
+        #    self.set_light_to(0)
+        #    return
 
-        diff = abs(adjustedBrightness - currentBrightness)
-        if diff > 5:  # Increased threshold from 1 to 5
-            self._last_brightness_change = now
-            self.table.update({'restore': adjustedBrightness}, doc_ids=[self.db_doc_id])
-            self.set_light_to(adjustedBrightness)*/
+        #diff = abs(adjustedBrightness - currentBrightness)
+        #if diff > 5:  # Increased threshold from 1 to 5
+        #    self._last_brightness_change = now
+        #    self.table.update({'restore': adjustedBrightness}, doc_ids=[self.db_doc_id])
+        #    self.set_light_to(adjustedBrightness)
         
         self.set_light_to(300)
 
