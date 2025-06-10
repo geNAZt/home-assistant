@@ -336,7 +336,7 @@ class Light(hass.Hass):
             return
 
         # Get the actual lux
-        avg_lux = self.avg_lux()
+        /*avg_lux = self.avg_lux()
         power = self._pid(avg_lux)
 
         # If lux diff is not big enough ignore PID output
@@ -364,5 +364,7 @@ class Light(hass.Hass):
         if diff > 5:  # Increased threshold from 1 to 5
             self._last_brightness_change = now
             self.table.update({'restore': adjustedBrightness}, doc_ids=[self.db_doc_id])
-            self.set_light_to(adjustedBrightness)
+            self.set_light_to(adjustedBrightness)*/
+        
+        self.set_light_to(300)
 
