@@ -334,6 +334,12 @@ class Light(hass.Hass):
         if not self.is_present():
             self.set_light_to(0)
             return
+        
+        brightness = self.get_state(self.virtual_entity_name, attribute="brightness", default=0)    
+        if brightness == 0:
+            self.set_light_to(300)
+        else:
+            self.set_light_to(brightness)
 
         # Get the actual lux
         #avg_lux = self.avg_lux()
@@ -366,5 +372,5 @@ class Light(hass.Hass):
         #    self.table.update({'restore': adjustedBrightness}, doc_ids=[self.db_doc_id])
         #    self.set_light_to(adjustedBrightness)
         
-        self.set_light_to(300)
+        # self.set_light_to(300)
 
