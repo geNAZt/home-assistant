@@ -3,35 +3,19 @@ import re
 import math
 import time
 
-from datetime import timedelta, datetime, timezone
+from datetime import timedelta, datetime
 from tinydb import TinyDB, Query
-from simple_pid import PID
-
 
 ##
 #
 # Lights should try to illuminate a room to a minimum target lux. That target lux can be overriden by the virtual
 # light entity which will be created per room. 
-# 
-# To properly light a room the lux of the room should be tracked and even if no person is present a simulation should 
-# be made to ensure that when a light turns on the target lux of the room can be reached ASAP
-
-FEATURE_SIMULATION_OFF_TIME = 60 # Training basis to track illumination
-FEATURE_SIMULATION_ON_TIME = 60  # Training basis for on time
+#
 
 class Light(hass.Hass):
 
     _presence: bool
-    _pid: PID
     _lastUpdate: int
-
-    _simulation_init: int
-    _state: int
-
-    _lux_history = []
-    _lux_history_size = 5
-    _last_brightness_change = 0
-    _min_brightness_change_interval = 30  # seconds
 
     def initialize(self):
         self._state = 0
@@ -79,10 +63,6 @@ class Light(hass.Hass):
         })
 
         self.listen_event(self.onEvent, event="call_service")
-
-        # Setup the PID controller
-        self._pid = PID(0.5, 0.1, 0.5, setpoint=float(brightness / 2.55) * 3)
-        self._pid.output_limits = (-5, 15)
     
         # Attach a listener to all presence sensors
         self.presence_sensors = self.find_entity("binary_sensor.presence_%s[_0-9]*" % self.name.replace("light_", ""))
@@ -106,47 +86,10 @@ class Light(hass.Hass):
         self.lights = self.find_entity("light.light_[0-9]_%s" % self.name.replace("light_", ""))
         if len(self.lights) == 0:
             raise Exception("not enough lights")
-        
-        # 
-        if self.is_feature_enabled("simulation", False):
-            # We need to turn off lights, wait for off time
-            self.set_light_to(0)
-            self._simulation_init = 255
-            self.run_in(self._simulation_off_init, FEATURE_SIMULATION_OFF_TIME)
-        else:
-            self._state = 1
 
         # Get presence state
         self._presence = self.is_present()
-
-        # Kick it off
         self._lastUpdate = 0
-
-    def _simulation_off_init(self, c):
-        self._lux_off = self.avg_lux()
-        self.log("Off lux: %d" % self._lux_off)
-        self.set_light_to(self._simulation_init)
-        self.run_in(self._simulation_on_init, FEATURE_SIMULATION_ON_TIME)
-
-    def _simulation_on_init(self, c):
-        lux = self.avg_lux()
-        self.log("On %d lux: %d - Abs %d" % (self._simulation_init, lux, lux - self._lux_off))
-        self._simulation_init -= 25.5
-        if self._simulation_init > 0:
-            self.set_light_to(self._simulation_init)
-            self.run_in(self._simulation_on_init, FEATURE_SIMULATION_ON_TIME)
-        else:
-            self._state = 1
-
-    def is_feature_enabled(self, feature, default=False):
-        if "features" not in self.args:
-            return default
-        
-        fe = self.args["features"]
-        if feature not in fe:
-            return default
-        
-        return bool(fe[feature])
 
     def find_entity(self, search):
         states = self.get_state()
@@ -264,6 +207,14 @@ class Light(hass.Hass):
 
         self.update()
 
+    def get_light_brightness(self):
+        for light in self.lights:
+            brightness = self.get_state(light, attribute="brightness", default=0)
+            if brightness > 0:
+                return brightness
+        
+        return 0
+
     def set_light_to(self, brightness):
         color = float(self.get_state(self.virtual_entity_name, attribute="color_temp_kelvin", default=6700))
         if brightness > 255:
@@ -311,19 +262,9 @@ class Light(hass.Hass):
                         amount += 1
 
         # Calculate average and add to history
-        avg = rate / float(amount)
-        self._lux_history.append(avg)
-        if len(self._lux_history) > self._lux_history_size:
-            self._lux_history.pop(0)
-        
-        # Return smoothed average
-        return sum(self._lux_history) / len(self._lux_history)
+        return rate / float(amount)
 
     def update(self):
-        # Are we inited yet?
-        if self._state != 1:
-            return
-
         # Check if we got disabled
         active = self.get_state(self.virtual_entity_name)
         if active == "off":
@@ -335,42 +276,28 @@ class Light(hass.Hass):
             self.set_light_to(0)
             return
         
-        brightness = self.get_state(self.virtual_entity_name, attribute="brightness", default=0)    
-        if brightness == 0:
-            self.set_light_to(300)
-        else:
-            self.set_light_to(brightness)
+        currentBrightness = self.get_light_brightness()
 
-        # Get the actual lux
-        #avg_lux = self.avg_lux()
-        #power = self._pid(avg_lux)
+        # Check if disableLuxCutoff is set in args
+        waterHighLux = 85
+        waterLowLux = 35
 
-        # If lux diff is not big enough ignore PID output
-        #diff = abs(self._pid.setpoint - avg_lux)
-        #if diff <= 15:  # Increased threshold from 5 to 15
-        #    return
+        if "waterHigh" in self.args:
+            waterHighLux = self.args["waterHigh"]
 
-        # Check if enough time has passed since last brightness change
-        #now = time.monotonic()
-        #if now - self._last_brightness_change < self._min_brightness_change_interval:
-        #    return
+        if "waterLow" in self.args:
+            waterLowLux = self.args["waterLow"]
 
-        # Calc new brightness
-        #currentBrightness = self.get_state(self.lights[0], attribute="brightness", default=0)
-        #if currentBrightness is None:
-        #    doc = self.table.get(doc_id=self.db_doc_id)
-        #    currentBrightness = float(doc["restore"])
-
-        #adjustedBrightness = float(currentBrightness) + power
-        #if adjustedBrightness <= 0:
-        #    self.set_light_to(0)
-        #    return
-
-        #diff = abs(adjustedBrightness - currentBrightness)
-        #if diff > 5:  # Increased threshold from 1 to 5
-        #    self._last_brightness_change = now
-        #    self.table.update({'restore': adjustedBrightness}, doc_ids=[self.db_doc_id])
-        #    self.set_light_to(adjustedBrightness)
+        # Check if lux is above 85, if so turn off
+        avg_lux = self.avg_lux()
+        if avg_lux > waterHighLux and currentBrightness > 0:
+            self.set_light_to(0)
+            return
         
-        # self.set_light_to(300)
+        if avg_lux < waterLowLux and currentBrightness == 0:
+            brightness = self.get_state(self.virtual_entity_name, attribute="brightness", default=0)    
+            if brightness == 0:
+                self.set_light_to(300)
+            else:
+                self.set_light_to(brightness)
 
