@@ -210,8 +210,9 @@ class Light(hass.Hass):
     def get_light_brightness(self):
         for light in self.lights:
             brightness = self.get_state(light, attribute="brightness", default=0)
-            if brightness > 0:
-                return brightness
+            if brightness is not None:
+                if brightness > 0:
+                    return brightness
         
         return 0
 
