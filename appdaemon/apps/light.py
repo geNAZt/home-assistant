@@ -254,7 +254,7 @@ class Light(hass.Hass):
             rate += current_lux
             amount += 1
 
-            start_time = now - timedelta(seconds=30)
+            start_time = now - timedelta(seconds=5)
             data = self.get_history(entity_id=sensor, start_time=start_time)
             for d in data:
                 for da in d:
