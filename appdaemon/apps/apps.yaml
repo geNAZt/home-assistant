@@ -22,7 +22,7 @@ api:
 light_bad:
   module: light
   class: Light
-  waterHigh: 250
+  waterHigh: 300
   waterLow: 100
 light_speisekammer:
   module: light
