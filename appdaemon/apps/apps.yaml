@@ -42,6 +42,8 @@ light_buero_fabian:
 light_buero_merja:
   module: light
   class: Light
+  waterHigh: 400
+  waterLow: 200
 light_flur:
   module: light
   class: Light
