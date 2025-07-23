@@ -1,7 +1,7 @@
 sensor: 
 - name: Car Charger Usage
   unit_of_measurement: "W"
-  device_class: "power"
+  device_class: "energy"
   state_class: total_increasing
   state: >
     {{ states('sensor.car_charger_usage_l1') | float + states('sensor.car_charger_usage_l2') | float + states('sensor.car_charger_usage_l3') | float }}
