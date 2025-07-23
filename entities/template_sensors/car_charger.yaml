@@ -1,6 +1,6 @@
 sensor: 
 - name: Car Charger Usage
-  unit_of_measurement: "W"
+  unit_of_measurement: "Wh"
   device_class: "energy"
   state_class: total_increasing
   state: >
