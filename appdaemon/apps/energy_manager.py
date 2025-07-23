@@ -296,7 +296,7 @@ class EnergyManager(hass.Hass):
         exported_watt = self._average_state("sensor.solar_exported_power_w", timedelta(minutes=1))
         panel_to_house_w = self._average_state("sensor.solar_panel_to_house_w", timedelta(minutes=1))
 
-        if self._last_consumption_update < now - timedelta(minutes=5):
+        if self._last_consumption_update + timedelta(minutes=5) < now:
             self._last_consumption_update = now
 
             self.log("Checking for additional consumption, exported %.2f w, produced %.2f w" % (exported_watt, panel_to_house_w))
