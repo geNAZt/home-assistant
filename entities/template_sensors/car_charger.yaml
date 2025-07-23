@@ -4,4 +4,4 @@ sensor:
   device_class: "power"
   state_class: total_increasing
   state: >
-    {{ states('sensor.charger_usage_l1') | float + states('sensor.charger_usage_l2') | float + states('sensor.charger_usage_l3') | float }}
+    {{ states('sensor.car_charger_usage_l1') | float + states('sensor.car_charger_usage_l2') | float + states('sensor.car_charger_usage_l3') | float }}
