@@ -340,5 +340,7 @@ class EnergyManager(hass.Hass):
 
         if exported_watt > 0:                
             for ec in self._known:
-                ec.consume_more()                
+                ec.consume_more()    
+
+        self.call_service("goecharger_api2.set_pv_data", pgrid=exported_watt * -1)
                     
