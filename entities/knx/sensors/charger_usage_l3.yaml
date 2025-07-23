@@ -1,0 +1,5 @@
+name: "Car Charger Usage L3"
+state_address: "0/2/5"
+type: active_energy
+always_callback: true
+state_class: total_increasing
