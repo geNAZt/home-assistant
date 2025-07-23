@@ -61,7 +61,7 @@ class EnergyManager(hass.Hass):
         self._known = []
         self._consumptions = {}
 
-        self.run_every(self.run_every_c, "now", 5*60)
+        self.run_every(self.run_every_c, "now", 3)
 
     def register_consumer(self, group, name, phase, current, turn_on, turn_off, can_be_delayed, consume_more):
         ec = EnergyConsumer(group, name, phase, current, turn_on, turn_off, can_be_delayed, consume_more)
