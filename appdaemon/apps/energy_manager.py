@@ -43,8 +43,6 @@ class EnergyManager(hass.Hass):
 
     _consumptions: dict
 
-    _last_consumption_update: datetime
-
     def initialize(self):
         # Init state system
         self._state_callbacks = {}
@@ -63,7 +61,6 @@ class EnergyManager(hass.Hass):
         self._known = []
         self._consumptions = {}
 
-        self._last_consumption_update = datetime.now()
         self.run_every(self.run_every_c, "now", 3)
 
     def register_consumer(self, group, name, phase, current, turn_on, turn_off, can_be_delayed, consume_more):
@@ -296,55 +293,54 @@ class EnergyManager(hass.Hass):
         exported_watt = self._average_state("sensor.solar_exported_power_w", timedelta(minutes=1))
         panel_to_house_w = self._average_state("sensor.solar_panel_to_house_w", timedelta(minutes=1))
 
-        if self._last_consumption_update + timedelta(minutes=5) < now:
-            self._last_consumption_update = now
+        # 
+        #
+        self.log("Checking for additional consumption, exported %.2f w, produced %.2f w" % (exported_watt, panel_to_house_w))
+        if "consumption" in self.args:
+            consumptions = self.args["consumption"]
+            
+            for key, value in consumptions.items():
+                if key in self._consumptions:
+                    c = self._consumptions[key]
+                    if c.watt > panel_to_house_w:
+                        # We need to turn off
+                        stage = value[c.stage]
+                        self.turn_off(stage["switch"])
+                        del self._consumptions[key]
 
-            self.log("Checking for additional consumption, exported %.2f w, produced %.2f w" % (exported_watt, panel_to_house_w))
-            if "consumption" in self.args:
-                consumptions = self.args["consumption"]
-                
-                for key, value in consumptions.items():
-                    if key in self._consumptions:
-                        c = self._consumptions[key]
-                        if c.watt > panel_to_house_w:
-                            # We need to turn off
-                            stage = value[c.stage]
-                            self.turn_off(stage["switch"])
-                            del self._consumptions[key]
-
-                            self.log("Removing consumption: %s" % key)
-                        else:
-                            panel_to_house_w -= c.watt
-
-                for key, value in consumptions.items():
-                    if key in self._consumptions:
-                        c = self._consumptions[key]
-                        for ik, iv in enumerate(value):
-                            if iv["usage"] > c.watt:
-                                # Do we have enough capacity?
-                                diff = iv["usage"] - c.watt
-                                if exported_watt >= diff:
-                                    self.log("Leveing up consumption: %s, %d, %d" % (key, ik, iv["usage"]))
-
-                                    stage = value[c.stage]
-                                    self.turn_off(stage["switch"])
-
-                                    c.stage = ik
-                                    c.watt = iv["usage"]
-                                    self.turn_on(iv["switch"])
-                                    exported_watt -= iv["usage"]
+                        self.log("Removing consumption: %s" % key)
                     else:
-                        for ik, iv in enumerate(value):
-                            if exported_watt >= iv["usage"]:
-                                self.turn_on(iv["switch"])
-                                self.log("Adding consumption: %s, %d, %d" % (key, ik, iv["usage"]))
-                                self._consumptions[key] = AdditionalConsumer(ik, iv["usage"])
-                                exported_watt -= iv["usage"]
-                                break
+                        panel_to_house_w -= c.watt
 
-            if exported_watt > 0:                
-                for ec in self._known:
-                    ec.consume_more()    
+            for key, value in consumptions.items():
+                if key in self._consumptions:
+                    c = self._consumptions[key]
+                    for ik, iv in enumerate(value):
+                        if iv["usage"] > c.watt:
+                            # Do we have enough capacity?
+                            diff = iv["usage"] - c.watt
+                            if exported_watt > diff:
+                                self.log("Leveling up consumption: %s, %d, %d" % (key, ik, iv["usage"]))
+
+                                stage = value[c.stage]
+                                self.turn_off(stage["switch"])
+
+                                c.stage = ik
+                                c.watt = iv["usage"]
+                                self.turn_on(iv["switch"])
+                                exported_watt -= iv["usage"]
+                else:
+                    for ik, iv in enumerate(value):
+                        if exported_watt > iv["usage"]:
+                            self.turn_on(iv["switch"])
+                            self.log("Adding consumption: %s, %d, %d" % (key, ik, iv["usage"]))
+                            self._consumptions[key] = AdditionalConsumer(ik, iv["usage"])
+                            exported_watt -= iv["usage"]
+                            break
+
+        if exported_watt > 0:                
+            for ec in self._known:
+                ec.consume_more()    
 
         self.call_service("goecharger_api2/set_pv_data", pgrid=exported_watt * -1)
                     
