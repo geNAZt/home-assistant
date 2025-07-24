@@ -10,6 +10,7 @@ MIN_BATTERY_CHARGE = 0.1
 class AdditionalConsumer:
     stage: int
     watt: float
+    last_update: datetime
 
 @dataclass
 class EnergyConsumer:
@@ -302,19 +303,29 @@ class EnergyManager(hass.Hass):
             for key, value in consumptions.items():
                 if key in self._consumptions:
                     c = self._consumptions[key]
-                    if c.watt > panel_to_house_w:
-                        # We need to turn off
-                        stage = value[c.stage]
-                        self.turn_off(stage["switch"])
-                        del self._consumptions[key]
 
-                        self.log("Removing consumption: %s" % key)
+                    if c.last_update + timedelta(minutes=5) < now:
+                        c.last_update = now
+
+                        if c.watt > panel_to_house_w:
+                            # We need to turn off
+                            stage = value[c.stage]
+                            self.turn_off(stage["switch"])
+                            del self._consumptions[key]
+
+                            self.log("Removing consumption: %s" % key)
+                        else:
+                            panel_to_house_w -= c.watt
                     else:
                         panel_to_house_w -= c.watt
 
             for key, value in consumptions.items():
                 if key in self._consumptions:
                     c = self._consumptions[key]
+                    if c.last_update + timedelta(minutes=5) > now:
+                        continue
+
+                    c.last_update = now
                     for ik, iv in enumerate(value):
                         if iv["usage"] > c.watt:
                             # Do we have enough capacity?
@@ -334,7 +345,7 @@ class EnergyManager(hass.Hass):
                         if exported_watt > iv["usage"]:
                             self.turn_on(iv["switch"])
                             self.log("Adding consumption: %s, %d, %d" % (key, ik, iv["usage"]))
-                            self._consumptions[key] = AdditionalConsumer(ik, iv["usage"])
+                            self._consumptions[key] = AdditionalConsumer(ik, iv["usage"], now)
                             exported_watt -= iv["usage"]
                             break
 
