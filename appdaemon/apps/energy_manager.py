@@ -291,9 +291,9 @@ class EnergyManager(hass.Hass):
         else:
             self.ensure_state("select.pv_storage_remote_command_mode", "Maximize self consumption")
 
-        exported_watt = self._average_state("sensor.solar_exported_power_w", timedelta(minutes=1))
-        imported_watt = self._average_state("sensor.solar_imported_power_w", timedelta(minutes=1))
-        panel_to_house_w = self._average_state("sensor.solar_panel_to_house_w", timedelta(minutes=1))
+        exported_watt = self._average_state("sensor.solar_exported_power_w", timedelta(seconds=5    ))
+        imported_watt = self._average_state("sensor.solar_imported_power_w", timedelta(seconds=5))
+        panel_to_house_w = self._average_state("sensor.solar_panel_to_house_w", timedelta(seconds=5))
 
         # 
         #
