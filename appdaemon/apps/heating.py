@@ -2,8 +2,9 @@ import re
 import appdaemon.plugins.hass.hassapi as hass
 import datetime
 import time
+import sqlite3
+import os
 
-from tinydb import TinyDB, Query
 from datetime import timedelta, datetime, timezone
 
 ALLOWED_DIFF = 0.0
@@ -38,45 +39,42 @@ class Heating(hass.Hass):
     _ec: any
 
     def initialize(self):
-        db = TinyDB("/config/climate_state_%s.json" % self.name.replace("heating_", ""))
-        self.table = db.table('climate', cache_size=0)
-        self.query = Query()
-
+        # Initialize SQLite database
+        db_path = "/config/climate_state_%s.db" % self.name.replace("heating_", "")
+        self.db_path = db_path
+        self.init_database()
+        
         # Generate virtual light entity
         self.virtual_entity_name = "climate.room_%s" % self.name.replace("heating_", "")
         
         temperature = 21.0
         state = "heat"
         pwm_percent = 0.2
-        docs = []
-
         self.current = float(0)
 
-        try:
-            docs = self.table.search(self.query.entity_id == self.virtual_entity_name)
-        except:
-            db.drop_tables()
+        # Try to get existing record
+        record = self.get_climate_record()
+        
+        if record:
+            self.db_record_id = record[0]  # SQLite rowid
+            self.log("DB view: %r" % record)
 
-        if len(docs) > 0:
-            self.db_doc_id = docs[0].doc_id
-            self.log("DB view: %r" % docs[0])
+            state = record[2]  # state column
+            temperature = record[3]  # temperature column
+            pwm_percent = record[4]  # pwm_percent column
 
-            state = docs[0]["state"]
-            temperature = docs[0]["temperature"]
-            pwm_percent = docs[0]["pwm_percent"]
-
-            if "current" in docs[0]:
-                self.current = float(docs[0]["current"])
+            if record[5] is not None:  # current column
+                self.current = float(record[5])
                 self.log("Restoring current %d" % self.current)
         else:
-            self.db_doc_id = self.table.insert({
-                'entity_id': self.virtual_entity_name, 
-                'state': state, 
-                'temperature': temperature, 
-                'pwm_percent': pwm_percent,
-                'current': 0,
-            })
-
+            # Insert new record
+            self.db_record_id = self.insert_climate_record(
+                entity_id=self.virtual_entity_name,
+                state=state,
+                temperature=temperature,
+                pwm_percent=pwm_percent,
+                current=0
+            )
             self.current = 0
 
         self.set_state(self.virtual_entity_name, state=state, attributes={
@@ -157,6 +155,96 @@ class Heating(hass.Hass):
                                                     self.can_be_delayed,
                                                     self.consume_more)
 
+    def init_database(self):
+        """Initialize SQLite database and create tables if they don't exist"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        # Create climate table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS climate (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                entity_id TEXT NOT NULL,
+                state TEXT NOT NULL,
+                temperature REAL NOT NULL,
+                pwm_percent REAL NOT NULL,
+                current REAL DEFAULT 0,
+                energy_history TEXT DEFAULT '[]'
+            )
+        ''')
+        
+        conn.commit()
+        conn.close()
+
+    def get_climate_record(self):
+        """Get climate record for the virtual entity"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT * FROM climate WHERE entity_id = ?
+        ''', (self.virtual_entity_name,))
+        
+        record = cursor.fetchone()
+        conn.close()
+        
+        return record
+
+    def insert_climate_record(self, entity_id, state, temperature, pwm_percent, current):
+        """Insert a new climate record and return the rowid"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            INSERT INTO climate (entity_id, state, temperature, pwm_percent, current)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (entity_id, state, temperature, pwm_percent, current))
+        
+        rowid = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        
+        return rowid
+
+    def update_climate_record(self, updates):
+        """Update climate record with the given updates dictionary"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        # Build dynamic update query
+        set_clauses = []
+        values = []
+        for key, value in updates.items():
+            set_clauses.append(f"{key} = ?")
+            values.append(value)
+        
+        values.append(self.db_record_id)  # WHERE clause value
+        
+        query = f'''
+            UPDATE climate 
+            SET {', '.join(set_clauses)}
+            WHERE id = ?
+        '''
+        
+        cursor.execute(query, values)
+        conn.commit()
+        conn.close()
+
+    def get_climate_data(self):
+        """Get current climate data as a dictionary"""
+        record = self.get_climate_record()
+        if record:
+            return {
+                'id': record[0],
+                'entity_id': record[1],
+                'state': record[2],
+                'temperature': record[3],
+                'pwm_percent': record[4],
+                'current': record[5],
+                'energy_history': record[6] if record[6] else '[]'
+            }
+        return None
+
     def can_be_delayed(self):
         target = self.target_temp()
         room_temp = self.room_temperature()
@@ -168,7 +256,8 @@ class Heating(hass.Hass):
         return res
     
     def consume_more(self):
-        target = self.table.search(self.query.entity_id == self.virtual_entity_name)[0]["temperature"]
+        climate_data = self.get_climate_data()
+        target = climate_data["temperature"]
         room_temp = self.room_temperature()
         if room_temp < target:
             self.manipulateUp("excess PV")
@@ -196,22 +285,23 @@ class Heating(hass.Hass):
         
         if data["service"] == "set_temperature":
             temp = round(float(data["service_data"]["temperature"]), 1)
-            old_temp = self.table.search(self.query.entity_id == self.virtual_entity_name)[0]["temperature"]
+            climate_data = self.get_climate_data()
+            old_temp = climate_data["temperature"]
 
             # Reset pwm to 100%
             if temp > old_temp:
                 self.pwmSet(TIME_SLOT_SECONDS, 0)
 
             self.set_state(self.virtual_entity_name, attributes={"temperature": temp})
-            self.table.update({'temperature': temp}, doc_ids=[self.db_doc_id])
+            self.update_climate_record({'temperature': temp})
         
         if data["service"] == "set_hvac_mode":
             if data["service_data"]["hvac_mode"] == "off":
                 self.set_state(self.virtual_entity_name, state="off")
-                self.table.update({'state': "off"}, doc_ids=[self.db_doc_id])
+                self.update_climate_record({'state': "off"})
             else:
                 self.set_state(self.virtual_entity_name, state="idle")
-                self.table.update({'state': "idle"}, doc_ids=[self.db_doc_id])
+                self.update_climate_record({'state': "idle"})
 
     def find_entity(self, search):
         states = self.get_state()
@@ -239,7 +329,7 @@ class Heating(hass.Hass):
         self._on_time = on
         self._off_time = off
         pwm_percent = (self._on_time / TIME_SLOT_SECONDS)
-        self.table.update({"pwm_percent": pwm_percent}, doc_ids=[self.db_doc_id])
+        self.update_climate_record({"pwm_percent": pwm_percent})
         self.set_state(self.virtual_entity_name, attributes={"pwm_percent": pwm_percent})
         self._manipulation_time = now + FEATURE_ON_OFF_TIME_MANIPULATION_COOLDOWN
 
@@ -269,10 +359,11 @@ class Heating(hass.Hass):
         self._ec.update_current(nf)
         if nf > self.current:
             self.current = nf
-            self.table.update({'current': self.current}, doc_ids=[self.db_doc_id])
+            self.update_climate_record({'current': self.current})
 
     def target_temp(self):
-        target = self.table.search(self.query.entity_id == self.virtual_entity_name)[0]["temperature"]
+        climate_data = self.get_climate_data()
+        target = climate_data["temperature"]
         if self.is_present():
             self.set_state(self.virtual_entity_name, attributes={"temperature": target})
             return target
@@ -352,7 +443,7 @@ class Heating(hass.Hass):
         self.set_heating()
 
     def set_heating(self):
-        self.table.update({'state': 'heat'}, doc_ids=[self.db_doc_id])
+        self.update_climate_record({'state': 'heat'})
         self.set_state(self.virtual_entity_name, state='heat')
 
     def turn_heat_off(self):
@@ -361,7 +452,7 @@ class Heating(hass.Hass):
         self.set_idle()
 
     def set_idle(self):
-        self.table.update({'state': 'idle'}, doc_ids=[self.db_doc_id])
+        self.update_climate_record({'state': 'idle'})
         self.set_state(self.virtual_entity_name, state='idle')
 
     def recalc(self, kwargs):
@@ -465,17 +556,23 @@ class Heating(hass.Hass):
         # Calculate energy used in this cycle
         energy_used = (current_power / 3600) * heating_time # watt seconds
         
-        # Store historical data
-        self.table.update({
-            'energy_history': self.table.get(doc_id=self.db_doc_id).get('energy_history', []) + [{
-                'timestamp': time.time(),
-                'energy': energy_used,
-                'temperature_diff': self.target_temp() - self.room_temperature()
-            }]
-        }, doc_ids=[self.db_doc_id])
+        # Get current energy history
+        climate_data = self.get_climate_data()
+        import json
+        energy_history = json.loads(climate_data.get('energy_history', '[]'))
+        
+        # Add new entry
+        energy_history.append({
+            'timestamp': time.time(),
+            'energy': energy_used,
+            'temperature_diff': self.target_temp() - self.room_temperature()
+        })
+        
+        # Update database
+        self.update_climate_record({'energy_history': json.dumps(energy_history)})
         
         # Analyze energy efficiency
-        if len(self.table.get(doc_id=self.db_doc_id).get('energy_history', [])) > 10:
+        if len(energy_history) > 10:
             self.analyze_energy_efficiency()
 
     def analyze_energy_efficiency(self):
@@ -484,7 +581,10 @@ class Heating(hass.Hass):
         Looks for patterns in energy consumption and adjusts PWM accordingly.
         """
         # Get historical data
-        energy_history = self.table.get(doc_id=self.db_doc_id).get('energy_history', [])
+        climate_data = self.get_climate_data()
+        import json
+        energy_history = json.loads(climate_data.get('energy_history', '[]'))
+        
         if len(energy_history) < 10:  # Need at least 10 data points for meaningful analysis
             return
 
@@ -528,4 +628,4 @@ class Heating(hass.Hass):
                         if current_time - entry['timestamp'] < 24 * 3600]
         
         # Update database with cleaned history
-        self.table.update({'energy_history': energy_history}, doc_ids=[self.db_doc_id])
+        self.update_climate_record({'energy_history': json.dumps(energy_history)})

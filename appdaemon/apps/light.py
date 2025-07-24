@@ -2,9 +2,10 @@ import appdaemon.plugins.hass.hassapi as hass
 import re
 import math
 import time
+import sqlite3
+import os
 
 from datetime import timedelta, datetime
-from tinydb import TinyDB, Query
 
 ##
 #
@@ -20,10 +21,10 @@ class Light(hass.Hass):
     def initialize(self):
         self._state = 0
 
-        # Open database
-        db = TinyDB("/config/light_state_%s.json" % self.name.replace("light_", ""))
-        self.table = db.table('lights', cache_size=0)
-        self.query = Query()
+        # Initialize SQLite database
+        db_path = "/config/light_state_%s.db" % self.name.replace("light_", "")
+        self.db_path = db_path
+        self.init_database()
 
         # Generate virtual light entity
         self.virtual_entity_name = "light.room_%s" % self.name.replace("light_", "")
@@ -32,23 +33,26 @@ class Light(hass.Hass):
         color = 6700
         state = "on"
 
-        docs = self.table.search(self.query.entity_id == self.virtual_entity_name)
-        if len(docs) > 0:
-            self.db_doc_id = docs[0].doc_id
+        # Try to get existing record
+        record = self.get_light_record()
+        
+        if record:
+            self.db_record_id = record[0]  # SQLite rowid
 
-            state = docs[0]["state"]
-            color = docs[0]["color"]
-            brightness = docs[0]["brightness"]
+            state = record[2]  # state column
+            color = record[3]  # color column
+            brightness = record[4]  # brightness column
         else:
-            self.db_doc_id = self.table.insert({
-                'entity_id': self.virtual_entity_name, 
-                'state': state, 
-                'color': color, 
-                'brightness': brightness,
-                'restore': 0
-            })
+            # Insert new record
+            self.db_record_id = self.insert_light_record(
+                entity_id=self.virtual_entity_name,
+                state=state,
+                color=color,
+                brightness=brightness,
+                restore=0
+            )
 
-        self.log("We are doc id %r" % self.db_doc_id)
+        self.log("We are doc id %r" % self.db_record_id)
 
         r,g,b = self.convert_K_to_RGB(color)
         self.set_state(self.virtual_entity_name, state=state, attributes={
@@ -90,6 +94,80 @@ class Light(hass.Hass):
         # Get presence state
         self._presence = self.is_present()
         self._lastUpdate = 0
+
+    def init_database(self):
+        """Initialize SQLite database and create tables if they don't exist"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        # Create lights table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS lights (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                entity_id TEXT NOT NULL,
+                state TEXT NOT NULL,
+                color REAL NOT NULL,
+                brightness INTEGER NOT NULL,
+                restore INTEGER DEFAULT 0
+            )
+        ''')
+        
+        conn.commit()
+        conn.close()
+
+    def get_light_record(self):
+        """Get light record for the virtual entity"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT * FROM lights WHERE entity_id = ?
+        ''', (self.virtual_entity_name,))
+        
+        record = cursor.fetchone()
+        conn.close()
+        
+        return record
+
+    def insert_light_record(self, entity_id, state, color, brightness, restore):
+        """Insert a new light record and return the rowid"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            INSERT INTO lights (entity_id, state, color, brightness, restore)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (entity_id, state, color, brightness, restore))
+        
+        rowid = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        
+        return rowid
+
+    def update_light_record(self, updates):
+        """Update light record with the given updates dictionary"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        # Build dynamic update query
+        set_clauses = []
+        values = []
+        for key, value in updates.items():
+            set_clauses.append(f"{key} = ?")
+            values.append(value)
+        
+        values.append(self.db_record_id)  # WHERE clause value
+        
+        query = f'''
+            UPDATE lights 
+            SET {', '.join(set_clauses)}
+            WHERE id = ?
+        '''
+        
+        cursor.execute(query, values)
+        conn.commit()
+        conn.close()
 
     def find_entity(self, search):
         states = self.get_state()
@@ -188,20 +266,20 @@ class Light(hass.Hass):
                 attr["brightness"] = round(attr["brightness_pct"] * 2.55)
                 del attr["brightness_pct"]
 
-                self.table.update({'brightness': attr["brightness"]}, doc_ids=[self.db_doc_id])
+                self.update_light_record({'brightness': attr["brightness"]})
 
             if "color_temp_kelvin" in attr:
                 r,g,b = self.convert_K_to_RGB(attr["color_temp_kelvin"])
                 attr["rgb_color"] = [round(r),round(g),round(b)]
 
-                self.table.update({'color': attr["color_temp_kelvin"]}, doc_ids=[self.db_doc_id])
+                self.update_light_record({'color': attr["color_temp_kelvin"]})
 
-            self.table.update({'state': 'on'}, doc_ids=[self.db_doc_id])
+            self.update_light_record({'state': 'on'})
             self.set_state(self.virtual_entity_name, state="on", attributes=attr)
             
 
         if data["service"] == "turn_off":
-            self.table.update({'state': 'off'}, doc_ids=[self.db_doc_id])
+            self.update_light_record({'state': 'off'})
             self.set_state(self.virtual_entity_name, state="off")
 
         self.update()
