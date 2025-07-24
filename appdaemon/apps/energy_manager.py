@@ -292,6 +292,7 @@ class EnergyManager(hass.Hass):
             self.ensure_state("select.pv_storage_remote_command_mode", "Maximize self consumption")
 
         exported_watt = self._average_state("sensor.solar_exported_power_w", timedelta(minutes=1))
+        imported_watt = self._average_state("sensor.solar_imported_power_w", timedelta(minutes=1))
         panel_to_house_w = self._average_state("sensor.solar_panel_to_house_w", timedelta(minutes=1))
 
         # 
@@ -353,5 +354,8 @@ class EnergyManager(hass.Hass):
             for ec in self._known:
                 ec.consume_more()    
 
-        self.call_service("goecharger_api2/set_pv_data", pgrid=exported_watt * -1)
+        if imported_watt > 0:
+            self.call_service("goecharger_api2/set_pv_data", pgrid=imported_watt)
+        else:
+            self.call_service("goecharger_api2/set_pv_data", pgrid=exported_watt * -1)
                     
