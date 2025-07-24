@@ -51,8 +51,11 @@ class Light(hass.Hass):
                 brightness=brightness,
                 restore=0
             )
+            if self.db_record_id is None:
+                self.log("Failed to insert light record")
+                return
 
-        self.log("We are doc id %r" % self.db_record_id)
+        self.log("We are doc id %s" % self.db_record_id)
 
         r,g,b = self.convert_K_to_RGB(color)
         self.set_state(self.virtual_entity_name, state=state, attributes={
@@ -117,57 +120,68 @@ class Light(hass.Hass):
 
     def get_light_record(self):
         """Get light record for the virtual entity"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-            SELECT * FROM lights WHERE entity_id = ?
-        ''', (self.virtual_entity_name,))
-        
-        record = cursor.fetchone()
-        conn.close()
-        
-        return record
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+                SELECT * FROM lights WHERE entity_id = ?
+            ''', (self.virtual_entity_name,))
+            
+            record = cursor.fetchone()
+            conn.close()
+            
+            return record
+        except Exception as e:
+            self.log("Error getting light record: %s" % str(e))
+            return None
 
     def insert_light_record(self, entity_id, state, color, brightness, restore):
         """Insert a new light record and return the rowid"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-            INSERT INTO lights (entity_id, state, color, brightness, restore)
-            VALUES (?, ?, ?, ?, ?)
-        ''', (entity_id, state, color, brightness, restore))
-        
-        rowid = cursor.lastrowid
-        conn.commit()
-        conn.close()
-        
-        return rowid
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+                INSERT INTO lights (entity_id, state, color, brightness, restore)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (entity_id, state, color, brightness, restore))
+            
+            rowid = cursor.lastrowid
+            conn.commit()
+            conn.close()
+            
+            return rowid
+        except Exception as e:
+            self.log("Error inserting light record: %s" % str(e))
+            return None
 
     def update_light_record(self, updates):
         """Update light record with the given updates dictionary"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        # Build dynamic update query
-        set_clauses = []
-        values = []
-        for key, value in updates.items():
-            set_clauses.append(f"{key} = ?")
-            values.append(value)
-        
-        values.append(self.db_record_id)  # WHERE clause value
-        
-        query = f'''
-            UPDATE lights 
-            SET {', '.join(set_clauses)}
-            WHERE id = ?
-        '''
-        
-        cursor.execute(query, values)
-        conn.commit()
-        conn.close()
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            # Build dynamic update query
+            set_clauses = []
+            values = []
+            for key, value in updates.items():
+                set_clauses.append(f"{key} = ?")
+                values.append(value)
+            
+            values.append(self.db_record_id)  # WHERE clause value
+            
+            query = f'''
+                UPDATE lights 
+                SET {', '.join(set_clauses)}
+                WHERE id = ?
+            '''
+            
+            cursor.execute(query, values)
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            self.log("Error updating light record: %s" % str(e))
 
     def find_entity(self, search):
         states = self.get_state()

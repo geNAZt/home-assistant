@@ -57,7 +57,7 @@ class Heating(hass.Hass):
         
         if record:
             self.db_record_id = record[0]  # SQLite rowid
-            self.log("DB view: %r" % record)
+            self.log("DB view: %s" % str(record))
 
             state = record[2]  # state column
             temperature = record[3]  # temperature column
@@ -75,6 +75,9 @@ class Heating(hass.Hass):
                 pwm_percent=pwm_percent,
                 current=0
             )
+            if self.db_record_id is None:
+                self.log("Failed to insert climate record")
+                return
             self.current = 0
 
         self.set_state(self.virtual_entity_name, state=state, attributes={
@@ -146,7 +149,7 @@ class Heating(hass.Hass):
         # Ensure that we run at least once a minute
         self.run_every(self.recalc, "now", 10)
 
-        self.log("Register with current %d", self.current)
+        self.log("Register with current %d" % self.current)
 
         energy_manager = self.get_app("energy_manager")
         self._ec = energy_manager.register_consumer("heating", self.name, self.phase, self.current, 
@@ -178,57 +181,68 @@ class Heating(hass.Hass):
 
     def get_climate_record(self):
         """Get climate record for the virtual entity"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-            SELECT * FROM climate WHERE entity_id = ?
-        ''', (self.virtual_entity_name,))
-        
-        record = cursor.fetchone()
-        conn.close()
-        
-        return record
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+                SELECT * FROM climate WHERE entity_id = ?
+            ''', (self.virtual_entity_name,))
+            
+            record = cursor.fetchone()
+            conn.close()
+            
+            return record
+        except Exception as e:
+            self.log("Error getting climate record: %s" % str(e))
+            return None
 
     def insert_climate_record(self, entity_id, state, temperature, pwm_percent, current):
         """Insert a new climate record and return the rowid"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-            INSERT INTO climate (entity_id, state, temperature, pwm_percent, current)
-            VALUES (?, ?, ?, ?, ?)
-        ''', (entity_id, state, temperature, pwm_percent, current))
-        
-        rowid = cursor.lastrowid
-        conn.commit()
-        conn.close()
-        
-        return rowid
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+                INSERT INTO climate (entity_id, state, temperature, pwm_percent, current)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (entity_id, state, temperature, pwm_percent, current))
+            
+            rowid = cursor.lastrowid
+            conn.commit()
+            conn.close()
+            
+            return rowid
+        except Exception as e:
+            self.log("Error inserting climate record: %s" % str(e))
+            return None
 
     def update_climate_record(self, updates):
         """Update climate record with the given updates dictionary"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        # Build dynamic update query
-        set_clauses = []
-        values = []
-        for key, value in updates.items():
-            set_clauses.append(f"{key} = ?")
-            values.append(value)
-        
-        values.append(self.db_record_id)  # WHERE clause value
-        
-        query = f'''
-            UPDATE climate 
-            SET {', '.join(set_clauses)}
-            WHERE id = ?
-        '''
-        
-        cursor.execute(query, values)
-        conn.commit()
-        conn.close()
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            # Build dynamic update query
+            set_clauses = []
+            values = []
+            for key, value in updates.items():
+                set_clauses.append(f"{key} = ?")
+                values.append(value)
+            
+            values.append(self.db_record_id)  # WHERE clause value
+            
+            query = f'''
+                UPDATE climate 
+                SET {', '.join(set_clauses)}
+                WHERE id = ?
+            '''
+            
+            cursor.execute(query, values)
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            self.log("Error updating climate record: %s" % str(e))
 
     def get_climate_data(self):
         """Get current climate data as a dictionary"""
@@ -257,6 +271,8 @@ class Heating(hass.Hass):
     
     def consume_more(self):
         climate_data = self.get_climate_data()
+        if climate_data is None:
+            return
         target = climate_data["temperature"]
         room_temp = self.room_temperature()
         if room_temp < target:
@@ -286,6 +302,8 @@ class Heating(hass.Hass):
         if data["service"] == "set_temperature":
             temp = round(float(data["service_data"]["temperature"]), 1)
             climate_data = self.get_climate_data()
+            if climate_data is None:
+                return
             old_temp = climate_data["temperature"]
 
             # Reset pwm to 100%
@@ -363,7 +381,10 @@ class Heating(hass.Hass):
 
     def target_temp(self):
         climate_data = self.get_climate_data()
-        target = climate_data["temperature"]
+        if climate_data is None:
+            target = 21.0  # Default temperature
+        else:
+            target = climate_data["temperature"]
         if self.is_present():
             self.set_state(self.virtual_entity_name, attributes={"temperature": target})
             return target
@@ -474,7 +495,7 @@ class Heating(hass.Hass):
         # Check for heating length
         if heating and now_seconds - self._heating_started > self._on_time:
             self._heating_halted_until = now_seconds + self._off_time
-            self.log("Setting heating pause until %r" % self._heating_halted_until)
+            self.log("Setting heating pause until %s" % self._heating_halted_until)
 
         # Check if we are paused
         if self._heating_halted_until > now_seconds:
