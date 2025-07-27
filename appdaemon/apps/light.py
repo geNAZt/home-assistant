@@ -69,7 +69,7 @@ class Light(hass.Hass):
             "rgb_color": [round(r),round(g),round(b)]
         })
 
-        self.listen_event(self.onEvent, event="call_service")
+        self.listen_event(self.onEvent, event="call_service", entity_id=self.virtual_entity_name)
     
         # Attach a listener to all presence sensors
         self.presence_sensors = self.find_entity("binary_sensor.presence_%s[_0-9]*" % self.name.replace("light_", ""))
