@@ -54,6 +54,13 @@ class EnergyManager(hass.Hass):
         self._state_callbacks = {}
         self._state_values = {}
 
+        self._solar_panel_production = 0
+        self._solar_panel_amount = 0
+
+        self._exported_power = 0
+        self._exported_power_amount = 0
+
+
         # Ensure that solaredge is configured correctly
         self.ensure_state("select.pv_storage_ac_charge_policy", "Always Allowed")
         self.ensure_state("select.pv_storage_control_mode", "Remote Control")
