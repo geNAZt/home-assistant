@@ -10,7 +10,6 @@ MIN_BATTERY_CHARGE = 0.1
 class AdditionalConsumer:
     stage: int
     watt: float
-    last_update: datetime
 
 @dataclass
 class EnergyConsumer:
@@ -44,6 +43,12 @@ class EnergyManager(hass.Hass):
 
     _consumptions: dict
 
+    _solar_panel_production: float
+    _solar_panel_amount: float
+
+    _exported_power: float
+    _exported_power_amount: float
+
     def initialize(self):
         # Init state system
         self._state_callbacks = {}
@@ -62,7 +67,47 @@ class EnergyManager(hass.Hass):
         self._known = []
         self._consumptions = {}
 
-        self.run_every(self.run_every_c, "now", 3)
+
+        # Listen for state changes
+        self.listen_state(self.onSolarPanelProduction, "sensor.solar_panel_production_w")
+        self.listen_state(self.onExportedPower, "sensor.solar_exported_power_w")
+        self.listen_state(self.onImportedPower, "sensor.solar_imported_power_w")
+
+        self.run_every(self.run_every_c, "now", 5*60)
+
+    def onExportedPower(self, entity, attribute, old, new, cb_args):
+        # Check if new is a number and update to 0 if not
+        try:
+            v = float(new)
+        except ValueError:
+            v = 0
+
+        self._exported_power += v
+        self._exported_power_amount += 1
+
+        if v > 0:
+            self.call_service("goecharger_api2/set_pv_data", pgrid=v * -1)
+
+    def onImportedPower(self, entity, attribute, old, new, cb_args):
+        # Check if new is a number and update to 0 if not
+        try:
+            v = float(new)
+        except ValueError:
+            v = 0
+
+        if v > 0:
+            self.call_service("goecharger_api2/set_pv_data", pgrid=v)
+
+    # Callback for solar panel production, we update the internal state of the panel
+    def onSolarPanelProduction(self, entity, attribute, old, new, cb_args):
+        # Check if new is a number and update to 0 if not
+        try:
+            v = float(new)
+        except ValueError:
+            v = 0
+            
+        self._solar_panel_production += v
+        self._solar_panel_amount += 1
 
     def register_consumer(self, group, name, phase, current, turn_on, turn_off, can_be_delayed, consume_more):
         ec = EnergyConsumer(group, name, phase, current, turn_on, turn_off, can_be_delayed, consume_more)
@@ -232,26 +277,20 @@ class EnergyManager(hass.Hass):
             side_c = float(self.get_state("sensor.energy_production_tomorrow_3"))
             return side_a + side_b + side_c
 
-    def _average_state(self, entity, time: timedelta):
-        rate = float(0)
-        amount = 0
-
-        now = datetime.now()
-            
-        rate += float(self.get_state(entity))
-        amount += 1
-
-        start_time =  now - time
-        data = self.get_history(entity_id = entity, start_time = start_time)
-        for d in data:
-            for da in d:
-                if da["state"] != "unavailable" and da["state"] != "unknown":
-                    rate += float(da["state"])
-                    amount += 1
-
-        return rate / float(amount)
-
     def update(self):
+        # Get proper solar panel production
+        panel_to_house_w = self._solar_panel_production / self._solar_panel_amount
+
+        self._solar_panel_production = 0
+        self._solar_panel_amount = 0
+
+        exported_watt = self._exported_power / self._exported_power_amount
+        
+        self._exported_power = 0
+        self._exported_power_amount = 0
+
+        self.log("Checking for additional consumption, exported %.2f w, produced %.2f w" % (exported_watt, panel_to_house_w))
+
         now = self.get_now()
 
         # Control AC charging
@@ -291,42 +330,26 @@ class EnergyManager(hass.Hass):
         else:
             self.ensure_state("select.pv_storage_remote_command_mode", "Maximize self consumption")
 
-        exported_watt = self._average_state("sensor.solar_exported_power_w", timedelta(seconds=5    ))
-        imported_watt = self._average_state("sensor.solar_imported_power_w", timedelta(seconds=5))
-        panel_to_house_w = self._average_state("sensor.solar_panel_production_w", timedelta(seconds=5))
-
-        # 
-        #
-        self.log("Checking for additional consumption, exported %.2f w, produced %.2f w" % (exported_watt, panel_to_house_w))
+        # Check for additional consumption
         if "consumption" in self.args:
             consumptions = self.args["consumption"]
             
             for key, value in consumptions.items():
                 if key in self._consumptions:
                     c = self._consumptions[key]
+                    if c.watt > panel_to_house_w:
+                        # We need to turn off
+                        stage = value[c.stage]
+                        self.turn_off(stage["switch"])
+                        del self._consumptions[key]
 
-                    if c.last_update + timedelta(minutes=5) < now:
-                        c.last_update = now
-
-                        if c.watt > panel_to_house_w:
-                            # We need to turn off
-                            stage = value[c.stage]
-                            self.turn_off(stage["switch"])
-                            del self._consumptions[key]
-
-                            self.log("Removing consumption: %s" % key)
-                        else:
-                            panel_to_house_w -= c.watt
+                        self.log("Removing consumption: %s" % key)
                     else:
                         panel_to_house_w -= c.watt
 
             for key, value in consumptions.items():
                 if key in self._consumptions:
                     c = self._consumptions[key]
-                    if c.last_update + timedelta(minutes=5) > now:
-                        continue
-
-                    c.last_update = now
                     for ik, iv in enumerate(value):
                         if iv["usage"] > c.watt:
                             # Do we have enough capacity?
@@ -346,7 +369,7 @@ class EnergyManager(hass.Hass):
                         if exported_watt > iv["usage"]:
                             self.turn_on(iv["switch"])
                             self.log("Adding consumption: %s, %d, %d" % (key, ik, iv["usage"]))
-                            self._consumptions[key] = AdditionalConsumer(ik, iv["usage"], now)
+                            self._consumptions[key] = AdditionalConsumer(ik, iv["usage"])
                             exported_watt -= iv["usage"]
                             break
 
@@ -354,8 +377,4 @@ class EnergyManager(hass.Hass):
             for ec in self._known:
                 ec.consume_more()    
 
-        if imported_watt > 0:
-            self.call_service("goecharger_api2/set_pv_data", pgrid=imported_watt)
-        else:
-            self.call_service("goecharger_api2/set_pv_data", pgrid=exported_watt * -1)
                     
