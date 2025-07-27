@@ -253,6 +253,7 @@ class Light(hass.Hass):
         return red, green, blue
 
     def onEvent(self, event_name, data, kwargs):
+        self.log("onEvent: %r" % data)
         if "service_data" not in data:
             return
         
