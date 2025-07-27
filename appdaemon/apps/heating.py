@@ -93,7 +93,7 @@ class Heating(hass.Hass):
             "supported_features": 1,
         })
 
-        self.listen_event(self.onEvent, event="call_service")
+        self.listen_event(self.onEvent, event="call_service", domain="climate")
 
         self.security_sensors = self.find_entity("temperature_%s_floor" % self.name.replace("heating_", ""))
         self.room_sensors = self.find_entity("temperature_%s(?!_floor)" % self.name.replace("heating_", ""))
