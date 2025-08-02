@@ -26,6 +26,8 @@ energy_manager:
               self.call_service("goecharger_api2/set_pv_data", pgrid=0)
   consumption:
     car:
+      tracker: sensor.car_charger_usage_total
+      stages:
       - usage: 7200
         switch: virtual.car
       - usage: 4800
@@ -33,6 +35,8 @@ energy_manager:
       - usage: 1600
         switch: virtual.car
     water_heating_pump:
+      tracker: sensor.water_heating_pump_usage
+      stages: 
       - usage: 1600
         switch: switch.water_heater_pv_switch_powerr_usage_stage_2
       - usage: 500

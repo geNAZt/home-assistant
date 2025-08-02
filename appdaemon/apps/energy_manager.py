@@ -1,7 +1,7 @@
 import appdaemon.plugins.hass.hassapi as hass
 import adbase as ad
 
-from datetime import datetime 
+from datetime import datetime, timedelta, timezone 
 from dataclasses import dataclass
 
 MIN_BATTERY_CHARGE = 0.1
@@ -10,6 +10,7 @@ MIN_BATTERY_CHARGE = 0.1
 class AdditionalConsumer:
     stage: int
     usage: float
+    real_usage: float
 
 @dataclass
 class VirtualEntity:
@@ -320,9 +321,40 @@ class EnergyManager(hass.Hass):
         else:
             self.turn_off(entity)
 
+    def energy_consumption_rate(self, tracker):
+        rate = float(0)
+        now = datetime.now()
+
+        current_value = float(self.get_state(tracker))
+        start_time =  now - timedelta(minutes = 10)
+        data = self.get_history(entity_id = tracker, start_time = start_time)
+        if len(data) > 0:
+            if len(data[0]) > 0:
+                try:
+                    state = float(data[0][0]['state'])
+                    date = data[0][0]['last_changed']
+                    diffTime = now.astimezone(timezone.utc) - date
+                    rate_current = ((current_value - state) / float(diffTime.seconds)) * 60.0
+                    rate += rate_current
+                except ValueError:
+                    pass
+
+        return float(rate)
+    
     def update(self):
         self.log("=== Energy Manager Update Method Started ===")
         
+
+        # Update all consumption trackers
+        for key, value in self._consumptions.items():
+            # Get the consumption configuration
+            consumption_config = self.args["consumption"][key]
+            energy_consumption_rate = self.energy_consumption_rate(consumption_config["tracker"])
+
+            self.log("Energy consumption rate for %s: %.2f w" % (key, energy_consumption_rate))
+
+            value.real_usage = energy_consumption_rate
+
         # Get proper solar panel production
         panel_to_house_w = self._solar_panel_production / self._solar_panel_amount if self._solar_panel_amount > 0 else 0
         self.log("Solar panel production calculation: production=%.2f, amount=%.2f, result=%.2f w" % 
@@ -411,7 +443,7 @@ class EnergyManager(hass.Hass):
                         self.log("Consumption '%s' not currently active, evaluating for activation" % key)
                         # Get the lowest usage stage
                         lowest_usage = float(99999999)
-                        for ik, iv in enumerate(value): 
+                        for ik, iv in enumerate(value["stages"]): 
                             if iv["usage"] < lowest_usage:
                                 lowest_usage = iv["usage"]
                                 lowest_stage = ik
@@ -426,7 +458,7 @@ class EnergyManager(hass.Hass):
                             self._turn_on(stage["switch"])
 
                             self.log("Adding consumption: %s, %d, %d" % (key, lowest_stage, lowest_usage))
-                            self._consumptions[key] = AdditionalConsumer(lowest_stage, lowest_usage)
+                            self._consumptions[key] = AdditionalConsumer(lowest_stage, lowest_usage, lowest_usage)
                             exported_watt -= lowest_usage
                             self.log("Remaining exported power after activation: %.2f w" % exported_watt)
 
@@ -445,7 +477,7 @@ class EnergyManager(hass.Hass):
 
                         # Find the lowest usage which is still above the current usage
                         lowest_usage = float(99999999)
-                        for ik, iv in enumerate(value):
+                        for ik, iv in enumerate(value["stages"]):
                             if iv["usage"] > c.usage and iv["usage"] < lowest_usage:
                                 lowest_usage = iv["usage"]
                                 lowest_stage = ik
@@ -497,7 +529,7 @@ class EnergyManager(hass.Hass):
                             # Check if we can level down
                             # Find the heighest usage which is below the current usage
                             highest_usage = float(0)
-                            for ik, iv in enumerate(value):
+                            for ik, iv in enumerate(value["stages"]):
                                 if iv["usage"] < c.usage and iv["usage"] > highest_usage:
                                     highest_usage = iv["usage"]
                                     highest_stage = ik
