@@ -13,8 +13,6 @@ class AdditionalConsumer:
 
 @dataclass
 class VirtualEntity:
-    usage: float
-    max_usage: float
     switched: bool
     events: dict
 
@@ -89,7 +87,7 @@ class EnergyManager(hass.Hass):
 
         # Register virtual entities
         for key, value in self.args["virtuals"].items():
-            self._virtual_entities[key] = VirtualEntity(0, value["max_usage"], False, value["events"])
+            self._virtual_entities[key] = VirtualEntity(False, value["events"])
 
         # Listen for state changes
         self.listen_state(self.onSolarPanelProduction, "sensor.solar_panel_production_w")

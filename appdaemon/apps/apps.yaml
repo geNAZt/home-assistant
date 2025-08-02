@@ -9,25 +9,21 @@ energy_manager:
   class: EnergyManager
   virtuals:
     car:
-      - max_usage: 11000
-        events:
-          imported_power_update:
-            code: |
-              if value > 0:
-                self.call_service("goecharger_api2/set_pv_data", pgrid=value)
-          exported_power_update:
-            code: |
-              if value > 0:
-                if entity.max_usage > value: 
-                  value = entity.max_usage
-                  
-                self.call_service("goecharger_api2/set_pv_data", pgrid=value * -1)
-          switched:
-            code: |
-              if not value:
-                self.call_service("goecharger_api2/set_pv_data", pgrid=10500)
-              else:
-                self.call_service("goecharger_api2/set_pv_data", pgrid=0)
+      events:
+        imported_power_update:
+          code: |
+            if value > 0:
+              self.call_service("goecharger_api2/set_pv_data", pgrid=value)
+        exported_power_update:
+          code: |
+            if value > 0:
+              self.call_service("goecharger_api2/set_pv_data", pgrid=value * -1)
+        switched:
+          code: |
+            if not value:
+              self.call_service("goecharger_api2/set_pv_data", pgrid=10500)
+            else:
+              self.call_service("goecharger_api2/set_pv_data", pgrid=0)
   consumption:
     car:
       - usage: 1600
