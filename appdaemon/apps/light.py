@@ -371,8 +371,8 @@ class Light(hass.Hass):
         currentBrightness = self.get_light_brightness()
 
         # Check if disableLuxCutoff is set in args
-        waterHighLux = 150
-        waterLowLux = 60
+        waterHighLux = 300
+        waterLowLux = 120
 
         if "waterHigh" in self.args:
             waterHighLux = self.args["waterHigh"]
