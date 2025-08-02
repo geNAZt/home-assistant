@@ -108,9 +108,9 @@ class EnergyManager(hass.Hass):
         if event in e.events:
             if entity in self._consumptions:
                 consumption_entity = self._consumptions[entity]
-                eval(e.events[event]["code"], {"self": self, "value": value, "entity": consumption_entity})
+                exec(e.events[event]["code"], {"self": self, "value": value, "entity": consumption_entity})
             else:
-                eval(e.events[event]["code"], {"self": self, "value": value})
+                exec(e.events[event]["code"], {"self": self, "value": value})
 
     def onExportedPower(self, entity, attribute, old, new, cb_args):
         # Check if new is a number and update to 0 if not
