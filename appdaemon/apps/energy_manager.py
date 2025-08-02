@@ -308,15 +308,17 @@ class EnergyManager(hass.Hass):
 
     def _turn_on(self, entity):
         if entity.startswith("virtual."):
-            self.call_virtual_entity(entity, "switched", True)
-            self._virtual_entities[entity].switched = True
+            ent = entity.split(".")[1]
+            self.call_virtual_entity(ent, "switched", True)
+            self._virtual_entities[ent].switched = True
         else:
             self.turn_on(entity)
 
     def _turn_off(self, entity):
         if entity.startswith("virtual."):   
-            self.call_virtual_entity(entity, "switched", False)
-            self._virtual_entities[entity].switched = False
+            ent = entity.split(".")[1]
+            self.call_virtual_entity(ent, "switched", False)
+            self._virtual_entities[ent].switched = False
         else:
             self.turn_off(entity)
 
