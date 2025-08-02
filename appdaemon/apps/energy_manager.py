@@ -1,7 +1,7 @@
 import appdaemon.plugins.hass.hassapi as hass
 import adbase as ad
 
-from datetime import datetime, timedelta 
+from datetime import datetime 
 from dataclasses import dataclass
 
 MIN_BATTERY_CHARGE = 0.1
@@ -9,7 +9,14 @@ MIN_BATTERY_CHARGE = 0.1
 @dataclass
 class AdditionalConsumer:
     stage: int
-    watt: float
+    usage: float
+
+@dataclass
+class VirtualEntity:
+    usage: float
+    max_usage: float
+    switched: bool
+    events: dict
 
 @dataclass
 class EnergyConsumer:
@@ -49,6 +56,9 @@ class EnergyManager(hass.Hass):
     _exported_power: float
     _exported_power_amount: float
 
+    # Virtual entities
+    _virtual_entities: dict
+
     def initialize(self):
         # Init state system
         self._state_callbacks = {}
@@ -74,6 +84,12 @@ class EnergyManager(hass.Hass):
         self._known = []
         self._consumptions = {}
 
+        # Virtual entities
+        self._virtual_entities = {}
+
+        # Register virtual entities
+        for key, value in self.args["virtuals"].items():
+            self._virtual_entities[key] = VirtualEntity(0, value["max_usage"], False, value["events"])
 
         # Listen for state changes
         self.listen_state(self.onSolarPanelProduction, "sensor.solar_panel_production_w")
@@ -81,6 +97,21 @@ class EnergyManager(hass.Hass):
         self.listen_state(self.onImportedPower, "sensor.solar_imported_power_w")
 
         self.run_every(self.run_every_c, "now", 5*60)
+
+    def call_all_virtual_entities(self, event, value):
+        for key, value in self._virtual_entities.items():
+            self.call_virtual_entity(key, event, value)
+
+    def call_virtual_entity(self, entity, event, value):
+        self.log("Calling virtual entity %s for event %s with value %s" % (entity, event, value))
+
+        e = self._virtual_entities[entity]
+        if event in e.events:
+            consumption_entity = self._consumptions[entity]
+            if consumption_entity:
+                eval(e.events[event]["code"], {"self": self, "value": value, "entity": consumption_entity})
+            else:
+                eval(e.events[event]["code"], {"self": self, "value": value})
 
     def onExportedPower(self, entity, attribute, old, new, cb_args):
         # Check if new is a number and update to 0 if not
@@ -92,8 +123,7 @@ class EnergyManager(hass.Hass):
         self._exported_power += v
         self._exported_power_amount += 1
 
-        if v > 0:
-            self.call_service("goecharger_api2/set_pv_data", pgrid=v * -1)
+        self.call_all_virtual_entities("exported_power_update", v)
 
     def onImportedPower(self, entity, attribute, old, new, cb_args):
         # Check if new is a number and update to 0 if not
@@ -102,8 +132,7 @@ class EnergyManager(hass.Hass):
         except ValueError:
             v = 0
 
-        if v > 0:
-            self.call_service("goecharger_api2/set_pv_data", pgrid=v)
+        self.call_all_virtual_entities("imported_power_update", v)
 
     # Callback for solar panel production, we update the internal state of the panel
     def onSolarPanelProduction(self, entity, attribute, old, new, cb_args):
@@ -278,6 +307,20 @@ class EnergyManager(hass.Hass):
         else:
             return float(self.get_state("sensor.solcast_pv_forecast_prognose_morgen"))
 
+    def _turn_on(self, entity):
+        if entity.startswith("virtual."):
+            self.call_virtual_entity(entity, "switched", True)
+            self._virtual_entities[entity].switched = True
+        else:
+            self.turn_on(entity)
+
+    def _turn_off(self, entity):
+        if entity.startswith("virtual."):   
+            self.call_virtual_entity(entity, "switched", False)
+            self._virtual_entities[entity].switched = False
+        else:
+            self.turn_off(entity)
+
     def update(self):
         # Get proper solar panel production
         panel_to_house_w = self._solar_panel_production / self._solar_panel_amount
@@ -338,37 +381,38 @@ class EnergyManager(hass.Hass):
             for key, value in consumptions.items():
                 if key in self._consumptions:
                     c = self._consumptions[key]
-                    if c.watt > panel_to_house_w:
+                    if c.usage > panel_to_house_w:
                         # We need to turn off
                         stage = value[c.stage]
-                        self.turn_off(stage["switch"])
+                        self._turn_off(stage["switch"])
                         del self._consumptions[key]
 
                         self.log("Removing consumption: %s" % key)
                     else:
-                        panel_to_house_w -= c.watt
+                        panel_to_house_w -= c.usage
 
             for key, value in consumptions.items():
                 if key in self._consumptions:
                     c = self._consumptions[key]
                     for ik, iv in enumerate(value):
-                        if iv["usage"] > c.watt:
+                        if iv["usage"] > c.usage:
                             # Do we have enough capacity?
-                            diff = iv["usage"] - c.watt
+                            diff = iv["usage"] - c.usage
                             if exported_watt > diff:
                                 self.log("Leveling up consumption: %s, %d, %d" % (key, ik, iv["usage"]))
 
                                 stage = value[c.stage]
-                                self.turn_off(stage["switch"])
+                                self._turn_off(stage["switch"])
 
                                 c.stage = ik
-                                c.watt = iv["usage"]
-                                self.turn_on(iv["switch"])
+                                c.usage = iv["usage"]
+
+                                self._turn_on(iv["switch"])
                                 exported_watt -= iv["usage"]
                 else:
                     for ik, iv in enumerate(value):
                         if exported_watt > iv["usage"]:
-                            self.turn_on(iv["switch"])
+                            self._turn_on(iv["switch"])
                             self.log("Adding consumption: %s, %d, %d" % (key, ik, iv["usage"]))
                             self._consumptions[key] = AdditionalConsumer(ik, iv["usage"])
                             exported_watt -= iv["usage"]
