@@ -15,12 +15,10 @@ energy_manager:
             if value > 0:
               self.call_service("goecharger_api2/set_pv_data", pgrid=value)
         exported_power_update:
-          code: |
+          code: |s
             v = value - entity.real_usage
-            if v > 0:
-              self.call_service("goecharger_api2/set_pv_data", pgrid=v * -1)
-            else:
-              self.call_service("goecharger_api2/set_pv_data", pgrid=v)
+            self.log("Exported power update: %.2f w" % v)
+            self.call_service("goecharger_api2/set_pv_data", pgrid=v * -1)
         switched:
           code: |
             if not value:
