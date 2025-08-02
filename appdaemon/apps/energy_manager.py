@@ -321,13 +321,19 @@ class EnergyManager(hass.Hass):
             self.turn_off(entity)
 
     def update(self):
+        self.log("=== Energy Manager Update Method Started ===")
+        
         # Get proper solar panel production
-        panel_to_house_w = self._solar_panel_production / self._solar_panel_amount
+        panel_to_house_w = self._solar_panel_production / self._solar_panel_amount if self._solar_panel_amount > 0 else 0
+        self.log("Solar panel production calculation: production=%.2f, amount=%.2f, result=%.2f w" % 
+                (self._solar_panel_production, self._solar_panel_amount, panel_to_house_w))
 
         self._solar_panel_production = 0
         self._solar_panel_amount = 0
 
-        exported_watt = self._exported_power / self._exported_power_amount
+        exported_watt = self._exported_power / self._exported_power_amount if self._exported_power_amount > 0 else 0
+        self.log("Exported power calculation: exported=%.2f, amount=%.2f, result=%.2f w" % 
+                (self._exported_power, self._exported_power_amount, exported_watt))
         
         self._exported_power = 0
         self._exported_power_amount = 0
@@ -335,6 +341,7 @@ class EnergyManager(hass.Hass):
         self.log("Checking for additional consumption, exported %.2f w, produced %.2f w" % (exported_watt, panel_to_house_w))
 
         now = self.get_now()
+        self.log("Current time: %s (hour: %d)" % (now, now.hour))
 
         # Control AC charging
         # 
@@ -342,45 +349,66 @@ class EnergyManager(hass.Hass):
         # When looking intoo tibber pricing data the sweetsspot is around 3a.m for this. We need to charge until we hit PV operation.
         # For this we need to estimate how much energy we need per hour and when sunrise is
         if now.hour < 2:
+            self.log("=== AC Charging Logic (Early Morning) ===")
             stop_charging = datetime(now.year, now.month, now.day, 2, 0, 0, 0, now.tzinfo)
+            self.log("Stop charging time: %s" % stop_charging)
 
             tomorrow_estimate = self._estimated_production_tomorrow()
             battery_remaining_capacity = self._get_remaining_battery_capacity()
             battery_charge_in_kwh = self._get_current_battery_capacity()
 
+            self.log("Battery status: remaining=%.3f kWh, current=%.3f kWh, tomorrow_estimate=%.3f kWh" % 
+                    (battery_remaining_capacity, battery_charge_in_kwh, tomorrow_estimate))
+
             time_sunrise = datetime.fromisoformat(self.get_state("sensor.sun_next_rising"))
-
-            self.log("sunrise %s" % time_sunrise)
+            self.log("Sunrise time: %s" % time_sunrise)
+            
             time_till_sunrise = (time_sunrise - stop_charging).total_seconds()
-
             minutes, rest = divmod(time_till_sunrise, 60)
 
-            self.log("m %d, t %d, te %.3f" % (minutes, time_till_sunrise, tomorrow_estimate))
+            self.log("Time calculations: minutes=%d, total_seconds=%.2f, rest=%.2f" % (minutes, time_till_sunrise, rest))
 
             # We simply asssume that we consume 1000 watt per hour for now until we found a way to predict this
             needed_watt_per_minute = 1000 / 60
             needed_kwh = (minutes * needed_watt_per_minute) / 1000
 
+            self.log("Energy needs: watt_per_minute=%.2f, needed_kwh=%.3f" % (needed_watt_per_minute, needed_kwh))
             self.log("Wanting to charge %.3f kWh, having %.3f kWh in battery" % (needed_kwh, battery_charge_in_kwh))
 
             if tomorrow_estimate / 2 < battery_remaining_capacity:
+                self.log("Condition met: tomorrow_estimate/2 (%.3f) < battery_remaining_capacity (%.3f)" % 
+                        (tomorrow_estimate / 2, battery_remaining_capacity))
                 if battery_charge_in_kwh < needed_kwh:
+                    self.log("Setting PV storage mode to 'Charge from PV and AC' (need %.3f, have %.3f)" % 
+                            (needed_kwh, battery_charge_in_kwh))
                     self.ensure_state("select.pv_storage_remote_command_mode", "Charge from PV and AC")
                 else:
+                    self.log("Setting PV storage mode to 'Off' (have sufficient charge)")
                     self.ensure_state("select.pv_storage_remote_command_mode", "Off")
             else:
+                self.log("Condition not met: tomorrow_estimate/2 (%.3f) >= battery_remaining_capacity (%.3f)" % 
+                        (tomorrow_estimate / 2, battery_remaining_capacity))
+                self.log("Setting PV storage mode to 'Maximize self consumption'")
                 self.ensure_state("select.pv_storage_remote_command_mode", "Maximize self consumption")
         else:
+            self.log("Setting PV storage mode to 'Maximize self consumption' (not early morning)")
             self.ensure_state("select.pv_storage_remote_command_mode", "Maximize self consumption")
 
         # Check for additional consumption
         if "consumption" in self.args:
+            self.log("=== Additional Consumption Logic ===", level="INFO")
             consumptions = self.args["consumption"]
+            self.log("Available consumptions: %s" % list(consumptions.keys()), level="DEBUG")
+            self.log("Current active consumptions: %s" % list(self._consumptions.keys()), level="DEBUG")
 
             # If we have export power check if we can use it
             if exported_watt > 300:
+                self.log("Exported power (%.2f w) > 300w threshold, checking for additional consumption opportunities", level="INFO")
+                
                 for key, value in consumptions.items():
+                    self.log("Checking consumption key: %s" % key, level="DEBUG")
                     if key not in self._consumptions:
+                        self.log("Consumption '%s' not currently active, evaluating for activation" % key, level="DEBUG")
                         # Get the lowest usage stage
                         lowest_usage = float(99999999)
                         for ik, iv in enumerate(value): 
@@ -388,21 +416,32 @@ class EnergyManager(hass.Hass):
                                 lowest_usage = iv["usage"]
                                 lowest_stage = ik
 
+                        self.log("Lowest usage for '%s': stage=%d, usage=%.2f" % (key, lowest_stage, lowest_usage), level="DEBUG")
+
                         if lowest_usage > exported_watt:
+                            self.log("Condition met: lowest_usage (%.2f) > exported_watt (%.2f)" % (lowest_usage, exported_watt), level="DEBUG")
                             # We need to turn on
                             stage = value[lowest_stage]
+                            self.log("Activating consumption '%s' with switch '%s'" % (key, stage["switch"]), level="INFO")
                             self._turn_on(stage["switch"])
 
                             self.log("Adding consumption: %s, %d, %d" % (key, lowest_stage, lowest_usage))
                             self._consumptions[key] = AdditionalConsumer(lowest_stage, lowest_usage)
                             exported_watt -= lowest_usage
+                            self.log("Remaining exported power after activation: %.2f w" % exported_watt, level="DEBUG")
 
                             return
+                        else:
+                            self.log("Condition not met: lowest_usage (%.2f) <= exported_watt (%.2f), skipping" % (lowest_usage, exported_watt), level="DEBUG")
+                    else:
+                        self.log("Consumption '%s' already active, skipping" % key, level="DEBUG")
                         
                 # We have enabled all consumptions, check if we can level up to a next stage
+                self.log("All available consumptions evaluated, checking for level-up opportunities", level="DEBUG")
                 for key, value in consumptions.items():
                     if key in self._consumptions:
                         c = self._consumptions[key]
+                        self.log("Checking level-up for '%s': current stage=%d, usage=%.2f" % (key, c.stage, c.usage), level="DEBUG")
 
                         # Find the lowest usage which is still above the current usage
                         lowest_usage = float(99999999)
@@ -412,6 +451,7 @@ class EnergyManager(hass.Hass):
                                 lowest_stage = ik
 
                         if lowest_usage > 0:
+                            self.log("Found potential level-up for '%s': stage=%d, usage=%.2f" % (key, lowest_stage, lowest_usage), level="DEBUG")
                             # Do we have enough capacity?
                             diff = lowest_usage - c.usage
                             if exported_watt > diff:
@@ -425,21 +465,35 @@ class EnergyManager(hass.Hass):
 
                                 # To we need to switch?
                                 if stage["switch"] != new_stage["switch"]:
+                                    self.log("Switching from '%s' to '%s'" % (stage["switch"], new_stage["switch"]), level="INFO")
                                     self._turn_off(stage["switch"])
                                     self._turn_on(new_stage["switch"])
+                                else:
+                                    self.log("No switch change needed, same switch: '%s'" % stage["switch"], level="DEBUG")
 
                                 c.stage = lowest_stage
                                 c.usage = new_stage["usage"]
+                                self.log("Updated consumption '%s': stage=%d, usage=%.2f" % (key, c.stage, c.usage), level="DEBUG")
 
                                 return
+                            else:
+                                self.log("Insufficient exported power for level-up: need %.2f, have %.2f" % (diff, exported_watt), level="DEBUG")
+                        else:
+                            self.log("No level-up opportunity found for '%s'" % key, level="DEBUG")
                 
+                self.log("Calling consume_more for all known consumers", level="DEBUG")
                 for ec in self._known:
+                    self.log("Calling consume_more for consumer: %s" % ec.name, level="DEBUG")
                     ec.consume_more() 
             else:
+                self.log("Exported power (%.2f w) <= 300w threshold, checking for consumption reduction", level="INFO")
                 for key, value in consumptions.items():
                     if key in self._consumptions:
                         c = self._consumptions[key]
+                        self.log("Checking reduction for '%s': current stage=%d, usage=%.2f" % (key, c.stage, c.usage), level="DEBUG")
+                        
                         if c.usage > panel_to_house_w:
+                            self.log("Condition met: current usage (%.2f) > panel_to_house_w (%.2f)" % (c.usage, panel_to_house_w), level="DEBUG")
                             # Check if we can level down
                             # Find the heighest usage which is below the current usage
                             highest_usage = float(0)
@@ -448,7 +502,10 @@ class EnergyManager(hass.Hass):
                                     highest_usage = iv["usage"]
                                     highest_stage = ik
                             
+                            self.log("Highest usage below current: stage=%d, usage=%.2f" % (highest_stage, highest_usage), level="DEBUG")
+                            
                             if highest_usage > 0 and highest_usage < panel_to_house_w:
+                                self.log("Leveling down consumption: %s to stage %d (%.2f w)" % (key, highest_stage, highest_usage), level="INFO")
                                 # Old stage
                                 stage = value[c.stage]
 
@@ -457,12 +514,17 @@ class EnergyManager(hass.Hass):
 
                                 # To we need to switch?
                                 if stage["switch"] != new_stage["switch"]:
+                                    self.log("Switching from '%s' to '%s'" % (stage["switch"], new_stage["switch"]), level="INFO")
                                     self._turn_off(stage["switch"])
                                     self._turn_on(new_stage["switch"])
+                                else:
+                                    self.log("No switch change needed for level-down", level="DEBUG")
 
                                 c.stage = highest_stage
                                 c.usage = new_stage["usage"]
+                                self.log("Updated consumption '%s': stage=%d, usage=%.2f" % (key, c.stage, c.usage), level="DEBUG")
                             else:
+                                self.log("No suitable level-down found or insufficient power, turning off consumption: %s" % key, level="INFO")
                                 # We need to turn off
                                 stage = value[c.stage]
                                 self._turn_off(stage["switch"])
@@ -470,7 +532,13 @@ class EnergyManager(hass.Hass):
 
                                 self.log("Removing consumption: %s" % key)
                                 
-                                return       
-   
+                                return
+                        else:
+                            self.log("Condition not met: current usage (%.2f) <= panel_to_house_w (%.2f), keeping current state" % (c.usage, panel_to_house_w), level="DEBUG")
+        else:
+            self.log("No consumption configuration found in args", level="DEBUG")
+
+        self.log("=== Energy Manager Update Method Completed ===", level="INFO")
+
 
                     
