@@ -454,7 +454,7 @@ class EnergyManager(hass.Hass):
                         if lowest_usage < exported_watt:
                             self.log("Condition met: lowest_usage (%.2f) > exported_watt (%.2f)" % (lowest_usage, exported_watt))
                             # We need to turn on
-                            stage = value[lowest_stage]
+                            stage = value["stages"][lowest_stage]
                             self.log("Activating consumption '%s' with switch '%s'" % (key, stage["switch"]))
                             self._turn_on(stage["switch"])
 
@@ -492,10 +492,10 @@ class EnergyManager(hass.Hass):
                                 self.log("Leveling up consumption: %s, %d, %d" % (key, lowest_stage, lowest_usage))
 
                                 # Old stage
-                                stage = value[c.stage]
+                                stage = value["stages"][c.stage]
 
                                 # New stage
-                                new_stage = value[lowest_stage]
+                                new_stage = value["stages"][lowest_stage]
 
                                 # To we need to switch?
                                 if stage["switch"] != new_stage["switch"]:
@@ -542,10 +542,10 @@ class EnergyManager(hass.Hass):
                             if highest_usage > 0 and highest_usage < panel_to_house_w:
                                 self.log("Leveling down consumption: %s to stage %d (%.2f w)" % (key, highest_stage, highest_usage))
                                 # Old stage
-                                stage = value[c.stage]
+                                stage = value["stages"][c.stage]
 
                                 # New stage
-                                new_stage = value[highest_stage]
+                                new_stage = value["stages"][highest_stage]
 
                                 # To we need to switch?
                                 if stage["switch"] != new_stage["switch"]:
@@ -561,7 +561,7 @@ class EnergyManager(hass.Hass):
                             else:
                                 self.log("No suitable level-down found or insufficient power, turning off consumption: %s" % key)
                                 # We need to turn off
-                                stage = value[c.stage]
+                                stage = value["stages"][c.stage]
                                 self._turn_off(stage["switch"])
                                 del self._consumptions[key]
 
