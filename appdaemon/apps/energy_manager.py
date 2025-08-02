@@ -95,7 +95,7 @@ class EnergyManager(hass.Hass):
         self.listen_state(self.onExportedPower, "sensor.solar_exported_power_w")
         self.listen_state(self.onImportedPower, "sensor.solar_imported_power_w")
 
-        self.run_every(self.run_every_c, "now", 5*60)
+        self.run_every(self.run_every_c, "now", 60)
 
     def call_all_active_virtual_entities(self, event, v):
         for key, value in self._virtual_entities.items():
@@ -450,7 +450,7 @@ class EnergyManager(hass.Hass):
 
                         self.log("Lowest usage for '%s': stage=%d, usage=%.2f" % (key, lowest_stage, lowest_usage))
 
-                        if lowest_usage > exported_watt:
+                        if lowest_usage < exported_watt:
                             self.log("Condition met: lowest_usage (%.2f) > exported_watt (%.2f)" % (lowest_usage, exported_watt))
                             # We need to turn on
                             stage = value[lowest_stage]
@@ -464,7 +464,7 @@ class EnergyManager(hass.Hass):
 
                             return
                         else:
-                            self.log("Condition not met: lowest_usage (%.2f) <= exported_watt (%.2f), skipping" % (lowest_usage, exported_watt))
+                            self.log("Condition not met: lowest_usage (%.2f) >= exported_watt (%.2f), skipping" % (lowest_usage, exported_watt))
                     else:
                         self.log("Consumption '%s' already active, skipping" % key)
                         
