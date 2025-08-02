@@ -274,15 +274,9 @@ class EnergyManager(hass.Hass):
         now = self.get_now()
 
         if now.hour < 2:
-            side_a = float(self.get_state("sensor.energy_production_today"))
-            side_b = float(self.get_state("sensor.energy_production_today_2"))
-            side_c = float(self.get_state("sensor.energy_production_today_3"))
-            return side_a + side_b + side_c
+            return float(self.get_state("sensor.solcast_pv_forecast_prognose_heute"))
         else:
-            side_a = float(self.get_state("sensor.energy_production_tomorrow"))
-            side_b = float(self.get_state("sensor.energy_production_tomorrow_2"))
-            side_c = float(self.get_state("sensor.energy_production_tomorrow_3"))
-            return side_a + side_b + side_c
+            return float(self.get_state("sensor.solcast_pv_forecast_prognose_morgen"))
 
     def update(self):
         # Get proper solar panel production
