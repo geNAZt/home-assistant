@@ -96,9 +96,10 @@ class EnergyManager(hass.Hass):
 
         self.run_every(self.run_every_c, "now", 5*60)
 
-    def call_all_virtual_entities(self, event, value):
+    def call_all_active_virtual_entities(self, event, value):
         for key, value in self._virtual_entities.items():
-            self.call_virtual_entity(key, event, value)
+            if value.switched:
+                self.call_virtual_entity(key, event, value)
 
     def call_virtual_entity(self, entity, event, value):
         self.log("Calling virtual entity %s for event %s with value %s" % (entity, event, value))
@@ -121,7 +122,7 @@ class EnergyManager(hass.Hass):
         self._exported_power += v
         self._exported_power_amount += 1
 
-        self.call_all_virtual_entities("exported_power_update", v)
+        self.call_all_active_virtual_entities("exported_power_update", v)
 
     def onImportedPower(self, entity, attribute, old, new, cb_args):
         # Check if new is a number and update to 0 if not
@@ -130,7 +131,7 @@ class EnergyManager(hass.Hass):
         except ValueError:
             v = 0
 
-        self.call_all_virtual_entities("imported_power_update", v)
+        self.call_all_active_virtual_entities("imported_power_update", v)
 
     # Callback for solar panel production, we update the internal state of the panel
     def onSolarPanelProduction(self, entity, attribute, old, new, cb_args):
