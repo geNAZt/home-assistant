@@ -105,8 +105,8 @@ class EnergyManager(hass.Hass):
 
         e = self._virtual_entities[entity]
         if event in e.events:
-            consumption_entity = self._consumptions[entity]
-            if consumption_entity:
+            if entity in self._consumptions:
+                consumption_entity = self._consumptions[entity]
                 eval(e.events[event]["code"], {"self": self, "value": value, "entity": consumption_entity})
             else:
                 eval(e.events[event]["code"], {"self": self, "value": value})
