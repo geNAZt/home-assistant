@@ -19,10 +19,13 @@ energy_manager:
             v = value
             c = 0
             cur = self.get_state("sensor.goe_288025_nrg_11")
+
             try:
               c = float(cur)
             except ValueError:
               c = 0
+
+            self.log("Current power: %.2f w, Export power: %.2f w, Allowed usage: %.2f w" % (c, v, entity.usage))
 
             if v > entity.usage:
               v = entity.usage
