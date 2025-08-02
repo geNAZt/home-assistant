@@ -322,10 +322,11 @@ class EnergyManager(hass.Hass):
             self.turn_off(entity)
 
     def energy_consumption_rate(self, tracker):
-        rate = float(0)
         now = datetime.now()
-
         current_value = float(self.get_state(tracker))
+
+        self.log("Current value for %s: %.2f w" % (tracker, current_value))
+
         start_time =  now - timedelta(minutes = 10)
         data = self.get_history(entity_id = tracker, start_time = start_time)
         if len(data) > 0:
@@ -333,13 +334,16 @@ class EnergyManager(hass.Hass):
                 try:
                     state = float(data[0][0]['state'])
                     date = data[0][0]['last_changed']
+
+                    self.log("State value for %s: %.2f w" % (tracker, state))
+
                     diffTime = now.astimezone(timezone.utc) - date
-                    rate_current = ((current_value - state) / float(diffTime.seconds)) * 60.0
-                    rate += rate_current
+                    rate_current = ((current_value - state) / float(diffTime.seconds)) * 3600.0 
+                    return rate_current
                 except ValueError:
                     pass
 
-        return float(rate)
+        return float(0)
     
     def update(self):
         self.log("=== Energy Manager Update Method Started ===")
