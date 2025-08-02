@@ -102,8 +102,6 @@ class EnergyManager(hass.Hass):
                 self.call_virtual_entity(key, event, v)
 
     def call_virtual_entity(self, entity, event, value):
-        self.log("Calling virtual entity %s for event %s with value %s" % (entity, event, value))
-
         e = self._virtual_entities[entity]
         if event in e.events:
             if entity in self._consumptions:
