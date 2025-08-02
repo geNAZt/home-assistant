@@ -376,49 +376,101 @@ class EnergyManager(hass.Hass):
         # Check for additional consumption
         if "consumption" in self.args:
             consumptions = self.args["consumption"]
-            
-            for key, value in consumptions.items():
-                if key in self._consumptions:
-                    c = self._consumptions[key]
-                    if c.usage > panel_to_house_w:
-                        # We need to turn off
-                        stage = value[c.stage]
-                        self._turn_off(stage["switch"])
-                        del self._consumptions[key]
 
-                        self.log("Removing consumption: %s" % key)
-                    else:
-                        panel_to_house_w -= c.usage
+            # If we have export power check if we can use it
+            if exported_watt > 300:
+                for key, value in consumptions.items():
+                    if key not in self._consumptions:
+                        # Get the lowest usage stage
+                        lowest_usage = float(99999999)
+                        for ik, iv in enumerate(value): 
+                            if iv["usage"] < lowest_usage:
+                                lowest_usage = iv["usage"]
+                                lowest_stage = ik
 
-            for key, value in consumptions.items():
-                if key in self._consumptions:
-                    c = self._consumptions[key]
-                    for ik, iv in enumerate(value):
-                        if iv["usage"] > c.usage:
+                        if lowest_usage > exported_watt:
+                            # We need to turn on
+                            stage = value[lowest_stage]
+                            self._turn_on(stage["switch"])
+
+                            self.log("Adding consumption: %s, %d, %d" % (key, lowest_stage, lowest_usage))
+                            self._consumptions[key] = AdditionalConsumer(lowest_stage, lowest_usage)
+                            exported_watt -= lowest_usage
+
+                            return
+                        
+                # We have enabled all consumptions, check if we can level up to a next stage
+                for key, value in consumptions.items():
+                    if key in self._consumptions:
+                        c = self._consumptions[key]
+
+                        # Find the lowest usage which is still above the current usage
+                        lowest_usage = float(99999999)
+                        for ik, iv in enumerate(value):
+                            if iv["usage"] > c.usage and iv["usage"] < lowest_usage:
+                                lowest_usage = iv["usage"]
+                                lowest_stage = ik
+
+                        if lowest_usage > 0:
                             # Do we have enough capacity?
-                            diff = iv["usage"] - c.usage
+                            diff = lowest_usage - c.usage
                             if exported_watt > diff:
-                                self.log("Leveling up consumption: %s, %d, %d" % (key, ik, iv["usage"]))
+                                self.log("Leveling up consumption: %s, %d, %d" % (key, lowest_stage, lowest_usage))
 
+                                # Old stage
+                                stage = value[c.stage]
+
+                                # New stage
+                                new_stage = value[lowest_stage]
+
+                                # To we need to switch?
+                                if stage["switch"] != new_stage["switch"]:
+                                    self._turn_off(stage["switch"])
+                                    self._turn_on(new_stage["switch"])
+
+                                c.stage = lowest_stage
+                                c.usage = new_stage["usage"]
+
+                                return
+                
+                for ec in self._known:
+                    ec.consume_more() 
+            else:
+                for key, value in consumptions.items():
+                    if key in self._consumptions:
+                        c = self._consumptions[key]
+                        if c.usage > panel_to_house_w:
+                            # Check if we can level down
+                            # Find the heighest usage which is below the current usage
+                            highest_usage = float(0)
+                            for ik, iv in enumerate(value):
+                                if iv["usage"] < c.usage and iv["usage"] > highest_usage:
+                                    highest_usage = iv["usage"]
+                                    highest_stage = ik
+                            
+                            if highest_usage > 0 and highest_usage < panel_to_house_w:
+                                # Old stage
+                                stage = value[c.stage]
+
+                                # New stage
+                                new_stage = value[highest_stage]
+
+                                # To we need to switch?
+                                if stage["switch"] != new_stage["switch"]:
+                                    self._turn_off(stage["switch"])
+                                    self._turn_on(new_stage["switch"])
+
+                                c.stage = highest_stage
+                                c.usage = new_stage["usage"]
+                            else:
+                                # We need to turn off
                                 stage = value[c.stage]
                                 self._turn_off(stage["switch"])
+                                del self._consumptions[key]
 
-                                c.stage = ik
-                                c.usage = iv["usage"]
-
-                                self._turn_on(iv["switch"])
-                                exported_watt -= iv["usage"]
-                else:
-                    for ik, iv in enumerate(value):
-                        if exported_watt > iv["usage"]:
-                            self._turn_on(iv["switch"])
-                            self.log("Adding consumption: %s, %d, %d" % (key, ik, iv["usage"]))
-                            self._consumptions[key] = AdditionalConsumer(ik, iv["usage"])
-                            exported_watt -= iv["usage"]
-                            break
-
-        if exported_watt > 0:                
-            for ec in self._known:
-                ec.consume_more()    
+                                self.log("Removing consumption: %s" % key)
+                                
+                                return       
+   
 
                     
