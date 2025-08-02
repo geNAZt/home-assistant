@@ -26,9 +26,11 @@ energy_manager:
               self.call_service("goecharger_api2/set_pv_data", pgrid=0)
   consumption:
     car:
-      - usage: 1600
+      - usage: 7200
         switch: virtual.car
       - usage: 4800
+        switch: virtual.car
+      - usage: 1600
         switch: virtual.car
     water_heating_pump:
       - usage: 1600
