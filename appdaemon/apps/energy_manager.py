@@ -396,19 +396,19 @@ class EnergyManager(hass.Hass):
 
         # Check for additional consumption
         if "consumption" in self.args:
-            self.log("=== Additional Consumption Logic ===", level="INFO")
+            self.log("=== Additional Consumption Logic ===")
             consumptions = self.args["consumption"]
-            self.log("Available consumptions: %s" % list(consumptions.keys()), level="DEBUG")
-            self.log("Current active consumptions: %s" % list(self._consumptions.keys()), level="DEBUG")
+            self.log("Available consumptions: %s" % list(consumptions.keys()))
+            self.log("Current active consumptions: %s" % list(self._consumptions.keys()))
 
             # If we have export power check if we can use it
             if exported_watt > 300:
-                self.log("Exported power (%.2f w) > 300w threshold, checking for additional consumption opportunities", level="INFO")
+                self.log("Exported power (%.2f w) > 300w threshold, checking for additional consumption opportunities")
                 
                 for key, value in consumptions.items():
-                    self.log("Checking consumption key: %s" % key, level="DEBUG")
+                    self.log("Checking consumption key: %s" % key)
                     if key not in self._consumptions:
-                        self.log("Consumption '%s' not currently active, evaluating for activation" % key, level="DEBUG")
+                        self.log("Consumption '%s' not currently active, evaluating for activation" % key)
                         # Get the lowest usage stage
                         lowest_usage = float(99999999)
                         for ik, iv in enumerate(value): 
@@ -416,32 +416,32 @@ class EnergyManager(hass.Hass):
                                 lowest_usage = iv["usage"]
                                 lowest_stage = ik
 
-                        self.log("Lowest usage for '%s': stage=%d, usage=%.2f" % (key, lowest_stage, lowest_usage), level="DEBUG")
+                        self.log("Lowest usage for '%s': stage=%d, usage=%.2f" % (key, lowest_stage, lowest_usage))
 
                         if lowest_usage > exported_watt:
-                            self.log("Condition met: lowest_usage (%.2f) > exported_watt (%.2f)" % (lowest_usage, exported_watt), level="DEBUG")
+                            self.log("Condition met: lowest_usage (%.2f) > exported_watt (%.2f)" % (lowest_usage, exported_watt))
                             # We need to turn on
                             stage = value[lowest_stage]
-                            self.log("Activating consumption '%s' with switch '%s'" % (key, stage["switch"]), level="INFO")
+                            self.log("Activating consumption '%s' with switch '%s'" % (key, stage["switch"]))
                             self._turn_on(stage["switch"])
 
                             self.log("Adding consumption: %s, %d, %d" % (key, lowest_stage, lowest_usage))
                             self._consumptions[key] = AdditionalConsumer(lowest_stage, lowest_usage)
                             exported_watt -= lowest_usage
-                            self.log("Remaining exported power after activation: %.2f w" % exported_watt, level="DEBUG")
+                            self.log("Remaining exported power after activation: %.2f w" % exported_watt)
 
                             return
                         else:
-                            self.log("Condition not met: lowest_usage (%.2f) <= exported_watt (%.2f), skipping" % (lowest_usage, exported_watt), level="DEBUG")
+                            self.log("Condition not met: lowest_usage (%.2f) <= exported_watt (%.2f), skipping" % (lowest_usage, exported_watt))
                     else:
-                        self.log("Consumption '%s' already active, skipping" % key, level="DEBUG")
+                        self.log("Consumption '%s' already active, skipping" % key)
                         
                 # We have enabled all consumptions, check if we can level up to a next stage
-                self.log("All available consumptions evaluated, checking for level-up opportunities", level="DEBUG")
+                self.log("All available consumptions evaluated, checking for level-up opportunities")
                 for key, value in consumptions.items():
                     if key in self._consumptions:
                         c = self._consumptions[key]
-                        self.log("Checking level-up for '%s': current stage=%d, usage=%.2f" % (key, c.stage, c.usage), level="DEBUG")
+                        self.log("Checking level-up for '%s': current stage=%d, usage=%.2f" % (key, c.stage, c.usage))
 
                         # Find the lowest usage which is still above the current usage
                         lowest_usage = float(99999999)
@@ -451,7 +451,7 @@ class EnergyManager(hass.Hass):
                                 lowest_stage = ik
 
                         if lowest_usage > 0:
-                            self.log("Found potential level-up for '%s': stage=%d, usage=%.2f" % (key, lowest_stage, lowest_usage), level="DEBUG")
+                            self.log("Found potential level-up for '%s': stage=%d, usage=%.2f" % (key, lowest_stage, lowest_usage))
                             # Do we have enough capacity?
                             diff = lowest_usage - c.usage
                             if exported_watt > diff:
@@ -465,35 +465,35 @@ class EnergyManager(hass.Hass):
 
                                 # To we need to switch?
                                 if stage["switch"] != new_stage["switch"]:
-                                    self.log("Switching from '%s' to '%s'" % (stage["switch"], new_stage["switch"]), level="INFO")
+                                    self.log("Switching from '%s' to '%s'" % (stage["switch"], new_stage["switch"]))
                                     self._turn_off(stage["switch"])
                                     self._turn_on(new_stage["switch"])
                                 else:
-                                    self.log("No switch change needed, same switch: '%s'" % stage["switch"], level="DEBUG")
+                                    self.log("No switch change needed, same switch: '%s'" % stage["switch"])
 
                                 c.stage = lowest_stage
                                 c.usage = new_stage["usage"]
-                                self.log("Updated consumption '%s': stage=%d, usage=%.2f" % (key, c.stage, c.usage), level="DEBUG")
+                                self.log("Updated consumption '%s': stage=%d, usage=%.2f" % (key, c.stage, c.usage))
 
                                 return
                             else:
-                                self.log("Insufficient exported power for level-up: need %.2f, have %.2f" % (diff, exported_watt), level="DEBUG")
+                                self.log("Insufficient exported power for level-up: need %.2f, have %.2f" % (diff, exported_watt))
                         else:
-                            self.log("No level-up opportunity found for '%s'" % key, level="DEBUG")
+                            self.log("No level-up opportunity found for '%s'" % key)
                 
-                self.log("Calling consume_more for all known consumers", level="DEBUG")
+                self.log("Calling consume_more for all known consumers")
                 for ec in self._known:
-                    self.log("Calling consume_more for consumer: %s" % ec.name, level="DEBUG")
+                    self.log("Calling consume_more for consumer: %s" % ec.name)
                     ec.consume_more() 
             else:
-                self.log("Exported power (%.2f w) <= 300w threshold, checking for consumption reduction", level="INFO")
+                self.log("Exported power (%.2f w) <= 300w threshold, checking for consumption reduction")
                 for key, value in consumptions.items():
                     if key in self._consumptions:
                         c = self._consumptions[key]
-                        self.log("Checking reduction for '%s': current stage=%d, usage=%.2f" % (key, c.stage, c.usage), level="DEBUG")
+                        self.log("Checking reduction for '%s': current stage=%d, usage=%.2f" % (key, c.stage, c.usage))
                         
                         if c.usage > panel_to_house_w:
-                            self.log("Condition met: current usage (%.2f) > panel_to_house_w (%.2f)" % (c.usage, panel_to_house_w), level="DEBUG")
+                            self.log("Condition met: current usage (%.2f) > panel_to_house_w (%.2f)" % (c.usage, panel_to_house_w))
                             # Check if we can level down
                             # Find the heighest usage which is below the current usage
                             highest_usage = float(0)
@@ -502,10 +502,10 @@ class EnergyManager(hass.Hass):
                                     highest_usage = iv["usage"]
                                     highest_stage = ik
                             
-                            self.log("Highest usage below current: stage=%d, usage=%.2f" % (highest_stage, highest_usage), level="DEBUG")
+                            self.log("Highest usage below current: stage=%d, usage=%.2f" % (highest_stage, highest_usage))
                             
                             if highest_usage > 0 and highest_usage < panel_to_house_w:
-                                self.log("Leveling down consumption: %s to stage %d (%.2f w)" % (key, highest_stage, highest_usage), level="INFO")
+                                self.log("Leveling down consumption: %s to stage %d (%.2f w)" % (key, highest_stage, highest_usage))
                                 # Old stage
                                 stage = value[c.stage]
 
@@ -514,17 +514,17 @@ class EnergyManager(hass.Hass):
 
                                 # To we need to switch?
                                 if stage["switch"] != new_stage["switch"]:
-                                    self.log("Switching from '%s' to '%s'" % (stage["switch"], new_stage["switch"]), level="INFO")
+                                    self.log("Switching from '%s' to '%s'" % (stage["switch"], new_stage["switch"]))
                                     self._turn_off(stage["switch"])
                                     self._turn_on(new_stage["switch"])
                                 else:
-                                    self.log("No switch change needed for level-down", level="DEBUG")
+                                    self.log("No switch change needed for level-down")
 
                                 c.stage = highest_stage
                                 c.usage = new_stage["usage"]
-                                self.log("Updated consumption '%s': stage=%d, usage=%.2f" % (key, c.stage, c.usage), level="DEBUG")
+                                self.log("Updated consumption '%s': stage=%d, usage=%.2f" % (key, c.stage, c.usage))
                             else:
-                                self.log("No suitable level-down found or insufficient power, turning off consumption: %s" % key, level="INFO")
+                                self.log("No suitable level-down found or insufficient power, turning off consumption: %s" % key)
                                 # We need to turn off
                                 stage = value[c.stage]
                                 self._turn_off(stage["switch"])
@@ -534,11 +534,11 @@ class EnergyManager(hass.Hass):
                                 
                                 return
                         else:
-                            self.log("Condition not met: current usage (%.2f) <= panel_to_house_w (%.2f), keeping current state" % (c.usage, panel_to_house_w), level="DEBUG")
+                            self.log("Condition not met: current usage (%.2f) <= panel_to_house_w (%.2f), keeping current state" % (c.usage, panel_to_house_w))
         else:
-            self.log("No consumption configuration found in args", level="DEBUG")
+            self.log("No consumption configuration found in args")
 
-        self.log("=== Energy Manager Update Method Completed ===", level="INFO")
+        self.log("=== Energy Manager Update Method Completed ===")
 
 
                     
