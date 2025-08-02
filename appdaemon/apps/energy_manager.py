@@ -96,10 +96,10 @@ class EnergyManager(hass.Hass):
 
         self.run_every(self.run_every_c, "now", 5*60)
 
-    def call_all_active_virtual_entities(self, event, value):
+    def call_all_active_virtual_entities(self, event, v):
         for key, value in self._virtual_entities.items():
             if value.switched:
-                self.call_virtual_entity(key, event, value)
+                self.call_virtual_entity(key, event, v)
 
     def call_virtual_entity(self, entity, event, value):
         self.log("Calling virtual entity %s for event %s with value %s" % (entity, event, value))
