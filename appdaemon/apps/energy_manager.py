@@ -443,6 +443,7 @@ class EnergyManager(hass.Hass):
                         self.log("Consumption '%s' not currently active, evaluating for activation" % key)
                         # Get the lowest usage stage
                         lowest_usage = float(99999999)
+                        lowest_stage = 0
                         for ik, iv in enumerate(value["stages"]): 
                             if iv["usage"] < lowest_usage:
                                 lowest_usage = iv["usage"]
@@ -477,6 +478,7 @@ class EnergyManager(hass.Hass):
 
                         # Find the lowest usage which is still above the current usage
                         lowest_usage = float(99999999)
+                        lowest_stage = 0
                         for ik, iv in enumerate(value["stages"]):
                             if iv["usage"] > c.usage and iv["usage"] < lowest_usage:
                                 lowest_usage = iv["usage"]
@@ -529,6 +531,7 @@ class EnergyManager(hass.Hass):
                             # Check if we can level down
                             # Find the heighest usage which is below the current usage
                             highest_usage = float(0)
+                            highest_stage = 0
                             for ik, iv in enumerate(value["stages"]):
                                 if iv["usage"] < c.usage and iv["usage"] > highest_usage:
                                     highest_usage = iv["usage"]
