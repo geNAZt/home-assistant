@@ -16,7 +16,11 @@ energy_manager:
               self.call_service("goecharger_api2/set_pv_data", pgrid=value)
         exported_power_update:
           code: |
-            v = value - entity.real_usage
+            v = value
+            if v > entity.usage:
+              v = entity.usage
+
+            v = v - entity.real_usage
             self.log("Exported power update: %.2f w" % v)
             self.call_service("goecharger_api2/set_pv_data", pgrid=v * -1)
         switched:
