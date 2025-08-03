@@ -81,6 +81,10 @@ energy_manager:
         switch: virtual.car
       - usage: 4800
         switch: virtual.car
+      - usage: 3200
+        switch: virtual.car
+      - usage: 2400
+        switch: virtual.car
       - usage: 1600
         switch: virtual.car
     water_heating_pump:
