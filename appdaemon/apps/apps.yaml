@@ -8,6 +8,12 @@ energy_manager:
   module: energy_manager
   class: EnergyManager
   virtuals:
+    solar_battery:
+      events:
+        usage_change:
+          code: |
+            self.log("Solar battery usage change: %.2f w" % value)
+            self.call_service("number/set_value", entity_id="number.pv_storage_remote_charge_limit", value=value)
     car:
       events:
         imported_power_update:
@@ -40,6 +46,19 @@ energy_manager:
             else:
               self.call_service("goecharger_api2/set_pv_data", pgrid=0)
   consumption:
+    solar_battery:
+      tracker: sensor.solar_battery_in_daily
+      stages:
+      - usage: 1000
+        switch: virtual.solar_battery
+      - usage: 2000
+        switch: virtual.solar_battery
+      - usage: 3000
+        switch: virtual.solar_battery
+      - usage: 4000
+        switch: virtual.solar_battery
+      - usage: 5000
+        switch: virtual.solar_battery
     car:
       tracker: sensor.car_charger_usage_total
       stages:

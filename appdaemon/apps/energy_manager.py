@@ -103,6 +103,9 @@ class EnergyManager(hass.Hass):
                 self.call_virtual_entity(key, event, v)
 
     def call_virtual_entity(self, entity, event, value):
+        if entity not in self._virtual_entities:
+            return
+
         e = self._virtual_entities[entity]
         if event in e.events:
             if entity in self._consumptions:
@@ -457,6 +460,7 @@ class EnergyManager(hass.Hass):
 
                         if lowest_usage < exported_watt:
                             self.log("Condition met: lowest_usage (%.2f) > exported_watt (%.2f)" % (lowest_usage, exported_watt))
+                            
                             # We need to turn on
                             stage = value["stages"][lowest_stage]
                             self.log("Activating consumption '%s' with switch '%s'" % (key, stage["switch"]))
@@ -464,6 +468,9 @@ class EnergyManager(hass.Hass):
 
                             self.log("Adding consumption: %s, %d, %d" % (key, lowest_stage, lowest_usage))
                             self._consumptions[key] = AdditionalConsumer(lowest_stage, lowest_usage, lowest_usage)
+                            
+                            self.call_virtual_entity(key, "usage_change", lowest_usage)
+
                             exported_watt -= lowest_usage
                             self.log("Remaining exported power after activation: %.2f w" % exported_watt)
 
@@ -508,6 +515,8 @@ class EnergyManager(hass.Hass):
                                     self._turn_on(new_stage["switch"])
                                 else:
                                     self.log("No switch change needed, same switch: '%s'" % stage["switch"])
+
+                                self.call_virtual_entity(key, "usage_change", new_stage["usage"])
 
                                 c.stage = lowest_stage
                                 c.usage = new_stage["usage"]
@@ -559,6 +568,8 @@ class EnergyManager(hass.Hass):
                                 else:
                                     self.log("No switch change needed for level-down")
 
+                                self.call_virtual_entity(key, "usage_change", new_stage["usage"])
+
                                 c.stage = highest_stage
                                 c.usage = new_stage["usage"]
                                 self.log("Updated consumption '%s': stage=%d, usage=%.2f" % (key, c.stage, c.usage))
@@ -568,7 +579,8 @@ class EnergyManager(hass.Hass):
                                 stage = value["stages"][c.stage]
                                 self._turn_off(stage["switch"])
                                 del self._consumptions[key]
-
+                                
+                                self.call_virtual_entity(key, "usage_change", 0)
                                 self.log("Removing consumption: %s" % key)
                                 
                                 return
