@@ -18,7 +18,16 @@ energy_manager:
       events:
         imported_power_update:
           code: |
-            if value > 0:
+            cur = self.get_state("sensor.goe_288025_nrg_11")
+
+            try:
+              c = float(cur)
+            except ValueError:
+              c = 0
+
+            if c > entity.usage:
+              self.call_service("goecharger_api2/set_pv_data", pgrid=c-entity.usage)
+            else:
               self.call_service("goecharger_api2/set_pv_data", pgrid=value)
         exported_power_update:
           code: |
@@ -33,12 +42,15 @@ energy_manager:
 
             self.log("Current power: %.2f w, Export power: %.2f w, Allowed usage: %.2f w" % (c, v, entity.usage))
 
-            if v > entity.usage:
-              v = entity.usage
+            if c > entity.usage:
+              self.call_service("goecharger_api2/set_pv_data", pgrid=c-entity.usage)
+            else:
+              if v > entity.usage:
+                v = entity.usage
 
-            v = v - c
-            self.log("Exported power update: %.2f w" % v)
-            self.call_service("goecharger_api2/set_pv_data", pgrid=v * -1)
+              v = v - c
+              self.log("Exported power update: %.2f w" % v)
+              self.call_service("goecharger_api2/set_pv_data", pgrid=v * -1)
         switched:
           code: |
             if not value:
