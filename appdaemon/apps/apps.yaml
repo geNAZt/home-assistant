@@ -48,9 +48,12 @@ energy_manager:
               if v > entity.usage:
                 v = entity.usage
 
-              v = v - c
-              self.log("Exported power update: %.2f w" % v)
-              self.call_service("goecharger_api2/set_pv_data", pgrid=v * -1)
+              wanted = entity.usage - c
+              if wanted > v:
+                wanted = v
+
+              self.log("Exported power update: %.2f w" % wanted)
+              self.call_service("goecharger_api2/set_pv_data", pgrid=wanted * -1)
         switched:
           code: |
             if not value:
