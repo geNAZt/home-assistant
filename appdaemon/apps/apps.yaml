@@ -1,9 +1,4 @@
 ---
-tibber_meter:
-  module: tibber_meter
-  class: TibberMeter
-  email: !secret tibber_email
-  password: !secret tibber_password
 energy_manager:
   module: energy_manager
   class: EnergyManager
