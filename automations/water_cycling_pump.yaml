@@ -18,8 +18,8 @@
         entity_id: switch.water_cycling_pump
     - delay:
         hours: 0
-        minutes: 0
-        seconds: 30
+        minutes: 5
+        seconds: 0
         milliseconds: 0
     - action: switch.turn_off
       metadata: {}
