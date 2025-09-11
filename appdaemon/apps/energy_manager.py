@@ -458,7 +458,7 @@ class EnergyManager(hass.Hass):
 
             # If we have export power check if we can use it
             if exported_watt > 300:
-                self.log("Exported power (%.2f w) > 300w threshold, checking for additional consumption opportunities")
+                self.log("Exported power (%.2f w) > 300w threshold, checking for additional consumption opportunities" % exported_watt)
                 
                 for key, value in consumptions.items():
                     self.log("Checking consumption key: %s" % key)
@@ -468,12 +468,13 @@ class EnergyManager(hass.Hass):
                         self._consumptions[priority] = {}
 
                     # Check if higher priority consumptions are active
-                    for higher_priority, higher_priority_consumptions in self._consumptions.items():
-                        if higher_priority < priority:
-                            for higher_priority_key, higher_priority_value in higher_priority_consumptions.items():
-                                if higher_priority_key in self._consumptions[priority] and higher_priority_value.real_usage > 50:
-                                    self.log("Higher priority consumption '%s' is active, skipping" % higher_priority_key)
-                                    continue
+                    if priority > 0:
+                        for higher_priority, higher_priority_consumptions in self._consumptions.items():
+                            if higher_priority < priority:
+                                for higher_priority_key, higher_priority_value in higher_priority_consumptions.items():
+                                    if higher_priority_key in self._consumptions[priority] and higher_priority_value.real_usage > 50:
+                                        self.log("Higher priority consumption '%s' is active, skipping" % higher_priority_key)
+                                        continue
 
                     if key not in self._consumptions[priority]:
                         self.log("Consumption '%s' not currently active, evaluating for activation" % key)
@@ -518,12 +519,13 @@ class EnergyManager(hass.Hass):
                         self._consumptions[priority] = {}
 
                     # Check if higher priority consumptions are active
-                    for higher_priority, higher_priority_consumptions in self._consumptions.items():
-                        if higher_priority < priority:
-                            for higher_priority_key, higher_priority_value in higher_priority_consumptions.items():
-                                if higher_priority_key in self._consumptions[priority] and higher_priority_value.real_usage > 50:
-                                    self.log("Higher priority consumption '%s' is active, skipping" % higher_priority_key)
-                                    continue
+                    if priority > 0:
+                        for higher_priority, higher_priority_consumptions in self._consumptions.items():
+                            if higher_priority < priority:
+                                for higher_priority_key, higher_priority_value in higher_priority_consumptions.items():
+                                    if higher_priority_key in self._consumptions[priority] and higher_priority_value.real_usage > 50:
+                                        self.log("Higher priority consumption '%s' is active, skipping" % higher_priority_key)
+                                        continue
 
                     if key in self._consumptions[priority]:
                         c = self._consumptions[priority][key]
