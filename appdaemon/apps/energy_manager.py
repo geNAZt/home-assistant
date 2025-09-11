@@ -47,6 +47,12 @@ class EnergyManager(hass.Hass):
     _turned_on: list
     _known: list
 
+    # Consumptions based on priority
+    # Lower number = higher priority
+    # Key is the priority number
+    # Value is a dict of consumptions
+    #   Key is the consumption name
+    #   Value is the consumption object
     _consumptions: dict
 
     _solar_panel_production: float
@@ -353,14 +359,15 @@ class EnergyManager(hass.Hass):
         
 
         # Update all consumption trackers
-        for key, value in self._consumptions.items():
-            # Get the consumption configuration
-            consumption_config = self.args["consumption"][key]
-            energy_consumption_rate = self.energy_consumption_rate(consumption_config["tracker"])
+        for priority, consumptions in self._consumptions.items():
+            for key, value in consumptions.items():                
+                # Get the consumption configuration
+                consumption_config = self.args["consumption"][key]
+                energy_consumption_rate = self.energy_consumption_rate(consumption_config["tracker"])
 
-            self.log("Energy consumption rate for %s: %.2f w" % (key, energy_consumption_rate))
+                self.log("Energy consumption rate for %s: %.2f w" % (key, energy_consumption_rate))
 
-            value.real_usage = energy_consumption_rate
+                value.real_usage = energy_consumption_rate
 
         # Get proper solar panel production
         panel_to_house_w = self._solar_panel_production / self._solar_panel_amount if self._solar_panel_amount > 0 else 0
@@ -446,8 +453,22 @@ class EnergyManager(hass.Hass):
                 
                 for key, value in consumptions.items():
                     self.log("Checking consumption key: %s" % key)
-                    if key not in self._consumptions:
+
+                    priority = value["priority"]
+                    if priority not in self._consumptions:
+                        self._consumptions[priority] = {}
+
+                    # Check if higher priority consumptions are active
+                    for higher_priority, higher_priority_consumptions in self._consumptions.items():
+                        if higher_priority < priority:
+                            for higher_priority_key, higher_priority_value in higher_priority_consumptions.items():
+                                if higher_priority_key in self._consumptions[priority] and higher_priority_value.real_usage > 50:
+                                    self.log("Higher priority consumption '%s' is active, skipping" % higher_priority_key)
+                                    continue
+
+                    if key not in self._consumptions[priority]:
                         self.log("Consumption '%s' not currently active, evaluating for activation" % key)
+
                         # Get the lowest usage stage
                         lowest_usage = float(99999999)
                         lowest_stage = 0
@@ -467,7 +488,7 @@ class EnergyManager(hass.Hass):
                             self._turn_on(stage["switch"])
 
                             self.log("Adding consumption: %s, %d, %d" % (key, lowest_stage, lowest_usage))
-                            self._consumptions[key] = AdditionalConsumer(lowest_stage, lowest_usage, lowest_usage)
+                            self._consumptions[priority][key] = AdditionalConsumer(lowest_stage, lowest_usage, lowest_usage)
                             
                             self.call_virtual_entity(key, "usage_change", lowest_usage)
 
@@ -483,8 +504,20 @@ class EnergyManager(hass.Hass):
                 # We have enabled all consumptions, check if we can level up to a next stage
                 self.log("All available consumptions evaluated, checking for level-up opportunities")
                 for key, value in consumptions.items():
-                    if key in self._consumptions:
-                        c = self._consumptions[key]
+                    priority = value["priority"]
+                    if priority not in self._consumptions:
+                        self._consumptions[priority] = {}
+
+                    # Check if higher priority consumptions are active
+                    for higher_priority, higher_priority_consumptions in self._consumptions.items():
+                        if higher_priority < priority:
+                            for higher_priority_key, higher_priority_value in higher_priority_consumptions.items():
+                                if higher_priority_key in self._consumptions[priority] and higher_priority_value.real_usage > 50:
+                                    self.log("Higher priority consumption '%s' is active, skipping" % higher_priority_key)
+                                    continue
+
+                    if key in self._consumptions[priority]:
+                        c = self._consumptions[priority][key]
                         self.log("Checking level-up for '%s': current stage=%d, usage=%.2f" % (key, c.stage, c.usage))
 
                         # Find the lowest usage which is still above the current usage
@@ -534,58 +567,59 @@ class EnergyManager(hass.Hass):
                     ec.consume_more() 
             else:
                 self.log("Exported power (%.2f w) <= 300w threshold, checking for consumption reduction")
-                for key, value in consumptions.items():
-                    if key in self._consumptions:
-                        c = self._consumptions[key]
-                        self.log("Checking reduction for '%s': current stage=%d, usage=%.2f" % (key, c.stage, c.usage))
-                        
-                        if c.usage > panel_to_house_w:
-                            self.log("Condition met: current usage (%.2f) > panel_to_house_w (%.2f)" % (c.usage, panel_to_house_w))
-                            # Check if we can level down
-                            # Find the heighest usage which is below the current usage
-                            highest_usage = float(0)
-                            highest_stage = 0
-                            for ik, iv in enumerate(value["stages"]):
-                                if iv["usage"] < c.usage and iv["usage"] > highest_usage:
-                                    highest_usage = iv["usage"]
-                                    highest_stage = ik
+                for priority, consumptions in self._consumptions.items():
+                    for key, value in consumptions.items():
+                        if key in self._consumptions[priority]:
+                            c = self._consumptions[priority][key]
+                            self.log("Checking reduction for '%s': current stage=%d, usage=%.2f" % (key, c.stage, c.usage))
                             
-                            self.log("Highest usage below current: stage=%d, usage=%.2f" % (highest_stage, highest_usage))
-                            
-                            if highest_usage > 0 and highest_usage < panel_to_house_w:
-                                self.log("Leveling down consumption: %s to stage %d (%.2f w)" % (key, highest_stage, highest_usage))
-                                # Old stage
-                                stage = value["stages"][c.stage]
+                            if c.usage > panel_to_house_w:
+                                self.log("Condition met: current usage (%.2f) > panel_to_house_w (%.2f)" % (c.usage, panel_to_house_w))
+                                # Check if we can level down
+                                # Find the heighest usage which is below the current usage
+                                highest_usage = float(0)
+                                highest_stage = 0
+                                for ik, iv in enumerate(value["stages"]):
+                                    if iv["usage"] < c.usage and iv["usage"] > highest_usage:
+                                        highest_usage = iv["usage"]
+                                        highest_stage = ik
+                                
+                                self.log("Highest usage below current: stage=%d, usage=%.2f" % (highest_stage, highest_usage))
+                                
+                                if highest_usage > 0 and highest_usage < panel_to_house_w:
+                                    self.log("Leveling down consumption: %s to stage %d (%.2f w)" % (key, highest_stage, highest_usage))
+                                    # Old stage
+                                    stage = value["stages"][c.stage]
 
-                                # New stage
-                                new_stage = value["stages"][highest_stage]
+                                    # New stage
+                                    new_stage = value["stages"][highest_stage]
 
-                                # To we need to switch?
-                                if stage["switch"] != new_stage["switch"]:
-                                    self.log("Switching from '%s' to '%s'" % (stage["switch"], new_stage["switch"]))
-                                    self._turn_off(stage["switch"])
-                                    self._turn_on(new_stage["switch"])
+                                    # To we need to switch?
+                                    if stage["switch"] != new_stage["switch"]:
+                                        self.log("Switching from '%s' to '%s'" % (stage["switch"], new_stage["switch"]))
+                                        self._turn_off(stage["switch"])
+                                        self._turn_on(new_stage["switch"])
+                                    else:
+                                        self.log("No switch change needed for level-down")
+
+                                    self.call_virtual_entity(key, "usage_change", new_stage["usage"])
+
+                                    c.stage = highest_stage
+                                    c.usage = new_stage["usage"]
+                                    self.log("Updated consumption '%s': stage=%d, usage=%.2f" % (key, c.stage, c.usage))
                                 else:
-                                    self.log("No switch change needed for level-down")
-
-                                self.call_virtual_entity(key, "usage_change", new_stage["usage"])
-
-                                c.stage = highest_stage
-                                c.usage = new_stage["usage"]
-                                self.log("Updated consumption '%s': stage=%d, usage=%.2f" % (key, c.stage, c.usage))
+                                    self.log("No suitable level-down found or insufficient power, turning off consumption: %s" % key)
+                                    # We need to turn off
+                                    stage = value["stages"][c.stage]
+                                    self._turn_off(stage["switch"])
+                                    del self._consumptions[key]
+                                    
+                                    self.call_virtual_entity(key, "usage_change", 0)
+                                    self.log("Removing consumption: %s" % key)
+                                    
+                                    return
                             else:
-                                self.log("No suitable level-down found or insufficient power, turning off consumption: %s" % key)
-                                # We need to turn off
-                                stage = value["stages"][c.stage]
-                                self._turn_off(stage["switch"])
-                                del self._consumptions[key]
-                                
-                                self.call_virtual_entity(key, "usage_change", 0)
-                                self.log("Removing consumption: %s" % key)
-                                
-                                return
-                        else:
-                            self.log("Condition not met: current usage (%.2f) <= panel_to_house_w (%.2f), keeping current state" % (c.usage, panel_to_house_w))
+                                self.log("Condition not met: current usage (%.2f) <= panel_to_house_w (%.2f), keeping current state" % (c.usage, panel_to_house_w))
         else:
             self.log("No consumption configuration found in args")
 

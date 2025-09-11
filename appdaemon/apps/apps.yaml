@@ -58,6 +58,7 @@ energy_manager:
   consumption:
     solar_battery:
       tracker: sensor.solar_battery_in_daily
+      priority: 0
       stages:
       - usage: 1000
         switch: virtual.solar_battery
@@ -71,6 +72,7 @@ energy_manager:
         switch: virtual.solar_battery
     car:
       tracker: sensor.car_charger_usage_total
+      priority: 1
       stages:
       - usage: 7200
         switch: virtual.car
@@ -84,6 +86,7 @@ energy_manager:
         switch: virtual.car
     water_heating_pump:
       tracker: sensor.water_heating_pump_usage
+      priority: 1
       stages: 
       - usage: 1600
         switch: switch.water_heater_pv_switch_powerr_usage_stage_2
