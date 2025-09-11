@@ -471,7 +471,9 @@ class EnergyManager(hass.Hass):
                     if priority > 0:
                         for higher_priority, higher_priority_consumptions in self._consumptions.items():
                             if higher_priority < priority:
+                                self.log("Checking higher priority consumptions for priority %d" % higher_priority)
                                 for higher_priority_key, higher_priority_value in higher_priority_consumptions.items():
+                                    self.log("Checking higher priority consumption '%s' for priority %d" % (higher_priority_key, higher_priority))
                                     if higher_priority_key in self._consumptions[priority] and higher_priority_value.real_usage > 50:
                                         self.log("Higher priority consumption '%s' is active, skipping" % higher_priority_key)
                                         continue
