@@ -463,16 +463,16 @@ class EnergyManager(hass.Hass):
                 self.log("Exported power (%.2f w) > 300w threshold, checking for additional consumption opportunities" % exported_watt)
                 
                 for key, value in consumptions.items():
-                    self.log("Checking consumption key: %s" % key)
+                    try:
+                        self.log("Checking consumption key: %s" % key)
 
-                    priority = value["priority"]
-                    if priority not in self._consumptions:
-                        self._consumptions[priority] = {}
+                        priority = value["priority"]
+                        if priority not in self._consumptions:
+                            self._consumptions[priority] = {}
 
-                    # Check if higher priority consumptions are active
-                    if priority > 0:
-                        for higher_priority, higher_priority_consumptions in self._consumptions.items():
-                            try:
+                        # Check if higher priority consumptions are active
+                        if priority > 0:
+                            for higher_priority, higher_priority_consumptions in self._consumptions.items():
                                 if higher_priority < priority:
                                     self.log("Checking higher priority consumptions for priority %d" % higher_priority)
                                     for higher_priority_key, higher_priority_value in higher_priority_consumptions.items():
@@ -480,57 +480,56 @@ class EnergyManager(hass.Hass):
                                         if higher_priority_value.real_usage > 50:
                                             self.log("Higher priority consumption '%s' is active, skipping" % higher_priority_key)
                                             raise Exception("Higher priority consumption found")
-                            except Exception as e:
-                                self.log("Exception: %s" % e)
-                                break
+                                
+                        if key not in self._consumptions[priority]:
+                            self.log("Consumption '%s' not currently active, evaluating for activation" % key)
 
+                            # Get the lowest usage stage
+                            lowest_usage = float(99999999)
+                            lowest_stage = 0
+                            for ik, iv in enumerate(value["stages"]): 
+                                if iv["usage"] < lowest_usage:
+                                    lowest_usage = iv["usage"]
+                                    lowest_stage = ik
 
-                    if key not in self._consumptions[priority]:
-                        self.log("Consumption '%s' not currently active, evaluating for activation" % key)
+                            self.log("Lowest usage for '%s': stage=%d, usage=%.2f" % (key, lowest_stage, lowest_usage))
 
-                        # Get the lowest usage stage
-                        lowest_usage = float(99999999)
-                        lowest_stage = 0
-                        for ik, iv in enumerate(value["stages"]): 
-                            if iv["usage"] < lowest_usage:
-                                lowest_usage = iv["usage"]
-                                lowest_stage = ik
+                            if lowest_usage < exported_watt:
+                                self.log("Condition met: lowest_usage (%.2f) > exported_watt (%.2f)" % (lowest_usage, exported_watt))
+                                
+                                # We need to turn on
+                                stage = value["stages"][lowest_stage]
+                                self.log("Activating consumption '%s' with switch '%s'" % (key, stage["switch"]))
+                                self._turn_on(stage["switch"])
 
-                        self.log("Lowest usage for '%s': stage=%d, usage=%.2f" % (key, lowest_stage, lowest_usage))
+                                self.log("Adding consumption: %s, %d, %d" % (key, lowest_stage, lowest_usage))
+                                self._consumptions[priority][key] = AdditionalConsumer(lowest_stage, lowest_usage, lowest_usage)
+                                
+                                self.call_virtual_entity(key, "usage_change", lowest_usage)
 
-                        if lowest_usage < exported_watt:
-                            self.log("Condition met: lowest_usage (%.2f) > exported_watt (%.2f)" % (lowest_usage, exported_watt))
-                            
-                            # We need to turn on
-                            stage = value["stages"][lowest_stage]
-                            self.log("Activating consumption '%s' with switch '%s'" % (key, stage["switch"]))
-                            self._turn_on(stage["switch"])
+                                exported_watt -= lowest_usage
+                                self.log("Remaining exported power after activation: %.2f w" % exported_watt)
 
-                            self.log("Adding consumption: %s, %d, %d" % (key, lowest_stage, lowest_usage))
-                            self._consumptions[priority][key] = AdditionalConsumer(lowest_stage, lowest_usage, lowest_usage)
-                            
-                            self.call_virtual_entity(key, "usage_change", lowest_usage)
-
-                            exported_watt -= lowest_usage
-                            self.log("Remaining exported power after activation: %.2f w" % exported_watt)
-
-                            return
+                                return
+                            else:
+                                self.log("Condition not met: lowest_usage (%.2f) >= exported_watt (%.2f), skipping" % (lowest_usage, exported_watt))
                         else:
-                            self.log("Condition not met: lowest_usage (%.2f) >= exported_watt (%.2f), skipping" % (lowest_usage, exported_watt))
-                    else:
-                        self.log("Consumption '%s' already active, skipping" % key)
+                            self.log("Consumption '%s' already active, skipping" % key)
+                    except Exception as e:
+                        self.log("Exception: %s" % e)
+                        continue
                         
                 # We have enabled all consumptions, check if we can level up to a next stage
                 self.log("All available consumptions evaluated, checking for level-up opportunities")
                 for key, value in consumptions.items():
-                    priority = value["priority"]
-                    if priority not in self._consumptions:
-                        self._consumptions[priority] = {}
+                    try:
+                        priority = value["priority"]
+                        if priority not in self._consumptions:
+                            self._consumptions[priority] = {}
 
-                    # Check if higher priority consumptions are active
-                    if priority > 0:
-                        for higher_priority, higher_priority_consumptions in self._consumptions.items():
-                            try:
+                        # Check if higher priority consumptions are active
+                        if priority > 0:
+                            for higher_priority, higher_priority_consumptions in self._consumptions.items():
                                 if higher_priority < priority:
                                     self.log("Checking higher priority consumptions for priority %d" % higher_priority)
                                     for higher_priority_key, higher_priority_value in higher_priority_consumptions.items():
@@ -538,54 +537,54 @@ class EnergyManager(hass.Hass):
                                         if higher_priority_value.real_usage > 50:
                                             self.log("Higher priority consumption '%s' is active, skipping" % higher_priority_key)
                                             raise Exception("Higher priority consumption found")
-                            except Exception as e:
-                                self.log("Exception: %s" % e)
-                                break
 
-                    if key in self._consumptions[priority]:
-                        c = self._consumptions[priority][key]
-                        self.log("Checking level-up for '%s': current stage=%d, usage=%.2f" % (key, c.stage, c.usage))
+                        if key in self._consumptions[priority]:
+                            c = self._consumptions[priority][key]
+                            self.log("Checking level-up for '%s': current stage=%d, usage=%.2f" % (key, c.stage, c.usage))
 
-                        # Find the lowest usage which is still above the current usage
-                        lowest_usage = float(99999999)
-                        lowest_stage = 0
-                        for ik, iv in enumerate(value["stages"]):
-                            if iv["usage"] > c.usage and iv["usage"] < lowest_usage:
-                                lowest_usage = iv["usage"]
-                                lowest_stage = ik
+                            # Find the lowest usage which is still above the current usage
+                            lowest_usage = float(99999999)
+                            lowest_stage = 0
+                            for ik, iv in enumerate(value["stages"]):
+                                if iv["usage"] > c.usage and iv["usage"] < lowest_usage:
+                                    lowest_usage = iv["usage"]
+                                    lowest_stage = ik
 
-                        if lowest_usage > 0:
-                            self.log("Found potential level-up for '%s': stage=%d, usage=%.2f" % (key, lowest_stage, lowest_usage))
-                            # Do we have enough capacity?
-                            diff = lowest_usage - c.usage
-                            if exported_watt > diff:
-                                self.log("Leveling up consumption: %s, %d, %d" % (key, lowest_stage, lowest_usage))
+                            if lowest_usage > 0:
+                                self.log("Found potential level-up for '%s': stage=%d, usage=%.2f" % (key, lowest_stage, lowest_usage))
+                                # Do we have enough capacity?
+                                diff = lowest_usage - c.usage
+                                if exported_watt > diff:
+                                    self.log("Leveling up consumption: %s, %d, %d" % (key, lowest_stage, lowest_usage))
 
-                                # Old stage
-                                stage = value["stages"][c.stage]
+                                    # Old stage
+                                    stage = value["stages"][c.stage]
 
-                                # New stage
-                                new_stage = value["stages"][lowest_stage]
+                                    # New stage
+                                    new_stage = value["stages"][lowest_stage]
 
-                                # To we need to switch?
-                                if stage["switch"] != new_stage["switch"]:
-                                    self.log("Switching from '%s' to '%s'" % (stage["switch"], new_stage["switch"]))
-                                    self._turn_off(stage["switch"])
-                                    self._turn_on(new_stage["switch"])
+                                    # To we need to switch?
+                                    if stage["switch"] != new_stage["switch"]:
+                                        self.log("Switching from '%s' to '%s'" % (stage["switch"], new_stage["switch"]))
+                                        self._turn_off(stage["switch"])
+                                        self._turn_on(new_stage["switch"])
+                                    else:
+                                        self.log("No switch change needed, same switch: '%s'" % stage["switch"])
+
+                                    self.call_virtual_entity(key, "usage_change", new_stage["usage"])
+
+                                    c.stage = lowest_stage
+                                    c.usage = new_stage["usage"]
+                                    self.log("Updated consumption '%s': stage=%d, usage=%.2f" % (key, c.stage, c.usage))
+
+                                    return
                                 else:
-                                    self.log("No switch change needed, same switch: '%s'" % stage["switch"])
-
-                                self.call_virtual_entity(key, "usage_change", new_stage["usage"])
-
-                                c.stage = lowest_stage
-                                c.usage = new_stage["usage"]
-                                self.log("Updated consumption '%s': stage=%d, usage=%.2f" % (key, c.stage, c.usage))
-
-                                return
+                                    self.log("Insufficient exported power for level-up: need %.2f, have %.2f" % (diff, exported_watt))
                             else:
-                                self.log("Insufficient exported power for level-up: need %.2f, have %.2f" % (diff, exported_watt))
-                        else:
-                            self.log("No level-up opportunity found for '%s'" % key)
+                                self.log("No level-up opportunity found for '%s'" % key)
+                    except Exception as e:
+                        self.log("Exception: %s" % e)
+                        continue
                 
                 self.log("Calling consume_more for all known consumers")
                 for ec in self._known:
