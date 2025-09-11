@@ -455,6 +455,8 @@ class EnergyManager(hass.Hass):
 
             for priority, cur_consumptions in self._consumptions.items():
                 self.log("Current active consumptions for priority %d: %s" % (priority, list(cur_consumptions.keys())))
+                for key, value in cur_consumptions.items():
+                    self.log("Current active consumption '%s' for priority %d: %d" % (key, priority, value.real_usage))
 
             # If we have export power check if we can use it
             if exported_watt > 300:
