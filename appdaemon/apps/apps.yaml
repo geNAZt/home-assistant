@@ -57,7 +57,7 @@ energy_manager:
               self.call_service("goecharger_api2/set_pv_data", pgrid=0)
   consumption:
     solar_battery:
-      tracker: sensor.solar_battery_in_daily
+      tracker: sensor.pv_battery1_power
       priority: 0
       stages:
       - usage: 1000

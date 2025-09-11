@@ -332,9 +332,16 @@ class EnergyManager(hass.Hass):
 
     def energy_consumption_rate(self, tracker):
         now = datetime.now()
-        current_value = float(self.get_state(tracker))
 
+        current_value = float(self.get_state(tracker))
         self.log("Current value for %s: %.2f w" % (tracker, current_value))
+
+        # Check unit
+        unit = self.get_state(tracker, attribute = "unit_of_measurement")
+        if unit == "W":
+            return current_value
+        elif unit == "kW":
+            return current_value * 1000
 
         start_time =  now - timedelta(minutes = 10)
         data = self.get_history(entity_id = tracker, start_time = start_time)
@@ -445,7 +452,9 @@ class EnergyManager(hass.Hass):
             self.log("=== Additional Consumption Logic ===")
             consumptions = self.args["consumption"]
             self.log("Available consumptions: %s" % list(consumptions.keys()))
-            self.log("Current active consumptions: %s" % list(self._consumptions.keys()))
+
+            for priority, consumptions in self._consumptions.items():
+                self.log("Current active consumptions for priority %d: %s" % (priority, list(consumptions.keys())))
 
             # If we have export power check if we can use it
             if exported_watt > 300:
