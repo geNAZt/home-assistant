@@ -472,13 +472,18 @@ class EnergyManager(hass.Hass):
                     # Check if higher priority consumptions are active
                     if priority > 0:
                         for higher_priority, higher_priority_consumptions in self._consumptions.items():
-                            if higher_priority < priority:
-                                self.log("Checking higher priority consumptions for priority %d" % higher_priority)
-                                for higher_priority_key, higher_priority_value in higher_priority_consumptions.items():
-                                    self.log("Checking higher priority consumption '%s' for priority %d" % (higher_priority_key, higher_priority))
-                                    if higher_priority_key in self._consumptions[priority] and higher_priority_value.real_usage > 50:
-                                        self.log("Higher priority consumption '%s' is active, skipping" % higher_priority_key)
-                                        continue
+                            try:
+                                if higher_priority < priority:
+                                    self.log("Checking higher priority consumptions for priority %d" % higher_priority)
+                                    for higher_priority_key, higher_priority_value in higher_priority_consumptions.items():
+                                        self.log("Checking higher priority consumption '%s' for priority %d, real usage: %.2f" % (higher_priority_key, higher_priority, higher_priority_value.real_usage))
+                                        if higher_priority_value.real_usage > 50:
+                                            self.log("Higher priority consumption '%s' is active, skipping" % higher_priority_key)
+                                            raise Exception("Higher priority consumption found")
+                            except Exception as e:
+                                self.log("Exception: %s" % e)
+                                break
+
 
                     if key not in self._consumptions[priority]:
                         self.log("Consumption '%s' not currently active, evaluating for activation" % key)
@@ -525,11 +530,17 @@ class EnergyManager(hass.Hass):
                     # Check if higher priority consumptions are active
                     if priority > 0:
                         for higher_priority, higher_priority_consumptions in self._consumptions.items():
-                            if higher_priority < priority:
-                                for higher_priority_key, higher_priority_value in higher_priority_consumptions.items():
-                                    if higher_priority_key in self._consumptions[priority] and higher_priority_value.real_usage > 50:
-                                        self.log("Higher priority consumption '%s' is active, skipping" % higher_priority_key)
-                                        continue
+                            try:
+                                if higher_priority < priority:
+                                    self.log("Checking higher priority consumptions for priority %d" % higher_priority)
+                                    for higher_priority_key, higher_priority_value in higher_priority_consumptions.items():
+                                        self.log("Checking higher priority consumption '%s' for priority %d, real usage: %.2f" % (higher_priority_key, higher_priority, higher_priority_value.real_usage))
+                                        if higher_priority_value.real_usage > 50:
+                                            self.log("Higher priority consumption '%s' is active, skipping" % higher_priority_key)
+                                            raise Exception("Higher priority consumption found")
+                            except Exception as e:
+                                self.log("Exception: %s" % e)
+                                break
 
                     if key in self._consumptions[priority]:
                         c = self._consumptions[priority][key]
