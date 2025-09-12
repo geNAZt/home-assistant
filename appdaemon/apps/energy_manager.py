@@ -101,6 +101,14 @@ class EnergyManager(hass.Hass):
         self.listen_state(self.onExportedPower, "sensor.solar_exported_power_w")
         self.listen_state(self.onImportedPower, "sensor.solar_imported_power_w")
 
+        # Disable all consumptions to ensure clean state
+        consumptions = self.args["consumption"]
+        for key, value in consumptions.items():
+            stages = value["stages"]
+            for stage in stages:
+                self._turn_off(stage["switch"])
+                self.log("Disabled consumption '%s' with switch '%s'" % (key, stage["switch"]))
+
         self.run_every(self.run_every_c, "now", 60)
 
     def call_all_active_virtual_entities(self, event, v):
@@ -592,59 +600,63 @@ class EnergyManager(hass.Hass):
                     ec.consume_more() 
             else:
                 self.log("Exported power (%.2f w) <= 300w threshold, checking for consumption reduction")
-                for priority, consumptions in self._consumptions.items():
-                    for key, value in consumptions.items():
-                        if key in self._consumptions[priority]:
-                            c = self._consumptions[priority][key]
-                            self.log("Checking reduction for '%s': current stage=%d, usage=%.2f" % (key, c.stage, c.usage))
+
+                for key, value in consumptions.items():
+                    priority = value["priority"]
+                    if priority not in self._consumptions:
+                        continue
+
+                    if key in self._consumptions[priority]:
+                        c = self._consumptions[priority][key]
+                        self.log("Checking reduction for '%s': current stage=%d, usage=%.2f" % (key, c.stage, c.usage))
                             
-                            if c.usage > panel_to_house_w:
-                                self.log("Condition met: current usage (%.2f) > panel_to_house_w (%.2f)" % (c.usage, panel_to_house_w))
-                                # Check if we can level down
-                                # Find the heighest usage which is below the current usage
-                                highest_usage = float(0)
-                                highest_stage = 0
-                                for ik, iv in enumerate(value["stages"]):
-                                    if iv["usage"] < c.usage and iv["usage"] > highest_usage:
-                                        highest_usage = iv["usage"]
-                                        highest_stage = ik
-                                
-                                self.log("Highest usage below current: stage=%d, usage=%.2f" % (highest_stage, highest_usage))
-                                
-                                if highest_usage > 0 and highest_usage < panel_to_house_w:
-                                    self.log("Leveling down consumption: %s to stage %d (%.2f w)" % (key, highest_stage, highest_usage))
-                                    # Old stage
-                                    stage = value["stages"][c.stage]
+                        if c.usage > panel_to_house_w:
+                            self.log("Condition met: current usage (%.2f) > panel_to_house_w (%.2f)" % (c.usage, panel_to_house_w))
+                            # Check if we can level down
+                            # Find the heighest usage which is below the current usage
+                            highest_usage = float(0)
+                            highest_stage = 0
+                            for ik, iv in enumerate(value["stages"]):
+                                if iv["usage"] < c.usage and iv["usage"] > highest_usage:
+                                    highest_usage = iv["usage"]
+                                    highest_stage = ik
+                            
+                            self.log("Highest usage below current: stage=%d, usage=%.2f" % (highest_stage, highest_usage))
+                            
+                            if highest_usage > 0 and highest_usage < panel_to_house_w:
+                                self.log("Leveling down consumption: %s to stage %d (%.2f w)" % (key, highest_stage, highest_usage))
+                                # Old stage
+                                stage = value["stages"][c.stage]
 
-                                    # New stage
-                                    new_stage = value["stages"][highest_stage]
+                                # New stage
+                                new_stage = value["stages"][highest_stage]
 
-                                    # To we need to switch?
-                                    if stage["switch"] != new_stage["switch"]:
-                                        self.log("Switching from '%s' to '%s'" % (stage["switch"], new_stage["switch"]))
-                                        self._turn_off(stage["switch"])
-                                        self._turn_on(new_stage["switch"])
-                                    else:
-                                        self.log("No switch change needed for level-down")
-
-                                    self.call_virtual_entity(key, "usage_change", new_stage["usage"])
-
-                                    c.stage = highest_stage
-                                    c.usage = new_stage["usage"]
-                                    self.log("Updated consumption '%s': stage=%d, usage=%.2f" % (key, c.stage, c.usage))
-                                else:
-                                    self.log("No suitable level-down found or insufficient power, turning off consumption: %s" % key)
-                                    # We need to turn off
-                                    stage = value["stages"][c.stage]
+                                # To we need to switch?
+                                if stage["switch"] != new_stage["switch"]:
+                                    self.log("Switching from '%s' to '%s'" % (stage["switch"], new_stage["switch"]))
                                     self._turn_off(stage["switch"])
-                                    del self._consumptions[key]
-                                    
-                                    self.call_virtual_entity(key, "usage_change", 0)
-                                    self.log("Removing consumption: %s" % key)
-                                    
-                                    return
+                                    self._turn_on(new_stage["switch"])
+                                else:
+                                    self.log("No switch change needed for level-down")
+
+                                self.call_virtual_entity(key, "usage_change", new_stage["usage"])
+
+                                c.stage = highest_stage
+                                c.usage = new_stage["usage"]
+                                self.log("Updated consumption '%s': stage=%d, usage=%.2f" % (key, c.stage, c.usage))
                             else:
-                                self.log("Condition not met: current usage (%.2f) <= panel_to_house_w (%.2f), keeping current state" % (c.usage, panel_to_house_w))
+                                self.log("No suitable level-down found or insufficient power, turning off consumption: %s" % key)
+                                # We need to turn off
+                                stage = value["stages"][c.stage]
+                                self._turn_off(stage["switch"])
+                                del self._consumptions[key]
+                                
+                                self.call_virtual_entity(key, "usage_change", 0)
+                                self.log("Removing consumption: %s" % key)
+                                
+                                return
+                        else:
+                            self.log("Condition not met: current usage (%.2f) <= panel_to_house_w (%.2f), keeping current state" % (c.usage, panel_to_house_w))
         else:
             self.log("No consumption configuration found in args")
 
