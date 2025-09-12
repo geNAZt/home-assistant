@@ -1,5 +1,7 @@
 import appdaemon.plugins.hass.hassapi as hass
 import adbase as ad
+import threading
+import time
 
 from datetime import datetime, timedelta, timezone 
 from dataclasses import dataclass
@@ -65,6 +67,9 @@ class EnergyManager(hass.Hass):
     _virtual_entities: dict
 
     def initialize(self):
+        self.log("=== Energy Manager Initialize Started (Thread: %s) ===" % threading.current_thread().name)
+        start_time = time.time()
+        
         # Init state system
         self._state_callbacks = {}
         self._state_values = {}
@@ -114,55 +119,99 @@ class EnergyManager(hass.Hass):
                 self.log("Disabled consumption '%s' with switch '%s'" % (key, stage["switch"]))
 
         self.run_every(self.run_every_c, "now", 60)
+        
+        init_time = time.time() - start_time
+        self.log("=== Energy Manager Initialize Completed (Thread: %s, Duration: %.3fs) ===" % (threading.current_thread().name, init_time))
 
     def call_all_active_virtual_entities(self, event, v):
+        self.log("Calling all active virtual entities (Thread: %s, Event: %s, Value: %s)" % (threading.current_thread().name, event, v))
+        start_time = time.time()
+        
         for key, value in self._virtual_entities.items():
             if value.switched:
+                self.log("Calling virtual entity: %s (switched: %s)" % (key, value.switched))
                 self.call_virtual_entity(key, event, v)
+        
+        duration = time.time() - start_time
+        self.log("Completed calling all active virtual entities (Duration: %.3fs)" % duration)
 
     def call_virtual_entity(self, entity, event, value):
+        self.log("Calling virtual entity (Thread: %s, Entity: %s, Event: %s, Value: %s)" % (threading.current_thread().name, entity, event, value))
+        start_time = time.time()
+        
         if entity not in self._virtual_entities:
+            self.log("Virtual entity %s not found in _virtual_entities" % entity)
             return
 
         e = self._virtual_entities[entity]
         if event in e.events:
-            if entity in self._consumptions:
-                consumption_entity = self._consumptions[entity]
-                exec(e.events[event]["code"], {"self": self, "value": value, "entity": consumption_entity})
-            else:
-                exec(e.events[event]["code"], {"self": self, "value": value})
+            self.log("Executing virtual entity event code for %s" % entity)
+            try:
+                if entity in self._consumptions:
+                    consumption_entity = self._consumptions[entity]
+                    exec(e.events[event]["code"], {"self": self, "value": value, "entity": consumption_entity})
+                else:
+                    exec(e.events[event]["code"], {"self": self, "value": value})
+                duration = time.time() - start_time
+                self.log("Virtual entity %s event executed successfully (Duration: %.3fs)" % (entity, duration))
+            except Exception as ex:
+                duration = time.time() - start_time
+                self.log("ERROR: Virtual entity %s event execution failed (Duration: %.3fs, Error: %s)" % (entity, duration, str(ex)))
+        else:
+            self.log("Event %s not found for virtual entity %s" % (event, entity))
 
     def onExportedPower(self, entity, attribute, old, new, cb_args):
+        self.log("onExportedPower callback (Thread: %s, Entity: %s, Old: %s, New: %s)" % (threading.current_thread().name, entity, old, new))
+        start_time = time.time()
+        
         # Check if new is a number and update to 0 if not
         try:
             v = float(new)
         except ValueError:
             v = 0
+            self.log("WARNING: onExportedPower received non-numeric value: %s, using 0" % new)
 
         self._exported_power += v
         self._exported_power_amount += 1
 
         self.call_all_active_virtual_entities("exported_power_update", v)
+        
+        duration = time.time() - start_time
+        self.log("onExportedPower completed (Duration: %.3fs, Value: %.2f)" % (duration, v))
 
     def onImportedPower(self, entity, attribute, old, new, cb_args):
+        self.log("onImportedPower callback (Thread: %s, Entity: %s, Old: %s, New: %s)" % (threading.current_thread().name, entity, old, new))
+        start_time = time.time()
+        
         # Check if new is a number and update to 0 if not
         try:
             v = float(new)
         except ValueError:
             v = 0
+            self.log("WARNING: onImportedPower received non-numeric value: %s, using 0" % new)
 
         self.call_all_active_virtual_entities("imported_power_update", v)
+        
+        duration = time.time() - start_time
+        self.log("onImportedPower completed (Duration: %.3fs, Value: %.2f)" % (duration, v))
 
     # Callback for solar panel production, we update the internal state of the panel
     def onSolarPanelProduction(self, entity, attribute, old, new, cb_args):
+        self.log("onSolarPanelProduction callback (Thread: %s, Entity: %s, Old: %s, New: %s)" % (threading.current_thread().name, entity, old, new))
+        start_time = time.time()
+        
         # Check if new is a number and update to 0 if not
         try:
             v = float(new)
         except ValueError:
             v = 0
+            self.log("WARNING: onSolarPanelProduction received non-numeric value: %s, using 0" % new)
             
         self._solar_panel_production += v
         self._solar_panel_amount += 1
+        
+        duration = time.time() - start_time
+        self.log("onSolarPanelProduction completed (Duration: %.3fs, Value: %.2f, Total: %.2f)" % (duration, v, self._solar_panel_production))
 
     def register_consumer(self, group, name, phase, current, turn_on, turn_off, can_be_delayed, consume_more):
         ec = EnergyConsumer(group, name, phase, current, turn_on, turn_off, can_be_delayed, consume_more)
@@ -170,211 +219,513 @@ class EnergyManager(hass.Hass):
         return ec
 
     def ensure_state(self, entity_id, state):
-        self._state_values[entity_id] = state
-        self._set_state(entity_id, state)
-        if entity_id not in self._state_callbacks:
-            self._state_callbacks[entity_id] = self.listen_state(self._ensure_state_callback, entity_id)
+        self.log("=== ensure_state START (Thread: %s, Entity: %s, State: %s) ===" % (threading.current_thread().name, entity_id, state))
+        start_time = time.time()
+        
+        try:
+            self._state_values[entity_id] = state
+            self.log("Set state value for %s to %s" % (entity_id, state))
+            
+            self._set_state(entity_id, state)
+            self.log("Applied state %s to entity %s" % (state, entity_id))
+            
+            if entity_id not in self._state_callbacks:
+                self.log("Setting up state callback for %s" % entity_id)
+                self._state_callbacks[entity_id] = self.listen_state(self._ensure_state_callback, entity_id)
+                self.log("State callback registered for %s" % entity_id)
+            else:
+                self.log("State callback already exists for %s" % entity_id)
+        except Exception as ex:
+            self.log("ERROR in ensure_state for %s: %s" % (entity_id, str(ex)))
+        finally:
+            duration = time.time() - start_time
+            self.log("=== ensure_state END (Thread: %s, Duration: %.3fs) ===" % (threading.current_thread().name, duration))
 
     def _ensure_state_callback(self, entity, attribute, old, new, cb_args):
-        value = self._state_values[entity]
-        if new != value:
-            self._set_state(entity, value)
+        self.log("_ensure_state_callback (Thread: %s, Entity: %s, Old: %s, New: %s)" % (threading.current_thread().name, entity, old, new))
+        start_time = time.time()
+        
+        try:
+            value = self._state_values[entity]
+            if new != value:
+                self.log("State mismatch detected, correcting %s from %s to %s" % (entity, new, value))
+                self._set_state(entity, value)
+            else:
+                self.log("State already correct for %s: %s" % (entity, new))
+        except Exception as ex:
+            self.log("ERROR in _ensure_state_callback for %s: %s" % (entity, str(ex)))
+        finally:
+            duration = time.time() - start_time
+            self.log("_ensure_state_callback completed (Duration: %.3fs)" % duration)
 
     def _set_state(self, entity, value):
-        if entity.startswith("select."):
-            self.call_service("select/select_option", entity_id=entity, option=value)
-        else:
-            self.set_state(entity, state=value)
+        self.log("=== _set_state START (Thread: %s, Entity: %s, Value: %s) ===" % (threading.current_thread().name, entity, value))
+        start_time = time.time()
+        
+        try:
+            if entity.startswith("select."):
+                self.log("Setting select option for %s to %s" % (entity, value))
+                self.call_service("select/select_option", entity_id=entity, option=value)
+                self.log("Select option set successfully")
+            else:
+                self.log("Setting state for %s to %s" % (entity, value))
+                self.set_state(entity, state=value)
+                self.log("State set successfully")
+        except Exception as ex:
+            self.log("ERROR in _set_state for %s: %s" % (entity, str(ex)))
+        finally:
+            duration = time.time() - start_time
+            self.log("=== _set_state END (Thread: %s, Duration: %.3fs) ===" % (threading.current_thread().name, duration))
 
     @ad.global_lock
     def em_turn_on(self, ec: EnergyConsumer):
-        # Check if already turned on
-        if ec in self._turned_on:
-            return
-
-        # Check for phase control
-        if len(ec.phase) > 0:
-            if not self._check_phase(ec):
+        self.log("=== em_turn_on START (Thread: %s, Consumer: %s/%s) ===" % (threading.current_thread().name, ec.name, ec.group))
+        start_time = time.time()
+        
+        try:
+            # Check if already turned on
+            if ec in self._turned_on:
+                self.log("Consumer %s/%s already turned on, skipping" % (ec.name, ec.group))
                 return
 
-        # Check for additional max consumption
-        if self._allowed_to_consume(ec):
+            # Check for phase control
             if len(ec.phase) > 0:
-                self._add_phase(ec)
+                self.log("Checking phase control for %s/%s (phase: %s)" % (ec.name, ec.group, ec.phase))
+                if not self._check_phase(ec):
+                    self.log("Phase check failed for %s/%s" % (ec.name, ec.group))
+                    return
 
-            self.log("  > Turning on %s/%s" % (ec.name, ec.group))
-            ec.turn_on()
-            self._turned_on.append(ec)
+            # Check for additional max consumption
+            self.log("Checking if allowed to consume for %s/%s" % (ec.name, ec.group))
+            if self._allowed_to_consume(ec):
+                if len(ec.phase) > 0:
+                    self.log("Adding phase for %s/%s" % (ec.name, ec.group))
+                    self._add_phase(ec)
+
+                self.log("  > Turning on %s/%s" % (ec.name, ec.group))
+                ec.turn_on()
+                self._turned_on.append(ec)
+                self.log("Successfully turned on %s/%s" % (ec.name, ec.group))
+            else:
+                self.log("Not allowed to consume for %s/%s" % (ec.name, ec.group))
+        except Exception as ex:
+            self.log("ERROR in em_turn_on for %s/%s: %s" % (ec.name, ec.group, str(ex)))
+        finally:
+            duration = time.time() - start_time
+            self.log("=== em_turn_on END (Thread: %s, Duration: %.3fs) ===" % (threading.current_thread().name, duration))
 
     @ad.global_lock
     def em_turn_off(self, ec: EnergyConsumer):
-        ec.turn_off()
-
-        # Check if already turned on
-        if ec not in self._turned_on:
-            return
+        self.log("=== em_turn_off START (Thread: %s, Consumer: %s/%s) ===" % (threading.current_thread().name, ec.name, ec.group))
+        start_time = time.time()
         
-        if len(ec.phase) > 0:
-            self._remove_phase(ec)
+        try:
+            ec.turn_off()
 
-        self._turned_on.remove(ec)
+            # Check if already turned on
+            if ec not in self._turned_on:
+                self.log("Consumer %s/%s not in turned_on list, skipping removal" % (ec.name, ec.group))
+                return
+            
+            if len(ec.phase) > 0:
+                self.log("Removing phase for %s/%s" % (ec.name, ec.group))
+                self._remove_phase(ec)
+
+            self._turned_on.remove(ec)
+            self.log("Successfully turned off %s/%s" % (ec.name, ec.group))
+        except Exception as ex:
+            self.log("ERROR in em_turn_off for %s/%s: %s" % (ec.name, ec.group, str(ex)))
+        finally:
+            duration = time.time() - start_time
+            self.log("=== em_turn_off END (Thread: %s, Duration: %.3fs) ===" % (threading.current_thread().name, duration))
 
     def _add_phase(self, ec: EnergyConsumer):
-        # We want to check if the usage would trip breakers
-        if ec.group in self._phase_control:
-            # Check if the phase is known
-            phases = self._phase_control[ec.group]
-            if ec.phase in phases:
-                entities = phases[ec.phase]
-                entities[ec.name] = ec.current
+        self.log("=== _add_phase START (Thread: %s, Consumer: %s/%s, Phase: %s) ===" % (threading.current_thread().name, ec.name, ec.group, ec.phase))
+        start_time = time.time()
+        
+        try:
+            # We want to check if the usage would trip breakers
+            if ec.group in self._phase_control:
+                self.log("Group %s already exists in phase control" % ec.group)
+                # Check if the phase is known
+                phases = self._phase_control[ec.group]
+                if ec.phase in phases:
+                    self.log("Phase %s already exists for group %s" % (ec.phase, ec.group))
+                    entities = phases[ec.phase]
+                    entities[ec.name] = ec.current
+                    self.log("Added %s to existing phase %s with current %.2f" % (ec.name, ec.phase, ec.current))
+                else:
+                    phases[ec.phase] = {ec.name: ec.current}
+                    self.log("Created new phase %s for group %s with %s (%.2f)" % (ec.phase, ec.group, ec.name, ec.current))
             else:
-                phases[ec.phase] = {ec.name: ec.current}
-        else:
-            self._phase_control[ec.group] = {ec.phase: {ec.name: ec.current}}
+                self._phase_control[ec.group] = {ec.phase: {ec.name: ec.current}}
+                self.log("Created new group %s with phase %s and %s (%.2f)" % (ec.group, ec.phase, ec.name, ec.current))
 
-        return True
+            self.log("Phase control state: %s" % self._phase_control)
+            return True
+        except Exception as ex:
+            self.log("ERROR in _add_phase for %s/%s: %s" % (ec.name, ec.group, str(ex)))
+            return False
+        finally:
+            duration = time.time() - start_time
+            self.log("=== _add_phase END (Thread: %s, Duration: %.3fs) ===" % (threading.current_thread().name, duration))
 
     def _check_phase(self, ec: EnergyConsumer):
-        # We want to check if the usage would trip breakers
-        if ec.group in self._phase_control:
-            # Check if the phase is known
-            phases = self._phase_control[ec.group]
-            if ec.phase in phases:
-                entities = phases[ec.phase]
-                v = float(0)
-                for skey, value in entities.items(): 
-                    if skey != ec.name:
-                        v += value
+        self.log("=== _check_phase START (Thread: %s, Consumer: %s/%s, Phase: %s) ===" % (threading.current_thread().name, ec.name, ec.group, ec.phase))
+        start_time = time.time()
+        
+        try:
+            # We want to check if the usage would trip breakers
+            if ec.group in self._phase_control:
+                self.log("Group %s found in phase control" % ec.group)
+                # Check if the phase is known
+                phases = self._phase_control[ec.group]
+                if ec.phase in phases:
+                    self.log("Phase %s found for group %s" % (ec.phase, ec.group))
+                    entities = phases[ec.phase]
+                    v = float(0)
+                    for skey, value in entities.items(): 
+                        if skey != ec.name:
+                            v += value
+                            self.log("Added %s (%.2f) to phase usage, total so far: %.2f" % (skey, value, v))
 
-                if v + ec.current > 15500:
-                    self.log("    > %s wanted to use phase %s in group %s but not enough capacity" % (ec.name, ec.phase, ec.group))
-                    return False
+                    total_usage = v + ec.current
+                    self.log("Total phase usage would be: %.2f (existing: %.2f + new: %.2f)" % (total_usage, v, ec.current))
+                    
+                    if total_usage > 15500:
+                        self.log("    > %s wanted to use phase %s in group %s but not enough capacity (%.2f > 15500)" % (ec.name, ec.phase, ec.group, total_usage))
+                        return False
+                    else:
+                        self.log("Phase check passed for %s/%s (%.2f <= 15500)" % (ec.name, ec.group, total_usage))
+                else:
+                    self.log("Phase %s not found for group %s, allowing" % (ec.phase, ec.group))
+            else:
+                self.log("Group %s not found in phase control, allowing" % ec.group)
 
-        return True
+            return True
+        except Exception as ex:
+            self.log("ERROR in _check_phase for %s/%s: %s" % (ec.name, ec.group, str(ex)))
+            return False
+        finally:
+            duration = time.time() - start_time
+            self.log("=== _check_phase END (Thread: %s, Duration: %.3fs) ===" % (threading.current_thread().name, duration))
     
     def _remove_phase(self, ec: EnergyConsumer):
-        phases = self._phase_control[ec.group]
-        entities = phases[ec.phase]
-        del entities[ec.name]
+        self.log("=== _remove_phase START (Thread: %s, Consumer: %s/%s, Phase: %s) ===" % (threading.current_thread().name, ec.name, ec.group, ec.phase))
+        start_time = time.time()
+        
+        try:
+            if ec.group not in self._phase_control:
+                self.log("WARNING: Group %s not found in phase control" % ec.group)
+                return
+                
+            phases = self._phase_control[ec.group]
+            if ec.phase not in phases:
+                self.log("WARNING: Phase %s not found for group %s" % (ec.phase, ec.group))
+                return
+                
+            entities = phases[ec.phase]
+            if ec.name not in entities:
+                self.log("WARNING: Entity %s not found in phase %s for group %s" % (ec.name, ec.phase, ec.group))
+                return
+                
+            del entities[ec.name]
+            self.log("Removed %s from phase %s in group %s" % (ec.name, ec.phase, ec.group))
+            
+            # Clean up empty phases and groups
+            if not entities:
+                del phases[ec.phase]
+                self.log("Removed empty phase %s from group %s" % (ec.phase, ec.group))
+                if not phases:
+                    del self._phase_control[ec.group]
+                    self.log("Removed empty group %s from phase control" % ec.group)
+                    
+        except Exception as ex:
+            self.log("ERROR in _remove_phase for %s/%s: %s" % (ec.name, ec.group, str(ex)))
+        finally:
+            duration = time.time() - start_time
+            self.log("=== _remove_phase END (Thread: %s, Duration: %.3fs) ===" % (threading.current_thread().name, duration))
 
     def _can_be_delayed(self, ec: EnergyConsumer):
-        return ec.can_be_delayed()
+        self.log("=== _can_be_delayed START (Thread: %s, Consumer: %s/%s) ===" % (threading.current_thread().name, ec.name, ec.group))
+        start_time = time.time()
+        
+        try:
+            result = ec.can_be_delayed()
+            self.log("Consumer %s/%s can_be_delayed: %s" % (ec.name, ec.group, result))
+            return result
+        except Exception as ex:
+            self.log("ERROR in _can_be_delayed for %s/%s: %s" % (ec.name, ec.group, str(ex)))
+            return False
+        finally:
+            duration = time.time() - start_time
+            self.log("=== _can_be_delayed END (Thread: %s, Duration: %.3fs) ===" % (threading.current_thread().name, duration))
 
     def _get_remaining_battery_capacity(self):
-        battery_max_capacity = float(self.get_state("sensor.pv_battery1_size_max")) / float(1000) # Given in Wh
-        # We need to remove MIN_BATTERY_CHARGE as buffer since we can't deep discharge the battery
-        battery_min_capacity = battery_max_capacity * MIN_BATTERY_CHARGE
-        battery_charge = float(self.get_state("sensor.pv_battery1_state_of_charge")) / float(100) # Given in full number percent
-        battery_capacity_used = battery_max_capacity * battery_charge
-        return (battery_max_capacity - battery_capacity_used) - battery_min_capacity
+        self.log("=== _get_remaining_battery_capacity START (Thread: %s) ===" % threading.current_thread().name)
+        start_time = time.time()
+        
+        try:
+            battery_max_capacity = float(self.get_state("sensor.pv_battery1_size_max")) / float(1000) # Given in Wh
+            self.log("Battery max capacity: %.3f kWh" % battery_max_capacity)
+            
+            # We need to remove MIN_BATTERY_CHARGE as buffer since we can't deep discharge the battery
+            battery_min_capacity = battery_max_capacity * MIN_BATTERY_CHARGE
+            self.log("Battery min capacity (%.1f%%): %.3f kWh" % (MIN_BATTERY_CHARGE * 100, battery_min_capacity))
+            
+            battery_charge = float(self.get_state("sensor.pv_battery1_state_of_charge")) / float(100) # Given in full number percent
+            self.log("Battery charge: %.1f%%" % (battery_charge * 100))
+            
+            battery_capacity_used = battery_max_capacity * battery_charge
+            self.log("Battery capacity used: %.3f kWh" % battery_capacity_used)
+            
+            remaining = (battery_max_capacity - battery_capacity_used) - battery_min_capacity
+            self.log("Remaining battery capacity: %.3f kWh" % remaining)
+            return remaining
+        except Exception as ex:
+            self.log("ERROR in _get_remaining_battery_capacity: %s" % str(ex))
+            return 0.0
+        finally:
+            duration = time.time() - start_time
+            self.log("=== _get_remaining_battery_capacity END (Thread: %s, Duration: %.3fs) ===" % (threading.current_thread().name, duration))
     
     def _get_current_battery_capacity(self):
-        battery_max_capacity = float(self.get_state("sensor.pv_battery1_size_max")) / float(1000) # Given in Wh
-        battery_min_capacity = battery_max_capacity * MIN_BATTERY_CHARGE
-        battery_charge = float(self.get_state("sensor.pv_battery1_state_of_charge")) / float(100) # Given in full number percent
-        battery_capacity_used = battery_max_capacity * battery_charge
-        return battery_capacity_used - battery_min_capacity
+        self.log("=== _get_current_battery_capacity START (Thread: %s) ===" % threading.current_thread().name)
+        start_time = time.time()
+        
+        try:
+            battery_max_capacity = float(self.get_state("sensor.pv_battery1_size_max")) / float(1000) # Given in Wh
+            self.log("Battery max capacity: %.3f kWh" % battery_max_capacity)
+            
+            battery_min_capacity = battery_max_capacity * MIN_BATTERY_CHARGE
+            self.log("Battery min capacity (%.1f%%): %.3f kWh" % (MIN_BATTERY_CHARGE * 100, battery_min_capacity))
+            
+            battery_charge = float(self.get_state("sensor.pv_battery1_state_of_charge")) / float(100) # Given in full number percent
+            self.log("Battery charge: %.1f%%" % (battery_charge * 100))
+            
+            battery_capacity_used = battery_max_capacity * battery_charge
+            self.log("Battery capacity used: %.3f kWh" % battery_capacity_used)
+            
+            current = battery_capacity_used - battery_min_capacity
+            self.log("Current battery capacity: %.3f kWh" % current)
+            return current
+        except Exception as ex:
+            self.log("ERROR in _get_current_battery_capacity: %s" % str(ex))
+            return 0.0
+        finally:
+            duration = time.time() - start_time
+            self.log("=== _get_current_battery_capacity END (Thread: %s, Duration: %.3fs) ===" % (threading.current_thread().name, duration))
 
     def _allowed_to_consume(self, ec: EnergyConsumer):
-        max_current = 15500 * 3
-        new_current = float(0)
-
-        # Check for battery
-        battery_charge = float(self.get_state("sensor.pv_battery1_state_of_charge"))
-        if battery_charge > 15:
-            new_current += 21000
+        self.log("=== _allowed_to_consume START (Thread: %s, Consumer: %s/%s) ===" % (threading.current_thread().name, ec.name, ec.group))
+        start_time = time.time()
         
-        # Check for additional PV input
-        pv_production = float(self.get_state("sensor.solar_panel_production_w"))
-        battery_charge = float(self.get_state("sensor.solar_panel_to_battery_w"))
-        pv_over_production = pv_production - battery_charge
-        if pv_over_production > 100:
-            pv_current = pv_over_production / float(230) # Rough estimate since we don't have a voltage tracker on PV
-            new_current += pv_current * 1000
+        try:
+            max_current = 15500 * 3
+            new_current = float(0)
+            self.log("Initial max_current: %.2f, new_current: %.2f" % (max_current, new_current))
 
-        current_used = float(0)
-        for ent in self._turned_on:
-            if ent.group != ec.group or ent.name != ec.name:
-                current_used += ent.current
+            # Check for battery
+            battery_charge = float(self.get_state("sensor.pv_battery1_state_of_charge"))
+            self.log("Battery charge: %.2f%%" % battery_charge)
+            if battery_charge > 15:
+                new_current += 21000
+                self.log("Added battery current: 21000, new_current now: %.2f" % new_current)
+            
+            # Check for additional PV input
+            pv_production = float(self.get_state("sensor.solar_panel_production_w"))
+            battery_charge_pv = float(self.get_state("sensor.solar_panel_to_battery_w"))
+            pv_over_production = pv_production - battery_charge_pv
+            self.log("PV production: %.2f, PV to battery: %.2f, over production: %.2f" % (pv_production, battery_charge_pv, pv_over_production))
+            
+            if pv_over_production > 100:
+                pv_current = pv_over_production / float(230) # Rough estimate since we don't have a voltage tracker on PV
+                new_current += pv_current * 1000
+                self.log("Added PV current: %.2f, new_current now: %.2f" % (pv_current * 1000, new_current))
 
-        if new_current > 0:
-            # Check if PV is enough, if not can we delay?
-            if current_used + ec.current > new_current:
+            current_used = float(0)
+            for ent in self._turned_on:
+                if ent.group != ec.group or ent.name != ec.name:
+                    current_used += ent.current
+            self.log("Current used by other consumers: %.2f" % current_used)
+
+            if new_current > 0:
+                self.log("new_current > 0, checking if PV is enough")
+                # Check if PV is enough, if not can we delay?
+                if current_used + ec.current > new_current:
+                    self.log("current_used + ec.current (%.2f) > new_current (%.2f)" % (current_used + ec.current, new_current))
+                    if self._can_be_delayed(ec):
+                        max_current = new_current
+                        self.log("Consumer can be delayed, setting max_current to new_current: %.2f" % max_current)
+            else:
+                self.log("new_current <= 0, checking if consumption can be delayed")
+                # Check if this consumption can be delayed
                 if self._can_be_delayed(ec):
-                    max_current = new_current
-        else:
-            # Check if this consumption can be delayed
-            if self._can_be_delayed(ec):
-                tomorrow_estimate = self._estimated_production_tomorrow()
-                battery_remaining_capacity = self._get_remaining_battery_capacity()
-                if tomorrow_estimate >= battery_remaining_capacity:
-                    max_current = 0
-        
-        if current_used + ec.current > max_current:
+                    tomorrow_estimate = self._estimated_production_tomorrow()
+                    battery_remaining_capacity = self._get_remaining_battery_capacity()
+                    self.log("Tomorrow estimate: %.2f, battery remaining: %.2f" % (tomorrow_estimate, battery_remaining_capacity))
+                    if tomorrow_estimate >= battery_remaining_capacity:
+                        max_current = 0
+                        self.log("Setting max_current to 0 (tomorrow estimate >= battery remaining)")
+            
+            total_required = current_used + ec.current
+            self.log("Total required: %.2f, max_current: %.2f" % (total_required, max_current))
+            
+            if total_required > max_current:
+                self.log("NOT allowed to consume (total_required > max_current)")
+                return False
+            else:
+                self.log("ALLOWED to consume (total_required <= max_current)")
+                return True
+                
+        except Exception as ex:
+            self.log("ERROR in _allowed_to_consume for %s/%s: %s" % (ec.name, ec.group, str(ex)))
             return False
-        
-        return True
+        finally:
+            duration = time.time() - start_time
+            self.log("=== _allowed_to_consume END (Thread: %s, Duration: %.3fs) ===" % (threading.current_thread().name, duration))
 
     def run_every_c(self, c):
-        self.update()
+        self.log("=== run_every_c START (Thread: %s) ===" % threading.current_thread().name)
+        start_time = time.time()
+        
+        try:
+            self.update()
+        except Exception as ex:
+            self.log("ERROR in run_every_c: %s" % str(ex))
+        finally:
+            duration = time.time() - start_time
+            self.log("=== run_every_c END (Thread: %s, Duration: %.3fs) ===" % (threading.current_thread().name, duration))
 
     def _estimated_production_tomorrow(self):
-        now = self.get_now()
+        self.log("=== _estimated_production_tomorrow START (Thread: %s) ===" % threading.current_thread().name)
+        start_time = time.time()
+        
+        try:
+            now = self.get_now()
+            self.log("Current time: %s (hour: %d)" % (now, now.hour))
 
-        if now.hour < 2:
-            return float(self.get_state("sensor.solcast_pv_forecast_prognose_heute"))
-        else:
-            return float(self.get_state("sensor.solcast_pv_forecast_prognose_morgen"))
+            if now.hour < 2:
+                forecast_value = float(self.get_state("sensor.solcast_pv_forecast_prognose_heute"))
+                self.log("Using today's forecast (hour < 2): %.2f" % forecast_value)
+                return forecast_value
+            else:
+                forecast_value = float(self.get_state("sensor.solcast_pv_forecast_prognose_morgen"))
+                self.log("Using tomorrow's forecast (hour >= 2): %.2f" % forecast_value)
+                return forecast_value
+        except Exception as ex:
+            self.log("ERROR in _estimated_production_tomorrow: %s" % str(ex))
+            return 0.0
+        finally:
+            duration = time.time() - start_time
+            self.log("=== _estimated_production_tomorrow END (Thread: %s, Duration: %.3fs) ===" % (threading.current_thread().name, duration))
 
     def _turn_on(self, entity):
-        if entity.startswith("virtual."):
-            ent = entity.split(".")[1]
-            self.call_virtual_entity(ent, "switched", True)
-            self._virtual_entities[ent].switched = True
-        else:
-            self.turn_on(entity)
+        self.log("=== _turn_on START (Thread: %s, Entity: %s) ===" % (threading.current_thread().name, entity))
+        start_time = time.time()
+        
+        try:
+            if entity.startswith("virtual."):
+                ent = entity.split(".")[1]
+                self.log("Turning on virtual entity: %s" % ent)
+                self.call_virtual_entity(ent, "switched", True)
+                self._virtual_entities[ent].switched = True
+                self.log("Virtual entity %s switched to True" % ent)
+            else:
+                self.log("Turning on regular entity: %s" % entity)
+                self.turn_on(entity)
+                self.log("Regular entity %s turned on" % entity)
+        except Exception as ex:
+            self.log("ERROR in _turn_on for %s: %s" % (entity, str(ex)))
+        finally:
+            duration = time.time() - start_time
+            self.log("=== _turn_on END (Thread: %s, Duration: %.3fs) ===" % (threading.current_thread().name, duration))
 
     def _turn_off(self, entity):
-        if entity.startswith("virtual."):   
-            ent = entity.split(".")[1]
-            self.call_virtual_entity(ent, "switched", False)
-            self._virtual_entities[ent].switched = False
-        else:
-            self.turn_off(entity)
+        self.log("=== _turn_off START (Thread: %s, Entity: %s) ===" % (threading.current_thread().name, entity))
+        start_time = time.time()
+        
+        try:
+            if entity.startswith("virtual."):   
+                ent = entity.split(".")[1]
+                self.log("Turning off virtual entity: %s" % ent)
+                self.call_virtual_entity(ent, "switched", False)
+                self._virtual_entities[ent].switched = False
+                self.log("Virtual entity %s switched to False" % ent)
+            else:
+                self.log("Turning off regular entity: %s" % entity)
+                self.turn_off(entity)
+                self.log("Regular entity %s turned off" % entity)
+        except Exception as ex:
+            self.log("ERROR in _turn_off for %s: %s" % (entity, str(ex)))
+        finally:
+            duration = time.time() - start_time
+            self.log("=== _turn_off END (Thread: %s, Duration: %.3fs) ===" % (threading.current_thread().name, duration))
 
     def energy_consumption_rate(self, tracker):
-        now = datetime.now()
+        self.log("=== energy_consumption_rate START (Thread: %s, Tracker: %s) ===" % (threading.current_thread().name, tracker))
+        start_time = time.time()
+        
+        try:
+            now = datetime.now()
 
-        current_value = float(self.get_state(tracker))
-        self.log("Current value for %s: %.2f w" % (tracker, current_value))
+            current_value = float(self.get_state(tracker))
+            self.log("Current value for %s: %.2f w" % (tracker, current_value))
 
-        # Check unit
-        unit = self.get_state(tracker, attribute = "unit_of_measurement")
-        if unit == "W":
-            return current_value
-        elif unit == "kW":
-            return current_value * 1000
+            # Check unit
+            unit = self.get_state(tracker, attribute = "unit_of_measurement")
+            self.log("Unit of measurement for %s: %s" % (tracker, unit))
+            
+            if unit == "W":
+                self.log("Returning current value directly (W): %.2f" % current_value)
+                return current_value
+            elif unit == "kW":
+                converted_value = current_value * 1000
+                self.log("Converted kW to W: %.2f -> %.2f" % (current_value, converted_value))
+                return converted_value
 
-        start_time =  now - timedelta(minutes = 10)
-        data = self.get_history(entity_id = tracker, start_time = start_time)
-        if len(data) > 0:
-            if len(data[0]) > 0:
-                try:
-                    state = float(data[0][0]['state'])
-                    date = data[0][0]['last_changed']
+            start_time_history = now - timedelta(minutes = 10)
+            self.log("Getting history for %s from %s" % (tracker, start_time_history))
+            
+            data = self.get_history(entity_id = tracker, start_time = start_time_history)
+            self.log("History data length: %d" % len(data))
+            
+            if len(data) > 0:
+                if len(data[0]) > 0:
+                    try:
+                        state = float(data[0][0]['state'])
+                        date = data[0][0]['last_changed']
 
-                    self.log("State value for %s: %.2f w" % (tracker, state))
+                        self.log("State value for %s: %.2f w (from %s)" % (tracker, state, date))
 
-                    diffTime = now.astimezone(timezone.utc) - date
-                    rate_current = ((current_value - state) / float(diffTime.seconds)) * 3600.0 
-                    return rate_current
-                except ValueError:
-                    pass
+                        diffTime = now.astimezone(timezone.utc) - date
+                        self.log("Time difference: %.2f seconds" % diffTime.seconds)
+                        
+                        rate_current = ((current_value - state) / float(diffTime.seconds)) * 3600.0
+                        self.log("Calculated rate for %s: %.2f w/h" % (tracker, rate_current))
+                        return rate_current
+                    except ValueError as ve:
+                        self.log("ERROR: ValueError in energy_consumption_rate for %s: %s" % (tracker, str(ve)))
+                    except Exception as ex:
+                        self.log("ERROR: Unexpected exception in energy_consumption_rate for %s: %s" % (tracker, str(ex)))
+                else:
+                    self.log("No history data available for %s" % tracker)
+            else:
+                self.log("No history data returned for %s" % tracker)
 
-        return float(0)
+            self.log("Returning 0 for %s (no valid data)" % tracker)
+            return float(0)
+            
+        except Exception as ex:
+            self.log("ERROR: Exception in energy_consumption_rate for %s: %s" % (tracker, str(ex)))
+            return float(0)
+        finally:
+            duration = time.time() - start_time
+            self.log("=== energy_consumption_rate END (Thread: %s, Duration: %.3fs) ===" % (threading.current_thread().name, duration))
     
     def update(self):
-        self.log("=== Energy Manager Update Method Started ===")
+        self.log("=== Energy Manager Update Method Started (Thread: %s) ===" % threading.current_thread().name)
+        update_start_time = time.time()
         
 
         # Update all consumption trackers
@@ -664,7 +1015,8 @@ class EnergyManager(hass.Hass):
         else:
             self.log("No consumption configuration found in args")
 
-        self.log("=== Energy Manager Update Method Completed ===")
+        update_duration = time.time() - update_start_time
+        self.log("=== Energy Manager Update Method Completed (Thread: %s, Duration: %.3fs) ===" % (threading.current_thread().name, update_duration))
 
 
                     
