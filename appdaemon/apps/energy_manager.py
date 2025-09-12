@@ -119,6 +119,7 @@ class EnergyManager(hass.Hass):
 
     def call_virtual_entity(self, entity, event, value):
         if entity not in self._virtual_entities:
+            self.log("Virtual entity '%s' not found" % entity)
             return
 
         e = self._virtual_entities[entity]
