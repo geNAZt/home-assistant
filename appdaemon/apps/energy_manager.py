@@ -1012,7 +1012,11 @@ class EnergyManager(hass.Hass):
                                 # We need to turn off
                                 stage = value["stages"][c.stage]
                                 self._turn_off(stage["switch"])
-                                del self._consumptions[key]
+                                del self._consumptions[priority][key]
+
+                                # If there are no other consumptions with the same priority, we need to remove the priority
+                                if len(self._consumptions[priority]) == 0:
+                                    del self._consumptions[priority]
                                 
                                 self.call_virtual_entity(key, "usage_change", 0)
                                 self.log("Removing consumption: %s" % key)
