@@ -61,10 +61,10 @@ class Source:
 
         # mimic postocde search
         payload: dict = {
-            "SQ_FORM_485465_PAGE": "1",
-            "form_email_485465_referral_url": "https://swale.gov.uk/bins-littering-and-the-environment/bins",
-            "q485476:q1": self._postcode,
-            "form_email_485465_submit": "Choose Your Address &#10140;",
+            "SQ_FORM_499078_PAGE": "1",
+            "form_email_499078_referral_url": "https://swale.gov.uk/bins-littering-and-the-environment/bins",
+            "q499089:q1": self._postcode,
+            "form_email_499078_submit": "Choose Your Address &#10140;",
         }
         r = s.post(
             "https://swale.gov.uk/bins-littering-and-the-environment/bins/check-your-bin-day",
@@ -76,10 +76,10 @@ class Source:
 
         # mimic address selection
         payload = {
-            "SQ_FORM_485465_PAGE": "2",
-            "form_email_485465_referral_url": "https://swale.gov.uk/bins-littering-and-the-environment/bins",
-            "q485480:q1": self._uprn,
-            "form_email_485465_submit": "Get Bin Days &#10140;",
+            "SQ_FORM_499078_PAGE": "2",
+            "form_email_499078_referral_url": "https://swale.gov.uk/bins-littering-and-the-environment/bins",
+            "q499093:q1": self._uprn,
+            "form_email_499078_submit": "Get Bin Days &#10140;",
         }
         r = s.post(
             "https://swale.gov.uk/bins-littering-and-the-environment/bins/check-your-bin-day",
@@ -90,17 +90,34 @@ class Source:
         soup: BeautifulSoup = BeautifulSoup(r.content, "html.parser")
         temp_list: list = []
 
-        # get  details of next collection
+        # Get details of next collection
         next_date = soup.find("strong", {"id": "SBC-YBD-collectionDate"})
         waste_list = soup.find("div", {"id": "SBCFirstBins"})
         waste_items = waste_list.find_all("li")
+
+        # Determine actual date from the text
+        raw_date = next_date.text.lower()
+
+        if "today" in raw_date:
+            dt = datetime.today().strftime("%d %B")
+        elif "tomorrow" in raw_date:
+            dt = (datetime.today() + timedelta(days=1)).strftime("%d %B")
+        else:
+            # Try to extract actual date from string like "Tuesday, 14 April 2025"
+            try:
+                # Remove the weekday part, e.g., "Monday, "
+                dt = raw_date.split("y, ")[
+                    -1
+                ].strip()  # This might still not work for all formats
+            except IndexError:
+                dt = "Unknown"
+
         for item in waste_items:
-            dt: str = next_date.text.split("y, ")[-1]
             temp_list.append(
                 [
                     dt,
-                    item.text,
-                ],
+                    item.text.strip(),
+                ]
             )
 
         # get details of future collection

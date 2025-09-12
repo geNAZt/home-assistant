@@ -144,6 +144,18 @@ EXTRA_INFO = [
         "url": "https://www.hamilton.ca/",
         "country": "ca",
     },
+    {
+        "title": "Chatham-Kent (ON)",
+        "url": "https://www.chatham-kent.ca/",
+        "country": "ca",
+        "default_params": {"city": "Chatham-Kent", "state": "Ontario"},
+    },
+    {
+        "title": "Delta (BC)",
+        "url": "https://www.delta.ca/",
+        "country": "ca",
+        "default_params": {"city": "Delta", "state": "British Columbia"},
+    },
 ]
 
 TEST_CASES = {
@@ -213,6 +225,16 @@ TEST_CASES = {
         "district_id": "HAM",
         "project_id": 520,
         "zone_id": "zone-z1151",
+    },
+    "Chatham-Kent, ON, Canada (API results have trailing space)": {
+        "street": "20 Bloomfield Rd",
+        "city": "Chatham-Kent",
+        "state": "Ontario",
+    },
+    "6656 Ladner Trunk Rd, Delta, BC V4K 5C8, Kanada": {
+        "street": "6656 Ladner Trunk Rd",
+        "city": "Delta",
+        "state": "British Columbia",
     },
 }
 
@@ -294,12 +316,10 @@ class Source:
                 "street",
                 self.street,
             )
-
-        zone_finder = f"https://pkg.my-waste.mobi/get_zones?project_id={self.project_id}&district_id={self.district_id}&lat={lat}&lng={lng}"
+        zone_finder = f"https://api-city.recyclecoach.com/get_zones?project_id={self.project_id}&district_id={self.district_id}&lat={lat}&lng={lng}"
         res = requests.get(zone_finder)
         zone_data = {z["prompt_id"]: "z" + z["zone_id"] for z in res.json()}
         self.zone_id = self._build_zone_string(zone_data)
-
         return self.zone_id
 
     def _lookup_zones(self):
@@ -310,7 +330,7 @@ class Source:
             return self._lookup_zones_with_geo()
         streets = []
         for zone_res in zone_data["results"]:
-            streetpart = self._format_key(zone_res["address"]).split(",")[0]
+            streetpart = self._format_key(zone_res["address"]).split(",")[0].strip()
             streets.append(zone_res["address"].strip().split(",")[0])
             if streetpart in self.street:
                 self.zone_id = self._build_zone_string(zone_res["zones"])
@@ -343,10 +363,11 @@ class Source:
         if not self.zone_id:
             self._lookup_zones()
 
-        collection_def_url = f"https://reg.my-waste.mobi/collections?project_id={self.project_id}&district_id={self.district_id}&zone_id={self.zone_id}&lang_cd=en_US"
+
+        collection_def_url = f"https://us-api-city.recyclecoach.com/collections?project_id={self.project_id}&district_id={self.district_id}&zone_id={self.zone_id}&lang_cd=en_US"
 
         schedule_urls = [  # Some regions use different one of these should work
-            f"https://pkg.my-waste.mobi/app_data_zone_schedules?project_id={self.project_id}&district_id={self.district_id}&zone_id={self.zone_id}",
+            f"https://api-city.recyclecoach.com/app_data_zone_schedules?project_id={self.project_id}&district_id={self.district_id}&zone_id={self.zone_id}",
             f"https://us-web.apigw.recyclecoach.com/zone-setup/zone/schedules?project_id={self.project_id}&district_id={self.district_id}&zone_id={self.zone_id}",
         ]
 
