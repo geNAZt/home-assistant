@@ -147,11 +147,19 @@ class EnergyManager(hass.Hass):
         if event in e.events:
             self.log("Executing virtual entity event code for %s" % entity)
             try:
-                if entity in self._consumptions:
-                    consumption_entity = self._consumptions[entity]
-                    exec(e.events[event]["code"], {"self": self, "value": value, "entity": consumption_entity})
-                else:
+                called = False
+                for priority, consumptions in self._consumptions.items():
+                    for key, entity_value in consumptions.items():
+                        if key == entity:
+                            self.log("Executing virtual entity event code for %s" % entity)
+                            exec(e.events[event]["code"], {"self": self, "value": value, "entity": entity_value})
+                            called = True
+                            break
+
+                if not called:
+                    self.log("Executing virtual entity event code for %s" % entity)
                     exec(e.events[event]["code"], {"self": self, "value": value})
+
                 duration = time.time() - start_time
                 self.log("Virtual entity %s event executed successfully (Duration: %.3fs)" % (entity, duration))
             except Exception as ex:
