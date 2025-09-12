@@ -107,7 +107,10 @@ class EnergyManager(hass.Hass):
             stages = value["stages"]
             for stage in stages:
                 self._turn_off(stage["switch"])
-                self.call_virtual_entity(stage["switch"], "usage_change", 0)
+
+                if stage["switch"].startswith("virtual."):
+                    self.call_virtual_entity(stage["switch"].split(".")[1], "usage_change", 0)
+
                 self.log("Disabled consumption '%s' with switch '%s'" % (key, stage["switch"]))
 
         self.run_every(self.run_every_c, "now", 60)
@@ -119,7 +122,6 @@ class EnergyManager(hass.Hass):
 
     def call_virtual_entity(self, entity, event, value):
         if entity not in self._virtual_entities:
-            self.log("Virtual entity '%s' not found" % entity)
             return
 
         e = self._virtual_entities[entity]
