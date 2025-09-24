@@ -184,9 +184,6 @@ class EnergyManager(hass.Hass):
 
     # Callback for solar panel production, we update the internal state of the panel
     def onSolarPanelProduction(self, entity, attribute, old, new, cb_args):
-        self.log("onSolarPanelProduction callback (Thread: %s, Entity: %s, Old: %s, New: %s)" % (threading.current_thread().name, entity, old, new))
-        start_time = time.time()
-        
         # Check if new is a number and update to 0 if not
         try:
             v = float(new)
@@ -196,9 +193,6 @@ class EnergyManager(hass.Hass):
             
         self._solar_panel_production += v
         self._solar_panel_amount += 1
-        
-        duration = time.time() - start_time
-        self.log("onSolarPanelProduction completed (Duration: %.3fs, Value: %.2f, Total: %.2f)" % (duration, v, self._solar_panel_production))
 
     def register_consumer(self, group, name, phase, current, turn_on, turn_off, can_be_delayed, consume_more):
         ec = EnergyConsumer(group, name, phase, current, turn_on, turn_off, can_be_delayed, consume_more)
