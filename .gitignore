@@ -15,3 +15,12 @@ zigbee.db
 ip_bans.yaml
 secrets.yaml
 known_devices.yaml
+
+# Solcast temp files
+solcast*
+
+# Bambu cache files
+www/media/ha-bambulab/*+/prints/*
+
+# TTS files
+tts/*
