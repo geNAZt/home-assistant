@@ -20,7 +20,7 @@ known_devices.yaml
 solcast*
 
 # Bambu cache files
-www/media/ha-bambulab/*+/prints/*
+www/media/ha-bambulab/**/prints/*
 
 # TTS files
 tts/*
