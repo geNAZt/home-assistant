@@ -143,7 +143,6 @@ class EnergyManager(hass.Hass):
                 for priority, consumptions in self._consumptions.items():
                     for key, entity_value in consumptions.items():
                         if key == entity:
-                            self.log("Executing virtual entity event code for %s" % entity)
                             exec(e.events[event]["code"], {"self": self, "value": value, "entity": entity_value})
                             called = True
                             break
