@@ -126,7 +126,6 @@ class EnergyManager(hass.Hass):
     def call_all_active_virtual_entities(self, event, v):
         for key, value in self._virtual_entities.items():
             if value.switched:
-                self.log("Calling virtual entity: %s (switched: %s)" % (key, value.switched))
                 self.call_virtual_entity(key, event, v)
 
     def call_virtual_entity(self, entity, event, value):
@@ -155,8 +154,6 @@ class EnergyManager(hass.Hass):
             except Exception as ex:
                 duration = time.time() - start_time
                 self.log("ERROR: Virtual entity %s event execution failed (Duration: %.3fs, Error: %s)" % (entity, duration, str(ex)))
-        else:
-            self.log("Event %s not found for virtual entity %s" % (event, entity))
 
     def onExportedPower(self, entity, attribute, old, new, cb_args):       
         # Check if new is a number and update to 0 if not
