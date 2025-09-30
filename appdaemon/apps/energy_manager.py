@@ -879,7 +879,7 @@ class EnergyManager(hass.Hass):
 
                                 if not can_be_turned_off:
                                     self.log("Consumption '%s' cannot be turned off, skipping" % key)
-                                    return
+                                    continue
 
                                 # We need to turn off
                                 stage = value["stages"][c.stage]
