@@ -59,7 +59,7 @@ energy_manager:
     solar_battery:
       tracker: sensor.pv_battery1_power
       priority: 0
-      min_stage: 1
+      can_be_turned_off: false
       stages:
       - usage: 1000
         switch: virtual.solar_battery

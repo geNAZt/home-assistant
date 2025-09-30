@@ -827,7 +827,7 @@ class EnergyManager(hass.Hass):
                     self.log("Calling consume_more for consumer: %s" % ec.name)
                     ec.consume_more() 
             else:
-                self.log("Exported power (%.2f w) <= 300w threshold, checking for consumption reduction")
+                self.log("Exported power (%.2f w) <= 300w threshold, checking for consumption reduction" % exported_watt)
 
                 for key, value in consumptions.items():
                     priority = value["priority"]
@@ -836,9 +836,10 @@ class EnergyManager(hass.Hass):
 
                     if key in self._consumptions[priority]:
                         c = self._consumptions[priority][key]
-                        self.log("Checking reduction for '%s': current stage=%d, usage=%.2f" % (key, c.stage, c.usage))
+                        self.log("Checking reduction for '%s': current stage=%d, usage=%.2f, real usage=%.2f" % (key, c.stage, c.usage, c.real_usage))
                             
-                        if c.usage > panel_to_house_w:
+                        panel_to_house_w = panel_to_house_w - c.real_usage
+                        if panel_to_house_w > 0:
                             self.log("Condition met: current usage (%.2f) > panel_to_house_w (%.2f)" % (c.usage, panel_to_house_w))
                             # Check if we can level down
                             # Find the heighest usage which is below the current usage
@@ -874,6 +875,16 @@ class EnergyManager(hass.Hass):
                                 self.log("Updated consumption '%s': stage=%d, usage=%.2f" % (key, c.stage, c.usage))
                             else:
                                 self.log("No suitable level-down found or insufficient power, turning off consumption: %s" % key)
+
+                                # Check if we can turn off
+                                can_be_turned_off = True
+                                if "can_be_turned_off" in value:
+                                    can_be_turned_off = value["can_be_turned_off"]
+
+                                if not can_be_turned_off:
+                                    self.log("Consumption '%s' cannot be turned off, skipping" % key)
+                                    return
+
                                 # We need to turn off
                                 stage = value["stages"][c.stage]
                                 self._turn_off(stage["switch"])
