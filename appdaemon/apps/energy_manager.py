@@ -628,8 +628,9 @@ class EnergyManager(hass.Hass):
         now = self.get_now()
         self.log("Current time: %s (hour: %d)" % (now, now.hour))
 
-        battery_remaining_capacity = self._get_remaining_battery_capacity()
-        self.log("Battery remaining capacity: %.2f kWh" % battery_remaining_capacity)
+
+        battery_charge_in_kwh = self._get_current_battery_capacity()
+        self.log("Battery capacity: %.2f kWh" % battery_charge_in_kwh)
 
         # Control AC charging
         # 
@@ -642,7 +643,7 @@ class EnergyManager(hass.Hass):
             self.log("Stop charging time: %s" % stop_charging)
 
             tomorrow_estimate = self._estimated_production_tomorrow()
-            battery_charge_in_kwh = self._get_current_battery_capacity()
+            battery_remaining_capacity = self._get_remaining_battery_capacity()
 
             self.log("Battery status: remaining=%.3f kWh, current=%.3f kWh, tomorrow_estimate=%.3f kWh" % 
                     (battery_remaining_capacity, battery_charge_in_kwh, tomorrow_estimate))
@@ -820,7 +821,7 @@ class EnergyManager(hass.Hass):
                         self.log("Exception: %s" % e)
                         continue
                 
-                if battery_remaining_capacity > 5:
+                if battery_charge_in_kwh > 5:
                     self.log("Calling consume_more for all known consumers if we have enough battery")
 
                     for ec in self._known:
