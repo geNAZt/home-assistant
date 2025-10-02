@@ -24,3 +24,6 @@ www/media/ha-bambulab/**/prints/*
 
 # TTS files
 tts/*
+
+# Lock files
+*.lock
