@@ -638,7 +638,6 @@ class EnergyManager(hass.Hass):
         self.log("Manual override: %s" % override)
         if override == "on":
             self.log("Manual override is on, skipping AC charging logic")
-            return
 
         # Control AC charging
         # 
