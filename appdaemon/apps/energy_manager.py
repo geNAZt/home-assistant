@@ -677,6 +677,7 @@ class EnergyManager(hass.Hass):
                     self.log("Setting PV storage mode to 'Charge from PV and AC' (need %.3f, have %.3f)" % 
                             (needed_kwh, battery_charge_in_kwh))
                     self.ensure_state("select.pv_storage_remote_command_mode", "Charge from PV and AC")
+                    self.call_service("number/set_value", entity_id="number.pv_storage_remote_charge_limit", value=5000)
                 else:
                     self.log("Setting PV storage mode to 'Off' (have sufficient charge)")
                     self.ensure_state("select.pv_storage_remote_command_mode", "Off")
@@ -691,6 +692,7 @@ class EnergyManager(hass.Hass):
                 self.log("Setting PV storage mode to 'Charge from PV and AC' (need %.3f, have %.3f)" % 
                             (battery_remaining_capacity - 2, battery_charge_in_kwh))
                 self.ensure_state("select.pv_storage_remote_command_mode", "Charge from PV and AC")
+                self.call_service("number/set_value", entity_id="number.pv_storage_remote_charge_limit", value=5000)
             else:
                 self.log("Setting PV storage mode to 'Maximize self consumption' (have sufficient charge)")
                 self.ensure_state("select.pv_storage_remote_command_mode", "Maximize self consumption")
