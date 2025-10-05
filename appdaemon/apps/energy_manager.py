@@ -630,7 +630,15 @@ class EnergyManager(hass.Hass):
 
 
         battery_charge_in_kwh = self._get_current_battery_capacity()
+        battery_remaining_capacity = self._get_remaining_battery_capacity()
         self.log("Battery capacity: %.2f kWh" % battery_charge_in_kwh)
+
+        # Check for manual override
+        override = self.get_state("input_boolean.charge_solar_battery_override")
+        self.log("Manual override: %s" % override)
+        if override == "on":
+            self.log("Manual override is on, skipping AC charging logic")
+            return
 
         # Control AC charging
         # 
@@ -643,7 +651,6 @@ class EnergyManager(hass.Hass):
             self.log("Stop charging time: %s" % stop_charging)
 
             tomorrow_estimate = self._estimated_production_tomorrow()
-            battery_remaining_capacity = self._get_remaining_battery_capacity()
 
             self.log("Battery status: remaining=%.3f kWh, current=%.3f kWh, tomorrow_estimate=%.3f kWh" % 
                     (battery_remaining_capacity, battery_charge_in_kwh, tomorrow_estimate))
@@ -677,6 +684,15 @@ class EnergyManager(hass.Hass):
                 self.log("Condition not met: tomorrow_estimate/2 (%.3f) >= battery_remaining_capacity (%.3f)" % 
                         (tomorrow_estimate / 2, battery_remaining_capacity))
                 self.log("Setting PV storage mode to 'Maximize self consumption'")
+                self.ensure_state("select.pv_storage_remote_command_mode", "Maximize self consumption")
+        elif override == "on":
+            self.log("Override is on, battery_remaining_capacity (%.3f)" % battery_remaining_capacity)
+            if battery_remaining_capacity > 2:
+                self.log("Setting PV storage mode to 'Charge from PV and AC' (need %.3f, have %.3f)" % 
+                            (battery_remaining_capacity - 2, battery_charge_in_kwh))
+                self.ensure_state("select.pv_storage_remote_command_mode", "Charge from PV and AC")
+            else:
+                self.log("Setting PV storage mode to 'Maximize self consumption' (have sufficient charge)")
                 self.ensure_state("select.pv_storage_remote_command_mode", "Maximize self consumption")
         else:
             self.log("Setting PV storage mode to 'Maximize self consumption' (not early morning)")
