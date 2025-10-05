@@ -1,0 +1,3 @@
+name: Charge Solar Battery Override
+initial: false
+icon: mdi:battery-charging
