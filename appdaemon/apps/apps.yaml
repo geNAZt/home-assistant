@@ -63,11 +63,19 @@ energy_manager:
       stages:
       - usage: 1000
         switch: virtual.solar_battery
+      - usage: 1500
+        switch: virtual.solar_battery
       - usage: 2000
+        switch: virtual.solar_battery
+      - usage: 2500
         switch: virtual.solar_battery
       - usage: 3000
         switch: virtual.solar_battery
+      - usage: 3500
+        switch: virtual.solar_battery
       - usage: 4000
+        switch: virtual.solar_battery
+      - usage: 4500
         switch: virtual.solar_battery
       - usage: 5000
         switch: virtual.solar_battery
