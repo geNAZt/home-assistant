@@ -393,7 +393,7 @@ class EnergyManager(hass.Hass):
             battery_capacity_used = battery_max_capacity * battery_charge
             self.log("Battery capacity used: %.3f kWh" % battery_capacity_used)
             
-            remaining = (battery_max_capacity - battery_capacity_used) - battery_min_capacity
+            remaining = (battery_max_capacity - battery_capacity_used)
             self.log("Remaining battery capacity: %.3f kWh" % remaining)
             return remaining
         except Exception as ex:
