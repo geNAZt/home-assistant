@@ -111,7 +111,7 @@ light_bad:
   module: light
   class: Light
   waterHigh: 800
-  waterLow: 300
+  waterLow: 400
 light_speisekammer:
   module: light
   class: Light
