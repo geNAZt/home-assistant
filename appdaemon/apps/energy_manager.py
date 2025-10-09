@@ -857,7 +857,7 @@ class EnergyManager(hass.Hass):
                         self.log("Checking reduction for '%s': current stage=%d, usage=%.2f, real usage=%.2f" % (key, c.stage, c.usage, c.real_usage))
                             
                         panel_to_house_w = panel_to_house_w - c.real_usage
-                        if panel_to_house_w > 0:
+                        if panel_to_house_w < 0:
                             self.log("Condition met: current usage (%.2f) > panel_to_house_w (%.2f)" % (c.usage, panel_to_house_w))
                             # Check if we can level down
                             # Find the heighest usage which is below the current usage
