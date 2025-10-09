@@ -12,3 +12,64 @@
     target:
       entity_id: input_number.water_cycling_pump_reset
   mode: single
+- id: '1760033014511'
+  alias: Türschnapper
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - input_button.snapper_door
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: state
+        entity_id: lock.home
+        state: locked
+      sequence:
+      - action: lock.unlock
+        metadata: {}
+        data: {}
+        target:
+          entity_id: lock.home
+  - action: switch.turn_on
+    metadata: {}
+    data: {}
+    target:
+      entity_id: switch.snapper_door
+  - delay:
+      hours: 0
+      minutes: 0
+      seconds: 1
+      milliseconds: 0
+  - action: switch.turn_off
+    metadata: {}
+    data: {}
+    target:
+      entity_id: switch.snapper_door
+  mode: single
+- id: '1760033049182'
+  alias: Rollade runter bei Sonnenuntergang
+  description: ''
+  triggers:
+  - trigger: sun
+    event: sunset
+    offset: 00:30:00
+  conditions: []
+  actions:
+  - action: cover.close_cover
+    metadata: {}
+    data: {}
+    target:
+      entity_id:
+      - cover.rollade_bad
+      - cover.rollade_buero_fabian
+      - cover.rollade_buero_merja
+      - cover.rollade_hwr
+      - cover.rollade_kueche_links
+      - cover.rollade_kueche_rechts
+      - cover.rollade_schlafzimmer
+      - cover.rollade_speisekammer
+      - cover.rollade_wohnzimmer_links
+      - cover.rollade_wohnzimmer_rechts
+  mode: single
