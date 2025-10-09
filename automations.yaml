@@ -59,3 +59,39 @@
       - cover.rollade_wohnzimmer_links
       - cover.rollade_wohnzimmer_rechts
   mode: single
+- id: '1760034159712'
+  alias: Water cycling
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - binary_sensor.presence_bad
+    to: 'on'
+  - trigger: state
+    entity_id:
+    - binary_sensor.presence_bad
+    to: 'off'
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: state
+        entity_id: binary_sensor.presence_bad
+        state: 'on'
+      sequence:
+      - action: switch.turn_on
+        metadata: {}
+        data: {}
+        target:
+          entity_id: switch.water_cycling_pump
+    - conditions:
+      - condition: state
+        entity_id: binary_sensor.presence_bad
+        state: 'off'
+      sequence:
+      - action: switch.turn_off
+        metadata: {}
+        data: {}
+        target:
+          entity_id: switch.water_cycling_pump
+  mode: single
