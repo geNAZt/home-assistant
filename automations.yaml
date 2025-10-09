@@ -1,17 +1,3 @@
-- id: '1740783015549'
-  alias: Water cycling pump reset
-  description: ''
-  triggers:
-  - trigger: time_pattern
-    minutes: '*'
-  conditions: []
-  actions:
-  - action: input_number.decrement
-    metadata: {}
-    data: {}
-    target:
-      entity_id: input_number.water_cycling_pump_reset
-  mode: single
 - id: '1760033014511'
   alias: Türschnapper
   description: ''
