@@ -663,7 +663,7 @@ class EnergyManager(hass.Hass):
             self.log("Time calculations: minutes=%d, total_seconds=%.2f, rest=%.2f" % (minutes, time_till_sunrise, rest))
 
             # We simply asssume that we consume 1000 watt per hour for now until we found a way to predict this
-            needed_watt_per_minute = 1000 / 60
+            needed_watt_per_minute = 300 / 60
             needed_kwh = (minutes * needed_watt_per_minute) / 1000
 
             self.log("Energy needs: watt_per_minute=%.2f, needed_kwh=%.3f" % (needed_watt_per_minute, needed_kwh))
