@@ -606,7 +606,10 @@ class EnergyManager(hass.Hass):
 
                 self.log("Energy consumption rate for %s: %.2f w" % (key, energy_consumption_rate))
 
-                value.real_usage = energy_consumption_rate
+                if energy_consumption_rate > 0:
+                    value.real_usage = energy_consumption_rate
+                else:
+                    value.real_usage = 0
 
         # Get proper solar panel production
         panel_to_house_w = self._solar_panel_production / self._solar_panel_amount if self._solar_panel_amount > 0 else 0
