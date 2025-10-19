@@ -113,6 +113,9 @@
     device_id: a0fc21070bd65c1c856cb76779093e8d
     entity_id: fac5b8708ea24f89fb09f34c1ec11399
     domain: switch
+  - condition: time
+    after: 08:02:00
+    before: '21:59:00'
   - action: light.turn_off
     metadata: {}
     data: {}
