@@ -2494,7 +2494,7 @@ class SolcastApi:  # pylint: disable=too-many-public-methods
                     self.get_day_start_utc(future=(-1 * day)),
                     entity,
                 )
-                if entity_history.get(entity) and len(entity_history[entity]):
+                if entity_history.get(entity) and len(entity_history[entity]) > 4:
                     _LOGGER.debug("Retrieved day %d PV generation data from entity: %s", -1 + day * -1, entity)
 
                     # Get the conversion factor for the entity to convert to kWh.
@@ -2548,42 +2548,52 @@ class SolcastApi:  # pylint: disable=too-many-public-methods
                     # Build generation values for each interval, ignoring any excessive jumps.
                     ignored: dict[dt, bool] = {}
                     last_interval: dt | None = None
-                    for interval, kWh, report_time, time_delta in zip(
-                        sample_time, sample_generation, sample_generation_time, sample_timedelta, strict=True
+                    if (
+                        len(sample_time) == len(sample_generation)
+                        and len(sample_time) == len(sample_generation_time)
+                        and len(sample_time) == len(sample_timedelta)
                     ):
-                        if interval != last_interval:
-                            # Only check the first sample of each interval for an excessive jump
-                            last_interval = interval
-                            if uniform_increment:
-                                if round(kWh, 4) > upper:  # Ignore excessive jumps.
-                                    ignored[interval] = True
+                        for interval, kWh, report_time, time_delta in zip(
+                            sample_time, sample_generation, sample_generation_time, sample_timedelta, strict=True
+                        ):
+                            if interval != last_interval:
+                                # Only check the first sample of each interval for an excessive jump
+                                last_interval = interval
+                                if uniform_increment:
+                                    if round(kWh, 4) > upper:  # Ignore excessive jumps.
+                                        ignored[interval] = True
+                                    else:
+                                        generation_intervals[interval] += kWh
+                                elif time_delta > upper and kWh > 0.0003:  # Ignore excessive jumps.
+                                    if kWh <= 0.14:  # Small increments are probably valid
+                                        generation_intervals[interval] += kWh
+                                    else:
+                                        ignored[interval] = True
                                 else:
                                     generation_intervals[interval] += kWh
-                            elif time_delta > upper and kWh > 0.0003:  # Ignore excessive jumps.
-                                if kWh <= 0.14:  # Small increments are probably valid
-                                    generation_intervals[interval] += kWh
-                                else:
-                                    ignored[interval] = True
+                                if ignored.get(interval):
+                                    # Invalidate both this interval and the previous one because errant sample straddles the half-hour boundary.
+                                    ignored[interval - timedelta(minutes=30)] = True
+                                    _LOGGER.debug(
+                                        "Ignoring excessive PV generation jump of %.3f kWh, time delta %d seconds, at %s from entity: %s; Invalidating intervals %s and %s",
+                                        kWh,
+                                        time_delta,
+                                        report_time.astimezone(self.options.tz).strftime("%Y-%m-%d %H:%M:%S"),
+                                        entity,
+                                        (interval - timedelta(minutes=30)).astimezone(self.options.tz).strftime("%H:%M"),
+                                        interval.astimezone(self.options.tz).strftime("%H:%M"),
+                                    )
                             else:
                                 generation_intervals[interval] += kWh
-                            if ignored.get(interval):
-                                # Invalidate both this interval and the previous one because errant sample straddles the half-hour boundary.
-                                ignored[interval - timedelta(minutes=30)] = True
-                                _LOGGER.debug(
-                                    "Ignoring excessive PV generation jump of %.3f kWh, time delta %d seconds, at %s from entity: %s; Invalidating intervals %s and %s",
-                                    kWh,
-                                    time_delta,
-                                    report_time.astimezone(self.options.tz).strftime("%Y-%m-%d %H:%M:%S"),
-                                    entity,
-                                    (interval - timedelta(minutes=30)).astimezone(self.options.tz).strftime("%H:%M"),
-                                    interval.astimezone(self.options.tz).strftime("%H:%M"),
-                                )
-                        else:
-                            generation_intervals[interval] += kWh
-                    for interval in ignored:
-                        generation_intervals[interval] = 0.0
+                        for interval in ignored:
+                            generation_intervals[interval] = 0.0
                 else:
-                    _LOGGER.debug("No day %d PV generation data from entity: %s (%s)", -1 + day * -1, entity, entity_history.get(entity))
+                    _LOGGER.debug(
+                        "No day %d PV generation data (or barely any) from entity: %s (%s)",
+                        -1 + day * -1,
+                        entity,
+                        entity_history.get(entity),
+                    )
             for i, gen in generation_intervals.items():
                 generation_intervals[i] = round(gen, 3)
 
@@ -2755,6 +2765,7 @@ class SolcastApi:  # pylint: disable=too-many-public-methods
             _LOGGER.debug("Automated dampening is not enabled, skipping model_automated_dampening()")
             return
 
+        MODEL_DAYS = 14  # Number of days over which to model
         MINIMUM_INTERVALS = 1  # Minimum number of matching intervals to consider dampening
 
         start_time = time.time()
@@ -2785,7 +2796,7 @@ class SolcastApi:  # pylint: disable=too-many-public-methods
                 return
             start, end = self.__get_list_slice(
                 self._data_actuals["siteinfo"][site["resource_id"]]["forecasts"],
-                self._data_generation["generation"][0]["period_start"],
+                self.get_day_start_utc() - timedelta(days=MODEL_DAYS),  # self._data_generation["generation"][0]["period_start"],
                 self.get_day_start_utc(),
                 search_past=True,
             )
@@ -2799,7 +2810,7 @@ class SolcastApi:  # pylint: disable=too-many-public-methods
                 else:
                     actuals[period_start] = actual["pv_estimate"] * 0.5
 
-        # Collect top intervals from the past fourteen days.
+        # Collect top intervals from the past MODEL_DAYS days.
         self._peak_intervals = dict.fromkeys(range(48), 0.0)
         for period_start, actual in actuals.items():
             interval = self.adjusted_interval_dt(period_start)
@@ -3843,10 +3854,7 @@ class SolcastApi:  # pylint: disable=too-many-public-methods
         forecasts: dict[dt, dict[str, dt | float]] = {}
         forecasts_undampened: dict[dt, dict[str, dt | float]] = {}
 
-        self._data_forecasts = []
-        self._data_forecasts_undampened = []
-
-        build_success = True
+        build_success = True  # Be optimistic
 
         async def build_data(  # noqa: C901
             data: dict[str, Any],
