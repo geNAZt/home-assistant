@@ -401,7 +401,7 @@ class Heating(hass.Hass):
         for sensor in self.security_sensors:
             state = self.get_state(sensor, default=0)
             self.set_state(self.virtual_entity_name, attributes={"sec_%s" % sensor: state})
-            if float(state) > 25:
+            if float(state) > 32:
                 return True
             
         return False
