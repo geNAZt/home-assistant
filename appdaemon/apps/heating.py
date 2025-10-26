@@ -86,7 +86,7 @@ class Heating(hass.Hass):
             "temperature_unit": "temp_celsius",
             "target_temp_step": 0.1,
             "min_temp": 16.0,
-            "max_temp": 25.0,
+            "max_temp": 40.0,
             "temperature": temperature,
             "hvac_action": "heating",
             "current_temperature": 0,
