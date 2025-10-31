@@ -647,7 +647,7 @@ class EnergyManager(hass.Hass):
         # Concept here is that we want to skip pricy hours in the morning by precharging our battery with the kWh needed.
         # When looking intoo tibber pricing data the sweetsspot is around 3a.m for this. We need to charge until we hit PV operation.
         # For this we need to estimate how much energy we need per hour and when sunrise is
-        if now.hour < 2 or now.hour > 22:
+        if now.hour < 4:
             self.log("=== AC Charging Logic (Early Morning) ===")
             stop_charging = datetime(now.year, now.month, now.day, 4, 0, 0, 0, now.tzinfo)
             self.log("Stop charging time: %s" % stop_charging)
@@ -666,7 +666,7 @@ class EnergyManager(hass.Hass):
             self.log("Time calculations: minutes=%d, total_seconds=%.2f, rest=%.2f" % (minutes, time_till_sunrise, rest))
 
             # We simply asssume that we consume 1000 watt per hour for now until we found a way to predict this
-            needed_watt_per_minute = 300 / 60
+            needed_watt_per_minute = 500 / 60
             needed_kwh = (minutes * needed_watt_per_minute) / 1000
 
             self.log("Energy needs: watt_per_minute=%.2f, needed_kwh=%.3f" % (needed_watt_per_minute, needed_kwh))

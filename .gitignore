@@ -27,3 +27,5 @@ tts/*
 
 # Lock files
 *.lock
+
+app/
