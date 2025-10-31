@@ -189,7 +189,8 @@ class Device:
                 self.info.device_type == Printers.H2S or 
                 self.info.device_type == Printers.X1 or
                 self.info.device_type == Printers.X1C or
-                self.info.device_type == Printers.X1E):
+                self.info.device_type == Printers.X1E or
+                self.info.device_type == Printers.P2S):
                 return True
             elif (self.info.device_type == Printers.P1S or
                   self.info.device_type == Printers.P1P):
@@ -212,7 +213,8 @@ class Device:
                     self.info.device_type == Printers.H2S or
                     self.info.device_type == Printers.X1 or
                     self.info.device_type == Printers.X1C or
-                    self.info.device_type == Printers.X1E)
+                    self.info.device_type == Printers.X1E or
+                    self.info.device_type == Printers.P2S)
         elif feature == Features.AMS_FILAMENT_REMAINING:
             if (self.info.device_type == Printers.A1 or
                 self.info.device_type == Printers.A1MINI):
@@ -1475,7 +1477,7 @@ class PrintJob:
                 if should_download:
                     # Download video
                     with open(local_file_path, 'wb') as f:
-                        LOGGER.info(f"Downloading '{file_path}'")
+                        LOGGER.debug(f"Downloading '{file_path}'")
                         ftp.retrbinary(f"RETR {file_path}", f.write)
                         f.flush()
                     
@@ -1502,7 +1504,7 @@ class PrintJob:
 
         self.prune_timelapse_files()
 
-        LOGGER.info(f"Done downloading timelapse by FTP. Elapsed time = {(end_time-start_time).seconds}s") 
+        LOGGER.debug(f"Done downloading timelapse by FTP. Elapsed time = {(end_time-start_time).seconds}s") 
 
     def _update_task_data(self):
         self._loaded_model_data = True
@@ -1539,7 +1541,7 @@ class PrintJob:
     def _async_download_task_data_from_printer(self):
         current_thread = threading.current_thread()
         current_thread.setName(f"{self._client._device.info.device_type}-FTP-{threading.get_native_id()}")
-        LOGGER.info(f"FTP thread starting.")
+        LOGGER.debug(f"FTP thread starting.")
 
         try:
             while True:
