@@ -235,6 +235,9 @@
       },
       "active_ams": {
         "name": "Aktívny"
+      },
+      "airduct_mode": {
+        "name": "Režim vzduchovodu"
       }
     },
     "button": {
@@ -811,6 +814,9 @@
           "high_flow_stainless_steel": "nehrdzavejúca oceľ s veľkým prietokom",
           "high_flow_tungsten_carbide": "karbid volfrámu s veľkým prietokom"
         }
+      },
+      "model_download_percentage": {
+        "name": "Model na stiahnutie"
       }
     },
     "camera": {
@@ -830,6 +836,9 @@
       },
       "ftp": {
         "name": "Načítať údaje o modeli z tlačiarne"
+      },
+      "airduct_mode": {
+        "name": "Režim chladenia alebo režim vykurovania/filtra"
       }
     },
     "update": {
@@ -848,8 +857,16 @@
   },
   "issues": {
     "authentication_failed": {
-      "title": "Autentifikácia zlyhala pre {device}",
-      "description": "Pokus o pripojenie k laboratória Bambu zlyhal. Prekonfigurujte integráciu a poskytnite nové poverenia."
+      "title": "Autentifikácia zlyhala",
+      "description": "Pokus o pripojenie k Bambu Lab zlyhal pre {device}. Prekonfigurujte integráciu a poskytnite nové poverenia."
+    },
+    "no_external_storage": {
+      "title": "Nebolo zistené žiadne USB alebo SD karta",
+      "description": "{device} nemá pripojenú kartu USB alebo SD. Je to potrebné pre všetky funkcie, ktoré závisia od ftp na tlačiarni, ako je obrázok na obale, preskakovanie objektov a história tlače."
+    },
+    "live_view_disabled": {
+      "title": "Živé zobrazenie je vypnuté",
+      "description": "{device} má v nastaveniach tlačiarne zakázaný živý náhľad. Ak chcete používať funkcie fotoaparátu, povoľte to."
     }
   }
 }

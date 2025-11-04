@@ -235,6 +235,9 @@
       },
       "active_ams": {
         "name": "Ativo"
+      },
+      "airduct_mode": {
+        "name": "Modo Airduct"
       }
     },
     "button": {
@@ -811,6 +814,9 @@
           "high_flow_stainless_steel": "Aço inoxidável com grande fluxo",
           "high_flow_tungsten_carbide": "carboneto de tungstênio com grande fluxo"
         }
+      },
+      "model_download_percentage": {
+        "name": "Baixar modelo"
       }
     },
     "camera": {
@@ -830,6 +836,9 @@
       },
       "ftp": {
         "name": "Carregar dados do modelo de impressora"
+      },
+      "airduct_mode": {
+        "name": "Modo de resfriamento ou modo de aquecimento/filtro"
       }
     },
     "update": {
@@ -848,8 +857,16 @@
   },
   "issues": {
     "authentication_failed": {
-      "title": "Autenticação falhou para {device}",
-      "description": "Tentar se conectar ao laboratório Bambu falhou. Reconfigure a integração e forneça novas credenciais."
+      "title": "Falha na autenticação",
+      "description": "A tentativa de conexão com o Bambu Lab falhou para {device}. Reconfigure a integração e forneça novas credenciais."
+    },
+    "no_external_storage": {
+      "title": "Nenhum USB ou cartão SD detectado",
+      "description": "{device} não tem um cartão USB ou SD conectado. Isso é necessário para todos os recursos que dependem de FTP para a impressora, como imagem da capa, objetos ignorados e histórico de impressão."
+    },
+    "live_view_disabled": {
+      "title": "Visualização ao vivo desativada",
+      "description": "{device} tem a visualização ao vivo desativada nas configurações da impressora. Ative esta opção para usar os recursos da câmera."
     }
   }
 }

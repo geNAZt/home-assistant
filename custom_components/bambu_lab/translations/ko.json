@@ -235,6 +235,9 @@
       },
       "active_ams": {
         "name": "활동적인"
+      },
+      "airduct_mode": {
+        "name": "에어덕트 모드"
       }
     },
     "button": {
@@ -811,6 +814,9 @@
           "high_flow_stainless_steel": "큰 흐름이있는 스테인레스 스틸",
           "high_flow_tungsten_carbide": "큰 흐름이있는 텅스텐 카바이드"
         }
+      },
+      "model_download_percentage": {
+        "name": "모델 다운로드"
       }
     },
     "camera": {
@@ -830,6 +836,9 @@
       },
       "ftp": {
         "name": "프린터에서 모델 데이터 로드"
+      },
+      "airduct_mode": {
+        "name": "냉각 모드 또는 가열/필터 모드"
       }
     },
     "update": {
@@ -848,8 +857,16 @@
   },
   "issues": {
     "authentication_failed": {
-      "title": "{device}에 대한 인증 실패",
-      "description": "Bambu Lab에 연결하려는 시도는 실패했습니다. 통합을 재구성하고 새로운 자격 증명을 제공하십시오."
+      "title": "인증 실패",
+      "description": "{device}에 대한 Bambu Lab 연결 시도가 실패했습니다. 통합을 재구성하고 새로운 자격 증명을 제공하세요."
+    },
+    "no_external_storage": {
+      "title": "USB 또는 SD 카드가 감지되지 않음",
+      "description": "{device}에는 USB 또는 SD 카드가 연결되어 있지 않습니다. 이는 표지 이미지, 개체 건너뛰기, 인쇄 기록 등 프린터에 대한 FTP에 의존하는 모든 기능에 필요합니다."
+    },
+    "live_view_disabled": {
+      "title": "라이브 뷰 비활성화됨",
+      "description": "{device}의 프린터 설정에서 라이브 뷰가 비활성화되었습니다. 카메라 기능을 사용하려면 이 기능을 활성화하세요."
     }
   }
 }

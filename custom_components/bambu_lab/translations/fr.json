@@ -235,6 +235,9 @@
       },
       "active_ams": {
         "name": "Actif"
+      },
+      "airduct_mode": {
+        "name": "Mode conduit d'air"
       }
     },
     "button": {
@@ -811,6 +814,9 @@
           "high_flow_stainless_steel": "acier inoxydable avec un grand débit",
           "high_flow_tungsten_carbide": "carbure de tungstène avec un grand débit"
         }
+      },
+      "model_download_percentage": {
+        "name": "Téléchargement du modèle"
       }
     },
     "camera": {
@@ -830,6 +836,9 @@
       },
       "ftp": {
         "name": "Charger le modèle depuis l'imprimante"
+      },
+      "airduct_mode": {
+        "name": "Mode refroidissement ou mode chauffage/filtrage"
       }
     },
     "update": {
@@ -848,8 +857,16 @@
   },
   "issues": {
     "authentication_failed": {
-      "title": "L'authentification a échoué pour {device}",
-      "description": "Tenter de se connecter au laboratoire Bambu a échoué. Veuillez reconfigurer l'intégration et fournir de nouvelles références."
+      "title": "Échec de l'authentification",
+      "description": "La tentative de connexion à Bambu Lab a échoué pour {device}. Veuillez reconfigurer l'intégration et fournir de nouvelles informations d'identification."
+    },
+    "no_external_storage": {
+      "title": "Aucune carte USB ou SD détectée",
+      "description": "{device} n'a pas de carte USB ou SD connectée. Ceci est nécessaire pour toutes les fonctionnalités qui dépendent du FTP vers l'imprimante, telles que l'image de couverture, le saut d'objets et l'historique d'impression."
+    },
+    "live_view_disabled": {
+      "title": "Affichage en direct désactivé",
+      "description": "{device} a l'affichage en direct désactivé dans les paramètres de l'imprimante. Veuillez l'activer pour utiliser les fonctionnalités de l'appareil photo."
     }
   }
 }

@@ -235,6 +235,9 @@
       },
       "active_ams": {
         "name": "Attivo"
+      },
+      "airduct_mode": {
+        "name": "Modalità condotto d'aria"
       }
     },
     "button": {
@@ -811,6 +814,9 @@
           "high_flow_stainless_steel": "acciaio inossidabile con grande flusso",
           "high_flow_tungsten_carbide": "Carburo di tungsteno con grande flusso"
         }
+      },
+      "model_download_percentage": {
+        "name": "Scaricamento del modello"
       }
     },
     "camera": {
@@ -830,6 +836,9 @@
       },
       "ftp": {
         "name": "Carica i dati del modello dalla stampante"
+      },
+      "airduct_mode": {
+        "name": "Modalità di raffreddamento o modalità di riscaldamento/filtro"
       }
     },
     "update": {
@@ -848,8 +857,16 @@
   },
   "issues": {
     "authentication_failed": {
-      "title": "L'autenticazione non è riuscita per {device}",
-      "description": "Tentare di connettersi al laboratorio di Bambu non è riuscito. Si prega di riconfigurare l'integrazione e fornire nuove credenziali."
+      "title": "Autenticazione non riuscita",
+      "description": "Il tentativo di connessione a Bambu Lab non è riuscito per {device}. Riconfigurare l'integrazione e fornire nuove credenziali."
+    },
+    "no_external_storage": {
+      "title": "Nessuna scheda USB o SD rilevata",
+      "description": "{device} non ha una scheda USB o SD collegata. Ciò è necessario per tutte le funzionalità che dipendono da FTP per la stampante come l'immagine di copertina, il salto degli oggetti e la cronologia di stampa."
+    },
+    "live_view_disabled": {
+      "title": "Visualizzazione dal vivo disabilitata",
+      "description": "{device} ha la visualizzazione live disabilitata nelle impostazioni della stampante. Abilitalo per utilizzare le funzionalità della fotocamera."
     }
   }
 }

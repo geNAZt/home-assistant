@@ -235,6 +235,9 @@
       },
       "active_ams": {
         "name": "Actief"
+      },
+      "airduct_mode": {
+        "name": "Luchtkanaalmodus"
       }
     },
     "button": {
@@ -811,6 +814,9 @@
           "high_flow_stainless_steel": "roestvrij staal met grote stroom",
           "high_flow_tungsten_carbide": "wolfraamcarbide met grote stroom"
         }
+      },
+      "model_download_percentage": {
+        "name": "Model downloaden"
       }
     },
     "camera": {
@@ -830,6 +836,9 @@
       },
       "prompt_sound": {
         "name": "Toestaan van bevestigingsgeluiden"
+      },
+      "airduct_mode": {
+        "name": "Koelmodus of verwarmings-/filtermodus"
       }
     },
     "update": {
@@ -848,8 +857,16 @@
   },
   "issues": {
     "authentication_failed": {
-      "title": "Authenticatie mislukt voor {device}",
-      "description": "Proberen om verbinding te maken met Bambu Lab is mislukt. Configureer de integratie opnieuw en geef nieuwe referenties."
+      "title": "Authenticatie mislukt",
+      "description": "Poging om verbinding te maken met Bambu Lab is mislukt voor {device}. Configureer de integratie opnieuw en geef nieuwe inloggegevens op."
+    },
+    "no_external_storage": {
+      "title": "Geen USB- of SD-kaart gedetecteerd",
+      "description": "Op {device} is geen USB- of SD-kaart aangesloten. Dit is nodig voor alle functies die afhankelijk zijn van ftp naar de printer, zoals de omslagafbeelding, het overslaan van objecten en de afdrukgeschiedenis."
+    },
+    "live_view_disabled": {
+      "title": "Liveweergave uitgeschakeld",
+      "description": "Voor {device} is liveweergave uitgeschakeld in de printerinstellingen. Schakel dit in om de camerafuncties te gebruiken."
     }
   }
 }

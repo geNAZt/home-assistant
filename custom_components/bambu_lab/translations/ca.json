@@ -235,6 +235,9 @@
       },
       "active_ams": {
         "name": "Activa"
+      },
+      "airduct_mode": {
+        "name": "Mode de conducte d'aire"
       }
     },
     "button": {
@@ -811,6 +814,9 @@
           "high_flow_stainless_steel": "Acer inoxidable amb un gran flux",
           "high_flow_tungsten_carbide": "Carbur de tungstè amb gran flux"
         }
+      },
+      "model_download_percentage": {
+        "name": "Descàrrega del model"
       }
     },
     "camera": {
@@ -830,6 +836,9 @@
       },
       "ftp": {
         "name": "Carregueu les dades del model de la impressora"
+      },
+      "airduct_mode": {
+        "name": "Mode de refrigeració o mode de calefacció/filtre"
       }
     },
     "update": {
@@ -848,8 +857,16 @@
   },
   "issues": {
     "authentication_failed": {
-      "title": "L’autenticació ha fallat per {device}",
-      "description": "Intentant connectar -se al laboratori Bambu ha fallat. Reconfigureu la integració i proporcioneu credencials noves."
+      "title": "Ha fallat l'autenticació",
+      "description": "S'ha produït un error en intentar connectar-se a Bambu Lab per a {device}. Torneu a configurar la integració i proporcioneu credencials noves."
+    },
+    "no_external_storage": {
+      "title": "No s'ha detectat cap USB o targeta SD",
+      "description": "{device} no té una targeta USB o SD connectada. Això és necessari per a totes les funcions que depenen de l'ftp a la impressora, com ara la imatge de portada, ometre objectes i historial d'impressió."
+    },
+    "live_view_disabled": {
+      "title": "Visualització en directe desactivada",
+      "description": "{device} té la visualització en directe desactivada a la configuració de la impressora. Activeu-ho per utilitzar les funcions de la càmera."
     }
   }
 }
