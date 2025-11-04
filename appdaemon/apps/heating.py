@@ -22,6 +22,9 @@ FEATURE_HEATING_BLOCK_ENABLED = True
 FEATURE_HEATING_BLOCK_START = 6
 FEATURE_HEATING_BLOCK_END = 24
 
+FEATURE_PROGNOSIS_THRESHOLD = 21
+FEATURE_PROGNOSIS_ENABLED = True
+
 #
 # Heating control
 #
@@ -41,6 +44,7 @@ class Heating(hass.Hass):
     _manipulation_time: float
 
     _ec: any
+    _skip_till_next_day: bool
 
     def initialize(self):
         # Initialize SQLite database
@@ -142,6 +146,7 @@ class Heating(hass.Hass):
         self.turn_off(self.output)
         self._heating_started = 0.0
         self._heating_halted_until = 0.0
+        self._skip_till_next_day = False
 
         # Calc on and off time        
         self._on_time = TIME_SLOT_SECONDS * pwm_percent
@@ -152,6 +157,7 @@ class Heating(hass.Hass):
 
         # Ensure that we run at least once a minute
         self.run_every(self.recalc, "now", 10)
+        self.run_daily(self.check_prognosis, "11:55:00 PM")
 
         self.log("Register with current %d" % self.current)
 
@@ -481,12 +487,32 @@ class Heating(hass.Hass):
         self.update_climate_record({'state': 'idle'})
         self.set_state(self.virtual_entity_name, state='idle')
 
+
+    def check_prognosis(self, kwargs):
+        prognosis = float(self.get_state("sensor.solcast_pv_forecast_prognose_morgen"))
+        if prognosis > 21:
+            self._skip_till_next_day = True
+        else:
+            self._skip_till_next_day = False
+
     def recalc(self, kwargs):
         heating = self.is_heating()
         energy_manager = self.get_app("energy_manager")
 
         room_temp = self.room_temperature()
         self.set_state(self.virtual_entity_name, attributes={"current_temperature": room_temp})
+
+
+        if FEATURE_PROGNOSIS_ENABLED:
+            if self._ignore_presence_until < time.time():
+                if self._skip_till_next_day:
+                    self.log("Prognosis is enabled, we are skipping till next day")
+                    if heating:
+                        energy_manager.em_turn_off(self._ec)
+                        
+                    return
+                else:
+                    self.log("Prognosis is enabled, but we have excess PV")
 
         if FEATURE_HEATING_BLOCK_ENABLED:
             now = datetime.now()
