@@ -18,6 +18,10 @@ FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS = 5
 FEATURE_ON_OFF_TIME_MANIPULATION_COOLDOWN = 60
 FEATURE_ON_OFF_TIME_MANIPULATION_RATE = 0.01
 
+FEATURE_HEATING_BLOCK_ENABLED = True
+FEATURE_HEATING_BLOCK_START = 6
+FEATURE_HEATING_BLOCK_END = 22
+
 #
 # Heating control
 #
@@ -478,8 +482,16 @@ class Heating(hass.Hass):
 
     def recalc(self, kwargs):
         heating = self.is_heating()
-
         energy_manager = self.get_app("energy_manager")
+
+        if FEATURE_HEATING_BLOCK_ENABLED:
+            now = datetime.now()
+            if now.hour >= FEATURE_HEATING_BLOCK_START and now.hour <= FEATURE_HEATING_BLOCK_END:
+                self.log("Heating block is enabled, but now is %s" % now.hour)
+                if heating:
+                    energy_manager.em_turn_off(self._ec)
+                    
+                return
 
         state = self.get_state(self.virtual_entity_name)
         if state == "off":

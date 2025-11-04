@@ -61,6 +61,8 @@ energy_manager:
       priority: 0
       can_be_turned_off: false
       stages:
+      - usage: 400
+        switch: virtual.solar_battery
       - usage: 1000
         switch: virtual.solar_battery
       - usage: 1500
