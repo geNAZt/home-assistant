@@ -484,6 +484,9 @@ class Heating(hass.Hass):
         heating = self.is_heating()
         energy_manager = self.get_app("energy_manager")
 
+        room_temp = self.room_temperature()
+        self.set_state(self.virtual_entity_name, attributes={"current_temperature": room_temp})
+
         if FEATURE_HEATING_BLOCK_ENABLED:
             now = datetime.now()
             if now.hour >= FEATURE_HEATING_BLOCK_START and now.hour <= FEATURE_HEATING_BLOCK_END:
@@ -498,9 +501,6 @@ class Heating(hass.Hass):
             if heating:
                 energy_manager.em_turn_off(self._ec)
             return
-
-        room_temp = self.room_temperature()
-        self.set_state(self.virtual_entity_name, attributes={"current_temperature": room_temp})
 
         now_seconds = time.time()
 
