@@ -511,8 +511,8 @@ class Heating(hass.Hass):
                         energy_manager.em_turn_off(self._ec)
                         
                     return
-                else:
-                    self.log("Prognosis is enabled, but we have excess PV")
+            else:
+                self.log("Prognosis is enabled, but we have excess PV")
 
         if FEATURE_HEATING_BLOCK_ENABLED:
             now = datetime.now()
