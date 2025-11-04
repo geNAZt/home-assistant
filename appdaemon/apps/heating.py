@@ -20,7 +20,7 @@ FEATURE_ON_OFF_TIME_MANIPULATION_RATE = 0.01
 
 FEATURE_HEATING_BLOCK_ENABLED = True
 FEATURE_HEATING_BLOCK_START = 6
-FEATURE_HEATING_BLOCK_END = 22
+FEATURE_HEATING_BLOCK_END = 24
 
 #
 # Heating control
@@ -277,6 +277,7 @@ class Heating(hass.Hass):
         climate_data = self.get_climate_data()
         if climate_data is None:
             return
+
         target = climate_data["temperature"]
         room_temp = self.room_temperature()
         if room_temp < target:
@@ -490,11 +491,15 @@ class Heating(hass.Hass):
         if FEATURE_HEATING_BLOCK_ENABLED:
             now = datetime.now()
             if now.hour >= FEATURE_HEATING_BLOCK_START and now.hour <= FEATURE_HEATING_BLOCK_END:
-                self.log("Heating block is enabled, but now is %s" % now.hour)
-                if heating:
-                    energy_manager.em_turn_off(self._ec)
-                    
-                return
+                # Check if we have excess PV
+                if self._ignore_presence_until < time.time():
+                    self.log("Heating block is enabled, but now is %s" % now.hour)
+                    if heating:
+                        energy_manager.em_turn_off(self._ec)
+                        
+                    return
+                else:
+                    self.log("Heating block is enabled, but we have excess PV")
 
         state = self.get_state(self.virtual_entity_name)
         if state == "off":
@@ -583,7 +588,7 @@ class Heating(hass.Hass):
             return
 
     def optimize_energy_usage(self):
-        current_power = self.current * 230  # Assuming 230V system, given in Watt per hour
+        current_power = (self.current / 1000) * 230  # Assuming 230V system, given in Watt per hour
         heating_time = time.time() - self._heating_started
         
         # Calculate energy used in this cycle
