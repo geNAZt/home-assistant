@@ -713,7 +713,7 @@ class EnergyManager(hass.Hass):
                 for key, value in cur_consumptions.items():
                     self.log("Current active consumption '%s' for priority %d: %d" % (key, priority, value.real_usage))
 
-            if battery_charge_in_kwh > 8:
+            if battery_charge_in_kwh > 10:
                 self.log("Calling consume_more for all known consumers if we have enough battery")
 
                 for ec in self._known:
