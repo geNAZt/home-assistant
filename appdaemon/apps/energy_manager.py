@@ -713,6 +713,13 @@ class EnergyManager(hass.Hass):
                 for key, value in cur_consumptions.items():
                     self.log("Current active consumption '%s' for priority %d: %d" % (key, priority, value.real_usage))
 
+            if battery_charge_in_kwh > 8:
+                self.log("Calling consume_more for all known consumers if we have enough battery")
+
+                for ec in self._known:
+                    self.log("Calling consume_more for consumer: %s" % ec.name)
+                    ec.consume_more() 
+
             # If we have export power check if we can use it
             if exported_watt > 300:
                 self.log("Exported power (%.2f w) > 300w threshold, checking for additional consumption opportunities" % exported_watt)
@@ -840,13 +847,6 @@ class EnergyManager(hass.Hass):
                     except Exception as e:
                         self.log("Exception: %s" % e)
                         continue
-                
-                if battery_charge_in_kwh > 5:
-                    self.log("Calling consume_more for all known consumers if we have enough battery")
-
-                    for ec in self._known:
-                        self.log("Calling consume_more for consumer: %s" % ec.name)
-                        ec.consume_more() 
             else:
                 self.log("Exported power (%.2f w) <= 300w threshold, checking for consumption reduction" % exported_watt)
 
