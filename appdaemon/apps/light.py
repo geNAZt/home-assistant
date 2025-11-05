@@ -357,6 +357,10 @@ class Light(hass.Hass):
         return rate / float(amount)
 
     def update(self):
+        if "forceOn" in self.args and self.args["forceOn"]:
+            self.set_light_to(255)
+            return
+
         # Check if we got disabled
         active = self.get_state(self.virtual_entity_name)
         if active == "off":

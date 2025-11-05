@@ -114,6 +114,7 @@ light_bad:
   class: Light
   waterHigh: 800
   waterLow: 400
+  forceOn: true
 light_speisekammer:
   module: light
   class: Light
