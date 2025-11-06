@@ -46,7 +46,11 @@ class Heating(hass.Hass):
     _ec: any
     _skip_till_next_day: bool
 
+    _log_message_timers: dict[str, float]
+
     def initialize(self):
+        self._log_message_timers = {}
+
         # Initialize SQLite database
         db_path = "/config/climate_state_%s.db" % self.name.replace("heating_", "")
         self.db_path = db_path
@@ -495,6 +499,15 @@ class Heating(hass.Hass):
         else:
             self._skip_till_next_day = False
 
+    def log_once(self, message):
+        # Get current time, check if it's been less than 1 minute since last log
+        now = time.time()
+        if now - self._log_message_timers.get(message, 0) < 30*60:
+            return
+
+        self._log_message_timers[message] = now
+        self.log(message)
+
     def recalc(self, kwargs):
         heating = self.is_heating()
         energy_manager = self.get_app("energy_manager")
@@ -502,30 +515,29 @@ class Heating(hass.Hass):
         room_temp = self.room_temperature()
         self.set_state(self.virtual_entity_name, attributes={"current_temperature": room_temp})
 
-
         if FEATURE_PROGNOSIS_ENABLED:
             if self._ignore_presence_until < time.time():
                 if self._skip_till_next_day:
-                    self.log("Prognosis is enabled, we are skipping till next day")
+                    self.log_once("Prognosis is enabled, we are skipping till next day")
                     if heating:
                         energy_manager.em_turn_off(self._ec)
                         
                     return
             else:
-                self.log("Prognosis is enabled, but we have excess PV")
+                self.log_once("Prognosis is enabled, but we have excess PV")
 
         if FEATURE_HEATING_BLOCK_ENABLED:
             now = datetime.now()
             if now.hour >= FEATURE_HEATING_BLOCK_START and now.hour <= FEATURE_HEATING_BLOCK_END:
                 # Check if we have excess PV
                 if self._ignore_presence_until < time.time():
-                    self.log("Heating block is enabled, but now is %s" % now.hour)
+                    self.log_once("Heating block is enabled, but now is %s" % now.hour)
                     if heating:
                         energy_manager.em_turn_off(self._ec)
                         
                     return
                 else:
-                    self.log("Heating block is enabled, but we have excess PV")
+                    self.log_once("Heating block is enabled, but we have excess PV")
 
         state = self.get_state(self.virtual_entity_name)
         if state == "off":
@@ -538,7 +550,7 @@ class Heating(hass.Hass):
         # Check for heating length
         if heating and now_seconds - self._heating_started > self._on_time:
             self._heating_halted_until = now_seconds + self._off_time
-            self.log("Setting heating pause until %s" % self._heating_halted_until)
+            self.log_once("Setting heating pause until %s" % self._heating_halted_until)
 
         # Check if we are paused
         if self._heating_halted_until > now_seconds:
