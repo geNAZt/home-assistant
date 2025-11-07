@@ -25,6 +25,7 @@ class EnergyPredict(hass.Hass):
         first = history[0]
         new_history = [first]
         for entry in history:
+            self.log("Entry: %s" % entry)
             if entry.last_changed - first.last_changed > timedelta(minutes=15):
                 first = entry
                 new_history.append(first)
