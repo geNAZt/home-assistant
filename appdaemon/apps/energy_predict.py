@@ -8,10 +8,32 @@ import time
 from datetime import datetime, timedelta, timezone 
 from dataclasses import dataclass
 
+@dataclass
+class HistoryEntry:
+    state: float
+    last_changed: datetime
+
 class EnergyPredict(hass.Hass):
     def initialize(self):
         # Setup timer
-        self.run_every(self.run_every_c, "now", 15*60)
+        self.run_every(self.run_every_c, "now", 5)
+
+    def compress_history(self, history: list[HistoryEntry]) -> str:
+        # We iterate over the whole history and check if we have a history entry in the same 15 minute bucket
+        # We then generate a new 15 minute based history which can be used for the AI model
+        # We return the new history
+        first = history[0]
+        new_history = [first]
+        for entry in history:
+            if entry.last_changed - first.last_changed > timedelta(minutes=15):
+                first = entry
+                new_history.append(first)
+            
+        # Convert the new history to a string
+        new_history_str = "Data given in 15 minute intervals. Starting at %s\n" % (new_history[0].last_changed)
+        for entry in new_history:
+            new_history_str += "%s," % (entry.state)
+        return new_history_str
 
     def run_every_c(self, kwargs):
         self.log("=== Energy Predict Run Every C Started (Thread: %s) ===" % threading.current_thread().name)
@@ -19,22 +41,8 @@ class EnergyPredict(hass.Hass):
         # Get the current time
         now = self.get_now()
 
-        # Check for the next 48 hours
-        #future = now + timedelta(hours=48)
-
-        # Get the forecast for the next 48 hours
-
-        # Calculate the last 3 days
-        last_3_days = now - timedelta(days=4)
-        last_3_days = last_3_days.replace(hour=0, minute=0, second=0, microsecond=0)
-        
-        # Get history power usage
-        history = self.get_history(entity_id = "sensor.solar_house_consumption_daily", start_time = last_3_days)
-        if len(history) > 0:
-            for entry in history[0]:
-
-                self.log("History entry: %s" % entry)
-        else:
-            self.log("No history data available")
+        his = self.get_history(entity_id = "sensor.solar_house_consumption_daily", start_time = now - timedelta(days=2), end_time = now)
+        daily_history = self.compress_history(his[0])
+        self.log("Daily history: %s" % daily_history)
 
         
