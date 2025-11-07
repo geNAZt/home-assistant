@@ -41,7 +41,7 @@ class EnergyPredict(hass.Hass):
         # Get the current time
         now = self.get_now()
 
-        his = self.get_history(entity_id = "sensor.solar_house_consumption_daily", start_time = now - timedelta(days=2), end_time = now)
+        his = self.get_history(entity_id = "sensor.solar_house_consumption_daily", start_time = now - timedelta(days=1), end_time = now)
         daily_history = self.compress_history(his[0])
         self.log("Daily history: %s" % daily_history)
 
