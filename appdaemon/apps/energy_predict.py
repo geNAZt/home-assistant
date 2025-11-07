@@ -6,19 +6,13 @@ import threading
 import time
 
 from datetime import datetime, timedelta, timezone 
-from dataclasses import dataclass
-
-@dataclass
-class HistoryEntry:
-    state: float
-    last_changed: datetime
 
 class EnergyPredict(hass.Hass):
     def initialize(self):
         # Setup timer
         self.run_every(self.run_every_c, "now", 30)
 
-    def compress_history(self, history: list[HistoryEntry]) -> str:
+    def compress_history(self, history: list[dict]) -> str:
         # We iterate over the whole history and check if we have a history entry in the same 15 minute bucket
         # We then generate a new 15 minute based history which can be used for the AI model
         # We return the new history
@@ -26,7 +20,7 @@ class EnergyPredict(hass.Hass):
         new_history = [first]
         for entry in history:
             self.log("Entry: %s" % entry)
-            if entry.last_changed - first.last_changed > timedelta(minutes=15):
+            if entry["last_changed"] - first["last_changed"] > timedelta(minutes=15):
                 first = entry
                 new_history.append(first)
             
