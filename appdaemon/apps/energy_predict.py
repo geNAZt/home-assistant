@@ -24,7 +24,7 @@ class EnergyPredict(hass.Hass):
                 new_history.append(first)
             
         # Convert the new history to a string
-        new_history_str = "Data given in 15 minute intervals. Starting at %s\n" % (new_history[0]["last_changed"])
+        new_history_str = ""
         for entry in new_history:
             new_history_str += "%s," % (entry["state"])
         return new_history_str
@@ -35,8 +35,11 @@ class EnergyPredict(hass.Hass):
         # Get the current time
         now = self.get_now()
 
+        prompt = "Data given in 15 minute intervals. Starting at %s\n" % (now - timedelta(days=1))
+
         his = self.get_history(entity_id = "sensor.solar_house_consumption_daily", start_time = now - timedelta(days=1), end_time = now)
         daily_history = self.compress_history(his[0])
-        self.log("Daily history: %s" % daily_history)
+        prompt += "sensor.solar_house_consumption_daily: %s\n" % daily_history
 
+        self.log("Prompt: %s" % prompt)
         
