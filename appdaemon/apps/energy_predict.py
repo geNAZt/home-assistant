@@ -16,7 +16,7 @@ class HistoryEntry:
 class EnergyPredict(hass.Hass):
     def initialize(self):
         # Setup timer
-        self.run_every(self.run_every_c, "now", 5)
+        self.run_every(self.run_every_c, "now", 30)
 
     def compress_history(self, history: list[HistoryEntry]) -> str:
         # We iterate over the whole history and check if we have a history entry in the same 15 minute bucket
