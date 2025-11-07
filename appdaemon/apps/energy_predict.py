@@ -24,9 +24,9 @@ class EnergyPredict(hass.Hass):
                 new_history.append(first)
             
         # Convert the new history to a string
-        new_history_str = "Data given in 15 minute intervals. Starting at %s\n" % (new_history[0].last_changed)
+        new_history_str = "Data given in 15 minute intervals. Starting at %s\n" % (new_history[0]["last_changed"])
         for entry in new_history:
-            new_history_str += "%s," % (entry.state)
+            new_history_str += "%s," % (entry["state"])
         return new_history_str
 
     def run_every_c(self, kwargs):
