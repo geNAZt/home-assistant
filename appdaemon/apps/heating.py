@@ -544,7 +544,7 @@ class Heating(hass.Hass):
                     self.log_once("Heating block is enabled, but we have excess PV")
             else:
                 self._ignore_presence_until = time.time() + 15*60
-                self._offset = 1.0
+                self._offset = 0.25 # delta T for bridging the HT window (16:00-19:00)
 
         if self._ignore_presence_until < time.time():
             self._offset = 0.0
