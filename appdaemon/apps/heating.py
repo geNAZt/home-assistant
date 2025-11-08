@@ -51,6 +51,7 @@ class Heating(hass.Hass):
     def initialize(self):
         self._log_message_timers = {}
         self._offset = 0.0
+        self._preheat_offset = 0.0
 
         # Initialize SQLite database
         db_path = "/config/climate_state_%s.db" % self.name.replace("heating_", "")
@@ -504,8 +505,32 @@ class Heating(hass.Hass):
         prognosis = float(self.get_state("sensor.solcast_pv_forecast_prognose_morgen"))
         if prognosis > 21:
             self._skip_till_next_day = True
+            self._preheat_offset = 0.0
         else:
             self._skip_till_next_day = False
+
+        # Precalc offset
+        resp = self.call_service("weather/get_forecasts", service_data={
+            "entity_id": "weather.home",
+            "type": "daily"
+        })
+
+        if resp and "result" in resp and "response" in resp["result"]:
+            forecasts = resp["result"]["response"].get("weather.home", {"forecast": []})
+            forecast = forecasts["forecast"]
+            if len(forecast) > 0:
+                forecast_item = forecast[1]
+                if "temperature" in forecast_item:
+                    temperature = forecast_item["temperature"]
+                    self.log("Temperature: %s" % temperature)
+                    set_temp = self.get_climate_data()["temperature"]
+                    self._preheat_offset = max(min((0.05 * (set_temp - temperature) * 3) / 6.25, 0.6), 0.2)
+                else:
+                    self._preheat_offset = 0.2
+                    self.log("No temperature in forecast, setting offset to 0.2")
+        else:
+            self._preheat_offset = 0.2
+            self.log("No forecast in response, setting offset to 0.2")
 
     def log_once(self, message):
         # Get current time, check if it's been less than 1 minute since last log
@@ -548,7 +573,8 @@ class Heating(hass.Hass):
                     self.log_once("Heating block is enabled, but we have excess PV")
             else:
                 self._ignore_presence_until = time.time() + 15*60
-                self._offset = 0.25 # delta T for bridging the HT window (16:00-19:00)
+                self._offset = self._preheat_offset
+                self.log_once("Setting offset to %s" % self._preheat_offset)
 
         if self._ignore_presence_until < time.time():
             self._offset = 0.0
