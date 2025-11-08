@@ -647,9 +647,9 @@ class EnergyManager(hass.Hass):
         # Concept here is that we want to skip pricy hours in the morning by precharging our battery with the kWh needed.
         # When looking intoo tibber pricing data the sweetsspot is around 3a.m for this. We need to charge until we hit PV operation.
         # For this we need to estimate how much energy we need per hour and when sunrise is
-        if now.hour < 4:
+        if now.hour < 6:
             self.log("=== AC Charging Logic (Early Morning) ===")
-            stop_charging = datetime(now.year, now.month, now.day, 4, 0, 0, 0, now.tzinfo)
+            stop_charging = datetime(now.year, now.month, now.day, 6, 0, 0, 0, now.tzinfo)
             self.log("Stop charging time: %s" % stop_charging)
 
             tomorrow_estimate = self._estimated_production_tomorrow()
