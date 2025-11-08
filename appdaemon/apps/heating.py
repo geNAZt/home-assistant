@@ -233,6 +233,8 @@ class Heating(hass.Hass):
             return None
 
     def update_climate_record(self, updates):
+
+        self.log("Updating climate record: %s" % str(updates))
         """Update climate record with the given updates dictionary"""
         try:
             conn = sqlite3.connect(self.db_path)
