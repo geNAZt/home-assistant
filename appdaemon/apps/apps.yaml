@@ -1,7 +1,4 @@
 ---
-energy_predict:
-  module: energy_predict
-  class: EnergyPredict
 energy_manager:
   module: energy_manager
   class: EnergyManager
