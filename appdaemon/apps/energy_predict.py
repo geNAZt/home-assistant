@@ -18,6 +18,7 @@ class EnergyPredict(hass.Hass):
         # We return the new history
         first = history[0]
         new_history = [first]
+        unit_of_measurement = first["unit_of_measurement"]
         for entry in history:
             if entry["last_changed"] - first["last_changed"] > timedelta(minutes=15):
                 first = entry
@@ -27,7 +28,7 @@ class EnergyPredict(hass.Hass):
         new_history_str = ""
         for entry in new_history:
             new_history_str += "%s," % (entry["state"])
-        return new_history_str
+        return new_history_str, unit_of_measurement 
 
     def run_every_c(self, kwargs):
         self.log("=== Energy Predict Run Every C Started (Thread: %s) ===" % threading.current_thread().name)
@@ -37,9 +38,17 @@ class EnergyPredict(hass.Hass):
 
         prompt = "Data given in 15 minute intervals. Starting at %s\n" % (now - timedelta(days=1))
 
-        his = self.get_history(entity_id = "sensor.solar_house_consumption_daily", start_time = now - timedelta(days=1), end_time = now)
-        daily_history = self.compress_history(his[0])
-        prompt += "sensor.solar_house_consumption_daily: %s\n" % daily_history
+        entities = [
+            # Energy
+            "sensor.solar_house_consumption_daily",
+            # Heating
+            "climate.room_bad"
+        ]
+
+        for entity in entities:
+            his = self.get_history(entity_id = entity, start_time = now - timedelta(days=1), end_time = now)
+            daily_history, unit = self.compress_history(his[0])
+            prompt += "%s(%s): %s\n" % (entity, unit, daily_history)
 
         self.log("Prompt: %s" % prompt)
         
