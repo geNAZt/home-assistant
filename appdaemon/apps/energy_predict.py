@@ -284,7 +284,7 @@ class EnergyPredict(hass.Hass):
             
             self.log("Prompt generated successfully")
             self.log(f"Prompt length: {len(prompt)} characters")
-            self.log(f"\n{'='*80}\n{prompt}\n{'='*80}")
+            #self.log(f"\n{'='*80}\n{prompt}\n{'='*80}")
 
         except Exception as ex:
             self.log(f"Error in run_every_c: {ex}", level="ERROR")
