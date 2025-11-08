@@ -658,6 +658,31 @@ class EnergyManager(hass.Hass):
                     (battery_remaining_capacity, battery_charge_in_kwh, tomorrow_estimate))
 
             time_sunrise = datetime.fromisoformat(self.get_state("sensor.sun_next_rising"))
+
+            # Use solcast to get first hour of tomorrow's production
+            try:
+                solcast_ret = self.call_service(
+                    "solcast_solar/query_forecast_data", 
+                    service_data={
+                        "start_date_time": now, 
+                        "end_date_time": now + timedelta(days=1)
+                    }
+                )
+                
+                if solcast_ret and "result" in solcast_ret and "response" in solcast_ret["result"]:
+                    pv_resp = solcast_ret["result"]["response"].get("data", [])
+                    if pv_resp:
+                        for item in pv_resp:
+                            if float(item.get('pv_estimate', 0)) > 0.5:
+                                time_sunrise = datetime.fromisoformat(item.get('period_start', ''))
+                                break
+                    else:
+                        self.log("Warning: No Solcast PV data received")
+                else:
+                    self.log("Warning: Invalid Solcast response structure")
+            except Exception as ex:
+                self.log(f"Error getting Solcast forecast: {ex}")
+
             self.log("Sunrise time: %s" % time_sunrise)
             
             time_till_sunrise = (time_sunrise - stop_charging).total_seconds()
