@@ -45,11 +45,12 @@ class Heating(hass.Hass):
 
     _ec: any
     _skip_till_next_day: bool
-
+    _offset: float
     _log_message_timers: dict[str, float]
 
     def initialize(self):
         self._log_message_timers = {}
+        self._offset = 0.0
 
         # Initialize SQLite database
         db_path = "/config/climate_state_%s.db" % self.name.replace("heating_", "")
@@ -292,8 +293,8 @@ class Heating(hass.Hass):
         room_temp = self.room_temperature()
         if room_temp < target:
             self.manipulateUp("excess PV")
-            self._ignore_presence_until = time.time() + 6*60
-            
+            self._ignore_presence_until = time.time() + 15*60
+            self._offset = 1.0
         return
 
     def onEvent(self, event_name, data, kwargs):
@@ -400,9 +401,12 @@ class Heating(hass.Hass):
             target = 21.0  # Default temperature
         else:
             target = climate_data["temperature"]
+        
+        target = target + self._offset
+
         if self.is_present():
             self.set_state(self.virtual_entity_name, attributes={"temperature": target})
-            return target
+            return target 
         else:
             target = max(target - 1, 16.0)
             self.set_state(self.virtual_entity_name, attributes={"temperature": target})
@@ -538,6 +542,13 @@ class Heating(hass.Hass):
                     return
                 else:
                     self.log_once("Heating block is enabled, but we have excess PV")
+            else:
+                self._ignore_presence_until = time.time() + 15*60
+                self._offset = 1.0
+
+        if self._ignore_presence_until < time.time():
+            self._offset = 0.0
+            self.log_once("Resetting offset to 0.0")
 
         state = self.get_state(self.virtual_entity_name)
         if state == "off":
