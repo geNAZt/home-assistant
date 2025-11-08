@@ -2,6 +2,7 @@
 
 import appdaemon.plugins.hass.hassapi as hass
 import threading
+import json
 
 from datetime import datetime, timedelta 
 
@@ -9,6 +10,84 @@ class EnergyPredict(hass.Hass):
     def initialize(self):
         # Setup timer
         self.run_every(self.run_every_c, "now", 30)
+
+    def get_response_schema(self) -> dict:
+        """
+        Returns the JSON schema that the AI should use for its response.
+        """
+        return {
+            "name": "battery_grid_heater_schedule",
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "grid_charge_times": {
+                        "type": "array",
+                        "description": "Time periods when the battery should be charged from the grid.",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "start_time": {
+                                    "type": "string",
+                                    "description": "Start of grid charging period in ISO 8601 time format.",
+                                    "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                                },
+                                "end_time": {
+                                    "type": "string",
+                                    "description": "End of grid charging period in ISO 8601 time format.",
+                                    "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                                }
+                            },
+                            "required": [
+                                "start_time",
+                                "end_time"
+                            ],
+                            "additionalProperties": False
+                        }
+                    },
+                    "heater_schedules": {
+                        "type": "array",
+                        "description": "Schedules for each heater including when and for how long they should be on.",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "heater_id": {
+                                    "type": "string",
+                                    "description": "Unique identifier or name for the heater."
+                                },
+                                "start_time": {
+                                    "type": "string",
+                                    "description": "Time when this heater should be turned on (ISO 8601 time).",
+                                    "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                                },
+                                "duration_minutes": {
+                                    "type": "integer",
+                                    "description": "Duration in minutes for which the heater should be on.",
+                                    "minimum": 1
+                                }
+                            },
+                            "required": [
+                                "heater_id",
+                                "start_time",
+                                "duration_minutes"
+                            ],
+                            "additionalProperties": False
+                        }
+                    },
+                    "total_grid_cost": {
+                        "type": "number",
+                        "description": "Total cost of purchasing energy from the grid for the schedule.",
+                        "minimum": 0
+                    }
+                },
+                "required": [
+                    "grid_charge_times",
+                    "heater_schedules",
+                    "total_grid_cost"
+                ],
+                "additionalProperties": False
+            },
+            "strict": True
+        }
 
     def compress_history(self, history: list[dict], entity_id: str) -> tuple[str, str]:
         """
@@ -170,12 +249,19 @@ class EnergyPredict(hass.Hass):
             prompt_sections.append("Heat loss: 1.01 kW/h/k for the whole house\n")
             prompt_sections.append("Usage patterns: We take a bath in the evening, heat pump runs during the night\n")
             
-            # Request
+            # Request with JSON Schema
             prompt_sections.append("\n=== Request ===\n")
             prompt_sections.append("Based on the historical data and forecasts above, please provide recommendations:\n")
             prompt_sections.append("1. When should we buy power from the grid?\n")
             prompt_sections.append("2. When should we heat the house?\n")
-            prompt_sections.append("Please respond in easy-to-parse JSON format with timestamps and reasoning.\n")
+            prompt_sections.append("\n=== Response Format (JSON Schema) ===\n")
+            prompt_sections.append("You MUST respond with a JSON object that strictly follows this schema:\n\n")
+            prompt_sections.append(json.dumps(self.get_response_schema(), indent=2))
+            prompt_sections.append("\n\nImportant notes:\n")
+            prompt_sections.append("- Time formats must be in HH:MM format (24-hour, e.g., '14:30')\n")
+            prompt_sections.append("- heater_id should match the room names (e.g., 'bad', 'buero_fabian', 'kueche', etc.)\n")
+            prompt_sections.append("- All required fields must be present\n")
+            prompt_sections.append("- Return ONLY valid JSON, no additional text or markdown formatting\n")
 
             # Combine all sections
             prompt = "".join(prompt_sections)
