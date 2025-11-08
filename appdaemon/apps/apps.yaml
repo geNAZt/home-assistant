@@ -1,6 +1,6 @@
 ---
 energy_manager:
-  module: energy_manager
+  module: energy_manager.energy_manager
   class: EnergyManager
   virtuals:
     solar_battery:

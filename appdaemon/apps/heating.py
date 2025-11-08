@@ -314,6 +314,8 @@ class Heating(hass.Hass):
 
         if not found:
             return
+
+        self.log("Event: %s" % str(data))
         
         if data["service"] == "set_temperature":
             temp = round(float(data["service_data"]["temperature"]), 1)
