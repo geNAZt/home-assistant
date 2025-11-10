@@ -283,14 +283,7 @@ class Heating(hass.Hass):
         return None
 
     def can_be_delayed(self):
-        target = self.target_temp()
-        room_temp = self.room_temperature()
-
-        res = (target - room_temp) <= 0.5
-        if res:
-            self.manipulateDown("delay")
-
-        return res
+        return False
     
     def consume_more(self):
         climate_data = self.get_climate_data()
