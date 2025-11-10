@@ -513,7 +513,6 @@ class Heating(hass.Hass):
         self.set_state(self.virtual_entity_name, state='heat')
 
     def turn_heat_off(self):
-        self.optimize_energy_usage()
         self.turn_off(self.output)
         self.set_idle()
 
