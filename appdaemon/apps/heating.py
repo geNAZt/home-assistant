@@ -25,6 +25,12 @@ FEATURE_HEATING_BLOCK_END = 24
 FEATURE_PROGNOSIS_THRESHOLD = 21
 FEATURE_PROGNOSIS_ENABLED = True
 
+# --- Caps ---
+PWM_CAP_NT_GLOBAL = 0.10      # 10% für 00–06
+PWM_CAP_NT_BAD    = 0.15      # Bad nachts etwas höher
+PWM_CAP_DAY_PV    = 0.10      # max. bei PV-Top-Up
+PWM_CAP_HT        = 0.00      # 16–19 strikt
+
 #
 # Heating control
 #
@@ -40,12 +46,12 @@ class Heating(hass.Hass):
     _heating_halted_until: float
 
     _on_time: float
-    _off_time: float
     _manipulation_time: float
 
     _ec: any
     _skip_till_next_day: bool
     _offset: float
+    _preheat_offset: float
     _log_message_timers: dict[str, float]
 
     def initialize(self):
@@ -156,7 +162,6 @@ class Heating(hass.Hass):
 
         # Calc on and off time        
         self._on_time = TIME_SLOT_SECONDS * pwm_percent
-        self._off_time = TIME_SLOT_SECONDS - self._on_time
         self._manipulation_time = 0
 
         self._ignore_presence_until = 0
@@ -363,10 +368,26 @@ class Heating(hass.Hass):
         
         return False
 
-    def pwmSet(self, on, off):
+    def _apply_pwm_cap(self, on_time):
+        hour = datetime.now().hour
+        cap = 1.0
+        if 0 <= hour < 6:
+            cap = PWM_CAP_NT_GLOBAL
+        elif 16 <= hour < 19:
+            cap = PWM_CAP_HT
+        elif 8 <= hour < 22 and self._excess_pv:  # dein Flag aus Prognose-Teil
+            cap = PWM_CAP_DAY_PV
+        # Bad-Zone optional höher: wenn dieses Heating-Objekt das Bad steuert:
+        if self.name.endswith("_bad") and 0 <= hour < 6:
+            cap = max(cap, PWM_CAP_NT_BAD)
+        return min(on_time, TIME_SLOT_SECONDS * cap)
+
+    def pwmSet(self, on):
+        on = self._apply_pwm_cap(on)
         now = time.time()
+
         self._on_time = on
-        self._off_time = off
+
         pwm_percent = (self._on_time / TIME_SLOT_SECONDS)
         self.update_climate_record({"pwm_percent": pwm_percent})
         self.set_state(self.virtual_entity_name, attributes={"pwm_percent": pwm_percent})
@@ -376,7 +397,7 @@ class Heating(hass.Hass):
         now = time.time()
         if now >= self._manipulation_time:
             if self._on_time < TIME_SLOT_SECONDS:
-                self.pwmSet(self._on_time + FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS, self._off_time - FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS)
+                self.pwmSet(self._on_time + FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS)
                 self.log("PWM goes up, %s" % log)
 
     def manipulateDown(self, log):
@@ -386,7 +407,7 @@ class Heating(hass.Hass):
         now = time.time()
         if now >= self._manipulation_time:
             if self._on_time > FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS:
-                self.pwmSet(self._on_time - FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS, self._off_time + FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS)
+                self.pwmSet(self._on_time - FEATURE_ON_OFF_TIME_MANIPULATION_SECONDS)
                 self.log("PWM goes down, %s" % log)
 
     def onChangeRecalc(self, entity, attribute, old, new, kwargs):
@@ -590,7 +611,7 @@ class Heating(hass.Hass):
 
         # Check for heating length
         if heating and now_seconds - self._heating_started > self._on_time:
-            self._heating_halted_until = now_seconds + self._off_time
+            self._heating_halted_until = now_seconds + (TIME_SLOT_SECONDS - self._on_time)
             self.log_once("Setting heating pause until %s" % self._heating_halted_until)
 
         # Check if we are paused
@@ -665,84 +686,3 @@ class Heating(hass.Hass):
                 self.set_heating()
                 
             return
-
-    def optimize_energy_usage(self):
-        current_power = (self.current / 1000) * 230  # Assuming 230V system, given in Watt per hour
-        heating_time = time.time() - self._heating_started
-        
-        # Calculate energy used in this cycle
-        energy_used = (current_power / 3600) * heating_time # watt seconds
-        
-        # Get current energy history
-        climate_data = self.get_climate_data()
-        import json
-        energy_history = json.loads(climate_data.get('energy_history', '[]'))
-        
-        # Add new entry
-        energy_history.append({
-            'timestamp': time.time(),
-            'energy': energy_used,
-            'temperature_diff': self.target_temp() - self.room_temperature()
-        })
-        
-        # Update database
-        self.update_climate_record({'energy_history': json.dumps(energy_history)})
-        
-        # Analyze energy efficiency
-        if len(energy_history) > 10:
-            self.analyze_energy_efficiency()
-
-    def analyze_energy_efficiency(self):
-        """
-        Analyzes historical energy usage data to optimize heating patterns.
-        Looks for patterns in energy consumption and adjusts PWM accordingly.
-        """
-        # Get historical data
-        climate_data = self.get_climate_data()
-        import json
-        energy_history = json.loads(climate_data.get('energy_history', '[]'))
-        
-        if len(energy_history) < 10:  # Need at least 10 data points for meaningful analysis
-            return
-
-        # Calculate average energy usage per degree of temperature difference
-        total_energy = sum(entry['energy'] for entry in energy_history)
-        total_temp_diff = sum(entry['temperature_diff'] for entry in energy_history)
-        
-        if total_temp_diff == 0:
-            return
-            
-        avg_energy_per_degree = total_energy / total_temp_diff
-        
-        # Calculate efficiency trend
-        recent_entries = energy_history[-5:]  # Look at last 5 entries
-        recent_energy = sum(entry['energy'] for entry in recent_entries)
-        recent_temp_diff = sum(entry['temperature_diff'] for entry in recent_entries)
-        
-        if recent_temp_diff == 0:
-            return
-            
-        recent_energy_per_degree = recent_energy / recent_temp_diff
-        
-        # Log efficiency metrics
-        self.set_state(self.virtual_entity_name, attributes={
-            "avg_energy_per_degree": round(avg_energy_per_degree, 3),
-            "recent_energy_per_degree": round(recent_energy_per_degree, 3),
-            "efficiency_trend": round(recent_energy_per_degree - avg_energy_per_degree, 3)
-        })
-        
-        # Adjust PWM based on efficiency analysis
-        if recent_energy_per_degree > avg_energy_per_degree * 1.1:  # 10% worse than average
-            self.log(f"Energy efficiency decreased by {round((recent_energy_per_degree/avg_energy_per_degree - 1) * 100, 1)}%")
-            self.manipulateDown("poor energy efficiency detected")
-        elif recent_energy_per_degree < avg_energy_per_degree * 0.9:  # 10% better than average
-            self.log(f"Energy efficiency improved by {round((1 - recent_energy_per_degree/avg_energy_per_degree) * 100, 1)}%")
-            self.manipulateUp("good energy efficiency detected")
-        
-        # Clean up old data (keep last 24 hours)
-        current_time = time.time()
-        energy_history = [entry for entry in energy_history 
-                        if current_time - entry['timestamp'] < 24 * 3600]
-        
-        # Update database with cleaned history
-        self.update_climate_record({'energy_history': json.dumps(energy_history)})
