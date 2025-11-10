@@ -28,7 +28,7 @@ FEATURE_PROGNOSIS_ENABLED = True
 # --- Caps ---
 PWM_CAP_NT_GLOBAL = 0.10      # 10% für 00–06
 PWM_CAP_NT_BAD    = 0.15      # Bad nachts etwas höher
-PWM_CAP_DAY_PV    = 0.10      # max. bei PV-Top-Up
+PWM_CAP_DAY_PV    = 0.20      # max. bei PV-Top-Up
 PWM_CAP_HT        = 0.00      # 16–19 strikt
 
 #
@@ -334,7 +334,7 @@ class Heating(hass.Hass):
 
             # Reset pwm to 100%
             if temp > old_temp:
-                self.pwmSet(TIME_SLOT_SECONDS, 0)
+                self.pwmSet(TIME_SLOT_SECONDS)
 
             self.set_state(self.virtual_entity_name, attributes={"temperature": temp})
             self.update_climate_record({'temperature': temp})
