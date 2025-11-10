@@ -168,7 +168,7 @@ class Heating(hass.Hass):
 
         # Ensure that we run at least once a minute
         self.run_every(self.recalc, "now", 10)
-        self.run_daily(self.check_prognosis, "11:55:00 PM")
+        self.run_daily(self.check_prognosis, "00:16:00 AM")
 
         self.log("Register with current %d" % self.current)
 
