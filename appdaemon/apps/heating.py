@@ -375,7 +375,7 @@ class Heating(hass.Hass):
             cap = PWM_CAP_NT_GLOBAL
         elif 16 <= hour < 19:
             cap = PWM_CAP_HT
-        elif 8 <= hour < 22 and self._excess_pv:  # dein Flag aus Prognose-Teil
+        elif 8 <= hour < 22 and self._ignore_presence_until > time.time():  # dein Flag aus Prognose-Teil
             cap = PWM_CAP_DAY_PV
         # Bad-Zone optional höher: wenn dieses Heating-Objekt das Bad steuert:
         if self.name.endswith("_bad") and 0 <= hour < 6:
