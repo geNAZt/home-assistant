@@ -515,6 +515,8 @@ class Heating(hass.Hass):
 
 
     def check_prognosis(self, kwargs):
+        self._offset = 0.0
+        
         prognosis = float(self.get_state("sensor.solcast_pv_forecast_prognose_morgen"))
         if prognosis > 21:
             self._skip_till_next_day = True
