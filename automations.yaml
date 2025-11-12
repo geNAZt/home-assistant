@@ -71,7 +71,16 @@
     entity_id:
     - binary_sensor.presence_bad
     to: 'off'
-  conditions: []
+  conditions:
+  - condition: and
+    conditions:
+    - condition: state
+      entity_id: binary_sensor.presence_bad
+      state:
+      - 'on'
+    - condition: time
+      after: 07:00:00
+      before: '22:00:00'
   actions:
   - choose:
     - conditions:
