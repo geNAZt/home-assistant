@@ -26,8 +26,8 @@ FEATURE_PROGNOSIS_THRESHOLD = 21
 FEATURE_PROGNOSIS_ENABLED = True
 
 # --- Caps ---
-PWM_CAP_NT_GLOBAL = 0.10      # 10% für 00–06
-PWM_CAP_NT_BAD    = 0.15      # Bad nachts etwas höher
+PWM_CAP_NT_GLOBAL = 0.30      # 10% für 00–06
+PWM_CAP_NT_BAD    = 0.40      # Bad nachts etwas höher
 PWM_CAP_DAY_PV    = 0.20      # max. bei PV-Top-Up
 PWM_CAP_HT        = 0.00      # 16–19 strikt
 
@@ -239,8 +239,6 @@ class Heating(hass.Hass):
             return None
 
     def update_climate_record(self, updates):
-
-        self.log("Updating climate record: %s" % str(updates))
         """Update climate record with the given updates dictionary"""
         try:
             conn = sqlite3.connect(self.db_path)
@@ -293,7 +291,8 @@ class Heating(hass.Hass):
         target = climate_data["temperature"]
         room_temp = self.room_temperature()
         if room_temp < target:
-            self.manipulateUp("excess PV")
+            # Reset PWM
+            self.pwmSet(TIME_SLOT_SECONDS)
             self._ignore_presence_until = time.time() + 15*60
             self._offset = 1.0
         return
@@ -516,7 +515,10 @@ class Heating(hass.Hass):
 
     def check_prognosis(self, kwargs):
         self._offset = 0.0
-        
+
+        # Reset PWM
+        self.pwmSet(TIME_SLOT_SECONDS)
+
         prognosis = float(self.get_state("sensor.solcast_pv_forecast_prognose_morgen"))
         if prognosis > 21:
             self._skip_till_next_day = True
