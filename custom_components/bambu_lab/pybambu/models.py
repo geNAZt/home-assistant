@@ -30,7 +30,6 @@ from .utils import (
     get_hw_version,
     get_sw_version,
     compare_version,
-    get_start_time,
     get_end_time,
     get_HMS_error_text,
     get_print_error_text,
@@ -200,6 +199,13 @@ class Device:
             if self.info.device_type == Printers.P2S:
                 return True
             
+            return False
+        elif feature == Features.HYBRID_MODE_BLOCKS_CONTROL:
+            if (self.info.device_type == Printers.P1S or
+                self.info.device_type == Printers.P1P):
+                # Not sure what the first version that did this was. At least this - could be earlier.
+                return self.supports_sw_version("01.07.00.00")
+            # Only the P1 firmware did this as far as I know. Not the A1.
             return False
         elif feature == Features.CAMERA_RTSP:
             return (self.info.device_type == Printers.H2D or
@@ -1933,6 +1939,16 @@ class PrintJob:
         return await loop.run_in_executor(None, self._sync_ftp_upload, local_path, remote_path, progress_callback)
 
     def _sync_ftp_upload(self, local_path: str, remote_path: str, progress_callback=None) -> bool:
+        try:
+            # Before we upload, make sure the file is present in this printer's local cache directory
+            relative_path = remote_path.lstrip('/')
+            this_printer_cache_file_path = Path(self._client.cache_path) / "prints" / relative_path
+            this_printer_cache_file_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(local_path, this_printer_cache_file_path)
+            LOGGER.debug(f"Copied file to local cache: {this_printer_cache_file_path}")
+        except Exception as e:
+            LOGGER.error(f"Failed to copy file to local cache: {e}")
+
         ftp = None
         try:
             ftp = self._client.ftp_connection()
@@ -1943,11 +1959,9 @@ class PrintJob:
             for d in dirs:
                 current += f'/{d}'
                 try:
-                    LOGGER.debug(f"FTP upload: Creating directory {current}")
                     ftp.mkd(current)
                 except Exception:
-                    LOGGER.debug(f"FTP upload: Directory {current} may already exist")
-                    pass  # Directory may already exist
+                    pass  # Directory may already exist which is fine
 
             LOGGER.debug(f"FTP upload: Starting file upload")
             file_size = os.path.getsize(local_path)
@@ -1967,22 +1981,22 @@ class PrintJob:
                     })
 
             with open(local_path, 'rb') as f:
-                # Use storbinary_no_unwrap with the progress callback
-                ftp.storbinary_no_unwrap(f'STOR {remote_path}', f, blocksize=chunk_size, callback=internal_progress_callback)
+                try:
+                    ftp.storbinary_no_unwrap(f'STOR {remote_path}', f, blocksize=chunk_size, callback=internal_progress_callback)
+                except Exception as e:
+                    # Handle the benign 426 “Failure reading network stream” case
+                    if "426" in str(e):
+                        LOGGER.warning(f"Ignoring benign FTP 426 for {remote_path}: {e}")
+                    else:
+                        raise
+
+            # Verify upload really succeeded by comparing file size
+            remote_size = ftp.size(remote_path)
+            if remote_size != file_size:
+                LOGGER.error(f"Size mismatch after FTP upload ({remote_size} != expected {file_size})")
+                raise ValueError(f"FTP upload verification failed: remote={remote_size}, local={file_size}")
 
             LOGGER.debug(f"FTP upload: Upload completed successfully")
-
-            # After successful upload, copy to cache path
-            # Remove leading slash from remote_path for relative path
-            relative_path = remote_path.lstrip('/')
-            cache_dir = os.path.join(self._client.cache_path, "prints")
-            cache_file_path = os.path.join(cache_dir, relative_path)
-            os.makedirs(os.path.dirname(cache_file_path), exist_ok=True)
-            try:
-                shutil.copy2(local_path, cache_file_path)
-                LOGGER.debug(f"Copied uploaded file to cache: {cache_file_path}")
-            except Exception as e:
-                LOGGER.error(f"Failed to copy uploaded file to cache: {e}")
 
             return True
 
@@ -2041,7 +2055,14 @@ class Info:
         self.airduct_mode = False
         self._ip_address = client.host
         self._force_ip = client.settings.get('force_ip', False)                
-        
+
+    @property
+    def is_hybrid_mode_blocking(self) -> bool:
+        if not self.mqtt_mode == "local":
+            return False
+        if not self._client._device.supports_feature(Features.HYBRID_MODE_BLOCKS_CONTROL):
+            return False
+        return self._client.bambu_cloud.bambu_connected
 
     def set_online(self, online):
         if self.online != online:
@@ -2071,8 +2092,10 @@ class Info:
         #         "sn": "..."
         #     },
         modules = data.get("module", [])
+        old_device_type = self.device_type
         self.device_type = get_printer_type(modules, self.device_type)
-        LOGGER.debug(f"Device is {self.device_type}")
+        if old_device_type != self.device_type:
+            LOGGER.debug(f"Device is {self.device_type}")
         self.hw_ver = get_hw_version(modules, self.hw_ver)
         self.sw_ver = get_sw_version(modules, self.sw_ver)
         self._client.callback("event_printer_info_update")

@@ -156,17 +156,7 @@ class ChamberImageThread(threading.Thread):
                     while not self._stop_event.is_set():
                         try:
                             dr = sslSock.recv(read_chunk_size)
-                            #LOGGER.debug(f"Received {len(dr)} bytes.")
-
                         except ssl.SSLWantReadError:
-                            #LOGGER.debug("SSLWantReadError")
-                            if self._stop_event.wait(1):
-                                break
-                            continue
-
-                        except Exception as e:
-                            LOGGER.error("A Chamber Image thread inner exception occurred:")
-                            LOGGER.error(f"Exception. Type: {type(e)} Args: {e}")
                             if self._stop_event.wait(1):
                                 break
                             continue
@@ -204,25 +194,23 @@ class ChamberImageThread(threading.Thread):
                         elif len(dr) == 0:
                             # This occurs if the wrong access code was provided.
                             LOGGER.error("Chamber image connection rejected by the printer. Check provided access code and IP address.")
-                            # Sleep for a short while and then re-attempt the connection.
-                            time.sleep(5)
-                            break
+                            raise RuntimeError("Received no data unexpectedly.")
 
                         else:
                             LOGGER.error(f"UNEXPECTED DATA RECEIVED: {len(dr)}")
-                            time.sleep(1)
+                            raise RuntimeError(f"Unexpected data chunk size received: {len(dr)}")
 
             except OSError as e:
                 if e.errno == 113:
                     LOGGER.debug("Host is unreachable")
                 else:
-                    LOGGER.error("A Chamber Image thread outer exception occurred:")
+                    LOGGER.error("Chamber Image thread outer exception occurred:")
                     LOGGER.error(f"Exception. Type: {type(e)} Args: {e}")
                 if not self._stop_event.is_set():
                     time.sleep(2)  # Avoid a tight loop if this is a persistent error.
 
             except Exception as e:
-                LOGGER.error(f"A Chamber Image thread outer exception occurred:")
+                LOGGER.error(f"Chamber Image thread exception occurred:")
                 LOGGER.error(f"Exception. Type: {type(e)} Args: {e}")
                 if not self._stop_event.is_set():
                     time.sleep(2)  # Avoid a tight loop if this is a persistent error.
@@ -605,7 +593,6 @@ class BambuClient:
                     if json_data.get("print").get("msg", 0) == 0:
                         self._refreshed= False
                 elif json_data.get("info") and json_data.get("info").get("command") == "get_version":
-                    LOGGER.debug("Got Version Data")
                     self._device.info_update(data=json_data.get("info"))
                 elif json_data.get("system") and json_data.get("system").get("command"):
                     self._device.observe_system_command(data=json_data.get("system"))
