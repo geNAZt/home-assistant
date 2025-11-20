@@ -582,7 +582,7 @@ class Heating(hass.Hass):
                 # Check if we have excess PV
                 if self._ignore_presence_until < time.time():
                     # Check if we are low enough and in PV window (12-14)
-                    if now.hour >= 12 and now.hour <= 14:
+                    if now.hour >= 12 and now.hour <= 13:
                         target_temp = self.get_climate_data()["temperature"]
                         if self.room_temperature() > target_temp - 1.0:
                             self.log_once("We are low enough and in PV window, but we are not heating")
