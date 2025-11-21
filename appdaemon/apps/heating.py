@@ -590,7 +590,7 @@ class Heating(hass.Hass):
                             self.log_once("We are low enough and in PV window, but we are not heating")
                             return
                     else:
-                        if now.hour >= 22 and room_temp < target_temp - 2:
+                        if now.hour >= 22 and room_temp < target_temp - 1:
                             self.log_once("We are low in price enough to sustain heat")
                         else:
                             self.log_once("Heating block is enabled, but now is %s" % now.hour)
