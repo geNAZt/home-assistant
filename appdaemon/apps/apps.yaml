@@ -69,8 +69,10 @@ energy_manager:
         switch: virtual.solar_battery
       - usage: 2000
         switch: virtual.solar_battery
-      - usage: 2500
+      - usage: 2400
         switch: virtual.solar_battery
+      - usage: 2800
+        switch: virtual.solar_battery      
       - usage: 3000
         switch: virtual.solar_battery
       - usage: 3500
