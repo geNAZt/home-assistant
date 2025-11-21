@@ -22,6 +22,9 @@ solcast*
 # Bambu cache files
 www/media/ha-bambulab/**/prints/*
 
+# Tibber graph
+www/tibber*.png
+
 # TTS files
 tts/*
 
