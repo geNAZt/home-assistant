@@ -583,12 +583,14 @@ class Heating(hass.Hass):
                 if self._ignore_presence_until < time.time():
                     # Check if we are low enough and in PV window (12-14)
                     target_temp = self.get_climate_data()["temperature"] - 1.0
+                    room_temp = self.room_temperature()
+                    self.log_once("Target temp is set to %.1f, room temp is %.1f" % (target_temp, room_temp))
                     if now.hour >= 12 and now.hour <= 13:
-                        if self.room_temperature() > target_temp - 1.0:
+                        if room_temp > target_temp - 1.0:
                             self.log_once("We are low enough and in PV window, but we are not heating")
                             return
                     else:
-                        if now.hour >= 22 and self.room_temperature() < target_temp - 2:
+                        if now.hour >= 22 and room_temp < target_temp - 2:
                             self.log_once("We are low in price enough to sustain heat")
                         else:
                             self.log_once("Heating block is enabled, but now is %s" % now.hour)
