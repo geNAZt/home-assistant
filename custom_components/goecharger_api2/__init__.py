@@ -243,7 +243,7 @@ class GoeChargerDataUpdateCoordinator(DataUpdateCoordinator):
 
         # config_entry only need for providing the '_device_info_dict'...
         self._config_entry = config_entry
-        self.is_fwv60_or_higher = False
+        self.is_charger_fw_version_60_0_or_higher = False
         super().__init__(hass, _LOGGER, name=DOMAIN, update_interval=SCAN_INTERVAL)
 
     # Callable[[Event], Any]
@@ -325,9 +325,13 @@ class GoeChargerDataUpdateCoordinator(DataUpdateCoordinator):
         # charger and controller have both FWV tag...
         if Tag.FWV.key in self.bridge._versions:
             sw_version = self.bridge._versions.get(Tag.FWV.key, "0.0")
+            if '-' in sw_version:
+                _LOGGER.debug(f"read_versions(): firmware version must be patched! {sw_version}")
+                sw_version = sw_version[:sw_version.index('-')]
+
             if self.intg_type == INTG_TYPE.CHARGER.value:
                 if Version(sw_version) >= Version("60.0"):
-                    self.is_fwv60_or_higher = True
+                    self.is_charger_fw_version_60_0_or_higher = True
         else:
             sw_version = "UNKNOWN"
 
@@ -358,7 +362,7 @@ class GoeChargerDataUpdateCoordinator(DataUpdateCoordinator):
                 "manufacturer": MANUFACTURER,
                 "name": self._config_entry.title,
                 "model": self._config_entry.data.get(CONF_TYPE),
-                "sw_version": self.bridge._versions[Tag.FWV.key]
+                "sw_version": sw_version
                 # hw_version
             }
 
@@ -368,7 +372,7 @@ class GoeChargerDataUpdateCoordinator(DataUpdateCoordinator):
             # fetching the available cards that are enabled
             idx = 1
             # since FWV 60.0 there is no cards object any longer...
-            if self.is_fwv60_or_higher:
+            if self.is_charger_fw_version_60_0_or_higher:
                 for a_card_number in range(0, 10):
                     a_key_id = f"c{a_card_number}i"
                     if self.bridge._versions.get(a_key_id, False):
