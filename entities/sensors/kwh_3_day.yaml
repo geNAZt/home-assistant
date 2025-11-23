@@ -1,6 +1,6 @@
-- platform: statistics
-  name: kWh_per_K_day_3d
-  entity_id: sensor.kwh_per_k_day_today
-  state_characteristic: mean
-  max_age:
-    days: 3
+platform: statistics
+name: kWh_per_K_day_3d
+entity_id: sensor.kwh_per_k_day_today
+state_characteristic: mean
+max_age:
+  days: 3
