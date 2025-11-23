@@ -119,5 +119,5 @@ utility_meter:
     name: Solar Exported Power Yearly
     cycle: yearly
   heating_usage_daily:
-    source: sensor.heating_usage_total_kwh    # oder Summe aller Zonen, s.u.
+    source: sensor.heating_usage_total    # oder Summe aller Zonen, s.u.
     cycle: daily
