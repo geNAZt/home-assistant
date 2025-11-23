@@ -1,0 +1,9 @@
+sensor:
+- name: outside_temperature
+  unique_id: outside_temperature_from_weather_home
+  unit_of_measurement: "°C"
+  device_class: temperature
+  state_class: measurement
+  state: >
+    {% set t = state_attr('weather.home','temperature') %}
+    {{ iif(t is number, t, states('sensor.outside_temperature')) }}

@@ -1,0 +1,17 @@
+sensor:
+- name: "heating_usage_total_kwh"
+  unit_of_measurement: "kWh"
+  device_class: energy
+  state_class: total_increasing
+  # Summe aller Zonen/Matten-Energiesensoren:
+  state: >
+    {{ (
+      states('sensor.heating_usage_wohnzimmer')|float(0) +
+      states('sensor.heating_usage_kueche')|float(0) +
+      states('sensor.heating_usage_flur')|float(0) +
+      states('sensor.heating_usage_schlafzimmer')|float(0) +
+      states('sensor.heating_usage_buero_merja')|float(0) +
+      states('sensor.heating_usage_buero_fabian')|float(0) +
+      states('sensor.heating_usage_speisekammer')|float(0) +
+      states('sensor.heating_usage_bad')|float(0)
+    ) }}

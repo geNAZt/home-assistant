@@ -1,0 +1,20 @@
+sensor:
+- name: deltaT_24h
+  unit_of_measurement: "K"
+  state: >
+    {% set t = states('sensor.outside_temp_mean_24h')|float(22) %}
+    {{ (22.0 - t) | round(2) }}
+- name: kWh_per_K_day_rolling
+  unit_of_measurement: "kWh/(K·Tag)"
+  state: >
+    {% set e = states('sensor.heating_usage_daily')|float(0) %}
+    {% set dT = states('sensor.deltaT_24h')|float(0) %}
+    {{ (e / dT) if dT > 0 else 0 | round(3) }}
+- name: Wh_per_K_day_rolling
+  unit_of_measurement: "Wh/(K·Tag)"
+  state: >
+    {{ (states('sensor.kWh_per_K_day_rolling')|float(0) * 1000) | round(0) }}
+- name: H_kW_per_K_rolling
+  unit_of_measurement: "kW/K"
+  state: >
+    {{ (states('sensor.kWh_per_K_day_rolling')|float(0) / 24.0) | round(3) }}

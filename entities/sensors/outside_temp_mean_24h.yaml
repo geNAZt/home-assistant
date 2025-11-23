@@ -1,0 +1,6 @@
+platform: statistics
+name: outside_temp_mean_24h
+entity_id: sensor.outside_temperature   # dein Außentemperatursensor
+state_characteristic: mean
+max_age:
+  hours: 24
