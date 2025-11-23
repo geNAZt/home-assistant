@@ -14,4 +14,4 @@ sensor:
       states('sensor.heating_usage_buero_fabian')|float(0) +
       states('sensor.heating_usage_speisekammer')|float(0) +
       states('sensor.heating_usage_bad')|float(0)
-    ) }}
+    ) / 1000 }}
