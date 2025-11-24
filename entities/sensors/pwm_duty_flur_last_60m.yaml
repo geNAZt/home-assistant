@@ -1,0 +1,7 @@
+platform: history_stats
+name: duty_flur_last_60m
+entity_id: switch.heating_flur
+state: "on"
+type: ratio
+duration: "01:00:00"
+end: "{{ now() }}"

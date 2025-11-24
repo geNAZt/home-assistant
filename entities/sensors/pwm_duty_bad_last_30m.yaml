@@ -1,0 +1,7 @@
+platform: history_stats
+name: duty_bad_last_30m
+entity_id: switch.heating_bad
+state: "on"
+type: ratio
+duration: "00:30:00"
+end: "{{ now() }}"

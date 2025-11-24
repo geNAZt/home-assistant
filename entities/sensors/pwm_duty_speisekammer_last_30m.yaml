@@ -1,0 +1,7 @@
+platform: history_stats
+name: duty_speisekammer_last_30m
+entity_id: switch.heating_speisekammer
+state: "on"
+type: ratio
+duration: "00:30:00"
+end: "{{ now() }}"
