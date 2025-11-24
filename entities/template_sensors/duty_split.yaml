@@ -1,0 +1,92 @@
+sensor:
+# --- Rolling 30 min ---
+- name: duty_global_weighted_last_30m
+  unit_of_measurement: "%"
+  state: >
+    {% set z = [
+      (states('sensor.duty_bad_last_30m')|float(0),         1.219),
+      (states('sensor.duty_schlafzimmer_last_30m')|float(0),1.955),
+      (states('sensor.duty_kueche_last_30m')|float(0),      2.174),
+      (states('sensor.duty_flur_last_30m')|float(0),        2.484),
+      (states('sensor.duty_speisekammer_last_30m')|float(0),0.518),
+      (states('sensor.duty_wohnzimmer_last_30m')|float(0),  2.691),
+      (states('sensor.duty_buero_merja_last_30m')|float(0), 3.163),
+      (states('sensor.duty_buero_fabian_last_30m')|float(0),0.978),
+    ] %}
+    {% set num = z | map('first') | list %}
+    {% set pw  = z | map('last')  | list %}
+    {% set sw  = 0 %}
+    {% set sp  = 0 %}
+    {% for i in range(z|length) %}
+      {% set sw = sw + (num[i] * pw[i]) %}
+      {% set sp = sp + pw[i] %}
+    {% endfor %}
+    {{ (100 * sw / sp) | round(1) }}
+# --- Rolling 60 min ---
+- name: duty_global_weighted_last_60m
+  unit_of_measurement: "%"
+  state: >
+    {% set z = [
+      (states('sensor.duty_bad_last_60m')|float(0),         1.219),
+      (states('sensor.duty_schlafzimmer_last_60m')|float(0),1.955),
+      (states('sensor.duty_kueche_last_60m')|float(0),      2.174),
+      (states('sensor.duty_flur_last_60m')|float(0),        2.484),
+      (states('sensor.duty_speisekammer_last_60m')|float(0),0.518),
+      (states('sensor.duty_wohnzimmer_last_60m')|float(0),  2.691),
+      (states('sensor.duty_buero_merja_last_60m')|float(0), 3.163),
+      (states('sensor.duty_buero_fabian_last_60m')|float(0),0.978),
+    ] %}
+    {% set sw = 0 %}{% set sp = 0 %}
+    {% for d,p in z %}{% set sw = sw + d*p %}{% set sp = sp + p %}{% endfor %}
+    {{ (100 * sw / sp) | round(1) }}
+# --- 00–06 heute ---
+- name: duty_global_weighted_00_06
+  unit_of_measurement: "%"
+  state: >
+    {% set z = [
+      (states('sensor.duty_bad_00_06')|float(0),         1.219),
+      (states('sensor.duty_schlafzimmer_00_06')|float(0),1.955),
+      (states('sensor.duty_kueche_00_06')|float(0),      2.174),
+      (states('sensor.duty_flur_00_06')|float(0),        2.484),
+      (states('sensor.duty_speisekammer_00_06')|float(0),0.518),
+      (states('sensor.duty_wohnzimmer_00_06')|float(0),  2.691),
+      (states('sensor.duty_buero_merja_00_06')|float(0), 3.163),
+      (states('sensor.duty_buero_fabian_00_06')|float(0),0.978),
+    ] %}
+    {% set sw=0 %}{% set sp=0 %}
+    {% for d,p in z %}{% set sw=sw+d*p %}{% set sp=sp+p %}{% endfor %}
+    {{ (100 * sw / sp) | round(1) }}
+# --- 12–14 heute ---
+- name: duty_global_weighted_12_14
+  unit_of_measurement: "%"
+  state: >
+    {% set z = [
+      (states('sensor.duty_bad_12_14')|float(0),         1.219),
+      (states('sensor.duty_schlafzimmer_12_14')|float(0),1.955),
+      (states('sensor.duty_kueche_12_14')|float(0),      2.174),
+      (states('sensor.duty_flur_12_14')|float(0),        2.484),
+      (states('sensor.duty_speisekammer_12_14')|float(0),0.518),
+      (states('sensor.duty_wohnzimmer_12_14')|float(0),  2.691),
+      (states('sensor.duty_buero_merja_12_14')|float(0), 3.163),
+      (states('sensor.duty_buero_fabian_12_14')|float(0),0.978),
+    ] %}
+    {% set sw=0 %}{% set sp=0 %}
+    {% for d,p in z %}{% set sw=sw+d*p %}{% set sp=sp+p %}{% endfor %}
+    {{ (100 * sw / sp) | round(1) }}
+# --- 22–24 heute ---
+- name: duty_global_weighted_22_24
+  unit_of_measurement: "%"
+  state: >
+    {% set z = [
+      (states('sensor.duty_bad_22_24')|float(0),         1.219),
+      (states('sensor.duty_schlafzimmer_22_24')|float(0),1.955),
+      (states('sensor.duty_kueche_22_24')|float(0),      2.174),
+      (states('sensor.duty_flur_22_24')|float(0),        2.484),
+      (states('sensor.duty_speisekammer_22_24')|float(0),0.518),
+      (states('sensor.duty_wohnzimmer_22_24')|float(0),  2.691),
+      (states('sensor.duty_buero_merja_22_24')|float(0), 3.163),
+      (states('sensor.duty_buero_fabian_22_24')|float(0),0.978),
+    ] %}
+    {% set sw=0 %}{% set sp=0 %}
+    {% for d,p in z %}{% set sw=sw+d*p %}{% set sp=sp+p %}{% endfor %}
+         {{ (100 * sw / sp) | round(1) }}
