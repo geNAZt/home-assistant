@@ -1,0 +1,9 @@
+sensor:
+- name: H_kW_per_K_effective
+  unit_of_measurement: "kW/K"
+  state: >
+    {% set H = states('sensor.H_kW_per_K_rolling_sql')|float(0.055) %}
+    {% set v_kmh = state_attr('weather.home','wind_speed')|float(0) %}
+    {% set v_ms = v_kmh / 3.6 %}
+    {% set boost = 1 + 0.1 * max(0, v_ms - 3) %}
+    {{ (H * boost) | round(3) }}
