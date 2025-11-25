@@ -1,3 +1,4 @@
 name: "Temperature Flur 1"
 state_address: "9/6/6"
 type: temperature
+state_class: measurement

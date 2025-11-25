@@ -1,3 +1,4 @@
 name: "Temperature Speisekammer Floor 1"
 state_address: "1/7/3"
 type: temperature
+state_class: measurement

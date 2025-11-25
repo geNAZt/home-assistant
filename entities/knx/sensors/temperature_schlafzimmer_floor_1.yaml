@@ -1,3 +1,4 @@
 name: "Temperature Schlafzimmer Floor 1"
 state_address: "7/7/4"
 type: temperature
+state_class: measurement

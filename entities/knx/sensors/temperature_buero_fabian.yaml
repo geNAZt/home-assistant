@@ -1,3 +1,4 @@
 name: "Temperature Buero Fabian"
 state_address: "4/1/2"
 type: temperature
+state_class: measurement

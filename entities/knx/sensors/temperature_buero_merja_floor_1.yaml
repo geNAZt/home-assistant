@@ -1,3 +1,4 @@
 name: "Temperature Buero Merja Floor 1"
 state_address: "5/7/3"
 type: temperature
+state_class: measurement
