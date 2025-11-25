@@ -541,7 +541,8 @@ class Heating(hass.Hass):
                     temperature = forecast_item["temperature"]
                     self.log("Temperature: %s" % temperature)
                     set_temp = self.get_climate_data()["temperature"]
-                    self._preheat_offset = max(min((0.05 * (set_temp - temperature) * 3) / 6.25, 0.6), 0.2)
+                    heff = float(self.get_state("sensor.h_kw_per_k_effective"))
+                    self._preheat_offset = max(min((heff * (set_temp - temperature) * 3) / 6.25, 0.6), 0.2)
                 else:
                     self._preheat_offset = 0.2
                     self.log("No temperature in forecast, setting offset to 0.2")
