@@ -1,0 +1,9 @@
+sensor:
+- name: deltaT_preheat_00_06
+  unit_of_measurement: "K"
+  state: >
+    {% set t0 = states('sensor.inside_temp_at_00_sql')|float(none) %}
+    {% set t1 = states('sensor.inside_temp_at_06_sql')|float(none) %}
+    {% if t0 is not none and t1 is not none %}
+      {{ (t1 - t0) | round(2) }}
+    {% else %} {{ iif(false,0,0) }} {% endif %}
