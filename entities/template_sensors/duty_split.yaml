@@ -15,16 +15,16 @@ sensor:
     ] %}
     {% set ns = namespace(sw=0.0, sp=0.0) %}
     {% for name, p in pairs %}
-      {# states(name) kann 'unknown'/'unavailable' sein → float(0) #}
-      {% set d = states(name) | float(0) %}
-      {% set ns.sw = ns.sw + (d * p) %}
+      {% set raw = states(name) | float(0) %}
+      {# auto-scale: 0–100% -> 0–1 ; 0–1 bleibt 0–1 #}
+      {% set d = (raw / 100.0) if raw > 1 else raw %}
+      {% set d = 0 if d < 0 else (1 if d > 1 else d) %}
+      {% set ns.sw = ns.sw + d * p %}
       {% set ns.sp = ns.sp + p %}
     {% endfor %}
     {% if ns.sp > 0 %}
-      {{ (100.0 * ns.sw / ns.sp) | round(1) }}
-    {% else %}
-      0
-    {% endif %}
+      {{ (ns.sw / ns.sp * 100) | round(2) }}
+    {% else %} 0 {% endif %}
 - name: duty_global_weighted_last_60m
   unit_of_measurement: "%"
   state: >
@@ -40,12 +40,13 @@ sensor:
     ] %}
     {% set ns = namespace(sw=0.0, sp=0.0) %}
     {% for name, p in pairs %}
-      {% set d = states(name) | float(0) %}
-      {% set ns.sw = ns.sw + (d * p) %}
+      {% set raw = states(name) | float(0) %}
+      {# auto-scale: 0–100% -> 0–1 ; 0–1 bleibt 0–1 #}
+      {% set d = (raw / 100.0) if raw > 1 else raw %}
+      {% set d = 0 if d < 0 else (1 if d > 1 else d) %}
+      {% set ns.sw = ns.sw + d * p %}
       {% set ns.sp = ns.sp + p %}
     {% endfor %}
     {% if ns.sp > 0 %}
-      {{ (100.0 * ns.sw / ns.sp) | round(1) }}
-    {% else %}
-      0
-    {% endif %}
+      {{ (ns.sw / ns.sp * 100) | round(2) }}
+    {% else %} 0 {% endif %}
