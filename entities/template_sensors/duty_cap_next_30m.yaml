@@ -6,9 +6,11 @@ sensor:
     {% set Ptot  = states('input_number.p_ir_total')|float(15.18) %}
     {% set hours = 0.5 %}
     {% set base = (Erest / (Ptot * hours)) if Ptot>0 else 0 %}
+
     {% set price_now = states('sensor.backerstrasse_3b_strompreis')|float(1) %}
     {% set thr = states('input_number.price_threshold_value')|float(0) %}
     {% set is_cheap = (price_now <= thr and thr > 0) %}
+
     {% if not is_cheap %}
       0
     {% else %}
