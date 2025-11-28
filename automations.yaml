@@ -244,3 +244,28 @@
     target:
       entity_id: switch.water_cycling_pump
   mode: single
+- id: '1764330508231'
+  alias: Tibber Preis-Schwellen 16:00 aktualisieren
+  description: ''
+  triggers:
+  - trigger: time_pattern
+    hours: '16'
+    minutes: '0'
+    seconds: '0'
+  conditions: []
+  actions:
+  - action: script.update_tibber_price_thresholds
+    data: {}
+  mode: single
+- id: '1764330601419'
+  alias: Tibber Preis-Schwellen alle 30 Min auffrischen
+  description: ''
+  triggers:
+  - trigger: time_pattern
+    minutes: /30
+  conditions: []
+  actions:
+  - action: script.update_tibber_price_thresholds
+    metadata: {}
+    data: {}
+  mode: single
