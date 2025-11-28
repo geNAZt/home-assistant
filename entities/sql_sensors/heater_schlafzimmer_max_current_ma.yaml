@@ -1,0 +1,11 @@
+name: heater_schlafzimmer_max_current_ma
+unit_of_measurement: "mA"
+query: >
+  SELECT ROUND(MAX(CAST(s.state AS FLOAT)),0)
+  FROM states s
+  JOIN states_meta m ON m.metadata_id = s.metadata_id
+  WHERE m.entity_id LIKE 'sensor.current_l%_schlafzimmer_current'
+    AND s.last_updated_ts >= (strftime('%s','now') - 86400*30)
+    AND s.state NOT IN ('unknown','unavailable','none','')
+    AND CAST(s.state AS FLOAT) > 0
+column: "value"
