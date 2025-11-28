@@ -12,45 +12,52 @@ update_tibber_price_thresholds:
         start: "{{ start_str }}"
         end:   "{{ end_str }}"
       response_variable: tib
-    # 2) Preise extrahieren & Metriken berechnen (robust über alle Keys)
+    # 2) Preise extrahieren & Metriken berechnen (ohne verschachtelte Objekte)
     - variables:
         price_dict: "{{ tib.prices | default({}) }}"
   
-        # Alle Preis-Items aus allen Keys zusammenführen
-        ns: >-
-          {% set ns = namespace(all=[]) %}
+        # Max-Preis (direkt per Doppelschleife)
+        pmax: >-
+          {% set m = 0.0 %}
           {% for k, arr in price_dict.items() %}
             {% if arr is iterable %}
               {% for it in arr %}
-                {% set ns.all = ns.all + [ it ] %}
+                {% set pr = it.price if it.price is defined else it['price'] %}
+                {% if pr|float(0) > m %}{% set m = pr|float(0) %}{% endif %}
               {% endfor %}
             {% endif %}
           {% endfor %}
-          {{ ns }}
+          {{ m }}
   
-        items_all: "{{ ns.all if ns is defined else [] }}"
-        plist: "{{ items_all | map(attribute='price') | list }}"
-        n: "{{ plist | count }}"
-        p_sorted: "{{ plist | sort }}"
-  
-        # Maxpreis
-        pmax: "{{ (p_sorted[-1] if n|int > 0 else 0) }}"
-  
-        # Wunsch-Perzentil (z.B. 10 => P10)
-        pcut: "{{ (states('input_number.price_percentile_cutoff')|float(10) / 100.0) }}"
-        # Index = floor(n * pcut), dann klammern (0..n-1)
-        p_idx_raw: "{{ ((n|int) * pcut) | int(0) }}"
-        p_idx0: "{{ [p_idx_raw|int, 0] | max }}"
-        p_idx_clamped: "{{ [p_idx0|int, (n|int - 1)] | min if n|int > 0 else 0 }}"
-        p_pct_value: "{{ (p_sorted[p_idx_clamped|int] if n|int > 0 else 0) }}"
+        # Perzentil-Wert (z.B. P10): baue Liste im selben Block, sortiere, nimm Index floor(n*pcut)
+        p_pct_value: >-
+          {% set prices = [] %}
+          {% for k, arr in price_dict.items() %}
+            {% if arr is iterable %}
+              {% for it in arr %}
+                {% set prices = prices + [ (it.price if it.price is defined else it['price'])|float(0) ] %}
+              {% endfor %}
+            {% endif %}
+          {% endfor %}
+          {% set n = prices|length %}
+          {% if n > 0 %}
+            {% set pcut = (states('input_number.price_percentile_cutoff')|float(10) / 100.0) %}
+            {% set idx = (n * pcut) | int(0) %}
+            {% set idx = 0 if idx < 0 else (n-1 if idx >= n else idx) %}
+            {% set sorted = prices | sort %}
+            {{ sorted[idx] }}
+          {% else %}
+            0
+          {% endif %}
   
         # %-vom-Max
-        alpha: "{{ states('input_number.price_percent_of_max')|float(50) / 100.0 }}"
-        p_of_max: "{{ (pmax|float(0) * alpha|float(0)) if n|int > 0 else 0 }}"
+        p_of_max: >-
+          {% set alpha = states('input_number.price_percent_of_max')|float(50) / 100.0 %}
+          {% set pm = (pmax|float(0)) %}
+          {{ (pm * alpha) if pm > 0 else 0 }}
   
         # Effektiver (strengster) Cheap-Schwellenwert
         cheap_thr: "{{ [p_pct_value|float(0), p_of_max|float(0)] | min }}"
-  
     # 3) Ergebnisse in Helpers schreiben
     - service: input_number.set_value
       target: { entity_id: input_number.price_max_today }
