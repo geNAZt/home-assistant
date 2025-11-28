@@ -1,0 +1,27 @@
+name: inside_temp_at_06_sql
+unit_of_measurement: "°C"
+query: >
+  WITH b AS (
+    SELECT CAST(strftime('%s','now','localtime','start of day','+6 hours') AS INTEGER) AS t1
+  ),
+  per AS (
+    SELECT s.start_ts, AVG(s.mean) AS ti
+    FROM statistics_short_term s
+    JOIN statistics_meta m ON m.id = s.metadata_id
+    JOIN b
+    WHERE m.statistic_id IN (
+      'sensor.temperature_wohnzimmer',
+      'sensor.temperature_kueche',
+      'sensor.temperature_flur_1',
+      'sensor.temperature_flur_2',
+      'sensor.temperature_flur_3',
+      'sensor.temperature_schlafzimmer',
+      'sensor.temperature_buero_fabian',
+      'sensor.temperature_buero_merja',
+      'sensor.temperature_bad'
+    )
+      AND s.start_ts BETWEEN (b.t1-900) AND (b.t1+900)
+    GROUP BY s.start_ts
+  )
+  SELECT ROUND(AVG(ti),2) AS value FROM per;
+column: "value"

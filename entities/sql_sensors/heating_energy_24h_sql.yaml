@@ -1,0 +1,28 @@
+name: heating_energy_24h_sql
+query: >
+  WITH per AS (
+    SELECT m.statistic_id AS stat_id,
+           COALESCE(LOWER(m.unit_of_measurement), '') AS uom,
+           (MAX(s.sum) - MIN(s.sum)) AS delta
+    FROM statistics_short_term s
+    JOIN statistics_meta m ON m.id = s.metadata_id
+    WHERE m.statistic_id IN (
+      'sensor.heating_usage_bad',
+      'sensor.heating_usage_buero_fabian',
+      'sensor.heating_usage_buero_merja',
+      'sensor.heating_usage_flur',
+      'sensor.heating_usage_kueche',
+      'sensor.heating_usage_schlafzimmer',
+      'sensor.heating_usage_speisekammer',
+      'sensor.heating_usage_wohnzimmer'
+    )
+    AND s.start_ts >= (strftime('%s','now') - 86400)
+    GROUP BY stat_id, uom
+  )
+  SELECT ROUND(COALESCE(SUM(CASE
+    WHEN uom IN ('wh','w·h','w*h') THEN delta/1000.0
+    ELSE delta
+  END),0),3) AS value
+  FROM per;
+column: "value"
+unit_of_measurement: "kWh"
