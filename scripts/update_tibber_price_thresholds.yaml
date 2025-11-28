@@ -12,50 +12,49 @@ update_tibber_price_thresholds:
         start: "{{ start_str }}"
         end:   "{{ end_str }}"
       response_variable: tib
-    # 2) Preise extrahieren & Metriken berechnen (ohne verschachtelte Objekte)
+    # 2) Preise extrahieren & Metriken berechnen (robust & simpel)
     - variables:
         price_dict: "{{ tib.prices | default({}) }}"
-  
-        # Max-Preis (direkt per Doppelschleife)
+
+        # Liste aller Preise aufbauen (ohne .items() / Namespaces)
+        prices_flat: >-
+          {% set out = [] %}
+          {% for k in price_dict %}
+            {% set arr = price_dict[k] %}
+            {% if arr is iterable %}
+              {% for it in arr %}
+                {% set pr = it['price'] if 'price' in it else (it.price if it.price is defined else 0) %}
+                {% set out = out + [ pr|float(0) ] %}
+              {% endfor %}
+            {% endif %}
+          {% endfor %}
+          {{ out }}
+
+        # Maxpreis
         pmax: >-
-          {% set m = 0.0 %}
-          {% for k, arr in price_dict.items() %}
-            {% if arr is iterable %}
-              {% for it in arr %}
-                {% set pr = it.price if it.price is defined else it['price'] %}
-                {% if pr|float(0) > m %}{% set m = pr|float(0) %}{% endif %}
-              {% endfor %}
-            {% endif %}
-          {% endfor %}
-          {{ m }}
-  
-        # Perzentil-Wert (z.B. P10): baue Liste im selben Block, sortiere, nimm Index floor(n*pcut)
+          {% set n = prices_flat|length %}
+          {{ (prices_flat|max) if n>0 else 0 }}
+
+        # Perzentilwert (z.B. P10): floor(n * pct), geklammert 0..n-1
         p_pct_value: >-
-          {% set prices = [] %}
-          {% for k, arr in price_dict.items() %}
-            {% if arr is iterable %}
-              {% for it in arr %}
-                {% set prices = prices + [ (it.price if it.price is defined else it['price'])|float(0) ] %}
-              {% endfor %}
-            {% endif %}
-          {% endfor %}
-          {% set n = prices|length %}
-          {% if n > 0 %}
+          {% set n = prices_flat|length %}
+          {% if n>0 %}
+            {% set sorted = prices_flat|sort %}
             {% set pcut = (states('input_number.price_percentile_cutoff')|float(10) / 100.0) %}
             {% set idx = (n * pcut) | int(0) %}
-            {% set idx = 0 if idx < 0 else (n-1 if idx >= n else idx) %}
-            {% set sorted = prices | sort %}
+            {% if idx < 0 %}{% set idx = 0 %}{% endif %}
+            {% if idx > n-1 %}{% set idx = n-1 %}{% endif %}
             {{ sorted[idx] }}
           {% else %}
             0
           {% endif %}
-  
+
         # %-vom-Max
         p_of_max: >-
           {% set alpha = states('input_number.price_percent_of_max')|float(50) / 100.0 %}
-          {% set pm = (pmax|float(0)) %}
-          {{ (pm * alpha) if pm > 0 else 0 }}
-  
+          {% set pm = pmax|float(0) %}
+          {{ (pm * alpha) if pm>0 else 0 }}
+
         # Effektiver (strengster) Cheap-Schwellenwert
         cheap_thr: "{{ [p_pct_value|float(0), p_of_max|float(0)] | min }}"
     # 3) Ergebnisse in Helpers schreiben
