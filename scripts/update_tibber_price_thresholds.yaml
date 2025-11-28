@@ -12,38 +12,38 @@ update_tibber_price_thresholds:
         start: "{{ start_str }}"
         end:   "{{ end_str }}"
       response_variable: tib
-    # 2) Preise extrahieren & Metriken berechnen (robust mit dict2items)
+    # 2) Preise extrahieren & Metriken berechnen (HA-kompatibel mit namespace)
     - variables:
         price_dict: "{{ tib.prices | default({}) }}"
 
-        # Max-Preis (direkt per Doppelschleife – kein Namespace, keine Listen, nur ein Rückgabewert)
+        # Max-Preis
         pmax: >-
-          {% set m = 0.0 %}
-          {% for pair in (price_dict | dict2items) %}
-            {% set arr = pair.value %}
+          {% set ns = namespace(m=0.0) %}
+          {% for k in price_dict %}
+            {% set arr = price_dict[k] %}
             {% if arr is iterable %}
               {% for it in arr %}
                 {% set pr = (it.price if it.price is defined else (it['price'] if 'price' in it else 0)) | float(0) %}
-                {% if pr > m %}{% set m = pr %}{% endif %}
+                {% if pr > ns.m %}{% set ns.m = pr %}{% endif %}
               {% endfor %}
             {% endif %}
           {% endfor %}
-          {{ m }}
+          {{ ns.m }}
 
-        # Perzentil (z.B. P10) – Liste nur lokal in diesem EINEN Template bauen & sofort ausgeben
+        # Perzentil (z.B. P10)
         p_pct_value: >-
-          {% set prices = [] %}
-          {% for pair in (price_dict | dict2items) %}
-            {% set arr = pair.value %}
+          {% set ns = namespace(prices=[]) %}
+          {% for k in price_dict %}
+            {% set arr = price_dict[k] %}
             {% if arr is iterable %}
               {% for it in arr %}
-                {% set prices = prices + [ (it.price if it.price is defined else (it['price'] if 'price' in it else 0)) | float(0) ] %}
+                {% set ns.prices = ns.prices + [ (it.price if it.price is defined else (it['price'] if 'price' in it else 0)) | float(0) ] %}
               {% endfor %}
             {% endif %}
           {% endfor %}
-          {% set n = prices|length %}
+          {% set n = ns.prices|length %}
           {% if n > 0 %}
-            {% set sorted = prices | sort %}
+            {% set sorted = ns.prices | sort %}
             {% set pcut = (states('input_number.price_percentile_cutoff')|float(10) / 100.0) %}
             {% set idx = (n * pcut) | int(0) %}
             {% if idx < 0 %}{% set idx = 0 %}{% endif %}
@@ -53,14 +53,15 @@ update_tibber_price_thresholds:
             0
           {% endif %}
 
-        # %-vom-Max (Alpha aus deinem Helper)
+        # %-vom-Max
         p_of_max: >-
           {% set alpha = states('input_number.price_percent_of_max')|float(50) / 100.0 %}
           {% set pm = pmax|float(0) %}
           {{ (pm * alpha) if pm > 0 else 0 }}
 
-        # Effektiver Cheap-Threshold = strengeres Kriterium
+        # Effektiver (strengster) Cheap-Threshold
         cheap_thr: "{{ [p_pct_value|float(0), p_of_max|float(0)] | min }}"
+
     # 3) Ergebnisse in Helpers schreiben
     - service: input_number.set_value
       target: { entity_id: input_number.price_max_today }
