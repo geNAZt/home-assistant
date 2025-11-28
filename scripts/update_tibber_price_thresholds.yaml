@@ -1,0 +1,48 @@
+update_tibber_price_thresholds:
+  alias: "Update Tibber Preis-Schwellen"
+  mode: single
+  sequence:
+    # 1) Zeitfenster: jetzt → jetzt+24h (als ISO, ohne timedelta)
+    - variables:
+        now_ts: "{{ as_timestamp(now()) }}"
+        start_str: "{{ (now_ts) | timestamp_custom('%Y-%m-%d %H:00:00', true) }}"
+        end_str:   "{{ (now_ts + 86400) | timestamp_custom('%Y-%m-%d %H:00:00', true) }}"
+    - service: tibber.get_prices
+      data:
+        start: "{{ start_str }}"
+        end:   "{{ end_str }}"
+      response_variable: tib
+    # 2) Preise extrahieren & Metriken berechnen
+    - variables:
+        price_dict: "{{ tib.prices | default({}) }}"
+        first_key: "{{ price_dict | list | first }}"
+        items: "{{ price_dict[first_key] if first_key is defined else [] }}"
+        plist: "{{ items | map(attribute='price') | list }}"
+        n: "{{ plist | count }}"
+        p_sorted: "{{ plist | sort }}"
+        # Maxpreis
+        pmax: "{{ (p_sorted[-1] if n|int > 0 else 0) }}"
+        # Wunsch-Perzentil (z.B. 10 => P10)
+        pcut: "{{ (states('input_number.price_percentile_cutoff')|float(10) / 100.0) }}"
+        # Index = floor(n * pcut)
+        p_idx_raw: "{{ ( (n|int) * pcut ) | int(0) }}"
+        # Index klammern (0 .. n-1), ohne 'nth'
+        p_idx0: "{{ [p_idx_raw|int, 0] | max }}"
+        p_idx_clamped: "{{ [p_idx0|int, (n|int - 1)] | min if n|int > 0 else 0 }}"
+        # Perzentilwert
+        p_pct_value: "{{ (p_sorted[p_idx_clamped|int] if n|int > 0 else 0) }}"
+        # %-vom-Max
+        alpha: "{{ states('input_number.price_percent_of_max')|float(50) / 100.0 }}"
+        p_of_max: "{{ (pmax|float(0) * alpha|float(0)) if n|int > 0 else 0 }}"
+        # Effektiver (strengster) Cheap-Schwellenwert
+        cheap_thr: "{{ [p_pct_value|float(0), p_of_max|float(0)] | min }}"
+    # 3) Ergebnisse in Helpers schreiben
+    - service: input_number.set_value
+      target: { entity_id: input_number.price_max_today }
+      data:   { value: "{{ pmax | float(0) }}" }
+    - service: input_number.set_value
+      target: { entity_id: input_number.price_p10_today }
+      data:   { value: "{{ p_pct_value | float(0) }}" }
+    - service: input_number.set_value
+      target: { entity_id: input_number.price_threshold_value }
+      data:   { value: "{{ cheap_thr | float(0) }}" }
