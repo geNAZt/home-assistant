@@ -1,0 +1,21 @@
+sensor:
+- name: duty_cap_next_30m
+  unit_of_measurement: "%"
+  state: >
+    {% set Erest = states('sensor.e_rest_current_window')|float(0) %}
+    {% set Ptot  = states('input_number.p_ir_total')|float(15.18) %}
+    {% set hours = 0.5 %}
+    {% set base = (Erest / (Ptot * hours)) if Ptot>0 else 0 %}
+    {% set price_now = states('sensor.backerstrasse_3b_strompreis')|float(1) %}
+    {% set thr = states('input_number.price_threshold_value')|float(0) %}
+    {% set is_cheap = (price_now <= thr and thr > 0) %}
+    {% if not is_cheap %}
+      0
+    {% else %}
+      {% set pv30 = states('sensor.solcast_pv_forecast_leistung_in_30_minuten')|float(0) %}
+      {% set w_pv = 1.10 if pv30 >= 0.8 else 1.00 %}
+      {% set cap = base * w_pv %}
+      {% if cap < 0 %}{% set cap = 0 %}{% endif %}
+      {% if cap > 0.6 %}{% set cap = 0.6 %}{% endif %}
+      {{ (cap * 100) | round(1) }}
+    {% endif %}
