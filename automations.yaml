@@ -321,7 +321,6 @@
       data:
         name: "Heiz-Planer"
         message: "{{ dbg }}"
-        entity_id: sensor.time
 - id: '1760033014511'
   alias: Türschnapper
   description: ''
