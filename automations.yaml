@@ -96,8 +96,6 @@
     # Räume als JSON-String halten (sicher) …
     rooms_json: >-
       {{ ['bad','kueche','schlafzimmer','flur','speisekammer','wohnzimmer','buero_merja','buero_fabian'] | tojson }}
-    # … und nur für Debugzwecke (optional) ein Echo
-    rooms_raw: "{{ rooms_json }}"
 
     # Climate-Entity je Raum
     cl_map: >-
@@ -325,9 +323,10 @@
         'sel_p1':    (sel_p1|from_json(default=[])),
         'sel_p2':    (sel_p2|from_json(default=[])),
         'sel_p3':    (sel_p3|from_json(default=[])),
-        'final_on':  (final_on|from_json(default=[]))
+        'final_on':  (final_on|from_json(default=[])),
+        'rooms_json': (rooms_json|from_json(default=[]))
       } %}
-      {{ dbg | tojson }}
+      {{ (dbg | tojson) | string }}
   condition: []
   action:
     - choose:
@@ -335,7 +334,7 @@
         - conditions: "{{ offset_k|float(0) > 0 }}"
           sequence:
             - repeat:
-                for_each: "{{ rooms }}"
+                for_each: "{{ rooms_json | from_json(default=[]) }}"
                 sequence:
                   - service: climate.set_temperature
                     target: { entity_id: "climate.raum_{{ repeat.item }}" }
