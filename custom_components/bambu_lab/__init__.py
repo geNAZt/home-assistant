@@ -365,7 +365,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         # Wait for the result from the second instance
         try:
             result = await asyncio.wait_for(future, timeout=15)
-            LOGGER.debug(f"Service call result: {result}")
+            if (call.service == 'extrude_retract' or
+                call.service == 'get_filament_data'):
+                # Only report result for service calls that return a result to avoid confusion.
+                if isinstance(result, (list, dict, tuple)):
+                    LOGGER.debug("Service call result: %s with length %d", type(result).__name__, len(result))
+                else:
+                    LOGGER.debug("Service call result: %s", result)
+            else:
+                LOGGER.debug("Service call complete.")
             return result
         except asyncio.TimeoutError:
             LOGGER.error("Service call timed out")
@@ -379,7 +387,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 # Integration may have been reloaded, ignore cleanup errors
                 pass
 
-    # Register the serviceS with Home Assistant
+    # Register the services with Home Assistant
     services = {
         "send_command": SupportsResponse.NONE,
         "print_project_file": SupportsResponse.NONE,
@@ -390,6 +398,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "extrude_retract": SupportsResponse.ONLY,
         "set_filament": SupportsResponse.NONE,
         "get_filament_data": SupportsResponse.ONLY,
+        "read_rfid": SupportsResponse.NONE,
+        "start_filament_drying": SupportsResponse.NONE,
+        "stop_filament_drying": SupportsResponse.NONE,
     }
     for command in services:
         hass.services.async_register(
