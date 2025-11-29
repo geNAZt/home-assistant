@@ -1,0 +1,7 @@
+name: "PV Excess Threshold W"
+min: 0
+max: 10000
+step: 100
+unit_of_measurement: W
+icon: mdi:solar-power
+initial: 100

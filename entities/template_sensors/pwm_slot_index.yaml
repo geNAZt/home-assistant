@@ -1,0 +1,6 @@
+sensor:
+- name: pwm_slot_index
+  state: >
+    {% set m = now().minute %}
+    {{ (m % 30) // 5 }}   {# 0..5 #}
+  availability: "true"

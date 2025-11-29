@@ -1,76 +1,120 @@
-- id: pwm_apply_plan_each_5min
-  alias: "PWM: Plan anwenden (alle 5 min) – Bedarf + Phasenlimit 16A (rooms-driven)"
+- id: fetch_weather_home_daily_forecast
+  alias: "Weather: fetch weather.home daily forecast → input_text"
+  mode: single
+  trigger:
+    - platform: time_pattern
+      hours: "/3"
+      minutes: 5
+  action:
+    - action: weather.get_forecasts
+      target:
+        entity_id: weather.home
+      data:
+        type: daily
+      response_variable: fc
+    - service: input_text.set_value
+      data:
+        entity_id: input_text.weather_home_daily_json
+        # nur das Array speichern, nicht das ganze Mapping
+        value: >-
+          {{ (fc['weather.home']['forecast'] if 'weather.home' in fc else []) | tojson }}
+- id: heating_plan_every_5min
+  alias: "Heizung: Planung alle 5 Minuten (PV/Preheat/Phasen)"
   mode: single
   trigger:
     - platform: time_pattern
       minutes: "/5"
   variables:
-    # zentrale Raumliste – nur hier pflegen
+    # ------------------ Räume zentral pflegen ------------------
     rooms: ['bad','kueche','schlafzimmer','flur','speisekammer','wohnzimmer','buero_merja','buero_fabian']
-    # aktueller Slotindex (0..5)
-    s: "{{ states('sensor.pwm_slot_index')|string }}"
-    # Slot-Plan je Raum (CSV -> wir splitten später)
-    slots_csv: >-
-      {% set ns = namespace(map={}) %}
-      {% for r in rooms %}
-        {% set ent = 'input_text.plan_slots_' ~ r %}
-        {% set _ = ns.map.update({ r: (states(ent)|string) }) %}
-      {% endfor %}
-      {{ ns.map|tojson }}
-    # Switch-Entity je Raum (bevorzugt 'switch.', Fallback 'swtich.')
-    sw_map: >-
-      {% set ns = namespace(map={}) %}
-      {% for r in rooms %}
-        {% set a = 'switch.heating_' ~ r %}
-        {% set b = 'swtich.heating_' ~ r %}
-        {% set ok_a = (states(a) not in ['unknown','unavailable','None']) %}
-        {% set ok_b = (states(b) not in ['unknown','unavailable','None']) %}
-        {% set chosen = a if ok_a else (b if ok_b else a) %}
-        {% set _ = ns.map.update({ r: chosen }) %}
-      {% endfor %}
-      {{ ns.map|tojson }}
     # Climate-Entity je Raum
     cl_map: >-
-      {% set ns = namespace(map={}) %}
+      {% set ns = namespace(m={}) %}
       {% for r in rooms %}
-        {% set _ = ns.map.update({ r: 'climate.room_' ~ r }) %}
+        {% set _ = ns.m.update({ r: 'climate.raum_' ~ r }) %}
       {% endfor %}
-      {{ ns.map|tojson }}
-    # Bedarf (Ist < Soll - Hysterese)
-    need_map: >-
-      {% set H = 0.05 %}
+      {{ ns.m|tojson }}
+    # Solltemperatur (Basis) je Raum
+    t_set_base: >-
       {% set cl = cl_map|from_json %}
-      {% set ns = namespace(map={}) %}
+      {% set ns = namespace(m={}) %}
       {% for r in rooms %}
         {% set ce = cl[r] %}
-        {% set t = state_attr(ce,'temperature')|float(22) %}
-        {% set x = state_attr(ce,'current_temperature')|float(t) %}
-        {% set _ = ns.map.update({ r: (x < (t - H)) }) %}
+        {% set _ = ns.m.update({ r: (state_attr(ce,'temperature')|float(22)) }) %}
       {% endfor %}
-      {{ ns.map|tojson }}
-    # Temperaturfehler (für Priorität je Phase)
-    terr_map: >-
+      {{ ns.m|tojson }}
+    # Isttemperatur je Raum
+    t_now: >-
       {% set cl = cl_map|from_json %}
-      {% set ns = namespace(map={}) %}
+      {% set ns = namespace(m={}) %}
       {% for r in rooms %}
         {% set ce = cl[r] %}
-        {% set t = state_attr(ce,'temperature')|float(22) %}
-        {% set x = state_attr(ce,'current_temperature')|float(t) %}
-        {% set _ = ns.map.update({ r: (t - x) }) %}
+        {% set _ = ns.m.update({ r: (state_attr(ce,'current_temperature')|float(22)) }) %}
       {% endfor %}
-      {{ ns.map|tojson }}
-    # Geplanter Slot aktiv?
-    onplan_map: >-
-      {% set csv = slots_csv|from_json %}
-      {% set ns = namespace(map={}) %}
+      {{ ns.m|tojson }}
+    # ------------------ PV-Excess / Preheat-Offsets ------------------
+    # PV-Excess ermitteln (einfach: Forecast-Watt > Schwellwert)
+    pv_forecast_w: "{{ states('sensor.solcast_pv_forecast_leistung_in_30_minuten')|float(0) }}"
+    pv_thr_w:      "{{ states('input_number.pv_excess_threshold_w')|float(0) }}"
+    has_pv_excess: "{{ pv_forecast_w > pv_thr_w }}"
+    # Vorheizfenster lokal 00:00–06:00
+    is_preheat_window: >-
+      {% set nowts = as_timestamp(now()) %}
+      {% set t0 = as_timestamp(now().replace(hour=0, minute=0, second=0, microsecond=0)) %}
+      {% set t1 = as_timestamp(now().replace(hour=6, minute=0, second=0, microsecond=0)) %}
+      {{ t0 <= nowts < t1 }}
+    # Kennwerte
+    C_eff: "{{ states('sensor.C_kWh_per_K_rolling')|float(10) }}"
+    H_eff: "{{ states('sensor.H_kW_per_K_rolling_sql')|float(6.25) }}"
+    # DeltaT-Prognose (wenn kein dedizierter Forecastsensor: 24h-Mittel innen vs. außen)
+    dT_forecast: >-
+      {% set dt = states('sensor.delta_t_forecast_k') %}
+      {% if dt not in ['unknown','unavailable','None',''] %}
+        {{ dt|float(0) }}
+      {% else %}
+        {{ (states('sensor.inside_temp_mean_24h_sql')|float(22) - states('sensor.outside_temp_mean_24h_sql')|float(8)) }}
+      {% endif %}
+    # Preheat-Offset (K) aus H_eff & ΔT, sauber auf 0.2..0.6 clampen
+    preheat_offset_k: >-
+      {% set C = states('sensor.C_kWh_per_K_rolling')|float(0) %}
+      {% set H = states('sensor.H_kW_per_K_rolling_sql')|float(6.25) %}
+      {% set dT = (states('sensor.delta_t_forecast_k')|float(0)
+                  if states('sensor.delta_t_forecast_k') not in ['unknown','unavailable','None','']
+                  else (states('sensor.inside_temp_mean_24h_sql')|float(22) - states('sensor.outside_temp_mean_24h_sql')|float(8))) %}
+      {% set need_kwh = H * dT %}
+      {% set off_raw = (need_kwh / C) if C > 0 else 0 %}
+      {% if not is_preheat_window %}0
+      {% else %}
+        {% set clamped1 = 0.2 if off_raw < 0.2 else off_raw %}
+        {% set clamped  = 0.6 if clamped1 > 0.6 else clamped1 %}
+        {{ clamped }}
+      {% endif %}
+    # Gesamtoffset (K) inkl. PV-Offset, erneut clampen auf 0..0
+    offset_k: >-
+      {%- set total = (preheat_offset_k|float(0)) + (pv_offset_k|float(0)) -%}
+      {%- if total < 0 -%}
+        0
+      {%- elif total > 0.6 -%}
+        0.6
+      {%- else -%}
+        {{ total }}
+      {%- endif -%}
+    # PV-Offset (K): 0.5 K wenn PV-Excess
+    pv_offset_k: "{{ 0.5 if has_pv_excess else 0 }}"
+    # Gesamtoffset (K), Deckelung 0..0.6 K
+    # Effektives Soll je Raum (Basis + Offset)
+    t_set_eff: >-
+      {% set base = t_set_base|from_json %}
+      {% set off = offset_k|float(0) %}
+      {% set ns = namespace(m={}) %}
       {% for r in rooms %}
-        {% set lst = (csv[r]|string).split(',') if csv[r] else [] %}
-        {% set _ = ns.map.update({ r: (s in lst) }) %}
+        {% set _ = ns.m.update({ r: (base[r] + off) }) %}
       {% endfor %}
-      {{ ns.map|tojson }}
-    # Phase je Raum automatisch aus Sensor-Namen ableiten (l1>l2>l3)
+      {{ ns.m|tojson }}
+    # ------------------ Phasen & Ströme ------------------
+    # automatische Phasenerkennung aus vorhandenen Current-Sensoren
     phase_map: >-
-      {% set ns = namespace(map={}) %}
+      {% set ns = namespace(m={}) %}
       {% for r in rooms %}
         {% set l1 = 'sensor.current_l1_' ~ r ~ '_current' %}
         {% set l2 = 'sensor.current_l2_' ~ r ~ '_current' %}
@@ -80,41 +124,54 @@
         {% elif states(l2) not in ['unknown','unavailable','None'] %}{% set p = 2 %}
         {% elif states(l3) not in ['unknown','unavailable','None'] %}{% set p = 3 %}
         {% endif %}
-        {% set _ = ns.map.update({ r: p }) %}
+        {% set _ = ns.m.update({ r: p }) %}
       {% endfor %}
-      {{ ns.map|tojson }}
-    # Ampere je Raum (aus dem passenden lX-Current; 0 wenn kein Sensor)
+      {{ ns.m|tojson }}
+    # Ampere je Raum: Live(mA)->A > SQL-Max(A) > Rated(A)
     amps_map: >-
-      {% set ns = namespace(map={}) %}
+      {% set ns = namespace(m={}) %}
       {% for r in rooms %}
         {% set l1 = 'sensor.current_l1_' ~ r ~ '_current' %}
         {% set l2 = 'sensor.current_l2_' ~ r ~ '_current' %}
         {% set l3 = 'sensor.current_l3_' ~ r ~ '_current' %}
-        {% set live = states(l1)|float(0) if states(l1) not in ['unknown','unavailable','None'] else
-                      (states(l2)|float(0) if states(l2) not in ['unknown','unavailable','None'] else
-                       (states(l3)|float(0) if states(l3) not in ['unknown','unavailable','None'] else 0)) %}
-        {% set live_a = live/1000 if live>0 else 0 %}
-
-        {% set sql_a = states('sensor.heater_' ~ r ~ '_max_current_a')|float(0) %}
-        {% set rated = states('input_number.heater_' ~ r ~ '_rated_a')|float(0) %}
-
+        {% set live_ma = states(l1)|float(0) if states(l1) not in ['unknown','unavailable','None'] else
+                        (states(l2)|float(0) if states(l2) not in ['unknown','unavailable','None'] else
+                          (states(l3)|float(0) if states(l3) not in ['unknown','unavailable','None'] else 0)) %}
+        {% set live_a = live_ma/1000 if live_ma>0 else 0 %}
+        {% set sql_a  = states('sensor.heater_' ~ r ~ '_max_current_a')|float(0) %}
+        {% set rated  = states('input_number.heater_' ~ r ~ '_rated_a')|float(0) %}
         {% set a = live_a if live_a>0 else (sql_a if sql_a>0 else rated) %}
-        {% set _ = ns.map.update({ r: a }) %}
+        {% set _ = ns.m.update({ r: a }) %}
       {% endfor %}
-      {{ ns.map|tojson }}
-    # Kandidaten = geplanter Slot & Bedarf
+      {{ ns.m|tojson }}
+    # Temperaturfehler (Priorisierung)
+    terr_map: >-
+      {% set tnow = t_now|from_json %}
+      {% set teff = t_set_eff|from_json %}
+      {% set ns = namespace(m={}) %}
+      {% for r in rooms %}
+        {% set _ = ns.m.update({ r: (teff[r] - tnow[r]) }) %}
+      {% endfor %}
+      {{ ns.m|tojson }}
+    # Bedarf: heizen nur wenn Ist < Soll_eff - 0.05 K
+    need_map: >-
+      {% set tnow = t_now|from_json %}
+      {% set teff = t_set_eff|from_json %}
+      {% set H = 0.05 %}
+      {% set ns = namespace(m={}) %}
+      {% for r in rooms %}
+        {% set _ = ns.m.update({ r: (tnow[r] < (teff[r]-H)) }) %}
+      {% endfor %}
+      {{ ns.m|tojson }}
+    # Kandidatenliste (Räume mit Bedarf)
     cand_list: >-
-      {% set onp = onplan_map|from_json %}
       {% set need = need_map|from_json %}
       {% set out = [] %}
       {% for r in rooms %}
-        {% if onp[r] and need[r] %}
-          {% set out = out + [ r ] %}
-        {% endif %}
+        {% if need[r] %}{% set out = out + [r] %}{% endif %}
       {% endfor %}
       {{ out|tojson }}
-    # Hilfsfunktion: greedy Auswahl für eine Phase (als Liste der Räume)
-    # (wir bauen eine Liste aus Dicts {r,e,a} und sortieren nach e absteigend)
+    # Greedy-Auswahl je Phase (≤16A), Sortierung nach größtem Fehler
     sel_p1: >-
       {% set PH=16.0 %}
       {% set ph = phase_map|from_json %}
@@ -122,20 +179,10 @@
       {% set ar = amps_map |from_json %}
       {% set C  = cand_list|from_json %}
       {% set D = [] %}
-      {% for r in C %}
-        {% if ph[r]==1 %}
-          {% set D = D + [ {'r': r, 'e': er[r]|float(0), 'a': ar[r]|float(0)} ] %}
-        {% endif %}
-      {% endfor %}
+      {% for r in C %}{% if ph[r]==1 %}{% set D = D + [ {'r':r,'e':er[r]|float(0),'a':ar[r]|float(0)} ] %}{% endif %}{% endfor %}
       {% set D = D|sort(attribute='e', reverse=True) %}
-      {% set sum = 0.0 %}
-      {% set pick = [] %}
-      {% for d in D %}
-        {% if sum + d.a <= PH %}
-          {% set sum = sum + d.a %}
-          {% set pick = pick + [ d.r ] %}
-        {% endif %}
-      {% endfor %}
+      {% set sum = 0.0 %}{% set pick = [] %}
+      {% for d in D %}{% if sum + d.a <= PH %}{% set sum = sum + d.a %}{% set pick = pick + [d.r] %}{% endif %}{% endfor %}
       {{ pick|tojson }}
     sel_p2: >-
       {% set PH=16.0 %}
@@ -144,20 +191,10 @@
       {% set ar = amps_map |from_json %}
       {% set C  = cand_list|from_json %}
       {% set D = [] %}
-      {% for r in C %}
-        {% if ph[r]==2 %}
-          {% set D = D + [ {'r': r, 'e': er[r]|float(0), 'a': ar[r]|float(0)} ] %}
-        {% endif %}
-      {% endfor %}
+      {% for r in C %}{% if ph[r]==2 %}{% set D = D + [ {'r':r,'e':er[r]|float(0),'a':ar[r]|float(0)} ] %}{% endif %}{% endfor %}
       {% set D = D|sort(attribute='e', reverse=True) %}
-      {% set sum = 0.0 %}
-      {% set pick = [] %}
-      {% for d in D %}
-        {% if sum + d.a <= PH %}
-          {% set sum = sum + d.a %}
-          {% set pick = pick + [ d.r ] %}
-        {% endif %}
-      {% endfor %}
+      {% set sum = 0.0 %}{% set pick = [] %}
+      {% for d in D %}{% if sum + d.a <= PH %}{% set sum = sum + d.a %}{% set pick = pick + [d.r] %}{% endif %}{% endfor %}
       {{ pick|tojson }}
     sel_p3: >-
       {% set PH=16.0 %}
@@ -166,42 +203,72 @@
       {% set ar = amps_map |from_json %}
       {% set C  = cand_list|from_json %}
       {% set D = [] %}
-      {% for r in C %}
-        {% if ph[r]==3 %}
-          {% set D = D + [ {'r': r, 'e': er[r]|float(0), 'a': ar[r]|float(0)} ] %}
-        {% endif %}
-      {% endfor %}
+      {% for r in C %}{% if ph[r]==3 %}{% set D = D + [ {'r':r,'e':er[r]|float(0),'a':ar[r]|float(0)} ] %}{% endif %}{% endfor %}
       {% set D = D|sort(attribute='e', reverse=True) %}
-      {% set sum = 0.0 %}
-      {% set pick = [] %}
-      {% for d in D %}
-        {% if sum + d.a <= PH %}
-          {% set sum = sum + d.a %}
-          {% set pick = pick + [ d.r ] %}
-        {% endif %}
-      {% endfor %}
+      {% set sum = 0.0 %}{% set pick = [] %}
+      {% for d in D %}{% if sum + d.a <= PH %}{% set sum = sum + d.a %}{% set pick = pick + [d.r] %}{% endif %}{% endfor %}
       {{ pick|tojson }}
-    # Finale Auswahl = Union p1+p2+p3
     final_on: >-
-      {% set p1 = sel_p1|from_json %}
-      {% set p2 = sel_p2|from_json %}
-      {% set p3 = sel_p3|from_json %}
+      {% set p1 = sel_p1|from_json %}{% set p2 = sel_p2|from_json %}{% set p3 = sel_p3|from_json %}
       {{ (p1 + p2 + p3)|unique|list|tojson }}
-    # Switch-Listen ON/OFF
-    to_on: >-
+    # Switches
+    sw_on: >-
       {% set F = final_on|from_json %}
-      {% set SW = sw_map|from_json %}
-      {{ F | map('extract', SW) | list | tojson }}
-    to_off: >-
+      {{ F | map('regex_replace','^','switch.heating_') | list | tojson }}
+    sw_off: >-
       {% set F = final_on|from_json %}
-      {% set SW = sw_map|from_json %}
       {% set off = rooms | reject('in', F) | list %}
-      {{ off | map('extract', SW) | list | tojson }}
+      {{ off | map('regex_replace','^','switch.heating_') | list | tojson }}
+    # ------------------ Debug: kompakter JSON-Dump ------------------
+    dbg: >-
+      {% set dbg = {
+        'ts': now().isoformat(),
+        'offset_k': offset_k|float(0),
+        'preheat_offset_k': preheat_offset_k|float(0),
+        'pv_offset_k': pv_offset_k|float(0),
+        'pv_forecast_w': pv_forecast_w|float(0),
+        'pv_thr_w': pv_thr_w|float(0),
+        'is_preheat': is_preheat_window,
+        'C_eff_kWh_per_K': C_eff|float(0),
+        'H_eff_kWh_per_K_day': H_eff|float(0),
+        'dT_forecast_K': dT_forecast|float(0),
+        't_set_eff': t_set_eff|from_json,
+        't_now': t_now|from_json,
+        'terr': terr_map|from_json,
+        'phase': phase_map|from_json,
+        'amps': amps_map|from_json,
+        'cand': cand_list|from_json,
+        'sel_p1': sel_p1|from_json,
+        'sel_p2': sel_p2|from_json,
+        'sel_p3': sel_p3|from_json,
+        'final_on': final_on|from_json
+      } %}
+      {{ dbg|tojson }}
+  condition: []
   action:
-    - service: switch.turn_on_disabled
-      target: { entity_id: "{{ to_on|from_json }}" }
-    - service: switch.turn_off_disabled
-      target: { entity_id: "{{ to_off|from_json }}" }
+    - choose:
+        # Optional: Setpoint anheben (effektiv) – nur wenn Offset > 0
+        - conditions: "{{ offset_k|float(0) > 0 }}"
+          sequence:
+            - repeat:
+                for_each: "{{ rooms }}"
+                sequence:
+                  - service: climate.set_temperature
+                    target: { entity_id: "climate.raum_{{ repeat.item }}" }
+                    data:
+                      temperature: >-
+                        {{ (t_set_eff|from_json)[repeat.item] | float }}
+    # Schalten unter Beachtung der Phasen-Grenzen
+    - service: switch.turn_on
+      target: { entity_id: "{{ sw_on|from_json }}" }
+    - service: switch.turn_off
+      target: { entity_id: "{{ sw_off|from_json }}" }
+    # Erweiterter Debug-Eintrag
+    - service: logbook.log
+      data:
+        name: "Heiz-Planer"
+        message: "{{ dbg }}"
+        entity_id: sensor.time
 - id: '1760033014511'
   alias: Türschnapper
   description: ''
