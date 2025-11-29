@@ -1,3 +1,207 @@
+- id: pwm_apply_plan_each_5min
+  alias: "PWM: Plan anwenden (alle 5 min) – Bedarf + Phasenlimit 16A (rooms-driven)"
+  mode: single
+  trigger:
+    - platform: time_pattern
+      minutes: "/5"
+  variables:
+    # zentrale Raumliste – nur hier pflegen
+    rooms: ['bad','kueche','schlafzimmer','flur','speisekammer','wohnzimmer','buero_merja','buero_fabian']
+    # aktueller Slotindex (0..5)
+    s: "{{ states('sensor.pwm_slot_index')|string }}"
+    # Slot-Plan je Raum (CSV -> wir splitten später)
+    slots_csv: >-
+      {% set ns = namespace(map={}) %}
+      {% for r in rooms %}
+        {% set ent = 'input_text.plan_slots_' ~ r %}
+        {% set _ = ns.map.update({ r: (states(ent)|string) }) %}
+      {% endfor %}
+      {{ ns.map|tojson }}
+    # Switch-Entity je Raum (bevorzugt 'switch.', Fallback 'swtich.')
+    sw_map: >-
+      {% set ns = namespace(map={}) %}
+      {% for r in rooms %}
+        {% set a = 'switch.heating_' ~ r %}
+        {% set b = 'swtich.heating_' ~ r %}
+        {% set ok_a = (states(a) not in ['unknown','unavailable','None']) %}
+        {% set ok_b = (states(b) not in ['unknown','unavailable','None']) %}
+        {% set chosen = a if ok_a else (b if ok_b else a) %}
+        {% set _ = ns.map.update({ r: chosen }) %}
+      {% endfor %}
+      {{ ns.map|tojson }}
+    # Climate-Entity je Raum
+    cl_map: >-
+      {% set ns = namespace(map={}) %}
+      {% for r in rooms %}
+        {% set _ = ns.map.update({ r: 'climate.' ~ r }) %}
+      {% endfor %}
+      {{ ns.map|tojson }}
+    # Bedarf (Ist < Soll - Hysterese)
+    need_map: >-
+      {% set H = 0.05 %}
+      {% set cl = cl_map|from_json %}
+      {% set ns = namespace(map={}) %}
+      {% for r in rooms %}
+        {% set ce = cl[r] %}
+        {% set t = state_attr(ce,'temperature')|float(22) %}
+        {% set x = state_attr(ce,'current_temperature')|float(t) %}
+        {% set _ = ns.map.update({ r: (x < (t - H)) }) %}
+      {% endfor %}
+      {{ ns.map|tojson }}
+    # Temperaturfehler (für Priorität je Phase)
+    terr_map: >-
+      {% set cl = cl_map|from_json %}
+      {% set ns = namespace(map={}) %}
+      {% for r in rooms %}
+        {% set ce = cl[r] %}
+        {% set t = state_attr(ce,'temperature')|float(22) %}
+        {% set x = state_attr(ce,'current_temperature')|float(t) %}
+        {% set _ = ns.map.update({ r: (t - x) }) %}
+      {% endfor %}
+      {{ ns.map|tojson }}
+    # Geplanter Slot aktiv?
+    onplan_map: >-
+      {% set csv = slots_csv|from_json %}
+      {% set ns = namespace(map={}) %}
+      {% for r in rooms %}
+        {% set lst = (csv[r]|string).split(',') if csv[r] else [] %}
+        {% set _ = ns.map.update({ r: (s in lst) }) %}
+      {% endfor %}
+      {{ ns.map|tojson }}
+    # Phase je Raum automatisch aus Sensor-Namen ableiten (l1>l2>l3)
+    phase_map: >-
+      {% set ns = namespace(map={}) %}
+      {% for r in rooms %}
+        {% set l1 = 'sensor.current_l1_' ~ r ~ '_current' %}
+        {% set l2 = 'sensor.current_l2_' ~ r ~ '_current' %}
+        {% set l3 = 'sensor.current_l3_' ~ r ~ '_current' %}
+        {% set p = 0 %}
+        {% if states(l1) not in ['unknown','unavailable','None'] %}{% set p = 1 %}
+        {% elif states(l2) not in ['unknown','unavailable','None'] %}{% set p = 2 %}
+        {% elif states(l3) not in ['unknown','unavailable','None'] %}{% set p = 3 %}
+        {% endif %}
+        {% set _ = ns.map.update({ r: p }) %}
+      {% endfor %}
+      {{ ns.map|tojson }}
+    # Ampere je Raum (aus dem passenden lX-Current; 0 wenn kein Sensor)
+    amps_map: >-
+      {% set ns = namespace(map={}) %}
+      {% for r in rooms %}
+        {% set l1 = 'sensor.current_l1_' ~ r ~ '_current' %}
+        {% set l2 = 'sensor.current_l2_' ~ r ~ '_current' %}
+        {% set l3 = 'sensor.current_l3_' ~ r ~ '_current' %}
+        {% set live = states(l1)|float(0) if states(l1) not in ['unknown','unavailable','None'] else
+                      (states(l2)|float(0) if states(l2) not in ['unknown','unavailable','None'] else
+                       (states(l3)|float(0) if states(l3) not in ['unknown','unavailable','None'] else 0)) %}
+        {% set live_a = live/1000 if live>0 else 0 %}
+
+        {% set sql_a = states('sensor.heater_' ~ r ~ '_max_current_a')|float(0) %}
+        {% set rated = states('input_number.heater_' ~ r ~ '_rated_a')|float(0) %}
+
+        {% set a = live_a if live_a>0 else (sql_a if sql_a>0 else rated) %}
+        {% set _ = ns.map.update({ r: a }) %}
+      {% endfor %}
+      {{ ns.map|tojson }}
+    # Kandidaten = geplanter Slot & Bedarf
+    cand_list: >-
+      {% set onp = onplan_map|from_json %}
+      {% set need = need_map|from_json %}
+      {% set out = [] %}
+      {% for r in rooms %}
+        {% if onp[r] and need[r] %}
+          {% set out = out + [ r ] %}
+        {% endif %}
+      {% endfor %}
+      {{ out|tojson }}
+    # Hilfsfunktion: greedy Auswahl für eine Phase (als Liste der Räume)
+    # (wir bauen eine Liste aus Dicts {r,e,a} und sortieren nach e absteigend)
+    sel_p1: >-
+      {% set PH=16.0 %}
+      {% set ph = phase_map|from_json %}
+      {% set er = terr_map |from_json %}
+      {% set ar = amps_map |from_json %}
+      {% set C  = cand_list|from_json %}
+      {% set D = [] %}
+      {% for r in C %}
+        {% if ph[r]==1 %}
+          {% set D = D + [ {'r': r, 'e': er[r]|float(0), 'a': ar[r]|float(0)} ] %}
+        {% endif %}
+      {% endfor %}
+      {% set D = D|sort(attribute='e', reverse=True) %}
+      {% set sum = 0.0 %}
+      {% set pick = [] %}
+      {% for d in D %}
+        {% if sum + d.a <= PH %}
+          {% set sum = sum + d.a %}
+          {% set pick = pick + [ d.r ] %}
+        {% endif %}
+      {% endfor %}
+      {{ pick|tojson }}
+    sel_p2: >-
+      {% set PH=16.0 %}
+      {% set ph = phase_map|from_json %}
+      {% set er = terr_map |from_json %}
+      {% set ar = amps_map |from_json %}
+      {% set C  = cand_list|from_json %}
+      {% set D = [] %}
+      {% for r in C %}
+        {% if ph[r]==2 %}
+          {% set D = D + [ {'r': r, 'e': er[r]|float(0), 'a': ar[r]|float(0)} ] %}
+        {% endif %}
+      {% endfor %}
+      {% set D = D|sort(attribute='e', reverse=True) %}
+      {% set sum = 0.0 %}
+      {% set pick = [] %}
+      {% for d in D %}
+        {% if sum + d.a <= PH %}
+          {% set sum = sum + d.a %}
+          {% set pick = pick + [ d.r ] %}
+        {% endif %}
+      {% endfor %}
+      {{ pick|tojson }}
+    sel_p3: >-
+      {% set PH=16.0 %}
+      {% set ph = phase_map|from_json %}
+      {% set er = terr_map |from_json %}
+      {% set ar = amps_map |from_json %}
+      {% set C  = cand_list|from_json %}
+      {% set D = [] %}
+      {% for r in C %}
+        {% if ph[r]==3 %}
+          {% set D = D + [ {'r': r, 'e': er[r]|float(0), 'a': ar[r]|float(0)} ] %}
+        {% endif %}
+      {% endfor %}
+      {% set D = D|sort(attribute='e', reverse=True) %}
+      {% set sum = 0.0 %}
+      {% set pick = [] %}
+      {% for d in D %}
+        {% if sum + d.a <= PH %}
+          {% set sum = sum + d.a %}
+          {% set pick = pick + [ d.r ] %}
+        {% endif %}
+      {% endfor %}
+      {{ pick|tojson }}
+    # Finale Auswahl = Union p1+p2+p3
+    final_on: >-
+      {% set p1 = sel_p1|from_json %}
+      {% set p2 = sel_p2|from_json %}
+      {% set p3 = sel_p3|from_json %}
+      {{ (p1 + p2 + p3)|unique|list|tojson }}
+    # Switch-Listen ON/OFF
+    to_on: >-
+      {% set F = final_on|from_json %}
+      {% set SW = sw_map|from_json %}
+      {{ F | map('extract', SW) | list | tojson }}
+    to_off: >-
+      {% set F = final_on|from_json %}
+      {% set SW = sw_map|from_json %}
+      {% set off = rooms | reject('in', F) | list %}
+      {{ off | map('extract', SW) | list | tojson }}
+  action:
+    - service: switch.turn_on_disabled
+      target: { entity_id: "{{ to_on|from_json }}" }
+    - service: switch.turn_off_disabled
+      target: { entity_id: "{{ to_off|from_json }}" }
 - id: '1760033014511'
   alias: Türschnapper
   description: ''
