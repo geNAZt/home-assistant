@@ -101,7 +101,7 @@
       {% for r in rooms %}
         {% set m = m | combine({ r: 'climate.raum_' ~ r }) %}
       {% endfor %}
-      {{ m | tojson }}
+      {{ (m | tojson) | string }}
 
     # Solltemperatur (Basis) je Raum
     t_set_base: >-
@@ -112,7 +112,7 @@
         {% set t = state_attr(ce,'temperature') if ce else None %}
         {% set m = m | combine({ r: (t|float(22)) }) %}
       {% endfor %}
-      {{ m | tojson }}
+      {{ (m | tojson) | string }}
 
     # Isttemperatur je Raum
     t_now: >-
@@ -123,7 +123,7 @@
         {% set t = state_attr(ce,'current_temperature') if ce else None %}
         {% set m = m | combine({ r: (t|float(22)) }) %}
       {% endfor %}
-      {{ m | tojson }}
+      {{ (m | tojson) | string }}
 
     # ------------------ PV-Excess / Preheat-Offsets ------------------
     pv_forecast_w: "{{ states('sensor.solcast_pv_forecast_leistung_in_30_minuten')|float(0) }}"
