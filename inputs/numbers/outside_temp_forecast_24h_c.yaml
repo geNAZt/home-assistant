@@ -1,0 +1,5 @@
+name: "Außen-Forecast Ø (24h)"
+unit_of_measurement: "°C"
+min: -30
+max: 50
+step: 0.01
