@@ -53,7 +53,7 @@
           {{ vals | tojson }}
 
         outside_temp_forecast_24h_c: >-
-          {% set vals = outside_vals | from_json %}
+          {% set vals = outside_vals | from_json(default=[]) %}
           {% if vals|length > 0 %}
             {{ (vals|sum / (vals|length)) | round(2) }}
           {% else %}
@@ -61,7 +61,10 @@
           {% endif %}
 
         delta_t_forecast_k: >-
-          {{ (inside_target_mean_c|float(22) - outside_temp_forecast_24h_c|float(8)) | round(2) }}
+          {% set outside_avg = (outside_vals | from_json(default=[])) %}
+          {% set outside_avg = ((outside_avg|sum / (outside_avg|length)) if (outside_avg|length>0) else states('sensor.outside_temp_mean_24h_sql')|float(8)) %}
+          {% set inside_avg  = states('sensor.inside_target_mean_c')|float(22) %}
+          {{ (inside_avg - outside_avg) | round(2) }}
 
     - service: input_number.set_value
       data:
