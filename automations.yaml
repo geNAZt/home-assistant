@@ -33,7 +33,7 @@
     cl_map: >-
       {% set ns = namespace(map={}) %}
       {% for r in rooms %}
-        {% set _ = ns.map.update({ r: 'climate.' ~ r }) %}
+        {% set _ = ns.map.update({ r: 'climate.room_' ~ r }) %}
       {% endfor %}
       {{ ns.map|tojson }}
     # Bedarf (Ist < Soll - Hysterese)
