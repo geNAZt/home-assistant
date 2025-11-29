@@ -96,29 +96,29 @@
     rooms: ['bad','kueche','schlafzimmer','flur','speisekammer','wohnzimmer','buero_merja','buero_fabian']
     # Climate-Entity je Raum
     cl_map: >-
-      {% set ns = namespace(m={}) %}
+      {% set m = {} %}
       {% for r in rooms %}
-        {% set _ = ns.m.update({ r: 'climate.raum_' ~ r }) %}
+        {% set m = m | combine({ r: 'climate.raum_' ~ r }) %}
       {% endfor %}
-      {{ ns.m|tojson }}
+      {{ m|tojson }}
     # Solltemperatur (Basis) je Raum
     t_set_base: >-
       {% set cl = cl_map|from_json %}
-      {% set ns = namespace(m={}) %}
+      {% set m = {} %}
       {% for r in rooms %}
         {% set ce = cl[r] %}
-        {% set _ = ns.m.update({ r: (state_attr(ce,'temperature')|float(22)) }) %}
+        {% set m = m | combine({ r: (state_attr(ce,'temperature')|float(22)) }) %}
       {% endfor %}
-      {{ ns.m|tojson }}
+      {{ m|tojson }}
     # Isttemperatur je Raum
     t_now: >-
       {% set cl = cl_map|from_json %}
-      {% set ns = namespace(m={}) %}
+      {% set m = {} %}
       {% for r in rooms %}
         {% set ce = cl[r] %}
-        {% set _ = ns.m.update({ r: (state_attr(ce,'current_temperature')|float(22)) }) %}
+        {% set m = m | combine({ r: (state_attr(ce,'current_temperature')|float(22)) }) %}
       {% endfor %}
-      {{ ns.m|tojson }}
+      {{ m|tojson }}
     # ------------------ PV-Excess / Preheat-Offsets ------------------
     # PV-Excess ermitteln (einfach: Forecast-Watt > Schwellwert)
     pv_forecast_w: "{{ states('sensor.solcast_pv_forecast_leistung_in_30_minuten')|float(0) }}"
@@ -164,15 +164,15 @@
     t_set_eff: >-
       {% set base = t_set_base|from_json %}
       {% set off = offset_k|float(0) %}
-      {% set ns = namespace(m={}) %}
+      {% set m = {} %}
       {% for r in rooms %}
-        {% set _ = ns.m.update({ r: (base[r] + off) }) %}
+        {% set m = m | combine({ r: (base[r] + off) }) %}
       {% endfor %}
-      {{ ns.m|tojson }}
+      {{ m | tojson }}
     # ------------------ Phasen & Ströme ------------------
     # automatische Phasenerkennung aus vorhandenen Current-Sensoren
     phase_map: >-
-      {% set ns = namespace(m={}) %}
+      {% set m = {} %}
       {% for r in rooms %}
         {% set l1 = 'sensor.current_l1_' ~ r ~ '_current' %}
         {% set l2 = 'sensor.current_l2_' ~ r ~ '_current' %}
@@ -182,12 +182,12 @@
         {% elif states(l2) not in ['unknown','unavailable','None'] %}{% set p = 2 %}
         {% elif states(l3) not in ['unknown','unavailable','None'] %}{% set p = 3 %}
         {% endif %}
-        {% set _ = ns.m.update({ r: p }) %}
+        {% set m = m | combine({ r: p }) %}
       {% endfor %}
-      {{ ns.m|tojson }}
+      {{ m | tojson }}
     # Ampere je Raum: Live(mA)->A > SQL-Max(A) > Rated(A)
     amps_map: >-
-      {% set ns = namespace(m={}) %}
+      {% set m = {} %}
       {% for r in rooms %}
         {% set l1 = 'sensor.current_l1_' ~ r ~ '_current' %}
         {% set l2 = 'sensor.current_l2_' ~ r ~ '_current' %}
@@ -199,28 +199,28 @@
         {% set sql_a  = states('sensor.heater_' ~ r ~ '_max_current_a')|float(0) %}
         {% set rated  = states('input_number.heater_' ~ r ~ '_rated_a')|float(0) %}
         {% set a = live_a if live_a>0 else (sql_a if sql_a>0 else rated) %}
-        {% set _ = ns.m.update({ r: a }) %}
+        {% set m = m | combine({ r: a }) %}
       {% endfor %}
-      {{ ns.m|tojson }}
+      {{ m | tojson }}
     # Temperaturfehler (Priorisierung)
     terr_map: >-
       {% set tnow = t_now|from_json %}
       {% set teff = t_set_eff|from_json %}
-      {% set ns = namespace(m={}) %}
+      {% set m = {} %}
       {% for r in rooms %}
-        {% set _ = ns.m.update({ r: (teff[r] - tnow[r]) }) %}
+        {% set m = m | combine({ r: (teff[r] - tnow[r]) }) %}
       {% endfor %}
-      {{ ns.m|tojson }}
+      {{ m | tojson }}
     # Bedarf: heizen nur wenn Ist < Soll_eff - 0.05 K
     need_map: >-
       {% set tnow = t_now|from_json %}
       {% set teff = t_set_eff|from_json %}
       {% set H = 0.05 %}
-      {% set ns = namespace(m={}) %}
+      {% set m = {} %}
       {% for r in rooms %}
-        {% set _ = ns.m.update({ r: (tnow[r] < (teff[r]-H)) }) %}
+        {% set m = m | combine({ r: (tnow[r] < (teff[r]-H)) }) %}
       {% endfor %}
-      {{ ns.m|tojson }}
+      {{ m | tojson }}
     # Kandidatenliste (Räume mit Bedarf)
     cand_list: >-
       {% set need = need_map|from_json %}
