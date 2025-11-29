@@ -2,7 +2,9 @@ name: inside_temp_mean_24h_sql
 unit_of_measurement: "°C"
 query: >
   WITH per_slot AS (
-    SELECT s.start_ts, AVG(s.mean) AS mean_inside
+    SELECT
+      s.start_ts,
+      AVG(s.`mean`) AS mean_inside
     FROM statistics_short_term s
     JOIN statistics_meta m ON m.id = s.metadata_id
     WHERE m.statistic_id IN (
@@ -15,8 +17,10 @@ query: >
       'sensor.temperature_buero_fabian',
       'sensor.temperature_buero_merja'
     )
-      AND s.start_ts >= strftime('%s','now') - 86400
+      AND s.start_ts >= UNIX_TIMESTAMP() - 86400
     GROUP BY s.start_ts
   )
-  SELECT ROUND(AVG(mean_inside), 2) AS value FROM per_slot;
+  SELECT ROUND(AVG(mean_inside), 2) AS value
+  FROM per_slot;
+
 column: "value"

@@ -1,9 +1,9 @@
 name: outside_temp_mean_24h_sql
 unit_of_measurement: "°C"
 query: >
-  SELECT ROUND(AVG(s.mean), 2) AS value
-  FROM statistics_short_term s
-  JOIN statistics_meta m ON m.id = s.metadata_id
+  SELECT ROUND(AVG(s.`mean`), 2) AS value
+  FROM statistics_short_term AS s
+  JOIN statistics_meta AS m ON m.id = s.metadata_id
   WHERE m.statistic_id = 'sensor.outside_temperature'
-    AND s.start_ts >= strftime('%s','now') - 86400;
+    AND s.start_ts >= UNIX_TIMESTAMP() - 86400;
 column: "value"

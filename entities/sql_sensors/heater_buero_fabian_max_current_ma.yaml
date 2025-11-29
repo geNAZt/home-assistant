@@ -1,11 +1,13 @@
 name: heater_buero_fabian_max_current_ma
 unit_of_measurement: "mA"
 query: >
-  SELECT ROUND(MAX(CAST(s.state AS FLOAT)),0)
-  FROM states s
-  JOIN states_meta m ON m.metadata_id = s.metadata_id
-  WHERE m.entity_id LIKE 'sensor.current_l%_buero_fabian_current'
-    AND s.last_updated_ts >= (strftime('%s','now') - 86400*30)
-    AND s.state NOT IN ('unknown','unavailable','none','')
-    AND CAST(s.state AS FLOAT) > 0
+  SELECT ROUND(MAX(sst.max), 0) AS value
+  FROM statistics_short_term sst
+  JOIN statistics_meta sm ON sm.id = sst.metadata_id
+  WHERE sm.statistic_id IN (
+    'sensor.current_l1_buero_fabian_current',
+    'sensor.current_l2_buero_fabian_current',
+    'sensor.current_l3_buero_fabian_current'
+  )
+  AND sst.start_ts >= UNIX_TIMESTAMP() - 86400*30;
 column: "value"

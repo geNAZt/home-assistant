@@ -1,28 +1,50 @@
 name: heating_energy_24h_sql
 query: >
-  WITH per AS (
-    SELECT m.statistic_id AS stat_id,
-           COALESCE(LOWER(m.unit_of_measurement), '') AS uom,
-           (MAX(s.sum) - MIN(s.sum)) AS delta
-    FROM statistics_short_term s
-    JOIN statistics_meta m ON m.id = s.metadata_id
-    WHERE m.statistic_id IN (
-      'sensor.heating_usage_bad',
-      'sensor.heating_usage_buero_fabian',
-      'sensor.heating_usage_buero_merja',
-      'sensor.heating_usage_flur',
-      'sensor.heating_usage_kueche',
-      'sensor.heating_usage_schlafzimmer',
-      'sensor.heating_usage_speisekammer',
-      'sensor.heating_usage_wohnzimmer'
-    )
-    AND s.start_ts >= (strftime('%s','now') - 86400)
-    GROUP BY stat_id, uom
-  )
-  SELECT ROUND(COALESCE(SUM(CASE
-    WHEN uom IN ('wh','w·h','w*h') THEN delta/1000.0
-    ELSE delta
-  END),0),3) AS value
-  FROM per;
+  /* Letzte 24h – positive Deltas je Sensor aufsummieren, Wh→kWh korrekt behandeln */
+  SELECT
+    ROUND(COALESCE(SUM(
+      CASE
+        WHEN LOWER(x.uom) IN ('wh','w·h','w*h') THEN x.delta_pos / 1000.0
+        ELSE x.delta_pos
+      END
+    ),0), 3) AS value
+  FROM (
+    /* Aggregiere pro Sensor (stat_id) die Summe der POSITIVEN Differenzen */
+    SELECT
+      m.statistic_id                               AS stat_id,
+      COALESCE(LOWER(m.unit_of_measurement),'')    AS uom,
+      SUM(y.delta_pos)                             AS delta_pos
+    FROM (
+      /* Positive Deltas zwischen aufeinanderfolgenden Buckets je metadata_id */
+      SELECT
+        s.metadata_id,
+        GREATEST(
+          s.`sum` - IF(@prev_id = s.metadata_id, @prev_sum, s.`sum`),
+          0
+        ) AS delta_pos,
+        @prev_sum := s.`sum`    AS _set_prev_sum,
+        @prev_id  := s.metadata_id AS _set_prev_id
+      FROM (
+        SELECT s.metadata_id, s.start_ts, s.`sum`
+        FROM statistics_short_term s
+        JOIN statistics_meta m ON m.id = s.metadata_id
+        WHERE m.statistic_id IN (
+          'sensor.heating_usage_bad',
+          'sensor.heating_usage_buero_fabian',
+          'sensor.heating_usage_buero_merja',
+          'sensor.heating_usage_flur',
+          'sensor.heating_usage_kueche',
+          'sensor.heating_usage_schlafzimmer',
+          'sensor.heating_usage_speisekammer',
+          'sensor.heating_usage_wohnzimmer'
+        )
+          AND s.start_ts >= UNIX_TIMESTAMP() - 86400   /* letzte 24h */
+        ORDER BY s.metadata_id, s.start_ts
+      ) AS s,
+      (SELECT @prev_id := NULL, @prev_sum := NULL) vars
+    ) AS y
+    JOIN statistics_meta m ON m.id = y.metadata_id
+    GROUP BY m.statistic_id, m.unit_of_measurement
+  ) AS x;
 column: "value"
 unit_of_measurement: "kWh"

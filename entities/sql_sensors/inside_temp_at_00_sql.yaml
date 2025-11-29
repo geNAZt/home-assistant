@@ -2,10 +2,10 @@ name: inside_temp_at_00_sql
 unit_of_measurement: "°C"
 query: >
   WITH b AS (
-    SELECT CAST(strftime('%s','now','localtime','start of day') AS INTEGER) AS t0
+    SELECT UNIX_TIMESTAMP(CURDATE()) AS t0     -- heute 00:00 lokal als Epoch
   ),
   per AS (
-    SELECT s.start_ts, AVG(s.mean) AS ti
+    SELECT s.start_ts, AVG(s.`mean`) AS ti
     FROM statistics_short_term s
     JOIN statistics_meta m ON m.id = s.metadata_id
     JOIN b
@@ -20,8 +20,9 @@ query: >
       'sensor.temperature_buero_merja',
       'sensor.temperature_bad'
     )
-      AND s.start_ts BETWEEN (b.t0-900) AND (b.t0+900)
+      AND s.start_ts BETWEEN (b.t0 - 900) AND (b.t0 + 900)
     GROUP BY s.start_ts
   )
-  SELECT ROUND(AVG(ti),2) AS value FROM per;
+  SELECT ROUND(AVG(ti), 2) AS value
+  FROM per;
 column: "value"

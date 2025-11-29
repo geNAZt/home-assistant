@@ -1,19 +1,10 @@
 name: heating_energy_00_06_today_sql
 unit_of_measurement: "kWh"
 query: >
-  WITH win AS (
-    -- Start/Ende des heutigen lokalen 00:00–06:00 in UTC-Sekunden
-    SELECT
-      CAST(strftime('%s','now','localtime','start of day') AS INTEGER) AS t0_utc,
-      CAST(strftime('%s','now','localtime','start of day','+6 hours') AS INTEGER) AS t1_utc
-  ),
-  per AS (
-    SELECT s.metadata_id AS mid,
-           (MAX(s.sum) - MIN(s.sum)) AS delta
-    FROM statistics_short_term s
-    JOIN statistics_meta m ON m.id = s.metadata_id
-    JOIN win w
-    WHERE m.statistic_id IN (
+  WITH meta AS (
+    SELECT id
+    FROM statistics_meta
+    WHERE statistic_id IN (
       'sensor.heating_usage_bad',
       'sensor.heating_usage_buero_fabian',
       'sensor.heating_usage_buero_merja',
@@ -23,16 +14,31 @@ query: >
       'sensor.heating_usage_speisekammer',
       'sensor.heating_usage_wohnzimmer'
     )
-      AND s.start_ts >= w.t0_utc AND s.start_ts < w.t1_utc
+  ),
+  win AS (
+    /* lokales 00:00–06:00 (heute) als UNIX-Sekunden */
+    SELECT
+      UNIX_TIMESTAMP(CURDATE())                                 AS t0_utc,
+      UNIX_TIMESTAMP(DATE_ADD(CURDATE(), INTERVAL 6 HOUR))      AS t1_utc
+  ),
+  per AS (
+    SELECT s.metadata_id AS mid,
+          (MAX(s.`sum`) - MIN(s.`sum`)) AS delta
+    FROM statistics_short_term s
+    JOIN meta              mm ON mm.id = s.metadata_id
+    JOIN win               w  ON 1=1
+    WHERE s.start_ts >= w.t0_utc
+      AND s.start_ts <  w.t1_utc
     GROUP BY s.metadata_id
   )
   SELECT ROUND(
     COALESCE(SUM(
       CASE
-        WHEN LOWER(m.unit_of_measurement) IN ('wh','w·h','w*h') THEN per.delta / 1000.0
+        WHEN LOWER(m.unit_of_measurement) IN ('wh','w·h','w*h')
+          THEN per.delta / 1000.0
         ELSE per.delta
       END
-    ),0), 3) AS value
+    ), 0), 3) AS value
   FROM per
   JOIN statistics_meta m ON m.id = per.mid;
 column: "value"
