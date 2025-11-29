@@ -316,11 +316,6 @@
                     data:
                       temperature: >-
                         {{ (t_set_eff|from_json)[repeat.item] | float }}
-    # Schalten unter Beachtung der Phasen-Grenzen
-    - service: switch.turn_on
-      target: { entity_id: "{{ sw_on|from_json }}" }
-    - service: switch.turn_off
-      target: { entity_id: "{{ sw_off|from_json }}" }
     # Erweiterter Debug-Eintrag
     - service: logbook.log
       data:
