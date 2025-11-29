@@ -94,8 +94,7 @@
   variables:
     # ------------------ Räume zentral pflegen ------------------
     # Räume als JSON-String halten (sicher) …
-    rooms_json: >-
-      {{ ['bad','kueche','schlafzimmer','flur','speisekammer','wohnzimmer','buero_merja','buero_fabian'] | tojson }}
+    rooms_json: '["bad","kueche","schlafzimmer","flur","speisekammer","wohnzimmer","buero_merja","buero_fabian"]'
 
     # Climate-Entity je Raum
     cl_map: >-
