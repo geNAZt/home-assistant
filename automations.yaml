@@ -93,12 +93,16 @@
       minutes: "/5"
   variables:
     # ------------------ Räume zentral pflegen ------------------
-    rooms: ['bad','kueche','schlafzimmer','flur','speisekammer','wohnzimmer','buero_merja','buero_fabian']
+    # Räume als JSON-String halten (sicher) …
+    rooms_json: >-
+      {{ ['bad','kueche','schlafzimmer','flur','speisekammer','wohnzimmer','buero_merja','buero_fabian'] | tojson }}
+    # … und nur für Debugzwecke (optional) ein Echo
+    rooms_raw: "{{ rooms_json }}"
 
     # Climate-Entity je Raum
     cl_map: >-
       {% set m = {} %}
-      {% for r in rooms %}
+      {% for r in rooms_json | from_json(default=[]) %}
         {% set m = m | combine({ r: 'climate.raum_' ~ r }) %}
       {% endfor %}
       {{ (m | tojson) | string }}
@@ -107,7 +111,7 @@
     t_set_base: >-
       {% set cl = cl_map | from_json(default={}) %}
       {% set m = {} %}
-      {% for r in rooms %}
+      {% for r in rooms_json | from_json(default=[]) %}
         {% set ce = cl.get(r) %}
         {% set t = state_attr(ce,'temperature') if ce else None %}
         {% set m = m | combine({ r: (t|float(22)) }) %}
@@ -118,7 +122,7 @@
     t_now: >-
       {% set cl = cl_map | from_json(default={}) %}
       {% set m = {} %}
-      {% for r in rooms %}
+      {% for r in rooms_json | from_json(default=[]) %}
         {% set ce = cl.get(r) %}
         {% set t = state_attr(ce,'current_temperature') if ce else None %}
         {% set m = m | combine({ r: (t|float(22)) }) %}
@@ -174,7 +178,7 @@
       {% set base = t_set_base | from_json(default={}) %}
       {% set off = offset_k | float(0) %}
       {% set m = {} %}
-      {% for r in rooms %}
+      {% for r in rooms_json | from_json(default=[]) %}
         {% set m = m | combine({ r: ((base.get(r,22)) + off) }) %}
       {% endfor %}
       {{ m | tojson }}
@@ -182,7 +186,7 @@
     # ------------------ Phasen & Ströme ------------------
     phase_map: >-
       {% set m = {} %}
-      {% for r in rooms %}
+      {% for r in rooms_json | from_json(default=[]) %}
         {% set l1 = 'sensor.current_l1_' ~ r ~ '_current' %}
         {% set l2 = 'sensor.current_l2_' ~ r ~ '_current' %}
         {% set l3 = 'sensor.current_l3_' ~ r ~ '_current' %}
@@ -197,7 +201,7 @@
 
     amps_map: >-
       {% set m = {} %}
-      {% for r in rooms %}
+      {% for r in rooms_json | from_json(default=[]) %}
         {% set l1 = 'sensor.current_l1_' ~ r ~ '_current' %}
         {% set l2 = 'sensor.current_l2_' ~ r ~ '_current' %}
         {% set l3 = 'sensor.current_l3_' ~ r ~ '_current' %}
@@ -217,7 +221,7 @@
       {% set tnow = t_now     | from_json(default={}) %}
       {% set teff = t_set_eff | from_json(default={}) %}
       {% set m = {} %}
-      {% for r in rooms %}
+      {% for r in rooms_json | from_json(default=[]) %}
         {% set m = m | combine({ r: ((teff.get(r,22)) - (tnow.get(r,22))) }) %}
       {% endfor %}
       {{ m | tojson }}
@@ -228,7 +232,7 @@
       {% set teff = t_set_eff | from_json(default={}) %}
       {% set H = 0.05 %}
       {% set m = {} %}
-      {% for r in rooms %}
+      {% for r in rooms_json | from_json(default=[]) %}
         {% set need = (tnow.get(r,22) < (teff.get(r,22) - H)) %}
         {% set m = m | combine({ r: need }) %}
       {% endfor %}
@@ -238,7 +242,7 @@
     cand_list: >-
       {% set need = need_map | from_json(default={}) %}
       {% set out = [] %}
-      {% for r in rooms %}
+      {% for r in rooms_json | from_json(default=[]) %}
         {% if need.get(r,false) %}{% set out = out + [r] %}{% endif %}
       {% endfor %}
       {{ out | tojson }}
@@ -296,7 +300,7 @@
 
     sw_off: >-
       {% set F = final_on | from_json(default=[]) %}
-      {% set off = rooms | reject('in', F) | list %}
+      {% set off = rooms_json | from_json(default=[]) | reject('in', F) | list %}
       {{ off | map('regex_replace','^','switch.heating_') | list | tojson }}
 
     # ------------------ Debug: kompakter JSON-Dump ------------------
