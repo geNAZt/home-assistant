@@ -98,36 +98,36 @@
 
     # Climate-Entity je Raum
     cl_map: >-
-      {% set m = {} %}
-      {% set ROOMS = rooms_json | from_json(default=[]) %}
+      {% set ns = namespace(m = {}) %}
+      {% set ROOMS = '["bad","kueche","schlafzimmer","flur","speisekammer","wohnzimmer","buero_merja","buero_fabian"]' | from_json(default=[]) %}
       {% for r in ROOMS %}
-        {% set m = m | combine({ r: 'climate.raum_' ~ r }) %}
+        {% set ns.m = ns.m | combine({ r: 'climate.raum_' ~ r }) %}
       {% endfor %}
-      {{ (m | tojson) | string }}
+      {{ (ns.m | tojson) | string }}
 
     # Solltemperatur (Basis) je Raum
     t_set_base: >-
       {% set cl = cl_map | from_json(default={}) %}
-      {% set m = {} %}
+      {% set ns = namespace(m = {}) %}
       {% set ROOMS = rooms_json | from_json(default=[]) %}
       {% for r in ROOMS %}
         {% set ce = cl.get(r) %}
         {% set t = state_attr(ce,'temperature') if ce else None %}
-        {% set m = m | combine({ r: (t|float(22)) }) %}
+        {% set ns.m = ns.m | combine({ r: (t|float(22)) }) %}
       {% endfor %}
-      {{ (m | tojson) | string }}
+      {{ (ns.m | tojson) | string }}
 
     # Isttemperatur je Raum
     t_now: >-
       {% set cl = cl_map | from_json(default={}) %}
-      {% set m = {} %}
+      {% set ns = namespace(m = {}) %}
       {% set ROOMS = rooms_json | from_json(default=[]) %}
       {% for r in ROOMS %}
         {% set ce = cl.get(r) %}
         {% set t = state_attr(ce,'current_temperature') if ce else None %}
-        {% set m = m | combine({ r: (t|float(22)) }) %}
+        {% set ns.m = ns.m | combine({ r: (t|float(22)) }) %}
       {% endfor %}
-      {{ (m | tojson) | string }}
+      {{ (ns.m | tojson) | string }}
 
     # ------------------ PV-Excess / Preheat-Offsets ------------------
     pv_forecast_w: "{{ states('sensor.solcast_pv_forecast_leistung_in_30_minuten')|float(0) }}"
@@ -177,16 +177,16 @@
     t_set_eff: >-
       {% set base = t_set_base | from_json(default={}) %}
       {% set off = offset_k | float(0) %}
-      {% set m = {} %}
+      {% set ns = namespace(m = {}) %}
       {% set ROOMS = rooms_json | from_json(default=[]) %}
       {% for r in ROOMS %}
-        {% set m = m | combine({ r: ((base.get(r,22)) + off) }) %}
+        {% set ns.m = ns.m | combine({ r: ((base.get(r,22)) + off) }) %}
       {% endfor %}
-      {{ m | tojson }}
+      {{ (ns.m | tojson) | string }}
 
     # ------------------ Phasen & Ströme ------------------
     phase_map: >-
-      {% set m = {} %}
+      {% set ns = namespace(m = {}) %}
       {% set ROOMS = rooms_json | from_json(default=[]) %}
       {% for r in ROOMS %}
         {% set l1 = 'sensor.current_l1_' ~ r ~ '_current' %}
@@ -197,12 +197,12 @@
         {% elif states(l2) not in ['unknown','unavailable','None',''] %}{% set p = 2 %}
         {% elif states(l3) not in ['unknown','unavailable','None',''] %}{% set p = 3 %}
         {% endif %}
-        {% set m = m | combine({ r: p }) %}
+        {% set ns.m = ns.m | combine({ r: p }) %}
       {% endfor %}
-      {{ m | tojson }}
+      {{ (ns.m | tojson) | string }}
 
     amps_map: >-
-      {% set m = {} %}
+      {% set ns = namespace(m = {}) %}
       {% set ROOMS = rooms_json | from_json(default=[]) %}
       {% for r in ROOMS %}
         {% set l1 = 'sensor.current_l1_' ~ r ~ '_current' %}
@@ -215,43 +215,43 @@
         {% set sql_a  = states('sensor.heater_' ~ r ~ '_max_current_a')|float(0) %}
         {% set rated  = states('input_number.heater_' ~ r ~ '_rated_a')|float(0) %}
         {% set a = live_a if live_a>0 else (sql_a if sql_a>0 else rated) %}
-        {% set m = m | combine({ r: a }) %}
+        {% set ns.m = ns.m | combine({ r: a }) %}
       {% endfor %}
-      {{ m | tojson }}
+      {{ (ns.m | tojson) | string }}
 
     # Temperaturfehler (Priorisierung)
     terr_map: >-
       {% set tnow = t_now     | from_json(default={}) %}
       {% set teff = t_set_eff | from_json(default={}) %}
-      {% set m = {} %}
+      {% set ns = namespace(m = {}) %}
       {% set ROOMS = rooms_json | from_json(default=[]) %}
       {% for r in ROOMS %}
-        {% set m = m | combine({ r: ((teff.get(r,22)) - (tnow.get(r,22))) }) %}
+        {% set ns.m = ns.m | combine({ r: ((teff.get(r,22)) - (tnow.get(r,22))) }) %}
       {% endfor %}
-      {{ m | tojson }}
+      {{ (ns.m | tojson) | string }}
 
     # Bedarf: heizen nur wenn Ist < Soll_eff - 0.05 K
     need_map: >-
       {% set tnow = t_now     | from_json(default={}) %}
       {% set teff = t_set_eff | from_json(default={}) %}
       {% set H = 0.05 %}
-      {% set m = {} %}
+      {% set ns = namespace(m = {}) %}
       {% set ROOMS = rooms_json | from_json(default=[]) %}
       {% for r in ROOMS %}
         {% set need = (tnow.get(r,22) < (teff.get(r,22) - H)) %}
-        {% set m = m | combine({ r: need }) %}
+        {% set ns.m = ns.m | combine({ r: need }) %}
       {% endfor %}
-      {{ m | tojson }}
+      {{ (ns.m | tojson) | string }}
 
     # Kandidatenliste (Räume mit Bedarf)
     cand_list: >-
       {% set need = need_map | from_json(default={}) %}
-      {% set out = [] %}
+      {% set ns = namespace(out = []) %}
       {% set ROOMS = rooms_json | from_json(default=[]) %}
       {% for r in ROOMS %}
-        {% if need.get(r,false) %}{% set out = out + [r] %}{% endif %}
+        {% if need.get(r,false) %}{% set ns.out = ns.out + [r] %}{% endif %}
       {% endfor %}
-      {{ out | tojson }}
+      {{ (ns.out | tojson) | string }}
 
     # Greedy-Auswahl je Phase (≤16A), Sortierung nach größtem Fehler
     sel_p1: >-
@@ -260,12 +260,12 @@
       {% set er = terr_map |from_json(default={}) %}
       {% set ar = amps_map |from_json(default={}) %}
       {% set C  = cand_list|from_json(default=[]) %}
-      {% set D = [] %}
+      {% set ns = namespace(D = [], pick = []) %}
       {% for r in C %}{% if ph.get(r,0)==1 %}{% set D = D + [ {'r':r,'e':er.get(r,0)|float(0),'a':ar.get(r,0)|float(0)} ] %}{% endif %}{% endfor %}
-      {% set D = D|sort(attribute='e', reverse=True) %}
-      {% set sum = 0.0 %}{% set pick = [] %}
-      {% for d in D %}{% if sum + d.a <= PH %}{% set sum = sum + d.a %}{% set pick = pick + [d.r] %}{% endif %}{% endfor %}
-      {{ pick | tojson }}
+      {% set ns.D = ns.D|sort(attribute='e', reverse=True) %}
+      {% set sum = 0.0 %}{% set ns.pick = [] %}
+      {% for d in ns.D %}{% if sum + d.a <= PH %}{% set sum = sum + d.a %}{% set ns.pick = ns.pick + [d.r] %}{% endif %}{% endfor %}
+      {{ (ns.pick | tojson) | string }}
 
     sel_p2: >-
       {% set PH=16.0 %}
@@ -273,12 +273,12 @@
       {% set er = terr_map |from_json(default={}) %}
       {% set ar = amps_map |from_json(default={}) %}
       {% set C  = cand_list|from_json(default=[]) %}
-      {% set D = [] %}
+      {% set ns = namespace(D = [], pick = []) %}
       {% for r in C %}{% if ph.get(r,0)==2 %}{% set D = D + [ {'r':r,'e':er.get(r,0)|float(0),'a':ar.get(r,0)|float(0)} ] %}{% endif %}{% endfor %}
-      {% set D = D|sort(attribute='e', reverse=True) %}
-      {% set sum = 0.0 %}{% set pick = [] %}
-      {% for d in D %}{% if sum + d.a <= PH %}{% set sum = sum + d.a %}{% set pick = pick + [d.r] %}{% endif %}{% endfor %}
-      {{ pick | tojson }}
+      {% set ns.D = ns.D|sort(attribute='e', reverse=True) %}
+      {% set sum = 0.0 %}{% set ns.pick = [] %}
+      {% for d in ns.D %}{% if sum + d.a <= PH %}{% set sum = sum + d.a %}{% set ns.pick = ns.pick + [d.r] %}{% endif %}{% endfor %}
+      {{ (ns.pick | tojson) | string }}
 
     sel_p3: >-
       {% set PH=16.0 %}
@@ -286,12 +286,12 @@
       {% set er = terr_map |from_json(default={}) %}
       {% set ar = amps_map |from_json(default={}) %}
       {% set C  = cand_list|from_json(default=[]) %}
-      {% set D = [] %}
+      {% set ns = namespace(D = [], pick = []) %}
       {% for r in C %}{% if ph.get(r,0)==3 %}{% set D = D + [ {'r':r,'e':er.get(r,0)|float(0),'a':ar.get(r,0)|float(0)} ] %}{% endif %}{% endfor %}
-      {% set D = D|sort(attribute='e', reverse=True) %}
-      {% set sum = 0.0 %}{% set pick = [] %}
-      {% for d in D %}{% if sum + d.a <= PH %}{% set sum = sum + d.a %}{% set pick = pick + [d.r] %}{% endif %}{% endfor %}
-      {{ pick | tojson }}
+      {% set ns.D = ns.D|sort(attribute='e', reverse=True) %}
+      {% set sum = 0.0 %}{% set ns.pick = [] %}
+      {% for d in ns.D %}{% if sum + d.a <= PH %}{% set sum = sum + d.a %}{% set ns.pick = ns.pick + [d.r] %}{% endif %}{% endfor %}
+      {{ (ns.pick | tojson) | string }}
 
     final_on: >-
       {% set p1 = sel_p1|from_json(default=[]) %}
