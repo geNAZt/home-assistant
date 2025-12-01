@@ -3,48 +3,63 @@ sensor:
   unique_id: inside_temp_mean_now
   unit_of_measurement: "°C"
   state: >
-    {% set rooms = [
-      'bad','kueche','schlafzimmer','flur',
-      'speisekammer','wohnzimmer','buero_merja','buero_fabian'
+    {# Liste deiner Temperatur-Sensoren #}
+    {% set sensors = [
+      'sensor.temperature_wohnzimmer',
+      'sensor.temperature_kueche',
+      'sensor.temperature_flur_1',
+      'sensor.temperature_flur_2',
+      'sensor.temperature_flur_3',
+      'sensor.temperature_schlafzimmer',
+      'sensor.temperature_buero_fabian',
+      'sensor.temperature_buero_merja',
+      'sensor.temperature_bad'
     ] %}
     {% set vals = [] %}
-    {% for r in rooms %}
-      {% set ce = 'climate.raum_' ~ r %}
-      {% set t = state_attr(ce, 'current_temperature') %}
-      {% if t is number %}
-        {% set vals = vals + [ t ] %}
+    {% for e in sensors %}
+      {% set v = states(e) %}
+      {% if v is number %}
+        {% set vals = vals + [ v|float ] %}
       {% endif %}
     {% endfor %}
-    {% if vals | length > 0 %}
-      {{ (vals | sum / (vals | length)) | round(2) }}
-    {% else %}
-      unknown
-    {% endif %}
+    {% if vals|length > 0 %}
+      {{ (vals|sum / (vals|length))|round(2) }}
+    {% else %} unknown {% endif %}
   attributes:
-    rooms_used: >
-      {% set rooms = [
-        'bad','kueche','schlafzimmer','flur',
-        'speisekammer','wohnzimmer','buero_merja','buero_fabian'
+    sensors_used: >
+      {% set sensors = [
+        'sensor.temperature_wohnzimmer',
+        'sensor.temperature_kueche',
+        'sensor.temperature_flur_1',
+        'sensor.temperature_flur_2',
+        'sensor.temperature_flur_3',
+        'sensor.temperature_schlafzimmer',
+        'sensor.temperature_buero_fabian',
+        'sensor.temperature_buero_merja',
+        'sensor.temperature_bad'
       ] %}
       {% set used = [] %}
-      {% for r in rooms %}
-        {% set ce = 'climate.raum_' ~ r %}
-        {% set t = state_attr(ce, 'current_temperature') %}
-        {% if t is number %}
-          {% set used = used + [r] %}
+      {% for e in sensors %}
+        {% if states(e) is number %}
+          {% set used = used + [e] %}
         {% endif %}
       {% endfor %}
-      {{ used | join(', ') }}
+      {{ used|join(', ') }}
     count: >
-      {% set rooms = [
-        'bad','kueche','schlafzimmer','flur',
-        'speisekammer','wohnzimmer','buero_merja','buero_fabian'
+      {% set sensors = [
+        'sensor.temperature_wohnzimmer',
+        'sensor.temperature_kueche',
+        'sensor.temperature_flur_1',
+        'sensor.temperature_flur_2',
+        'sensor.temperature_flur_3',
+        'sensor.temperature_schlafzimmer',
+        'sensor.temperature_buero_fabian',
+        'sensor.temperature_buero_merja',
+        'sensor.temperature_bad'
       ] %}
       {% set c = 0 %}
-      {% for r in rooms %}
-        {% set ce = 'climate.raum_' ~ r %}
-        {% set t = state_attr(ce, 'current_temperature') %}
-        {% if t is number %}
+      {% for e in sensors %}
+        {% if states(e) is number %}
           {% set c = c + 1 %}
         {% endif %}
       {% endfor %}
