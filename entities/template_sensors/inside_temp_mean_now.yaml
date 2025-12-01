@@ -1,32 +1,9 @@
 sensor:
-- name: inside_temp_mean_now
-  unique_id: inside_temp_mean_now
-  unit_of_measurement: "°C"
-  state: >
-    {# Liste deiner Temperatur-Sensoren #}
-    {% set sensors = [
-      'sensor.temperature_wohnzimmer',
-      'sensor.temperature_kueche',
-      'sensor.temperature_flur_1',
-      'sensor.temperature_flur_2',
-      'sensor.temperature_flur_3',
-      'sensor.temperature_schlafzimmer',
-      'sensor.temperature_buero_fabian',
-      'sensor.temperature_buero_merja',
-      'sensor.temperature_bad'
-    ] %}
-    {% set vals = [] %}
-    {% for e in sensors %}
-      {% set v = states(e) %}
-      {% if v is number %}
-        {% set vals = vals + [ v|float ] %}
-      {% endif %}
-    {% endfor %}
-    {% if vals|length > 0 %}
-      {{ (vals|sum / (vals|length))|round(2) }}
-    {% else %} unknown {% endif %}
-  attributes:
-    sensors_used: >
+  - name: inside_temp_mean_now
+    unique_id: inside_temp_mean_now
+    unit_of_measurement: "°C"
+    state: >
+      {# Liste deiner Temperatur-Sensoren #}
       {% set sensors = [
         'sensor.temperature_wohnzimmer',
         'sensor.temperature_kueche',
@@ -38,29 +15,11 @@ sensor:
         'sensor.temperature_buero_merja',
         'sensor.temperature_bad'
       ] %}
-      {% set used = [] %}
+      {% set ns = namespace(vals=[]) %}
       {% for e in sensors %}
-        {% if states(e) is number %}
-          {% set used = used + [e] %}
-        {% endif %}
+        {% set v = states(e) %}
+        {% set ns.vals = ns.vals + [v|float] %}
       {% endfor %}
-      {{ used|join(', ') }}
-    count: >
-      {% set sensors = [
-        'sensor.temperature_wohnzimmer',
-        'sensor.temperature_kueche',
-        'sensor.temperature_flur_1',
-        'sensor.temperature_flur_2',
-        'sensor.temperature_flur_3',
-        'sensor.temperature_schlafzimmer',
-        'sensor.temperature_buero_fabian',
-        'sensor.temperature_buero_merja',
-        'sensor.temperature_bad'
-      ] %}
-      {% set c = 0 %}
-      {% for e in sensors %}
-        {% if states(e) is number %}
-          {% set c = c + 1 %}
-        {% endif %}
-      {% endfor %}
-      {{ c }}
+      {% if ns.vals|length > 0 %}
+        {{ (ns.vals|sum / (ns.vals|length))|round(2) }}
+      {% else %} unknown {% endif %}
