@@ -1,0 +1,51 @@
+sensor:
+- name: inside_temp_mean_now
+  unique_id: inside_temp_mean_now
+  unit_of_measurement: "°C"
+  state: >
+    {% set rooms = [
+      'bad','kueche','schlafzimmer','flur',
+      'speisekammer','wohnzimmer','buero_merja','buero_fabian'
+    ] %}
+    {% set vals = [] %}
+    {% for r in rooms %}
+      {% set ce = 'climate.raum_' ~ r %}
+      {% set t = state_attr(ce, 'current_temperature') %}
+      {% if t is number %}
+        {% set vals = vals + [ t ] %}
+      {% endif %}
+    {% endfor %}
+    {% if vals | length > 0 %}
+      {{ (vals | sum / (vals | length)) | round(2) }}
+    {% else %}
+      unknown
+    {% endif %}
+  attributes:
+    rooms_used: >
+      {% set rooms = [
+        'bad','kueche','schlafzimmer','flur',
+        'speisekammer','wohnzimmer','buero_merja','buero_fabian'
+      ] %}
+      {% set used = [] %}
+      {% for r in rooms %}
+        {% set ce = 'climate.raum_' ~ r %}
+        {% set t = state_attr(ce, 'current_temperature') %}
+        {% if t is number %}
+          {% set used = used + [r] %}
+        {% endif %}
+      {% endfor %}
+      {{ used | join(', ') }}
+    count: >
+      {% set rooms = [
+        'bad','kueche','schlafzimmer','flur',
+        'speisekammer','wohnzimmer','buero_merja','buero_fabian'
+      ] %}
+      {% set c = 0 %}
+      {% for r in rooms %}
+        {% set ce = 'climate.raum_' ~ r %}
+        {% set t = state_attr(ce, 'current_temperature') %}
+        {% if t is number %}
+          {% set c = c + 1 %}
+        {% endif %}
+      {% endfor %}
+      {{ c }}
