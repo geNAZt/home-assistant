@@ -1,0 +1,27 @@
+sensor:
+  - name: H_eff_24h_kWh_per_K_diag
+    unit_of_measurement: "kWh/(K·Tag)"
+    state: >
+      {% set E = states('sensor.heating_energy_24h_sql')|float(0) %}
+      {% set Tin = states('sensor.inside_temp_mean_24h_sql')|float(0) %}
+      {% set Tout = states('sensor.outside_temp_mean_24h_sql')|float(0) %}
+      {% set dT = Tin - Tout %}
+      {% if dT > 0 %}
+        {{ (E / dT) | round(2) }}
+      {% else %} unknown {% endif %}
+    attributes:
+      E_24h_kWh: "{{ states('sensor.heating_energy_24h_sql') }}"
+      Tin_24h_C: "{{ states('sensor.inside_temp_mean_24h_sql') }}"
+      Tout_24h_C: "{{ states('sensor.outside_temp_mean_24h_sql') }}"
+      dT_24h_K: >
+        {{ (states('sensor.inside_temp_mean_24h_sql')|float(0)
+          - states('sensor.outside_temp_mean_24h_sql')|float(0))|round(2) }}
+  - name: H_eff_kW_per_K_diag
+    unit_of_measurement: "kW/K"
+    state: >
+      {% set He = states('sensor.h_eff_24h_kwh_per_k_diag')|float(0) %}
+      {% if He > 0 %}
+        {{ (He / 24) | round(3) }}
+      {% else %} unknown {% endif %}
+    attributes:
+      note: "H = H_24h/24; erwartet ~0.12–0.25 kW/K"

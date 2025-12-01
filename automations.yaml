@@ -261,7 +261,7 @@
       {% set ar = amps_map |from_json(default={}) %}
       {% set C  = cand_list|from_json(default=[]) %}
       {% set ns = namespace(D = [], pick = []) %}
-      {% for r in C %}{% if ph.get(r,0)==1 %}{% set D = D + [ {'r':r,'e':er.get(r,0)|float(0),'a':ar.get(r,0)|float(0)} ] %}{% endif %}{% endfor %}
+      {% for r in C %}{% if ph.get(r,0)==1 %}{% set ns.D = ns.D + [ {'r':r,'e':er.get(r,0)|float(0),'a':ar.get(r,0)|float(0)} ] %}{% endif %}{% endfor %}
       {% set ns.D = ns.D|sort(attribute='e', reverse=True) %}
       {% set sum = 0.0 %}{% set ns.pick = [] %}
       {% for d in ns.D %}{% if sum + d.a <= PH %}{% set sum = sum + d.a %}{% set ns.pick = ns.pick + [d.r] %}{% endif %}{% endfor %}
@@ -274,7 +274,7 @@
       {% set ar = amps_map |from_json(default={}) %}
       {% set C  = cand_list|from_json(default=[]) %}
       {% set ns = namespace(D = [], pick = []) %}
-      {% for r in C %}{% if ph.get(r,0)==2 %}{% set D = D + [ {'r':r,'e':er.get(r,0)|float(0),'a':ar.get(r,0)|float(0)} ] %}{% endif %}{% endfor %}
+      {% for r in C %}{% if ph.get(r,0)==2 %}{% set ns.D = ns.D + [ {'r':r,'e':er.get(r,0)|float(0),'a':ar.get(r,0)|float(0)} ] %}{% endif %}{% endfor %}
       {% set ns.D = ns.D|sort(attribute='e', reverse=True) %}
       {% set sum = 0.0 %}{% set ns.pick = [] %}
       {% for d in ns.D %}{% if sum + d.a <= PH %}{% set sum = sum + d.a %}{% set ns.pick = ns.pick + [d.r] %}{% endif %}{% endfor %}
@@ -287,7 +287,7 @@
       {% set ar = amps_map |from_json(default={}) %}
       {% set C  = cand_list|from_json(default=[]) %}
       {% set ns = namespace(D = [], pick = []) %}
-      {% for r in C %}{% if ph.get(r,0)==3 %}{% set D = D + [ {'r':r,'e':er.get(r,0)|float(0),'a':ar.get(r,0)|float(0)} ] %}{% endif %}{% endfor %}
+      {% for r in C %}{% if ph.get(r,0)==3 %}{% set ns.D = ns.D + [ {'r':r,'e':er.get(r,0)|float(0),'a':ar.get(r,0)|float(0)} ] %}{% endif %}{% endfor %}
       {% set ns.D = ns.D|sort(attribute='e', reverse=True) %}
       {% set sum = 0.0 %}{% set ns.pick = [] %}
       {% for d in ns.D %}{% if sum + d.a <= PH %}{% set sum = sum + d.a %}{% set ns.pick = ns.pick + [d.r] %}{% endif %}{% endfor %}
