@@ -36,7 +36,8 @@ class ACChargingManager:
                 service_data={
                     "start_date_time": start_time, 
                     "end_date_time": end_time
-                }
+                },
+                return_response=True
             )
             
             if solcast_ret and "result" in solcast_ret and "response" in solcast_ret["result"]:
@@ -160,7 +161,7 @@ class ACChargingManager:
                 if item_time > now:
                     pv_estimate_kw = float(item.get('pv_estimate', 0))
                     pv_estimate_w = pv_estimate_kw * 1000
-                    if pv_estimate_w >= self.PV_START_WATTAGE:
+                    if pv_estimate_w >= PV_START_WATTAGE:
                         return item_time
             except (ValueError, TypeError) as ex:
                 self.hass.log("Error processing forecast item for PV start: %s" % str(ex))
@@ -185,10 +186,10 @@ class ACChargingManager:
         hours_until_pv = time_until_pv / 3600.0
         
         # Assume 500W average consumption until PV starts
-        energy_needed_kwh = (self.PV_START_WATTAGE / 1000.0) * hours_until_pv
+        energy_needed_kwh = (PV_START_WATTAGE / 1000.0) * hours_until_pv
         
         self.hass.log("Energy needed until PV start: %.3f kWh (%.2f hours at %.0fW)" % 
-                     (energy_needed_kwh, hours_until_pv, self.PV_START_WATTAGE))
+                     (energy_needed_kwh, hours_until_pv, PV_START_WATTAGE))
         return energy_needed_kwh
 
     def manage_ac_charging(self):
