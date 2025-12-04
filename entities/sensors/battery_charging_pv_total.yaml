@@ -1,0 +1,9 @@
+platform: integration
+name: "Solar Panel To Battery Total"
+unique_id: solar_panel_to_battery_total
+source: sensor.solar_panel_to_battery_w
+unit_prefix: k
+round: 3
+method: left
+device_class: energy
+state_class: total_increasing
