@@ -313,12 +313,48 @@ class ConsumptionManager:
                 self.hass.log("Current active consumption '%s' for priority %d: %d" % (key, priority, value.real_usage))
 
         battery_charge_in_kwh = self.battery_manager.get_current_battery_capacity()
-        if battery_charge_in_kwh > 8.5:
-            self.hass.log("Calling consume_more for all known consumers if we have enough battery")
-
-            for ec in self._known:
-                self.hass.log("Calling consume_more for consumer: %s" % ec.name)
-                ec.consume_more() 
+        
+        # Check daily energy added to battery from PV vs AC charging
+        # Only trigger midday heating topup if more energy came from PV than AC today
+        # This prevents false triggers when battery is high from completed AC charging
+        pv_to_battery_daily_kwh = 0.0
+        ac_to_battery_daily_kwh = 0.0
+        try:
+            pv_to_battery_daily_kwh = float(self.hass.get_state("sensor.solar_panel_to_battery_daily", default=0))
+            if pv_to_battery_daily_kwh < 0:
+                pv_to_battery_daily_kwh = 0.0
+        except Exception as ex:
+            self.hass.log("Error getting PV to battery daily energy: %s" % str(ex))
+        
+        try:
+            ac_to_battery_daily_kwh = float(self.hass.get_state("sensor.solar_grid_to_battery_daily", default=0))
+            if ac_to_battery_daily_kwh < 0:
+                ac_to_battery_daily_kwh = 0.0
+        except Exception as ex:
+            self.hass.log("Error getting AC to battery daily energy: %s" % str(ex))
+        
+        # Only consider battery charge as valid for consume_more if PV has contributed more energy than AC today
+        # This ensures we only trigger midday topup when battery charge is primarily from PV, not AC
+        # Use a threshold: PV energy must be at least 0.5 kWh more than AC energy (to account for noise)
+        pv_advantage_kwh = pv_to_battery_daily_kwh - ac_to_battery_daily_kwh
+        pv_advantage_threshold_kwh = 0.5  # Minimum advantage for PV over AC
+        
+        if pv_advantage_kwh >= pv_advantage_threshold_kwh:
+            # PV has contributed more energy than AC today, so battery charge is likely from PV
+            if battery_charge_in_kwh > 8.5:
+                self.hass.log("PV advantage today: %.3f kWh (PV: %.3f, AC: %.3f), battery charge: %.3f kWh - calling consume_more" % 
+                             (pv_advantage_kwh, pv_to_battery_daily_kwh, ac_to_battery_daily_kwh, battery_charge_in_kwh))
+                for ec in self._known:
+                    self.hass.log("Calling consume_more for consumer: %s" % ec.name)
+                    ec.consume_more()
+            else:
+                self.hass.log("PV advantage today: %.3f kWh (PV: %.3f, AC: %.3f) but battery charge (%.3f kWh) not high enough for consume_more" % 
+                             (pv_advantage_kwh, pv_to_battery_daily_kwh, ac_to_battery_daily_kwh, battery_charge_in_kwh))
+        else:
+            # AC has contributed more (or equal) energy than PV today, likely from AC charging
+            # Don't trigger midday topup even if battery is high
+            self.hass.log("AC advantage or insufficient PV today: PV advantage %.3f kWh (PV: %.3f, AC: %.3f) < %.3f kWh threshold, battery charge: %.3f kWh - skipping consume_more to avoid AC charging trigger" % 
+                         (pv_advantage_kwh, pv_to_battery_daily_kwh, ac_to_battery_daily_kwh, pv_advantage_threshold_kwh, battery_charge_in_kwh)) 
 
         # If we have export power check if we can use it
         if exported_watt > 300:

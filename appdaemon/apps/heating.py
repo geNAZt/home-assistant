@@ -587,6 +587,24 @@ class Heating(hass.Hass):
                     room_temp = self.room_temperature()
                     self.log_once("Target temp is set to %.1f, room temp is %.1f" % (target_temp, room_temp))
                     if now.hour >= 12 and now.hour <= 13:
+                        # Midday topup: check temperature limits before allowing heating
+                        climate_data = self.get_climate_data()
+                        if climate_data:
+                            base_target = climate_data["temperature"]
+                            # Don't heat if room temp is already at or above base target
+                            if room_temp >= base_target:
+                                self.log_once("Midday topup: room temp (%.1f) >= base target (%.1f), not heating" % 
+                                             (room_temp, base_target))
+                                if heating:
+                                    energy_manager.em_turn_off(self._ec)
+                                return
+                            # Don't heat if room temp is within 0.5 degrees of base target (temp limit)
+                            if room_temp >= base_target - 0.5:
+                                self.log_once("Midday topup: room temp (%.1f) within 0.5K of base target (%.1f), not heating" % 
+                                             (room_temp, base_target))
+                                if heating:
+                                    energy_manager.em_turn_off(self._ec)
+                                return
                         if room_temp > target_temp - 1.0:
                             self.log_once("We are low enough and in PV window, but we are not heating")
                             return
@@ -602,13 +620,31 @@ class Heating(hass.Hass):
                 else:
                     self.log_once("Heating block is enabled, but we have excess PV")
             else:
-                self._ignore_presence_until = time.time() + 15*60
-                self._offset = self._preheat_offset
-                self.log_once("Setting offset to %s" % self._preheat_offset)
+                # Before 6am: apply preheat offset
+                if now.hour < 6:
+                    self._ignore_presence_until = time.time() + 15*60
+                    self._offset = self._preheat_offset
+                    self.log_once("Setting offset to %s" % self._preheat_offset)
+                else:
+                    # After 6am: reset offset
+                    self._offset = 0.0
+                    self._ignore_presence_until = 0
+                    # Update climate entity to reflect reset offset
+                    climate_data = self.get_climate_data()
+                    if climate_data:
+                        base_temp = climate_data["temperature"]
+                        self.set_state(self.virtual_entity_name, attributes={"temperature": base_temp})
+                    self.log_once("After 6am: resetting offset to 0.0 and updating climate entity")
 
-        if self._ignore_presence_until < time.time():
+        # Reset offset if ignore_presence_until expired (for midday topup)
+        if self._ignore_presence_until < time.time() and self._ignore_presence_until > 0:
             self._offset = 0.0
-            self.log_once("Resetting offset to 0.0")
+            # Update climate entity to reflect reset offset
+            climate_data = self.get_climate_data()
+            if climate_data:
+                base_temp = climate_data["temperature"]
+                self.set_state(self.virtual_entity_name, attributes={"temperature": base_temp})
+            self.log_once("Resetting offset to 0.0 and updating climate entity")
 
         state = self.get_state(self.virtual_entity_name)
         if state == "off":

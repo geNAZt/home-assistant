@@ -121,27 +121,40 @@ sensor:
   unique_id: solar_panel_to_battery_w
   unit_of_measurement: 'W'
   icon: mdi:solar-power
-  state: >    
-    {% if ((states('sensor.pv_battery1_power') | float(0)) > 0) %}
-      {% if ((states('sensor.solar_grid_to_battery_w') | float(0)) > 0) %}
-        0
+  state: >
+    {% set ac_charging = states('sensor.solar_grid_to_battery_w') | float(0) %}
+    {% set battery_power = states('sensor.pv_battery1_power') | float(0) %}
+    {% if battery_power > 0 %}
+      {% if ac_charging > 0 %}
+        {% if ac_charging > battery_power %}
+          0
+        {% else %}
+          {{battery_power - ac_charging}}
+        {% endif %}
       {% else %}
-        {{(states('sensor.pv_battery1_power') | float(0))}}
-      {% endif %} 
+        {{battery_power}}
+      {% endif %}
     {% else %}
       0
     {% endif %}
-
 - name: "Solar Grid To Battery W"
   unique_id: solar_grid_to_battery_w
   unit_of_measurement: 'W'
   icon: mdi:battery-positive
   state: >    
-    {% if (is_state('sensor.pv_ac_power', '0')) and ((states('sensor.pv_battery1_power') | float(0)) > 0) %}
-      {{(states('sensor.pv_battery1_power') | float(0))}}
+    {% set ac_power = states('sensor.pv_ac_power') | float(0) %}
+    {% set battery_power = states('sensor.pv_battery1_power') | float(0) %}
+    {# AC power needs to be negative for charging, battery power needs to be positive for charging #}
+    {% if ac_power < 0 and battery_power > 0 %}
+      {# When ac power is lower than battery power, solar also charges the battery #}
+      {% if battery_power > (ac_power * -1) %}
+        {{(ac_power * -1)}}
+      {% else %}
+        {{battery_power}}
+      {% endif %}
     {% else %}
       0
-    {% endif %} 
+    {% endif %}
 - name: "Solar Battery In W"
   unique_id: solar_battery_in_w
   unit_of_measurement: 'W'
