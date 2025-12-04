@@ -5,4 +5,3 @@ source: sensor.solar_grid_to_battery_w
 unit_prefix: k
 round: 3
 method: left
-state_class: total_increasing
