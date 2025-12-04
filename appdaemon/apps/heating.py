@@ -363,14 +363,15 @@ class Heating(hass.Hass):
     def _apply_pwm_cap(self, on_time):
         hour = datetime.now().hour
         cap = 1.0
-        if 0 <= hour < 6:
+        # Preheat window: 23:00-06:00 (extended to include 23:00-23:59)
+        if hour >= 23 or hour < 6:
             cap = PWM_CAP_NT_GLOBAL
         elif 16 <= hour < 19:
             cap = PWM_CAP_HT
         elif 8 <= hour < 22 and self._ignore_presence_until > time.time():  # dein Flag aus Prognose-Teil
             cap = PWM_CAP_DAY_PV
         # Bad-Zone optional höher: wenn dieses Heating-Objekt das Bad steuert:
-        if self.name.endswith("_bad") and 0 <= hour < 6:
+        if self.name.endswith("_bad") and (hour >= 23 or hour < 6):
             cap = max(cap, PWM_CAP_NT_BAD)
         return min(on_time, TIME_SLOT_SECONDS * cap)
 
