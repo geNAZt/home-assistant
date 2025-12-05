@@ -36,8 +36,7 @@ class ACChargingManager:
                 service_data={
                     "start_date_time": start_time, 
                     "end_date_time": end_time
-                },
-                return_response=True
+                }
             )
             
             if solcast_ret and "result" in solcast_ret and "response" in solcast_ret["result"]:
