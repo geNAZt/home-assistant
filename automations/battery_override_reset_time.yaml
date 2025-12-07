@@ -1,22 +1,22 @@
-id: '1763464337854'
-alias: Battery override turn off
-description: ''
-triggers:
-- trigger: state
-  entity_id:
-  - input_boolean.charge_solar_battery_override
-  to:
-  - 'on'
-conditions: []
-actions:
-- delay:
-    hours: 2
-    minutes: 0
-    seconds: 0
-    milliseconds: 0
-- action: input_boolean.turn_off
-  metadata: {}
-  data: {}
-  target:
-    entity_id: input_boolean.charge_solar_battery_override
-mode: single
+- id: '1763464337854'
+  alias: Battery override turn off
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - input_boolean.charge_solar_battery_override
+    to:
+    - 'on'
+  conditions: []
+  actions:
+  - delay:
+      hours: 2
+      minutes: 0
+      seconds: 0
+      milliseconds: 0
+  - action: input_boolean.turn_off
+    metadata: {}
+    data: {}
+    target:
+      entity_id: input_boolean.charge_solar_battery_override
+  mode: single

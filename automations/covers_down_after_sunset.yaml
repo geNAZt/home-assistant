@@ -1,25 +1,25 @@
-id: '1760033049182'
-alias: Rollade runter bei Sonnenuntergang
-description: ''
-triggers:
-- trigger: sun
-  event: sunset
-  offset: 00:30:00
-conditions: []
-actions:
-- action: cover.close_cover
-  metadata: {}
-  data: {}
-  target:
-    entity_id:
-    - cover.rollade_bad
-    - cover.rollade_buero_fabian
-    - cover.rollade_buero_merja
-    - cover.rollade_hwr
-    - cover.rollade_kueche_links
-    - cover.rollade_kueche_rechts
-    - cover.rollade_schlafzimmer
-    - cover.rollade_speisekammer
-    - cover.rollade_wohnzimmer_links
-    - cover.rollade_wohnzimmer_rechts
-mode: single
+- id: '1760033049182'
+  alias: Rollade runter bei Sonnenuntergang
+  description: ''
+  triggers:
+  - trigger: sun
+    event: sunset
+    offset: 00:30:00
+  conditions: []
+  actions:
+  - action: cover.close_cover
+    metadata: {}
+    data: {}
+    target:
+      entity_id:
+      - cover.rollade_bad
+      - cover.rollade_buero_fabian
+      - cover.rollade_buero_merja
+      - cover.rollade_hwr
+      - cover.rollade_kueche_links
+      - cover.rollade_kueche_rechts
+      - cover.rollade_schlafzimmer
+      - cover.rollade_speisekammer
+      - cover.rollade_wohnzimmer_links
+      - cover.rollade_wohnzimmer_rechts
+  mode: single

@@ -1,78 +1,78 @@
-id: fetch_weather_daily_and_compute_means
-alias: "Weather: daily forecast → 24h Außen-Ø & ΔT"
-mode: single
-trigger:
-  - platform: time_pattern
-    hours: "/3"
-    minutes: 7
-variables:
-  climates: >
-    {{ [
-      'climate.raum_bad','climate.raum_kueche','climate.raum_schlafzimmer',
-      'climate.raum_flur','climate.raum_speisekammer','climate.raum_wohnzimmer',
-      'climate.raum_buero_merja','climate.raum_buero_fabian'
-    ] }}
-  # Innenziel-Mittel (jetzige Setpoints)
-  inside_target_mean_c: >-
-    {% set vals = [] %}
-    {% for ce in climates %}
-      {% set t = state_attr(ce,'temperature') %}
-      {% if t is number %}{% set vals = vals + [ t|float ] %}{% endif %}
-    {% endfor %}
-    {{ ((vals|sum / (vals|length)) if (vals|length>0) else 22) | round(2) }}
-action:
-  - action: weather.get_forecasts
-    target:
-      entity_id: weather.home
-    data:
-      type: daily
-    response_variable: fc
-  - variables:
-      # Liste der (High/Low)-Mittel für die nächsten 24h
-      outside_vals: >-
-        {% set now_ts = as_timestamp(now()) %}
-        {% set ahead  = now_ts + 24*3600 %}
-        {% set arr = fc['weather.home']['forecast'] if 'weather.home' in fc else [] %}
-        {% set vals = [] %}
-        {% for e in arr %}
-          {% set ts = as_timestamp(e.datetime if e.datetime is defined else e['datetime']) %}
-          {% if ts is number and now_ts <= ts <= ahead %}
-            {% set th = e.temperature if e.temperature is defined else e['temperature'] %}
-            {% set tl = e.templow    if e.templow    is defined else e.get('templow') %}
-            {% if (th is number) and (tl is number) %}
-              {% set vals = vals + [ (th|float + tl|float)/2 ] %}
-            {% elif th is number %}
-              {% set vals = vals + [ th|float ] %}
+- id: fetch_weather_daily_and_compute_means
+  alias: "Weather: daily forecast → 24h Außen-Ø & ΔT"
+  mode: single
+  trigger:
+    - platform: time_pattern
+      hours: "/3"
+      minutes: 7
+  variables:
+    climates: >
+      {{ [
+        'climate.raum_bad','climate.raum_kueche','climate.raum_schlafzimmer',
+        'climate.raum_flur','climate.raum_speisekammer','climate.raum_wohnzimmer',
+        'climate.raum_buero_merja','climate.raum_buero_fabian'
+      ] }}
+    # Innenziel-Mittel (jetzige Setpoints)
+    inside_target_mean_c: >-
+      {% set vals = [] %}
+      {% for ce in climates %}
+        {% set t = state_attr(ce,'temperature') %}
+        {% if t is number %}{% set vals = vals + [ t|float ] %}{% endif %}
+      {% endfor %}
+      {{ ((vals|sum / (vals|length)) if (vals|length>0) else 22) | round(2) }}
+  action:
+    - action: weather.get_forecasts
+      target:
+        entity_id: weather.home
+      data:
+        type: daily
+      response_variable: fc
+    - variables:
+        # Liste der (High/Low)-Mittel für die nächsten 24h
+        outside_vals: >-
+          {% set now_ts = as_timestamp(now()) %}
+          {% set ahead  = now_ts + 24*3600 %}
+          {% set arr = fc['weather.home']['forecast'] if 'weather.home' in fc else [] %}
+          {% set vals = [] %}
+          {% for e in arr %}
+            {% set ts = as_timestamp(e.datetime if e.datetime is defined else e['datetime']) %}
+            {% if ts is number and now_ts <= ts <= ahead %}
+              {% set th = e.temperature if e.temperature is defined else e['temperature'] %}
+              {% set tl = e.templow    if e.templow    is defined else e.get('templow') %}
+              {% if (th is number) and (tl is number) %}
+                {% set vals = vals + [ (th|float + tl|float)/2 ] %}
+              {% elif th is number %}
+                {% set vals = vals + [ th|float ] %}
+              {% endif %}
             {% endif %}
+          {% endfor %}
+          {{ vals | tojson }}
+        outside_temp_forecast_24h_c: >-
+          {% set vals = outside_vals | from_json(default=[]) %}
+          {% if vals|length > 0 %}
+            {{ (vals|sum / (vals|length)) | round(2) }}
+          {% else %}
+            {{ states('sensor.outside_temp_mean_24h_sql')|float(8) }}
           {% endif %}
-        {% endfor %}
-        {{ vals | tojson }}
-      outside_temp_forecast_24h_c: >-
-        {% set vals = outside_vals | from_json(default=[]) %}
-        {% if vals|length > 0 %}
-          {{ (vals|sum / (vals|length)) | round(2) }}
-        {% else %}
-          {{ states('sensor.outside_temp_mean_24h_sql')|float(8) }}
-        {% endif %}
-      delta_t_forecast_k: >-
-        {% set outside_avg = (outside_vals | from_json(default=[])) %}
-        {% set outside_avg = ((outside_avg|sum / (outside_avg|length)) if (outside_avg|length>0) else states('sensor.outside_temp_mean_24h_sql')|float(8)) %}
-        {% set inside_avg  = states('sensor.inside_target_mean_c')|float(22) %}
-        {{ (inside_avg - outside_avg) | round(2) }}
-  - service: input_number.set_value
-    data:
-      entity_id: input_number.outside_temp_forecast_24h_c
-      value: "{{ outside_temp_forecast_24h_c }}"
-  - service: input_number.set_value
-    data:
-      entity_id: input_number.delta_t_forecast_k
-      value: "{{ delta_t_forecast_k }}"
-  - service: logbook.log
-    data:
-      name: "Forecast→Set"
-      message: >-
-        outside_vals={{ outside_vals }},
-        outside_avg={{ outside_temp_forecast_24h_c }},
-        inside_target_avg={{ inside_target_mean_c }},
-        dT={{ delta_t_forecast_k }}
-      entity_id: weather.home
+        delta_t_forecast_k: >-
+          {% set outside_avg = (outside_vals | from_json(default=[])) %}
+          {% set outside_avg = ((outside_avg|sum / (outside_avg|length)) if (outside_avg|length>0) else states('sensor.outside_temp_mean_24h_sql')|float(8)) %}
+          {% set inside_avg  = states('sensor.inside_target_mean_c')|float(22) %}
+          {{ (inside_avg - outside_avg) | round(2) }}
+    - service: input_number.set_value
+      data:
+        entity_id: input_number.outside_temp_forecast_24h_c
+        value: "{{ outside_temp_forecast_24h_c }}"
+    - service: input_number.set_value
+      data:
+        entity_id: input_number.delta_t_forecast_k
+        value: "{{ delta_t_forecast_k }}"
+    - service: logbook.log
+      data:
+        name: "Forecast→Set"
+        message: >-
+          outside_vals={{ outside_vals }},
+          outside_avg={{ outside_temp_forecast_24h_c }},
+          inside_target_avg={{ inside_target_mean_c }},
+          dT={{ delta_t_forecast_k }}
+        entity_id: weather.home

@@ -6,5 +6,8 @@ homeassistant:
 template: !include_dir_list ./entities/template_sensors/
 climate: 
 
-automation: !include automations.yaml
-automation split: !include_dir_merge_list automations
+# My own handmade automations
+automation manual: !include_dir_merge_list automations/
+
+# Automations I create in the UI
+automation ui: !include automations.yaml

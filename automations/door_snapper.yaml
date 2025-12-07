@@ -1,36 +1,36 @@
-id: '1760033014511'
-alias: Türschnapper
-description: ''
-triggers:
-- trigger: state
-  entity_id:
-  - input_button.snapper_door
-conditions: []
-actions:
-- choose:
-  - conditions:
-    - condition: state
-      entity_id: lock.home
-      state: locked
-    sequence:
-    - action: lock.unlock
-      metadata: {}
-      data: {}
-      target:
+- id: '1760033014511'
+  alias: Türschnapper
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - input_button.snapper_door
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: state
         entity_id: lock.home
-- action: switch.turn_on
-  metadata: {}
-  data: {}
-  target:
-    entity_id: switch.snapper_door
-- delay:
-    hours: 0
-    minutes: 0
-    seconds: 3
-    milliseconds: 0
-- action: switch.turn_off
-  metadata: {}
-  data: {}
-  target:
-    entity_id: switch.snapper_door
-mode: single
+        state: locked
+      sequence:
+      - action: lock.unlock
+        metadata: {}
+        data: {}
+        target:
+          entity_id: lock.home
+  - action: switch.turn_on
+    metadata: {}
+    data: {}
+    target:
+      entity_id: switch.snapper_door
+  - delay:
+      hours: 0
+      minutes: 0
+      seconds: 3
+      milliseconds: 0
+  - action: switch.turn_off
+    metadata: {}
+    data: {}
+    target:
+      entity_id: switch.snapper_door
+  mode: single

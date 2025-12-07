@@ -1,12 +1,12 @@
-id: '1764330601419'
-alias: Tibber Preis-Schwellen alle 30 Min auffrischen
-description: ''
-triggers:
-- trigger: time_pattern
-  minutes: /30
-conditions: []
-actions:
-- action: script.update_tibber_price_thresholds
-  metadata: {}
-  data: {}
-mode: single
+- id: '1764330601419'
+  alias: Tibber Preis-Schwellen alle 30 Min auffrischen
+  description: ''
+  triggers:
+  - trigger: time_pattern
+    minutes: /30
+  conditions: []
+  actions:
+  - action: script.update_tibber_price_thresholds
+    metadata: {}
+    data: {}
+  mode: single
