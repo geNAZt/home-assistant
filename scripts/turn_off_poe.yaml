@@ -1,0 +1,11 @@
+turn_off_poe:
+  alias: Turn off PoE
+  mode: single
+  sequence:
+    - action: switch.turn_off
+      metadata: {}
+      target:
+        entity_id:
+          - switch.usw_lite_16_poe_port_6_poe
+          - switch.usw_lite_16_poe_port_8_poe
+      data: {}

@@ -1,0 +1,51 @@
+id: '1760034159712'
+alias: Water cycling
+description: ''
+triggers:
+- trigger: state
+  entity_id:
+  - binary_sensor.presence_bad
+  to: 'on'
+- trigger: state
+  entity_id:
+  - binary_sensor.presence_bad
+  to: 'off'
+conditions:
+- condition: or
+  conditions:
+  - condition: and
+    conditions:
+    - condition: state
+      entity_id: binary_sensor.presence_bad
+      state:
+      - 'on'
+    - condition: time
+      after: 07:00:00
+      before: '22:00:00'
+  - condition: state
+    entity_id: binary_sensor.presence_bad
+    state:
+    - 'off'
+actions:
+- choose:
+  - conditions:
+    - condition: state
+      entity_id: binary_sensor.presence_bad
+      state: 'on'
+    sequence:
+    - action: switch.turn_on
+      metadata: {}
+      data: {}
+      target:
+        entity_id: switch.water_cycling_pump
+  - conditions:
+    - condition: state
+      entity_id: binary_sensor.presence_bad
+      state: 'off'
+    sequence:
+    - action: switch.turn_off
+      metadata: {}
+      data: {}
+      target:
+        entity_id: switch.water_cycling_pump
+mode: single
