@@ -9,3 +9,16 @@
     - action: script.turn_on_poe
       metadata: {}
       data: {}
+- id: 'turn_on_poe_when_door_unlocks'
+  alias: Turn on PoE when door unlocks
+  mode: single
+  triggers:
+  - trigger: state
+    entity_id:
+    - lock.home
+    to: unlocked
+  conditions: []
+  actions:
+    - action: script.turn_on_poe
+      metadata: {}
+      data: {}

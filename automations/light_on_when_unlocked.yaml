@@ -1,0 +1,23 @@
+- id: 'light_on_when_unlocked'
+  alias: Light on when door unlocks
+  mode: single
+  triggers:
+  - trigger: state
+    entity_id:
+    - lock.home
+    to: unlocked
+  conditions: []
+  actions:
+  - action: light.turn_on
+    metadata: {}
+    data: {}
+    target:
+      entity_id:
+      - light.room_bad
+      - light.room_buero_fabian
+      - light.room_buero_merja
+      - light.room_flur
+      - light.room_kueche
+      - light.room_schlafzimmer
+      - light.room_speisekammer
+      - light.room_wohnzimmer

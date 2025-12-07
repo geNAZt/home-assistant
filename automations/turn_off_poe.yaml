@@ -9,3 +9,16 @@
     - action: script.turn_off_poe
       metadata: {}
       data: {}
+- id: 'turn_off_poe_when_door_locks'
+  alias: Turn off PoE when door locks
+  mode: single
+  triggers:
+  - trigger: state
+    entity_id:
+    - lock.home
+    to: locked
+  conditions: []
+  actions:
+    - action: script.turn_off_poe
+      metadata: {}
+      data: {}
