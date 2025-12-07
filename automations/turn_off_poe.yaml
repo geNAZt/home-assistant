@@ -1,0 +1,11 @@
+- id: 'turn_off_poe_22'
+  alias: Turn off PoE at 22:00
+  mode: single
+  triggers:
+    - trigger: time
+      at: "22:00:00"
+  conditions: []
+  actions:
+    - action: script.turn_off_poe
+      metadata: {}
+      data: {}
