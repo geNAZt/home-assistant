@@ -1,0 +1,19 @@
+name: Heizenergie letztes Jahr
+query: >
+  SELECT
+    ROUND(SUM(energy_Wh) / 1000, 1) AS value
+  FROM (
+    SELECT
+      MAX(s.sum) - MIN(s.sum) AS energy_Wh
+    FROM statistics s
+    JOIN statistics_meta m
+      ON s.metadata_id = m.id
+    WHERE m.statistic_id LIKE 'sensor.heating_usage_%'
+      AND m.statistic_id NOT LIKE '%total%'
+      AND m.statistic_id NOT LIKE '%gesamt%'
+      AND FROM_UNIXTIME(s.start_ts) >= DATE_SUB(CURDATE(), INTERVAL 1 YEAR)
+    GROUP BY s.metadata_id
+  ) AS t;
+column: "value"
+unit_of_measurement: "kWh"
+scan_interval: 3600
