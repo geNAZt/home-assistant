@@ -16,4 +16,3 @@ query: >
   ) AS t;
 column: "value"
 unit_of_measurement: "kWh"
-scan_interval: 3600
