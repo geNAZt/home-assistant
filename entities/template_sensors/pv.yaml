@@ -12,12 +12,19 @@ sensor:
   unique_id: solar_autarkie_ratio
   icon: mdi:percent-outline
   state: >
-    {% if ((states('sensor.solar_house_consumption_daily') | float(0)) <= 0) %}
+    {% set grid_to_house     = states('sensor.solar_grid_to_house_daily')        | float(0) %}
+    {% set pv_to_house       = states('sensor.solar_panel_to_house_daily')          | float(0) %}
+    {% set battery_to_house  = states('sensor.solar_battery_out_daily')    | float(0) %}
+
+    {% set house_load = grid_to_house + pv_to_house + battery_to_house %}
+
+    {% if house_load <= 0 %}
       0
     {% else %}
-      {{((1 - ((states('sensor.solar_imported_power_daily') | float(0)) / (states('sensor.solar_house_consumption_daily') | float(0)))) * 100 ) | round (0)}}   
-    {% endif %}  
-
+      {% set autarky = (1 - (grid_to_house / house_load)) * 100 %}
+      {% set autarky = [0, [autarky, 100] | min] | max %}
+      {{ autarky | round(0) }}
+    {% endif %}
 - name: "Solar Inverter Effectiveness"
   unique_id: solar_inverter_effectiveness
   icon: mdi:percent-outline
