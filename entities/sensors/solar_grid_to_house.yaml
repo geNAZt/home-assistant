@@ -1,0 +1,5 @@
+platform: integration
+source: sensor.solar_grid_to_house_w
+method: left
+unit_prefix: k
+name: solar_grid_to_house_kwh

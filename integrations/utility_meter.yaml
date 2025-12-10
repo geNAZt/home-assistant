@@ -1,4 +1,8 @@
 utility_meter:
+  solar_grid_to_house_daily:
+    source: sensor.solar_grid_to_house_kwh
+    name: Solar Grid To House Daily
+    cycle: daily
   solar_panel_production_daily:
     source: sensor.solar_panel_production_kwh
     name: Solar Panel Production Daily
