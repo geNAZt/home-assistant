@@ -12,16 +12,35 @@ sensor:
   unique_id: solar_autarkie_ratio
   icon: mdi:percent-outline
   state: >
-    {% set grid_to_house     = states('sensor.solar_grid_to_house_daily')        | float(0) %}
-    {% set pv_to_house       = states('sensor.solar_panel_to_house_daily')          | float(0) %}
-    {% set battery_to_house  = states('sensor.solar_battery_out_daily')    | float(0) %}
+    {% set grid_to_house     = states('sensor.solar_grid_to_house_daily')    | float(0) %}
+    {% set pv_to_house       = states('sensor.solar_panel_to_house_daily')   | float(0) %}
+    {% set batt_to_house     = states('sensor.solar_battery_out_daily')      | float(0) %}
+    {% set batt_pv_charge    = states('sensor.solar_panel_to_battery_daily') | float(0) %}
+    {% set batt_grid_charge  = states('sensor.solar_grid_to_battery_daily')  | float(0) %}
 
-    {% set house_load = grid_to_house + pv_to_house + battery_to_house %}
+    {# Gesamt-Hauslast #}
+    {% set house_load = pv_to_house + grid_to_house + batt_to_house %}
 
     {% if house_load <= 0 %}
       0
     {% else %}
-      {% set autarky = (1 - (grid_to_house / house_load)) * 100 %}
+      {# Anteil PV-Energie im Akku #}
+      {% set batt_total_charge = batt_pv_charge + batt_grid_charge %}
+      {% if batt_total_charge > 0 %}
+        {% set pv_share_in_batt = batt_pv_charge / batt_total_charge %}
+      {% else %}
+        {% set pv_share_in_batt = 0 %}
+      {% endif %}
+
+      {# Teil der Akkuentladung, der ursprünglich aus PV stammt #}
+      {% set pv_from_batt = batt_to_house * pv_share_in_batt %}
+
+      {# Gesamte PV-basierte Versorgung #}
+      {% set pv_based_supply = pv_to_house + pv_from_batt %}
+
+      {% set autarky = (pv_based_supply / house_load) * 100 %}
+
+      {# wieder auf 0–100 % clampen #}
       {% set autarky = [0, [autarky, 100] | min] | max %}
       {{ autarky | round(0) }}
     {% endif %}
