@@ -259,8 +259,8 @@ class ACChargingManager:
                 time_until_peak_end = (pv_peak_end_time - now).total_seconds() / 3600.0
                 energy_to_charge = battery_remaining_capacity
                 
-                # Calculate charging rate needed to reach ~98% by peak end
-                target_soc = 98.0
+                # Calculate charging rate needed to reach ~75% by peak end
+                target_soc = 75.0
                 target_energy = battery_max_capacity * (target_soc / 100.0)
                 current_energy = battery_max_capacity * (battery_soc_percent / 100.0)
                 energy_needed = target_energy - current_energy
