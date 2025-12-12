@@ -226,97 +226,73 @@ class ACChargingManager:
 
     def _handle_early_morning_charging(self, now, battery_charge_in_kwh, battery_remaining_capacity, 
                                       battery_max_capacity, battery_soc_percent):
-        """Handle AC charging logic for early morning hours based on PV forecast."""
+        """Handle AC charging logic for early morning hours based on PV forecast.
+        
+        Determines target SOC based on target timeframe:
+        - If PV is not enough to charge battery: target is 23:59 of current day
+        - If PV charge is enough: target is first time PV estimation hits PV_START_WATTAGE
+        
+        Then calculates energy needed and distributes across 6 charging hours (0:00-6:00).
+        """
         self.hass.log("=== AC Charging Logic (Early Morning) ===")
         
         # Get 24h PV forecast
-        total_pv_kwh, forecast_data, pv_peak_end_time = self._calculate_24h_pv_forecast(now)
+        total_pv_kwh, forecast_data, _ = self._calculate_24h_pv_forecast(now)
         
-        # Estimate 24h consumption
-        consumption_24h_kwh = self._estimate_24h_consumption()
+        # Calculate energy needed to reach max target SOC (75%)
+        max_target_energy = battery_max_capacity * 0.75
+        energy_needed_to_max_target = max_target_energy - battery_charge_in_kwh
         
-        # Calculate if PV forecast is enough to cover next 24h
-        pv_sufficient = total_pv_kwh >= consumption_24h_kwh
+        # Check if PV is enough to charge the battery to target SOC
+        pv_enough_to_charge = total_pv_kwh >= energy_needed_to_max_target if energy_needed_to_max_target > 0 else True
         
-        self.hass.log("PV forecast analysis: pv=%.3f kWh, consumption=%.3f kWh, sufficient=%s" % 
-                     (total_pv_kwh, consumption_24h_kwh, pv_sufficient))
+        self.hass.log("PV forecast analysis: pv=%.3f kWh, energy_needed_to_75%%=%.3f kWh, pv_enough=%s" % 
+                     (total_pv_kwh, energy_needed_to_max_target, pv_enough_to_charge))
         
-        # Calculate energy needed to max out battery from current SoC
-        energy_to_max_battery = battery_remaining_capacity
-        
-        # Check if PV forecast is enough to max out battery from current SoC
-        pv_can_max_battery = total_pv_kwh >= energy_to_max_battery
-        
-        self.hass.log("Battery analysis: energy_to_max=%.3f kWh, pv_can_max=%s" % 
-                     (energy_to_max_battery, pv_can_max_battery))
-        
-        if not pv_sufficient:
-            # PV forecast is NOT enough to cover next 24h - charge to full capacity
-            # Time charging to reach nearly 100% when PV peak ends
-            self.hass.log("PV forecast insufficient - charging to full capacity")
-            
-            if pv_peak_end_time and pv_peak_end_time > now:
-                time_until_peak_end = (pv_peak_end_time - now).total_seconds() / 3600.0
-                energy_to_charge = battery_remaining_capacity
-                
-                # Calculate charging rate needed to reach ~75% by peak end
-                target_soc = 75.0
-                target_energy = battery_max_capacity * (target_soc / 100.0)
-                current_energy = battery_max_capacity * (battery_soc_percent / 100.0)
-                energy_needed = target_energy - current_energy
-                
-                if energy_needed > 0 and time_until_peak_end > 0:
-                    # Calculate required charging power (assuming AC charging efficiency)
-                    charging_power_w = (energy_needed / time_until_peak_end) * 1000.0
-                    # Limit to reasonable AC charging power (e.g., 5000W max)
-                    charging_power_w = min(charging_power_w, 5000.0)
-                    
-                    self.hass.log("Charging to %.1f%% by peak end: need %.3f kWh in %.2f hours (%.0fW)" % 
-                                 (target_soc, energy_needed, time_until_peak_end, charging_power_w))
-                    
-                    if battery_soc_percent < target_soc:
-                        self.state_manager.ensure_state("select.pv_storage_remote_command_mode", "Charge from PV and AC")
-                        self.hass.call_service("number/set_value", entity_id="number.pv_storage_remote_charge_limit", 
-                                              value=int(charging_power_w))
-                    else:
-                        self.hass.log("Battery already at target SoC")
-                        self.state_manager.ensure_state("select.pv_storage_remote_command_mode", "Maximize self consumption")
-                else:
-                    # Charge at max rate if we can't calculate timing
-                    self.state_manager.ensure_state("select.pv_storage_remote_command_mode", "Charge from PV and AC")
-                    self.hass.call_service("number/set_value", entity_id="number.pv_storage_remote_charge_limit", value=5000)
+        # Determine target timeframe
+        if pv_enough_to_charge and forecast_data:
+            # PV is enough - target is first time PV hits PV_START_WATTAGE
+            target_time = self._find_pv_start_time(forecast_data, now)
+            if target_time is None:
+                # If PV start time not found, fallback to 23:59 today
+                target_time = now.replace(hour=23, minute=59, second=0, microsecond=0)
+                self.hass.log("PV start time not found, using 23:59 today as target")
             else:
-                # Charge at max rate if we can't determine peak end
-                self.state_manager.ensure_state("select.pv_storage_remote_command_mode", "Charge from PV and AC")
-                self.hass.call_service("number/set_value", entity_id="number.pv_storage_remote_charge_limit", value=5000)
-        
-        elif pv_can_max_battery:
-            # PV forecast IS enough to max out battery - only charge enough to make it till PV start
-            self.hass.log("PV forecast sufficient to max battery - charging only until PV start")
-            
-            pv_start_time = self._find_pv_start_time(forecast_data, now)
-            energy_needed_until_pv = self._calculate_energy_until_pv_start(pv_start_time, now)
-            
-            if energy_needed_until_pv > battery_charge_in_kwh:
-                energy_to_charge = energy_needed_until_pv - battery_charge_in_kwh
-                self.hass.log("Need to charge %.3f kWh to reach PV start (have %.3f, need %.3f)" % 
-                             (energy_to_charge, battery_charge_in_kwh, energy_needed_until_pv))
-                
-                if energy_to_charge > 0.1:  # Only charge if we need at least 0.1 kWh
-                    self.state_manager.ensure_state("select.pv_storage_remote_command_mode", "Charge from PV and AC")
-                    self.hass.call_service("number/set_value", entity_id="number.pv_storage_remote_charge_limit", value=5000)
-                else:
-                    self.hass.log("Sufficient charge to reach PV start")
-                    self.state_manager.ensure_state("select.pv_storage_remote_command_mode", "Maximize self consumption")
-            else:
-                self.hass.log("Sufficient charge to reach PV start (have %.3f, need %.3f)" % 
-                             (battery_charge_in_kwh, energy_needed_until_pv))
-                self.state_manager.ensure_state("select.pv_storage_remote_command_mode", "Maximize self consumption")
-        
+                self.hass.log("PV is enough - target time is PV start: %s" % target_time)
         else:
-            # PV forecast is sufficient for 24h but not enough to max battery
-            # In this case, don't charge (let PV handle it)
-            self.hass.log("PV forecast sufficient for 24h but not enough to max battery - no AC charging")
+            # PV is not enough - target is 23:59 of current day
+            target_time = now.replace(hour=23, minute=59, second=0, microsecond=0)
+            self.hass.log("PV not enough - target time is 23:59 today: %s" % target_time)
+        
+        # Calculate target SOC (max 75%)
+        target_soc_percent = 75.0
+        
+        # Calculate energy difference in kWh
+        target_energy = battery_max_capacity * (target_soc_percent / 100.0)
+        current_energy = battery_charge_in_kwh
+        energy_diff_kwh = target_energy - current_energy
+        
+        self.hass.log("Target SOC: %.1f%%, Current SOC: %.1f%%, Energy diff: %.3f kWh" % 
+                     (target_soc_percent, battery_soc_percent, energy_diff_kwh))
+        
+        # Distribute energy across 6 charging hours (0:00 to 6:00)
+        charging_hours = 6.0
+        if energy_diff_kwh > 0.01:  # Only charge if we need at least 0.01 kWh
+            # Calculate required charging power to distribute energy across 6 hours
+            # Power in W = (Energy in kWh / Hours) * 1000
+            charging_power_w = (energy_diff_kwh / charging_hours) * 1000.0
+            
+            # Limit to reasonable AC charging power (e.g., 5000W max)
+            charging_power_w = min(charging_power_w, 5000.0)
+            
+            self.hass.log("Charging %.3f kWh over %.0f hours: %.0fW charge limit" % 
+                         (energy_diff_kwh, charging_hours, charging_power_w))
+            
+            self.state_manager.ensure_state("select.pv_storage_remote_command_mode", "Charge from PV and AC")
+            self.hass.call_service("number/set_value", entity_id="number.pv_storage_remote_charge_limit", 
+                                  value=int(charging_power_w))
+        else:
+            self.hass.log("No charging needed (energy diff: %.3f kWh)" % energy_diff_kwh)
             self.state_manager.ensure_state("select.pv_storage_remote_command_mode", "Maximize self consumption")
 
     def _handle_override_charging(self, battery_charge_in_kwh, battery_remaining_capacity):
