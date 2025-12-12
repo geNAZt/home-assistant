@@ -11,7 +11,7 @@
       for: "00:00:05"
     - platform: state
       entity_id: input_boolean.auto_light_buero_merja
-      state: "on"
+      to: "on"
 
   condition:
     # Automatik muss an sein
