@@ -1,0 +1,6 @@
+- platform: group
+  name: "Presence Flur"
+  entities:
+    - binary_sensor.presence_flur_1
+    - binary_sensor.presence_flur_2
+    - binary_sensor.presence_flur_3
