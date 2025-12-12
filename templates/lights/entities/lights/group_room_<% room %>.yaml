@@ -1,0 +1,6 @@
+- platform: group
+  name: "[[room]] Lights"
+  entities:
+    [[#lights]]
+    - light.light_[[id]]_[[room]]
+    [[/lights]]

@@ -1,0 +1,16 @@
+- platform: group
+  name: "flur Lights"
+  entities:
+    - light.light_[_flur
+    - light.light_1_flur
+    - light.light_ _flur
+    - light.light_2_flur
+    - light.light_ _flur
+    - light.light_3_flur
+    - light.light_ _flur
+    - light.light_4_flur
+    - light.light_ _flur
+    - light.light_5_flur
+    - light.light_ _flur
+    - light.light_6_flur
+    - light.light_] # 55%_flur

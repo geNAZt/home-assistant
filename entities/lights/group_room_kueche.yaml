@@ -1,0 +1,10 @@
+- platform: group
+  name: "kueche Lights"
+  entities:
+    - light.light_[_kueche
+    - light.light_1_kueche
+    - light.light_ _kueche
+    - light.light_2_kueche
+    - light.light_ _kueche
+    - light.light_3_kueche
+    - light.light_] # 100%_kueche

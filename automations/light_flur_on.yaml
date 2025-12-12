@@ -1,0 +1,55 @@
+- alias: flur licht automatisch AN
+  id: auto_light_flur_on
+  mode: restart
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.presence_flur
+      to: "on"
+    - platform: numeric_state
+      entity_id: sensor.lux_flur
+      below: 120          # waterLowLux
+      for: "00:00:05"
+
+  condition:
+    # Automatik muss an sein
+    - condition: state
+      entity_id: input_boolean.auto_light_flur
+      state: "on"
+
+    # Präsenz notwendig
+    - condition: state
+      entity_id: binary_sensor.presence_flur
+      state: "on"
+
+    # Lux muss UNTER 120 sein
+    - condition: numeric_state
+      entity_id: sensor.lux_flur
+      below: 120
+
+    # Licht nur einschalten, wenn es wirklich aus ist
+    - condition: state
+      entity_id: light.flur_lights
+      state: "off"
+
+    # Optional: wenn ForceOn vorhanden, diese Automation deaktivieren
+    # indem ForceOn "off" sein muss
+    - condition: or
+      conditions:
+        - condition: template
+          value_template: "{{ not states('input_boolean.force_on_flur') }}"
+        - condition: state
+          entity_id: input_boolean.force_on_flur
+          state: "off"
+
+  action:
+    - variables:
+        saved_brightness: "{{ states('input_number.flur_brightness') | int(0) }}"
+        brightness: >
+          {{ 300 if saved_brightness == 0 else saved_brightness }}
+        color_temp: "{{ states('input_number.flur_color_temp') | int(370) }}"
+    - service: light.turn_on
+      target:
+        entity_id: light.flur_lights
+      data:
+        brightness: "{{ brightness }}"
+        color_temp: "{{ color_temp }}"

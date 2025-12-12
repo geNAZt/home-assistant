@@ -1,43 +1,43 @@
 light:
-- name: "Licht wohnzimmer (virtuell)"
-  unique_id: room_wohnzimmer
+- name: "Licht bad (virtuell)"
+  unique_id: room_bad
   # state: on/off anhand des Auto-Boolean
   state: >-
-    {% if is_state('input_boolean.auto_light_wohnzimmer', 'on') %}
+    {% if is_state('input_boolean.auto_light_bad', 'on') %}
       on
     {% else %}
       off
     {% endif %}
   # Helligkeit vom Helper holen
-  level: "{{ states('input_number.wohnzimmer_brightness') | int(0) }}"
+  level: "{{ states('input_number.bad_brightness') | int(0) }}"
   # Farbtemperatur vom Helper holen
   # Achtung: Home Assistant erwartet hier mired, nicht Kelvin
   # Passe deinen Helper-Bereich ggf. an (z.B. 153–500)
-  temperature: "{{ states('input_number.wohnzimmer_color_temp') | int(213) }}"
+  temperature: "{{ states('input_number.bad_color_temp') | int(213) }}"
   # Einschalten der "Automatik"
   turn_on:
     - action: input_boolean.turn_on
       target:
-        entity_id: input_boolean.auto_light_wohnzimmer
+        entity_id: input_boolean.auto_light_bad
   # Ausschalten: Automatik OFF + echte Lampen aus
   turn_off:
     - action: input_boolean.turn_off
       target:
-        entity_id: input_boolean.auto_light_wohnzimmer
+        entity_id: input_boolean.auto_light_bad
     - action: light.turn_off
       target:
-        entity_id: light.wohnzimmer_lights
+        entity_id: light.bad_lights
   # Slider -> Helligkeits-Helper schreiben
   set_level:
     - action: input_number.set_value
       target:
-        entity_id: input_number.wohnzimmer_brightness
+        entity_id: input_number.bad_brightness
       data:
         value: "{{ brightness }}"
   # Farbtemperatur-Slider -> Helper schreiben
   set_temperature:
     - action: input_number.set_value
       target:
-        entity_id: input_number.wohnzimmer_color_temp
+        entity_id: input_number.bad_color_temp
       data:
         value: "{{ color_temp }}"

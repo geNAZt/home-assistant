@@ -1,0 +1,8 @@
+wohnzimmer: ["1", "2"]
+buero_merja: ["1", "2"] # 80%
+buero_fabian: ["1"] # 100%
+flur: ["1", "2", "3", "4", "5", "6"] # 55%
+kueche: ["1", "2", "3"] # 100%
+speisekammer: ["1", "2"] # 58%
+schlafzimmer: ["1", "2"] # 69%
+bad: ["1"] # 100%

@@ -1,0 +1,8 @@
+- platform: group
+  name: "buero_merja Lights"
+  entities:
+    - light.light_[_buero_merja
+    - light.light_1_buero_merja
+    - light.light_ _buero_merja
+    - light.light_2_buero_merja
+    - light.light_] # 80%_buero_merja

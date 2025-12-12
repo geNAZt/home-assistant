@@ -1,0 +1,55 @@
+- alias: [[room]] licht automatisch AN
+  id: auto_light_[[room]]_on
+  mode: restart
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.presence_[[room]]
+      to: "on"
+    - platform: numeric_state
+      entity_id: sensor.lux_[[room]]
+      below: 120          # waterLowLux
+      for: "00:00:05"
+
+  condition:
+    # Automatik muss an sein
+    - condition: state
+      entity_id: input_boolean.auto_light_[[room]]
+      state: "on"
+
+    # Präsenz notwendig
+    - condition: state
+      entity_id: binary_sensor.presence_[[room]]
+      state: "on"
+
+    # Lux muss UNTER 120 sein
+    - condition: numeric_state
+      entity_id: sensor.lux_[[room]]
+      below: 120
+
+    # Licht nur einschalten, wenn es wirklich aus ist
+    - condition: state
+      entity_id: light.[[room]]_lights
+      state: "off"
+
+    # Optional: wenn ForceOn vorhanden, diese Automation deaktivieren
+    # indem ForceOn "off" sein muss
+    - condition: or
+      conditions:
+        - condition: template
+          value_template: "{{ not states('input_boolean.force_on_[[room]]') }}"
+        - condition: state
+          entity_id: input_boolean.force_on_[[room]]
+          state: "off"
+
+  action:
+    - variables:
+        saved_brightness: "{{ states('input_number.[[room]]_brightness') | int(0) }}"
+        brightness: >
+          {{ 300 if saved_brightness == 0 else saved_brightness }}
+        color_temp: "{{ states('input_number.[[room]]_color_temp') | int(370) }}"
+    - service: light.turn_on
+      target:
+        entity_id: light.[[room]]_lights
+      data:
+        brightness: "{{ brightness }}"
+        color_temp: "{{ color_temp }}"

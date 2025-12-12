@@ -105,37 +105,6 @@ energy_manager:
         switch: switch.water_heater_pv_switch_powerr_usage_stage_2
       - usage: 500
         switch: switch.water_heater_pv_switch_powerr_usage_stage_1
-bed:
-  module: bed
-  class: Bed
-api:
-  module: api
-  class: API
-light_bad:
-  module: light
-  class: Light
-  waterHigh: 800
-  waterLow: 400
-light_speisekammer:
-  module: light
-  class: Light
-light_kueche:
-  module: light
-  class: Light
-light_schlafzimmer:
-  module: light
-  class: Light
-light_buero_fabian:
-  module: light
-  class: Light
-light_buero_merja:
-  module: light
-  class: Light
-  waterHigh: 400
-  waterLow: 200
-light_flur:
-  module: light
-  class: Light
 heating_speisekammer:
   module: heating
   class: Heating

@@ -1,0 +1,7 @@
+name: schlafzimmer Farbtemperatur
+min: 153
+max: 370
+initial: 213
+step: 1
+mode: slider
+icon: mdi:thermometer

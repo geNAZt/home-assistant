@@ -1,0 +1,6 @@
+- platform: group
+  name: "bad Lights"
+  entities:
+    - light.light_[_bad
+    - light.light_1_bad
+    - light.light_] # 100%_bad
