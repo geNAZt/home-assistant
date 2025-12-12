@@ -1,0 +1,5 @@
+- platform: group
+  name: "wohnzimmer Lights"
+  entities:
+    - light.light_1_wohnzimmer
+    - light.light_2_wohnzimmer

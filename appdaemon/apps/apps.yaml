@@ -125,9 +125,6 @@ light_kueche:
 light_schlafzimmer:
   module: light
   class: Light
-light_wohnzimmer:
-  module: light
-  class: Light
 light_buero_fabian:
   module: light
   class: Light

@@ -1,0 +1,6 @@
+name: wohnzimmer Farbtemperatur
+min: 2700
+max: 6700
+step: 100
+mode: slider
+icon: mdi:thermometer
