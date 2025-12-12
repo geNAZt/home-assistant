@@ -26,7 +26,7 @@ light:
         entity_id: input_boolean.auto_light_wohnzimmer
     - action: light.turn_off
       target:
-        entity_id: light.room_wohnzimmer
+        entity_id: light.wohnzimmer_lights
   # Slider -> Helligkeits-Helper schreiben
   set_level:
     - action: input_number.set_value
