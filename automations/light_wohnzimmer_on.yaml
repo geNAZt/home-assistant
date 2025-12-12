@@ -9,23 +9,28 @@
       entity_id: sensor.lux_wohnzimmer
       below: 120          # waterLowLux
       for: "00:00:05"
-  
+
   condition:
     # Automatik muss an sein
     - condition: state
       entity_id: input_boolean.auto_light_wohnzimmer
       state: "on"
-  
+
     # Präsenz notwendig
     - condition: state
       entity_id: binary_sensor.presence_wohnzimmer
       state: "on"
-  
+
+    # Lux muss UNTER 120 sein
+    - condition: numeric_state
+      entity_id: sensor.lux_wohnzimmer
+      below: 120
+
     # Licht nur einschalten, wenn es wirklich aus ist
     - condition: state
       entity_id: light.wohnzimmer_lights
       state: "off"
-  
+
     # Optional: wenn ForceOn vorhanden, diese Automation deaktivieren
     # indem ForceOn "off" sein muss
     - condition: or
@@ -35,7 +40,7 @@
         - condition: state
           entity_id: input_boolean.force_on_wohnzimmer
           state: "off"
-  
+
   action:
     - variables:
         saved_brightness: "{{ states('input_number.wohnzimmer_brightness') | int(0) }}"
@@ -48,4 +53,3 @@
       data:
         brightness: "{{ brightness }}"
         color_temp: "{{ color_temp }}"
-  
