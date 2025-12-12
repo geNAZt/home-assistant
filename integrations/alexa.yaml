@@ -3,9 +3,10 @@ alexa:
     locale: de-DE
     filter:
       include_domains:
-      - climate
-      - cover
+        - climate
+        - cover
       include_entities:
-      - input_button.snapper_door
+        - input_button.snapper_door
       include_entity_globs:
-      - "light.room_*"
+        - "light.room_*"
+        - "light.licht_*_virtuell"
