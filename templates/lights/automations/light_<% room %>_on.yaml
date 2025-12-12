@@ -9,6 +9,9 @@
       entity_id: sensor.lux_[[room]]
       below: 120          # waterLowLux
       for: "00:00:05"
+    - platform: state
+      entity_id: input_boolean.auto_light_[[room]]
+      state: "on"
 
   condition:
     # Automatik muss an sein
