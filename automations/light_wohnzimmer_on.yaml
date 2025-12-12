@@ -1,50 +1,51 @@
-alias: wohnzimmer licht automatisch AN
-id: auto_light_wohnzimmer_on
-mode: restart
-trigger:
-  - platform: state
-    entity_id: binary_sensor.presence_wohnzimmer
-    to: "on"
-  - platform: numeric_state
-    entity_id: sensor.lux_wohnzimmer
-    below: 120          # waterLowLux
-    for: "00:00:05"
-
-condition:
-  # Automatik muss an sein
-  - condition: state
-    entity_id: input_boolean.auto_light_wohnzimmer
-    state: "on"
-
-  # Präsenz notwendig
-  - condition: state
-    entity_id: binary_sensor.presence_wohnzimmer
-    state: "on"
-
-  # Licht nur einschalten, wenn es wirklich aus ist
-  - condition: state
-    entity_id: light.wohnzimmer_lights
-    state: "off"
-
-  # Optional: wenn ForceOn vorhanden, diese Automation deaktivieren
-  # indem ForceOn "off" sein muss
-  - condition: or
-    conditions:
-      - condition: template
-        value_template: "{{ not states('input_boolean.force_on_wohnzimmer') }}"
-      - condition: state
-        entity_id: input_boolean.force_on_wohnzimmer
-        state: "off"
-
-action:
-  - variables:
-      saved_brightness: "{{ states('input_number.wohnzimmer_brightness') | int(0) }}"
-      brightness: >
-        {{ 300 if saved_brightness == 0 else saved_brightness }}
-      color_temp: "{{ states('input_number.wohnzimmer_color_temp') | int(370) }}"
-  - service: light.turn_on
-    target:
+- alias: wohnzimmer licht automatisch AN
+  id: auto_light_wohnzimmer_on
+  mode: restart
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.presence_wohnzimmer
+      to: "on"
+    - platform: numeric_state
+      entity_id: sensor.lux_wohnzimmer
+      below: 120          # waterLowLux
+      for: "00:00:05"
+  
+  condition:
+    # Automatik muss an sein
+    - condition: state
+      entity_id: input_boolean.auto_light_wohnzimmer
+      state: "on"
+  
+    # Präsenz notwendig
+    - condition: state
+      entity_id: binary_sensor.presence_wohnzimmer
+      state: "on"
+  
+    # Licht nur einschalten, wenn es wirklich aus ist
+    - condition: state
       entity_id: light.wohnzimmer_lights
-    data:
-      brightness: "{{ brightness }}"
-      color_temp: "{{ color_temp }}"
+      state: "off"
+  
+    # Optional: wenn ForceOn vorhanden, diese Automation deaktivieren
+    # indem ForceOn "off" sein muss
+    - condition: or
+      conditions:
+        - condition: template
+          value_template: "{{ not states('input_boolean.force_on_wohnzimmer') }}"
+        - condition: state
+          entity_id: input_boolean.force_on_wohnzimmer
+          state: "off"
+  
+  action:
+    - variables:
+        saved_brightness: "{{ states('input_number.wohnzimmer_brightness') | int(0) }}"
+        brightness: >
+          {{ 300 if saved_brightness == 0 else saved_brightness }}
+        color_temp: "{{ states('input_number.wohnzimmer_color_temp') | int(370) }}"
+    - service: light.turn_on
+      target:
+        entity_id: light.wohnzimmer_lights
+      data:
+        brightness: "{{ brightness }}"
+        color_temp: "{{ color_temp }}"
+  

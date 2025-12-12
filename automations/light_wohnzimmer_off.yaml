@@ -1,0 +1,57 @@
+- alias: wohnzimmer licht automatisch AUS
+  id: auto_light_wohnzimmer_off
+  mode: restart
+  trigger:
+    # Präsenz weg
+    - platform: state
+      entity_id: binary_sensor.presence_wohnzimmer
+      to: "off"
+      id: presence_off
+  
+    # Zu hell geworden
+    - platform: numeric_state
+      entity_id: sensor.lux_wohnzimmer
+      above: 300       # waterHighLux
+      for: "00:00:05"
+      id: too_bright
+  
+  condition:
+    # Automatik muss an sein
+    - condition: state
+      entity_id: input_boolean.auto_light_wohnzimmer
+      state: "on"
+  
+    # Optional: ForceOn darf nicht aktiv sein
+    - condition: or
+      conditions:
+        - condition: template
+          value_template: "{{ not states('input_boolean.force_on_wohnzimmer') }}"
+        - condition: state
+          entity_id: input_boolean.force_on_wohnzimmer
+          state: "off"
+  
+  action:
+    - choose:
+        # Fall 1: Präsenz weg -> immer aus
+        - conditions:
+            - condition: trigger
+              id: presence_off
+          sequence:
+            - service: light.turn_off
+              target:
+                entity_id: light.wohnzimmer_lights
+  
+        # Fall 2: Zu hell, aber nur wenn jemand da und Licht wirklich an
+        - conditions:
+            - condition: trigger
+              id: too_bright
+            - condition: state
+              entity_id: binary_sensor.presence_wohnzimmer
+              state: "on"
+            - condition: state
+              entity_id: light.wohnzimmer_lights
+              state: "on"
+          sequence:
+            - service: light.turn_off
+              target:
+                entity_id: light.wohnzimmer_lights
