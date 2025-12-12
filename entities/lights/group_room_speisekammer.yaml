@@ -1,8 +1,5 @@
 - platform: group
   name: "speisekammer Lights"
   entities:
-    - light.light_[_speisekammer
     - light.light_1_speisekammer
-    - light.light_ _speisekammer
     - light.light_2_speisekammer
-    - light.light_] # 58%_speisekammer

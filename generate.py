@@ -9,8 +9,6 @@ This script processes template files in the templates/ directory:
 """
 
 import os
-import re
-import json
 from pathlib import Path
 from typing import Dict, List, Any
 
@@ -20,33 +18,34 @@ except ImportError:
     print("Error: chevron package is required. Install it with: pip install chevron")
     exit(1)
 
+try:
+    import yaml
+except ImportError:
+    print("Error: pyyaml package is required. Install it with: pip install pyyaml")
+    exit(1)
+
 
 def load_values(values_path: Path) -> Dict[str, List[str]]:
     """Load values.yaml and return as dictionary.
     
-    Parses simple YAML format: key: ["value1", "value2"]
+    Uses proper YAML parsing to handle the format: key: ["value1", "value2"]
     """
-    result = {}
     with open(values_path, 'r', encoding='utf-8') as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith('#'):
-                continue
-            # Match pattern: key: ["value1", "value2"] or key: [value1, value2]
-            match = re.match(r'^(\w+):\s*(.+)$', line)
-            if match:
-                key = match.group(1)
-                value_str = match.group(2).strip()
-                # Parse the array (handles both quoted and unquoted strings)
-                try:
-                    # Use JSON parser for the array part
-                    ids = json.loads(value_str)
-                    if isinstance(ids, list):
-                        result[key] = [str(id) for id in ids]
-                except json.JSONDecodeError:
-                    # Fallback: try to extract values manually
-                    ids_match = re.findall(r'["\']?([^,"\']+)["\']?', value_str)
-                    result[key] = ids_match
+        data = yaml.safe_load(f)
+    
+    if not data:
+        return {}
+    
+    # Convert all values to lists of strings
+    result = {}
+    for key, value in data.items():
+        if isinstance(value, list):
+            # Convert each item in the list to string
+            result[key] = [str(item) for item in value]
+        else:
+            # If it's not a list, wrap it in a list and convert to string
+            result[key] = [str(value)]
+    
     return result
 
 

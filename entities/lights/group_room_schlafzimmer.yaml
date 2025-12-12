@@ -1,8 +1,5 @@
 - platform: group
   name: "schlafzimmer Lights"
   entities:
-    - light.light_[_schlafzimmer
     - light.light_1_schlafzimmer
-    - light.light_ _schlafzimmer
     - light.light_2_schlafzimmer
-    - light.light_] # 69%_schlafzimmer

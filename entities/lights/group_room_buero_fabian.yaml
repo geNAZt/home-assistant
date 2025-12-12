@@ -1,6 +1,4 @@
 - platform: group
   name: "buero_fabian Lights"
   entities:
-    - light.light_[_buero_fabian
     - light.light_1_buero_fabian
-    - light.light_] # 100%_buero_fabian
