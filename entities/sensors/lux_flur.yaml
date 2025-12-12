@@ -1,0 +1,7 @@
+platform: group
+type: mean
+entities:
+  - sensor.lux_flur_1
+  - sensor.lux_flur_2
+  - sensor.lux_flur_3
+device_class: illuminance
