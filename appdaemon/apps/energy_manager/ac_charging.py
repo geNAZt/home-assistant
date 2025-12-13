@@ -232,7 +232,7 @@ class ACChargingManager:
         - If PV is not enough to charge battery: target is 23:59 of current day
         - If PV charge is enough: target is first time PV estimation hits PV_START_WATTAGE
         
-        Then calculates energy needed and distributes across 6 charging hours (0:00-6:00).
+        Then calculates energy needed and distributes across remaining charging hours (now -> 6:00).
         """
         self.hass.log("=== AC Charging Logic (Early Morning) ===")
         
@@ -275,24 +275,39 @@ class ACChargingManager:
         self.hass.log("Target SOC: %.1f%%, Current SOC: %.1f%%, Energy diff: %.3f kWh" % 
                      (target_soc_percent, battery_soc_percent, energy_diff_kwh))
         
-        # Distribute energy across 6 charging hours (0:00 to 6:00)
-        charging_hours = 6.0
-        if energy_diff_kwh > 0.01:  # Only charge if we need at least 0.01 kWh
-            # Calculate required charging power to distribute energy across 6 hours
+        # Calculate remaining charging hours until 6:00 AM
+        # If current hour is >= 6, we're past the charging window
+        if now.hour >= 6:
+            charging_hours = 0.0
+            self.hass.log("Past charging window (current hour: %d)" % now.hour)
+        else:
+            # Calculate time until 6:00 AM today
+            end_time = now.replace(hour=6, minute=0, second=0, microsecond=0)
+            time_remaining = (end_time - now).total_seconds()
+            charging_hours = time_remaining / 3600.0
+            # Ensure minimum of 0.1 hours to avoid division by zero
+            charging_hours = max(charging_hours, 0.1)
+            self.hass.log("Remaining charging window: %.2f hours (until 6:00 AM)" % charging_hours)
+        
+        if energy_diff_kwh > 0.01 and charging_hours > 0:  # Only charge if we need at least 0.01 kWh and have time
+            # Calculate required charging power to distribute energy across remaining hours
             # Power in W = (Energy in kWh / Hours) * 1000
             charging_power_w = (energy_diff_kwh / charging_hours) * 1000.0
             
             # Limit to reasonable AC charging power (e.g., 5000W max)
             charging_power_w = min(charging_power_w, 5000.0)
             
-            self.hass.log("Charging %.3f kWh over %.0f hours: %.0fW charge limit" % 
+            self.hass.log("Charging %.3f kWh over %.2f hours: %.0fW charge limit" % 
                          (energy_diff_kwh, charging_hours, charging_power_w))
             
             self.state_manager.ensure_state("select.pv_storage_remote_command_mode", "Charge from PV and AC")
             self.hass.call_service("number/set_value", entity_id="number.pv_storage_remote_charge_limit", 
                                   value=int(charging_power_w))
         else:
-            self.hass.log("No charging needed (energy diff: %.3f kWh)" % energy_diff_kwh)
+            if charging_hours <= 0:
+                self.hass.log("Charging window has passed (current hour: %d)" % now.hour)
+            else:
+                self.hass.log("No charging needed (energy diff: %.3f kWh)" % energy_diff_kwh)
             self.state_manager.ensure_state("select.pv_storage_remote_command_mode", "Maximize self consumption")
 
     def _handle_override_charging(self, battery_charge_in_kwh, battery_remaining_capacity):
