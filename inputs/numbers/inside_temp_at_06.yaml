@@ -1,0 +1,5 @@
+name: Inside temp at 06:00
+min: -30
+max: 50
+step: 0.01
+unit_of_measurement: "°C"
