@@ -1,0 +1,16 @@
+- id: "car_battery_refresh"
+  description: "Refresh car battery data"
+  mode: single
+  triggers:
+    - trigger: time_pattern
+      minutes: /5
+  conditions:
+    - condition: numeric_state
+      entity_id: sensor.goe_288025_nrg_11
+      above: 1000
+  actions:
+    - action: button.press
+      metadata: {}
+      target:
+        entity_id: button.hexe_deeprefresh
+      data: {}
