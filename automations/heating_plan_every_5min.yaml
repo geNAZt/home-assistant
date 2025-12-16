@@ -71,15 +71,23 @@
         {% set sensor_l2 = 'sensor.current_l2_' ~ room ~ '_current' %}
         {% set sensor_l3 = 'sensor.current_l3_' ~ room ~ '_current' %}
         
-        # Read temperatures
+        {# Read temperatures #}
         {% set current_temp = state_attr(climate_entity, 'current_temperature') %}
         {% set target_temp = state_attr(climate_entity, 'temperature') %}
-        {% set current = current_temp | float if current_temp is number else 22.0 %}
-        {% set base_target = target_temp | float if target_temp is number else 22.0 %}
+        {% if current_temp is number %}
+          {% set current = current_temp | float %}
+        {% else %}
+          {% set current = 22.0 %}
+        {% endif %}
+        {% if target_temp is number %}
+          {% set base_target = target_temp | float %}
+        {% else %}
+          {% set base_target = 22.0 %}
+        {% endif %}
         {% set effective_target = base_target + offset %}
         {% set error = effective_target - current %}
         
-        # Determine phase
+        {# Determine phase #}
         {% set phase = 0 %}
         {% if states(sensor_l1) not in invalid_states %}
           {% set phase = 1 %}
@@ -89,7 +97,7 @@
           {% set phase = 3 %}
         {% endif %}
         
-        # Get current consumption
+        {# Get current consumption #}
         {% set live_current_ma = 0 %}
         {% if states(sensor_l1) not in invalid_states %}
           {% set live_current_ma = states(sensor_l1) | float(0) %}
@@ -98,16 +106,26 @@
         {% elif states(sensor_l3) not in invalid_states %}
           {% set live_current_ma = states(sensor_l3) | float(0) %}
         {% endif %}
-        {% set live_current_a = live_current_ma / 1000 if live_current_ma > 0 else 0 %}
+        {% if live_current_ma > 0 %}
+          {% set live_current_a = live_current_ma / 1000 %}
+        {% else %}
+          {% set live_current_a = 0 %}
+        {% endif %}
         {% set sql_current_a = states('sensor.heater_' ~ room ~ '_max_current_a') | float(0) %}
         {% set rated_current_a = states('input_number.heater_' ~ room ~ '_rated_a') | float(0) %}
-        {% set amps = live_current_a if live_current_a > 0 else (sql_current_a if sql_current_a > 0 else rated_current_a) %}
+        {% if live_current_a > 0 %}
+          {% set amps = live_current_a %}
+        {% elif sql_current_a > 0 %}
+          {% set amps = sql_current_a %}
+        {% else %}
+          {% set amps = rated_current_a %}
+        {% endif %}
         
-        # Determine if heating is needed
+        {# Determine if heating is needed #}
         {% set threshold = effective_target - hyst %}
         {% set needs_heating = current < threshold %}
         
-        # Build room data structure
+        {# Build room data structure #}
         {% set ns.rooms = ns.rooms | combine({ 
           room: {
             'entity': climate_entity,
