@@ -476,8 +476,68 @@
         # Turn ON switches for selected rooms
         - service: switch.turn_on
           target:
-            entity_id: "{{ sw_on | from_json(default=[]) }}"
+            entity_id: >-
+              {% set rooms_data = room_data | from_json(default={}) %}
+              {% set max_amps = phase_max_amps | float(16.0) %}
+              {% set all_rooms = rooms_json | from_json(default=[]) %}
+              {% set ns = namespace(selected_rooms = [], switches = []) %}
+              {% for phase_num in [1, 2, 3] %}
+                {% set ns.room_list = [] %}
+                {% for room in all_rooms %}
+                  {% if rooms_data[room] is defined %}
+                    {% set data = rooms_data[room] %}
+                    {% if data.phase == phase_num and data.needs_heating %}
+                      {% set ns.room_list = ns.room_list + [{'room': room, 'error': data.error, 'amps': data.amps}] %}
+                    {% endif %}
+                  {% endif %}
+                {% endfor %}
+                {% set sorted = ns.room_list | sort(attribute='error', reverse=True) %}
+                {% set total = 0.0 %}
+                {% for item in sorted %}
+                  {% if total + item.amps <= max_amps %}
+                    {% set total = total + item.amps %}
+                    {% if item.room not in ns.selected_rooms %}
+                      {% set ns.selected_rooms = ns.selected_rooms + [item.room] %}
+                    {% endif %}
+                  {% endif %}
+                {% endfor %}
+              {% endfor %}
+              {% for room in ns.selected_rooms %}
+                {% set ns.switches = ns.switches + ['switch.heating_' ~ room] %}
+              {% endfor %}
+              {{ ns.switches }}
         # Turn OFF switches for non-selected rooms
         - service: switch.turn_off
           target:
-            entity_id: "{{ sw_off | from_json(default=[]) }}"
+            entity_id: >-
+              {% set rooms_data = room_data | from_json(default={}) %}
+              {% set max_amps = phase_max_amps | float(16.0) %}
+              {% set all_rooms = rooms_json | from_json(default=[]) %}
+              {% set ns = namespace(selected_rooms = [], switches = []) %}
+              {% for phase_num in [1, 2, 3] %}
+                {% set ns.room_list = [] %}
+                {% for room in all_rooms %}
+                  {% if rooms_data[room] is defined %}
+                    {% set data = rooms_data[room] %}
+                    {% if data.phase == phase_num and data.needs_heating %}
+                      {% set ns.room_list = ns.room_list + [{'room': room, 'error': data.error, 'amps': data.amps}] %}
+                    {% endif %}
+                  {% endif %}
+                {% endfor %}
+                {% set sorted = ns.room_list | sort(attribute='error', reverse=True) %}
+                {% set total = 0.0 %}
+                {% for item in sorted %}
+                  {% if total + item.amps <= max_amps %}
+                    {% set total = total + item.amps %}
+                    {% if item.room not in ns.selected_rooms %}
+                      {% set ns.selected_rooms = ns.selected_rooms + [item.room] %}
+                    {% endif %}
+                  {% endif %}
+                {% endfor %}
+              {% endfor %}
+              {% for room in all_rooms %}
+                {% if room not in ns.selected_rooms %}
+                  {% set ns.switches = ns.switches + ['switch.heating_' ~ room] %}
+                {% endif %}
+              {% endfor %}
+              {{ ns.switches }}
