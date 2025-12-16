@@ -294,20 +294,23 @@
       {% set rooms = rooms_json | from_json(default=[]) %}
       {% set ns = namespace(candidates = [], sel_p1_list = [], sel_p2_list = [], sel_p3_list = []) %}
       
-      # Build candidates list
-      {% for room, data in rooms_data.items() %}
-        {% if data.needs_heating %}
+      {# Build candidates list #}
+      {% for room in rooms %}
+        {% if rooms_data[room] is defined and rooms_data[room].needs_heating %}
           {% set ns.candidates = ns.candidates + [room] %}
         {% endif %}
       {% endfor %}
       
-      # Build selections (same logic as sel_p1/2/3 but inline)
+      {# Build selections (same logic as sel_p1/2/3 but inline) #}
       {% set max_amps = phase_max_amps | float(16.0) %}
       {% for phase_num in [1, 2, 3] %}
         {% set ns.room_list = [] %}
-        {% for room, data in rooms_data.items() %}
-          {% if data.phase == phase_num and data.needs_heating %}
-            {% set ns.room_list = ns.room_list + [{'room': room, 'error': data.error, 'amps': data.amps}] %}
+        {% for room in rooms %}
+          {% if rooms_data[room] is defined %}
+            {% set data = rooms_data[room] %}
+            {% if data.phase == phase_num and data.needs_heating %}
+              {% set ns.room_list = ns.room_list + [{'room': room, 'error': data.error, 'amps': data.amps}] %}
+            {% endif %}
           {% endif %}
         {% endfor %}
         {% set sorted = ns.room_list | sort(attribute='error', reverse=True) %}
