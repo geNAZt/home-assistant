@@ -11,12 +11,9 @@
     # Central room list - modify here to add/remove rooms
     rooms_json: '["bad","kueche","schlafzimmer","flur","speisekammer","wohnzimmer","buero_merja","buero_fabian"]'
     
-    # Helper: Parse rooms list once for reuse
-    rooms_list: "{{ rooms_json | from_json(default=[]) }}"
-    
     # Map each room to its climate entity (e.g., "bad" -> "climate.raum_bad")
     cl_map: >-
-      {% set rooms = rooms_list %}
+      {% set rooms = rooms_json | from_json(default=[]) %}
       {% set ns = namespace(m = {}) %}
       {% for room in rooms %}
         {% set climate_entity = 'climate.raum_' ~ room %}
@@ -32,8 +29,8 @@
     # ===================================================================
     # Base target temperature (setpoint) for each room
     t_set_base: >-
-      {% set rooms = rooms_list %}
-      {% set climate_map = cl_map_parsed %}
+      {% set rooms = rooms_json | from_json(default=[]) %}
+      {% set climate_map = cl_map | from_json(default={}) %}
       {% set ns = namespace(m = {}) %}
       {% for room in rooms %}
         {% set climate_entity = climate_map.get(room) %}
@@ -45,8 +42,8 @@
     
     # Current temperature for each room
     t_now: >-
-      {% set rooms = rooms_list %}
-      {% set climate_map = cl_map_parsed %}
+      {% set rooms = rooms_json | from_json(default=[]) %}
+      {% set climate_map = cl_map | from_json(default={}) %}
       {% set ns = namespace(m = {}) %}
       {% for room in rooms %}
         {% set climate_entity = climate_map.get(room) %}
@@ -132,8 +129,8 @@
     
     # Effective target temperature: Base temperature + offset for each room
     t_set_eff: >-
-      {% set rooms = rooms_list %}
-      {% set base_temps = t_set_base_parsed %}
+      {% set rooms = rooms_json | from_json(default=[]) %}
+      {% set base_temps = t_set_base | from_json(default={}) %}
       {% set offset = offset_k | float(0) %}
       {% set ns = namespace(m = {}) %}
       {% for room in rooms %}
@@ -152,7 +149,7 @@
     # Map each room to its electrical phase (1, 2, or 3)
     # Determined by checking which current sensor has valid data
     phase_map: >-
-      {% set rooms = rooms_list %}
+      {% set rooms = rooms_json | from_json(default=[]) %}
       {% set ns = namespace(m = {}) %}
       {% for room in rooms %}
         {% set sensor_l1 = 'sensor.current_l1_' ~ room ~ '_current' %}
@@ -182,7 +179,7 @@
     # Map each room to its current consumption (Amperes)
     # Priority: live current > SQL max current > rated current
     amps_map: >-
-      {% set rooms = rooms_list %}
+      {% set rooms = rooms_json | from_json(default=[]) %}
       {% set ns = namespace(m = {}) %}
       {% for room in rooms %}
         {% set sensor_l1 = 'sensor.current_l1_' ~ room ~ '_current' %}
@@ -217,9 +214,9 @@
     # Temperature error: Difference between effective target and current temp
     # Positive = too cold (needs heating), Negative = too warm
     terr_map: >-
-      {% set rooms = rooms_list %}
-      {% set current_temps = t_now_parsed %}
-      {% set target_temps = t_set_eff_parsed %}
+      {% set rooms = rooms_json | from_json(default=[]) %}
+      {% set current_temps = t_now | from_json(default={}) %}
+      {% set target_temps = t_set_eff | from_json(default={}) %}
       {% set ns = namespace(m = {}) %}
       {% for room in rooms %}
         {% set current = current_temps.get(room, 22) %}
@@ -238,9 +235,9 @@
     # Determine if each room needs heating
     # Room needs heating if current temp < (target temp - 0.05K hysteresis)
     need_map: >-
-      {% set rooms = rooms_list %}
-      {% set current_temps = t_now_parsed %}
-      {% set target_temps = t_set_eff_parsed %}
+      {% set rooms = rooms_json | from_json(default=[]) %}
+      {% set current_temps = t_now | from_json(default={}) %}
+      {% set target_temps = t_set_eff | from_json(default={}) %}
       {% set hysteresis_k = 0.05 %}
       {% set ns = namespace(m = {}) %}
       {% for room in rooms %}
@@ -257,8 +254,8 @@
     
     # List of candidate rooms that need heating
     cand_list: >-
-      {% set rooms = rooms_list %}
-      {% set needs = need_map_parsed %}
+      {% set rooms = rooms_json | from_json(default=[]) %}
+      {% set needs = need_map | from_json(default={}) %}
       {% set ns = namespace(out = []) %}
       {% for room in rooms %}
         {% if needs.get(room, false) %}
@@ -284,10 +281,10 @@
     # Selection for Phase 1
     sel_p1: >-
       {% set max_amps = phase_max_amps %}
-      {% set phases = phase_map_parsed %}
-      {% set errors = terr_map_parsed %}
-      {% set currents = amps_map_parsed %}
-      {% set candidates = cand_list_parsed %}
+      {% set phases = phase_map | from_json(default={}) %}
+      {% set errors = terr_map | from_json(default={}) %}
+      {% set currents = amps_map | from_json(default={}) %}
+      {% set candidates = cand_list | from_json(default=[]) %}
       
       {% set ns = namespace(room_data = [], selected = []) %}
       {% for room in candidates %}
@@ -311,10 +308,10 @@
     # Selection for Phase 2
     sel_p2: >-
       {% set max_amps = phase_max_amps %}
-      {% set phases = phase_map_parsed %}
-      {% set errors = terr_map_parsed %}
-      {% set currents = amps_map_parsed %}
-      {% set candidates = cand_list_parsed %}
+      {% set phases = phase_map | from_json(default={}) %}
+      {% set errors = terr_map | from_json(default={}) %}
+      {% set currents = amps_map | from_json(default={}) %}
+      {% set candidates = cand_list | from_json(default=[]) %}
       
       {% set ns = namespace(room_data = [], selected = []) %}
       {% for room in candidates %}
@@ -338,10 +335,10 @@
     # Selection for Phase 3
     sel_p3: >-
       {% set max_amps = phase_max_amps %}
-      {% set phases = phase_map_parsed %}
-      {% set errors = terr_map_parsed %}
-      {% set currents = amps_map_parsed %}
-      {% set candidates = cand_list_parsed %}
+      {% set phases = phase_map | from_json(default={}) %}
+      {% set errors = terr_map | from_json(default={}) %}
+      {% set currents = amps_map | from_json(default={}) %}
+      {% set candidates = cand_list | from_json(default=[]) %}
       
       {% set ns = namespace(room_data = [], selected = []) %}
       {% for room in candidates %}
@@ -369,9 +366,9 @@
     
     # Final list of rooms to turn ON (union of all phases, deduplicated)
     final_on: >-
-      {% set p1 = sel_p1_parsed %}
-      {% set p2 = sel_p2_parsed %}
-      {% set p3 = sel_p3_parsed %}
+      {% set p1 = sel_p1 | from_json(default=[]) %}
+      {% set p2 = sel_p2 | from_json(default=[]) %}
+      {% set p3 = sel_p3 | from_json(default=[]) %}
       {{ (p1 + p2 + p3) | unique | list | tojson }}
     
     # Helper: Parse final selection
@@ -393,8 +390,8 @@
     
     # Convert room names to switch entity IDs for rooms to turn OFF
     sw_off: >-
-      {% set rooms_to_heat = final_on_parsed %}
-      {% set all_rooms = rooms_list %}
+      {% set rooms_to_heat = final_on | from_json(default=[]) %}
+      {% set all_rooms = rooms_json | from_json(default=[]) %}
       {% set rooms_to_off = [] %}
       {% for room in all_rooms %}
         {% if room not in rooms_to_heat %}
@@ -436,20 +433,20 @@
           'dT_forecast_K': dT_forecast | float(0)
         },
         'temperatures': {
-          'set_effective': t_set_eff_parsed,
-          'current': t_now_parsed,
-          'set_base': t_set_base_parsed
+          'set_effective': t_set_eff | from_json(default={}),
+          'current': t_now | from_json(default={}),
+          'set_base': t_set_base | from_json(default={})
         },
-        'errors': terr_map_parsed,
-        'phases': phase_map_parsed,
-        'currents_amps': amps_map_parsed,
-        'needs_heating': need_map_parsed,
-        'candidates': cand_list_parsed,
+        'errors': terr_map | from_json(default={}),
+        'phases': phase_map | from_json(default={}),
+        'currents_amps': amps_map | from_json(default={}),
+        'needs_heating': need_map | from_json(default={}),
+        'candidates': cand_list | from_json(default=[]),
         'selected': {
-          'phase_1': sel_p1_parsed,
-          'phase_2': sel_p2_parsed,
-          'phase_3': sel_p3_parsed,
-          'final': final_on_parsed
+          'phase_1': sel_p1 | from_json(default=[]),
+          'phase_2': sel_p2 | from_json(default=[]),
+          'phase_3': sel_p3 | from_json(default=[]),
+          'final': final_on | from_json(default=[])
         },
         'switches': {
           'on': sw_on | from_json(default=[]),
@@ -471,13 +468,13 @@
                 name: "Heiz-Planer"
                 message: "Offset aktiv: {{ offset_k | float(0) }}K (PV: {{ pv_offset_k | float(0) }}K, Preheat: {{ preheat_offset_k | float(0) }}K)"
             - repeat:
-                for_each: "{{ rooms_list }}"
+                for_each: "{{ rooms_json | from_json(default=[]) }}"
                 sequence:
                   - service: climate.set_temperature
                     target:
-                      entity_id: "{{ cl_map_parsed[repeat.item] }}"
+                      entity_id: "{{ (cl_map | from_json(default={}))[repeat.item] }}"
                     data:
-                      temperature: "{{ t_set_eff_parsed[repeat.item] | float }}"
+                      temperature: "{{ (t_set_eff | from_json(default={}))[repeat.item] | float }}"
     
     # ===================================================================
     # ACTION 2: Log comprehensive debug information
