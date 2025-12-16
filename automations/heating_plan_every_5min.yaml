@@ -34,7 +34,11 @@
       {% for room in rooms %}
         {% set climate_entity = 'climate.raum_' ~ room %}
         {% set target_temp = state_attr(climate_entity, 'temperature') %}
-        {% set temp_float = target_temp | float(22) if target_temp is not none else 22.0 %}
+        {% if target_temp is none or target_temp == 'unknown' or target_temp == 'unavailable' %}
+          {% set temp_float = 22.0 %}
+        {% else %}
+          {% set temp_float = target_temp | float(22) %}
+        {% endif %}
         {% set ns.m = ns.m | combine({ room: temp_float }) %}
       {% endfor %}
       {{ (ns.m | tojson) | string }}
@@ -46,7 +50,11 @@
       {% for room in rooms %}
         {% set climate_entity = 'climate.raum_' ~ room %}
         {% set current_temp = state_attr(climate_entity, 'current_temperature') %}
-        {% set temp_float = current_temp | float(22) if current_temp is not none else 22.0 %}
+        {% if current_temp is none or current_temp == 'unknown' or current_temp == 'unavailable' %}
+          {% set temp_float = 22.0 %}
+        {% else %}
+          {% set temp_float = current_temp | float(22) %}
+        {% endif %}
         {% set ns.m = ns.m | combine({ room: temp_float }) %}
       {% endfor %}
       {{ (ns.m | tojson) | string }}
@@ -421,6 +429,24 @@
         {% set climate_map_debug = climate_map_debug | combine({ room: climate_entity }) %}
       {% endfor %}
       
+      {% set temp_debug = {} %}
+      {% for room in rooms %}
+        {% set climate_entity = 'climate.raum_' ~ room %}
+        {% set target_temp = state_attr(climate_entity, 'temperature') %}
+        {% set current_temp = state_attr(climate_entity, 'current_temperature') %}
+        {% set entity_state = states(climate_entity) %}
+        {% set temp_debug = temp_debug | combine({ 
+          room: {
+            'entity': climate_entity,
+            'entity_state': entity_state,
+            'target_temp_raw': target_temp,
+            'current_temp_raw': current_temp,
+            'target_temp_type': target_temp | type,
+            'current_temp_type': current_temp | type
+          }
+        }) %}
+      {% endfor %}
+      
       {% set debug_data = {
         'timestamp': now().isoformat(),
         'debug': {
@@ -428,7 +454,8 @@
           'cl_map_parsed': cl_map | from_json(default={}),
           'cl_map_rebuilt': climate_map_debug,
           'rooms_json': rooms_json,
-          'rooms_list': rooms
+          'rooms_list': rooms,
+          'temp_readings': temp_debug
         },
         'offsets': {
           'total_k': offset_k | float(0),
