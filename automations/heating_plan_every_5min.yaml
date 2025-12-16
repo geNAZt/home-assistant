@@ -440,9 +440,7 @@
             'entity': climate_entity,
             'entity_state': entity_state,
             'target_temp_raw': target_temp,
-            'current_temp_raw': current_temp,
-            'target_temp_type': target_temp | type,
-            'current_temp_type': current_temp | type
+            'current_temp_raw': current_temp
           }
         }) %}
       {% endfor %}
