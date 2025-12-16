@@ -434,9 +434,33 @@
         {% set climate_map_debug = climate_map_debug | combine({ room: climate_entity }) %}
       {% endfor %}
       
-      {% set t_now_parsed = t_now | from_json(default={}) %}
-      {% set t_set_base_parsed = t_set_base | from_json(default={}) %}
-      {% set t_set_eff_parsed = t_set_eff | from_json(default={}) %}
+      {% set t_now_dict = {} %}
+      {% set t_set_base_dict = {} %}
+      {% set t_set_eff_dict = {} %}
+      {% for room in rooms %}
+        {% set climate_entity = 'climate.raum_' ~ room %}
+        {% set current_temp = state_attr(climate_entity, 'current_temperature') %}
+        {% set target_temp = state_attr(climate_entity, 'temperature') %}
+        {% if current_temp is none or current_temp == 'unknown' or current_temp == 'unavailable' %}
+          {% set current_float = 22.0 %}
+        {% else %}
+          {% set current_float = current_temp | float(22) %}
+        {% endif %}
+        {% if target_temp is none or target_temp == 'unknown' or target_temp == 'unavailable' %}
+          {% set target_float = 22.0 %}
+        {% else %}
+          {% set target_float = target_temp | float(22) %}
+        {% endif %}
+        {% set t_now_dict = t_now_dict | combine({ room: current_float }) %}
+        {% set t_set_base_dict = t_set_base_dict | combine({ room: target_float }) %}
+      {% endfor %}
+      
+      {% set offset_val = offset_k | float(0) %}
+      {% for room in rooms %}
+        {% set base_temp = t_set_base_dict.get(room, 22.0) %}
+        {% set effective_temp = base_temp + offset_val %}
+        {% set t_set_eff_dict = t_set_eff_dict | combine({ room: effective_temp }) %}
+      {% endfor %}
       
       {% set debug_data = {
         'timestamp': now().isoformat(),
@@ -472,9 +496,9 @@
           'dT_forecast_K': dT_forecast | float(0)
         },
         'temperatures': {
-          'set_effective': t_set_eff_parsed,
-          'current': t_now_parsed,
-          'set_base': t_set_base_parsed
+          'set_effective': t_set_eff_dict,
+          'current': t_now_dict,
+          'set_base': t_set_base_dict
         },
         'errors': terr_map | from_json(default={}),
         'phases': phase_map | from_json(default={}),
