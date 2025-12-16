@@ -76,6 +76,11 @@
     dbg_test_current: "{{ state_attr('climate.raum_bad', 'current_temperature') }}"
     dbg_test_state: "{{ states('climate.raum_bad') }}"
     
+    # Debug: Try alternative entity ID patterns to find the actual entities
+    # Check if entities exist with different naming patterns
+    dbg_entity_exists_bad: "{{ 'climate.raum_bad' in states.climate | map(attribute='entity_id') | list }}"
+    dbg_all_climate_entities: "{{ states.climate | map(attribute='entity_id') | list | select('match', '.*raum.*') | list }}"
+    
     # ===================================================================
     # SECTION 3: PV EXCESS DETECTION
     # ===================================================================
