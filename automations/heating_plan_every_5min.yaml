@@ -6,131 +6,34 @@
       minutes: "/5"
   variables:
     # ===================================================================
-    # SECTION 1: ROOM CONFIGURATION
+    # SECTION 1: CONFIGURATION & GLOBAL PARAMETERS
     # ===================================================================
-    # Central room list - modify here to add/remove rooms
     rooms_json: '["bad","kueche","schlafzimmer","flur","speisekammer","wohnzimmer","buero_merja","buero_fabian"]'
+    phase_max_amps: 16.0
+    hysteresis_k: 0.05
     
-    # Map each room to its climate entity (e.g., "bad" -> "climate.room_bad")
-    # Note: AppDaemon creates entities as "climate.room_*" (English), not "climate.raum_*" (German)
-    cl_map: >-
-      {% set rooms = rooms_json | from_json(default=[]) %}
-      {% set ns = namespace(m = {}) %}
-      {% for room in rooms %}
-        {% set climate_entity = 'climate.room_' ~ room %}
-        {% set ns.m = ns.m | combine({ room: climate_entity }) %}
-      {% endfor %}
-      {{ (ns.m | tojson) | string }}
-    
-    # Helper: Parse climate map once for reuse
-    cl_map_parsed: "{{ cl_map | from_json(default={}) }}"
-    
-    # ===================================================================
-    # SECTION 2: TEMPERATURE READINGS
-    # ===================================================================
-    # Base target temperature (setpoint) for each room
-    t_set_base: >-
-      {% set rooms = rooms_json | from_json(default=[]) %}
-      {% set ns = namespace(m = {}) %}
-      {% for room in rooms %}
-        {% set climate_entity = 'climate.room_' ~ room %}
-        {% set target_temp = state_attr(climate_entity, 'temperature') %}
-        {% if target_temp is number %}
-          {% set temp_float = target_temp | float %}
-        {% elif target_temp is none or target_temp == 'unknown' or target_temp == 'unavailable' or target_temp == '' %}
-          {% set temp_float = None %}
-        {% else %}
-          {% set temp_float = target_temp | float(22) %}
-        {% endif %}
-        {% if temp_float is not none %}
-          {% set ns.m = ns.m | combine({ room: temp_float }) %}
-        {% endif %}
-      {% endfor %}
-      {{ (ns.m | tojson) | string }}
-    
-    # Current temperature for each room
-    t_now: >-
-      {% set rooms = rooms_json | from_json(default=[]) %}
-      {% set ns = namespace(m = {}) %}
-      {% for room in rooms %}
-        {% set climate_entity = 'climate.room_' ~ room %}
-        {% set current_temp = state_attr(climate_entity, 'current_temperature') %}
-        {% if current_temp is number %}
-          {% set temp_float = current_temp | float %}
-        {% elif current_temp is none or current_temp == 'unknown' or current_temp == 'unavailable' or current_temp == '' %}
-          {% set temp_float = None %}
-        {% else %}
-          {% set temp_float = current_temp | float(22) %}
-        {% endif %}
-        {% if temp_float is not none %}
-          {% set ns.m = ns.m | combine({ room: temp_float }) %}
-        {% endif %}
-      {% endfor %}
-      {{ (ns.m | tojson) | string }}
-    
-    # Helper: Parse temperature maps once for reuse
-    t_set_base_parsed: "{{ t_set_base | from_json(default={}) }}"
-    t_now_parsed: "{{ t_now | from_json(default={}) }}"
-    
-    # Debug: Test reading a single temperature to verify state_attr works
-    dbg_test_temp: "{{ state_attr('climate.room_bad', 'temperature') }}"
-    dbg_test_current: "{{ state_attr('climate.room_bad', 'current_temperature') }}"
-    dbg_test_state: "{{ states('climate.room_bad') }}"
-    
-    # Debug: Try alternative entity ID patterns to find the actual entities
-    # Check if entities exist with different naming patterns
-    dbg_entity_exists_bad: "{{ 'climate.room_bad' in states.climate | map(attribute='entity_id') | list }}"
-    dbg_all_climate_entities: "{{ states.climate | map(attribute='entity_id') | list | select('match', '.*room.*') | list }}"
-    
-    # ===================================================================
-    # SECTION 3: PV EXCESS DETECTION
-    # ===================================================================
-    # PV forecast: Expected power generation in next 30 minutes (Watts)
+    # PV and preheat parameters
     pv_forecast_w: "{{ states('sensor.solcast_pv_forecast_leistung_in_30_minuten') | float(0) }}"
-    
-    # PV threshold: Minimum excess power required to enable PV offset (Watts)
     pv_thr_w: "{{ states('input_number.pv_excess_threshold_w') | float(0) }}"
-    
-    # Check if we have excess PV power available
     has_pv_excess: "{{ pv_forecast_w > pv_thr_w }}"
+    pv_offset_k: "{{ 0.5 if has_pv_excess else 0 }}"
     
-    # ===================================================================
-    # SECTION 4: PREHEAT WINDOW DETECTION
-    # ===================================================================
-    # Check if current time is within preheat window (00:00 - 06:00)
     is_preheat_window: >-
       {% set current_ts = as_timestamp(now()) %}
       {% set window_start = as_timestamp(now().replace(hour=0, minute=0, second=0, microsecond=0)) %}
       {% set window_end = as_timestamp(now().replace(hour=6, minute=0, second=0, microsecond=0)) %}
       {{ window_start <= current_ts < window_end }}
     
-    # ===================================================================
-    # SECTION 5: THERMAL PARAMETERS
-    # ===================================================================
-    # Effective heat capacity (kWh per Kelvin)
     C_eff: "{{ states('sensor.C_kWh_per_K_rolling') | float(10) }}"
-    
-    # Effective heating power (kW per Kelvin)
     H_eff: "{{ states('sensor.H_kW_per_K_rolling_sql') | float(6.25) }}"
-    
-    # Forecasted temperature drop (Kelvin)
     dT_forecast: "{{ states('input_number.delta_t_forecast_k') | float(0) }}"
     
-    # ===================================================================
-    # SECTION 6: TEMPERATURE OFFSET CALCULATION
-    # ===================================================================
-    # PV offset: Add 0.5K when excess PV is available
-    pv_offset_k: "{{ 0.5 if has_pv_excess else 0 }}"
-    
-    # Preheat offset: Calculated based on forecasted temperature drop
-    # Clamped between 0.2K and 0.6K, only active during preheat window
     preheat_offset_k: >-
       {% set heat_capacity = C_eff | float(0) %}
       {% set heating_power = H_eff | float(0) %}
       {% set temp_drop = dT_forecast | float(0) %}
       {% set energy_needed_kwh = heating_power * temp_drop %}
       {% set offset_raw = (energy_needed_kwh / heat_capacity) if heat_capacity > 0 else 0 %}
-      
       {% if not is_preheat_window %}
         0
       {% else %}
@@ -139,7 +42,6 @@
         {{ offset_clamped }}
       {% endif %}
     
-    # Total offset: Sum of PV and preheat offsets, clamped to 0..0.6K
     offset_k: >-
       {% set preheat = preheat_offset_k | float(0) %}
       {% set pv = pv_offset_k | float(0) %}
@@ -152,41 +54,32 @@
         {{ total }}
       {% endif %}
     
-    # Effective target temperature: Base temperature + offset for each room
-    t_set_eff: >-
+    # ===================================================================
+    # SECTION 2: COMPREHENSIVE ROOM DATA (Single Pass)
+    # ===================================================================
+    # Build all room data in one pass - no JSON parsing needed!
+    room_data: >-
       {% set rooms = rooms_json | from_json(default=[]) %}
       {% set offset = offset_k | float(0) %}
-      {% set ns = namespace(m = {}) %}
+      {% set hyst = hysteresis_k | float(0.05) %}
+      {% set invalid_states = ['unknown', 'unavailable', 'None', ''] %}
+      {% set ns = namespace(rooms = {}) %}
+      
       {% for room in rooms %}
         {% set climate_entity = 'climate.room_' ~ room %}
-        {% set target_temp = state_attr(climate_entity, 'temperature') %}
-        {% if target_temp is number %}
-          {% set base_temp = target_temp | float %}
-        {% else %}
-          {% set base_temp = 22.0 %}
-        {% endif %}
-        {% set effective_temp = base_temp + offset %}
-        {% set ns.m = ns.m | combine({ room: effective_temp }) %}
-      {% endfor %}
-      {{ (ns.m | tojson) | string }}
-    
-    # Helper: Parse effective temperature map
-    t_set_eff_parsed: "{{ t_set_eff | from_json(default={}) }}"
-    
-    # ===================================================================
-    # SECTION 7: PHASE DETECTION
-    # ===================================================================
-    # Map each room to its electrical phase (1, 2, or 3)
-    # Determined by checking which current sensor has valid data
-    phase_map: >-
-      {% set rooms = rooms_json | from_json(default=[]) %}
-      {% set ns = namespace(m = {}) %}
-      {% for room in rooms %}
         {% set sensor_l1 = 'sensor.current_l1_' ~ room ~ '_current' %}
         {% set sensor_l2 = 'sensor.current_l2_' ~ room ~ '_current' %}
         {% set sensor_l3 = 'sensor.current_l3_' ~ room ~ '_current' %}
-        {% set invalid_states = ['unknown', 'unavailable', 'None', ''] %}
         
+        # Read temperatures
+        {% set current_temp = state_attr(climate_entity, 'current_temperature') %}
+        {% set target_temp = state_attr(climate_entity, 'temperature') %}
+        {% set current = current_temp | float if current_temp is number else 22.0 %}
+        {% set base_target = target_temp | float if target_temp is number else 22.0 %}
+        {% set effective_target = base_target + offset %}
+        {% set error = effective_target - current %}
+        
+        # Determine phase
         {% set phase = 0 %}
         {% if states(sensor_l1) not in invalid_states %}
           {% set phase = 1 %}
@@ -196,27 +89,7 @@
           {% set phase = 3 %}
         {% endif %}
         
-        {% set ns.m = ns.m | combine({ room: phase }) %}
-      {% endfor %}
-      {{ (ns.m | tojson) | string }}
-    
-    # Helper: Parse phase map
-    phase_map_parsed: "{{ phase_map | from_json(default={}) }}"
-    
-    # ===================================================================
-    # SECTION 8: CURRENT (AMPS) DETECTION
-    # ===================================================================
-    # Map each room to its current consumption (Amperes)
-    # Priority: live current > SQL max current > rated current
-    amps_map: >-
-      {% set rooms = rooms_json | from_json(default=[]) %}
-      {% set ns = namespace(m = {}) %}
-      {% for room in rooms %}
-        {% set sensor_l1 = 'sensor.current_l1_' ~ room ~ '_current' %}
-        {% set sensor_l2 = 'sensor.current_l2_' ~ room ~ '_current' %}
-        {% set sensor_l3 = 'sensor.current_l3_' ~ room ~ '_current' %}
-        {% set invalid_states = ['unknown', 'unavailable', 'None', ''] %}
-        
+        # Get current consumption
         {% set live_current_ma = 0 %}
         {% if states(sensor_l1) not in invalid_states %}
           {% set live_current_ma = states(sensor_l1) | float(0) %}
@@ -225,398 +98,181 @@
         {% elif states(sensor_l3) not in invalid_states %}
           {% set live_current_ma = states(sensor_l3) | float(0) %}
         {% endif %}
-        
         {% set live_current_a = live_current_ma / 1000 if live_current_ma > 0 else 0 %}
         {% set sql_current_a = states('sensor.heater_' ~ room ~ '_max_current_a') | float(0) %}
         {% set rated_current_a = states('input_number.heater_' ~ room ~ '_rated_a') | float(0) %}
+        {% set amps = live_current_a if live_current_a > 0 else (sql_current_a if sql_current_a > 0 else rated_current_a) %}
         
-        {% set final_current = live_current_a if live_current_a > 0 else (sql_current_a if sql_current_a > 0 else rated_current_a) %}
-        {% set ns.m = ns.m | combine({ room: final_current }) %}
-      {% endfor %}
-      {{ (ns.m | tojson) | string }}
-    
-    # Helper: Parse amps map
-    amps_map_parsed: "{{ amps_map | from_json(default={}) }}"
-    
-    # ===================================================================
-    # SECTION 9: TEMPERATURE ERROR CALCULATION
-    # ===================================================================
-    # Temperature error: Difference between effective target and current temp
-    # Positive = too cold (needs heating), Negative = too warm
-    terr_map: >-
-      {% set rooms = rooms_json | from_json(default=[]) %}
-      {% set offset = offset_k | float(0) %}
-      {% set ns = namespace(m = {}) %}
-      {% for room in rooms %}
-        {% set climate_entity = 'climate.room_' ~ room %}
-        {% set current_temp = state_attr(climate_entity, 'current_temperature') %}
-        {% set target_temp = state_attr(climate_entity, 'temperature') %}
-        {% if current_temp is number %}
-          {% set current = current_temp | float %}
-        {% else %}
-          {% set current = 22.0 %}
-        {% endif %}
-        {% if target_temp is number %}
-          {% set base_target = target_temp | float %}
-        {% else %}
-          {% set base_target = 22.0 %}
-        {% endif %}
-        {% set effective_target = base_target + offset %}
-        {% set error = effective_target - current %}
-        {% set ns.m = ns.m | combine({ room: error }) %}
-      {% endfor %}
-      {{ (ns.m | tojson) | string }}
-    
-    # Helper: Parse temperature error map
-    terr_map_parsed: "{{ terr_map | from_json(default={}) }}"
-    
-    # ===================================================================
-    # SECTION 10: HEATING NEED DETECTION
-    # ===================================================================
-    # Determine if each room needs heating
-    # Room needs heating if current temp < (target temp - 0.05K hysteresis)
-    need_map: >-
-      {% set rooms = rooms_json | from_json(default=[]) %}
-      {% set offset = offset_k | float(0) %}
-      {% set hysteresis_k = 0.05 %}
-      {% set ns = namespace(m = {}) %}
-      {% for room in rooms %}
-        {% set climate_entity = 'climate.room_' ~ room %}
-        {% set current_temp = state_attr(climate_entity, 'current_temperature') %}
-        {% set target_temp = state_attr(climate_entity, 'temperature') %}
-        {% if current_temp is number %}
-          {% set current = current_temp | float %}
-        {% else %}
-          {% set current = 22.0 %}
-        {% endif %}
-        {% if target_temp is number %}
-          {% set base_target = target_temp | float %}
-        {% else %}
-          {% set base_target = 22.0 %}
-        {% endif %}
-        {% set effective_target = base_target + offset %}
-        {% set threshold = effective_target - hysteresis_k %}
+        # Determine if heating is needed
+        {% set threshold = effective_target - hyst %}
         {% set needs_heating = current < threshold %}
-        {% set ns.m = ns.m | combine({ room: needs_heating }) %}
+        
+        # Build room data structure
+        {% set ns.rooms = ns.rooms | combine({ 
+          room: {
+            'entity': climate_entity,
+            'current_temp': current,
+            'base_target': base_target,
+            'effective_target': effective_target,
+            'error': error,
+            'phase': phase,
+            'amps': amps,
+            'needs_heating': needs_heating
+          }
+        }) %}
       {% endfor %}
-      {{ (ns.m | tojson) | string }}
-    
-    # Helper: Parse need map
-    need_map_parsed: "{{ need_map | from_json(default={}) }}"
-    
-    # List of candidate rooms that need heating
-    cand_list: >-
-      {% set rooms = rooms_json | from_json(default=[]) %}
-      {% set needs = need_map | from_json(default={}) %}
-      {% set ns = namespace(out = []) %}
-      {% for room in rooms %}
-        {% if needs.get(room, false) %}
-          {% set ns.out = ns.out + [room] %}
-        {% endif %}
-      {% endfor %}
-      {{ (ns.out | tojson) | string }}
-    
-    # Helper: Parse candidate list
-    cand_list_parsed: "{{ cand_list | from_json(default=[]) }}"
+      {{ (ns.rooms | tojson) | string }}
     
     # ===================================================================
-    # SECTION 11: PHASE-BASED ROOM SELECTION
+    # SECTION 3: ROOM SELECTION BY PHASE
     # ===================================================================
     # Select rooms for each phase using greedy algorithm
-    # - Sort candidates by temperature error (largest first)
-    # - Add rooms until phase limit (16A) is reached
-    # - Each phase is processed independently
-    
-    # Maximum current per phase (Amperes)
-    phase_max_amps: 16.0
-    
-    # Selection for Phase 1
     sel_p1: >-
-      {% set max_amps = phase_max_amps %}
-      {% set phases = phase_map | from_json(default={}) %}
-      {% set errors = terr_map | from_json(default={}) %}
-      {% set currents = amps_map | from_json(default={}) %}
-      {% set candidates = cand_list | from_json(default=[]) %}
-      
-      {% set ns = namespace(room_data = [], selected = []) %}
-      {% for room in candidates %}
-        {% if phases.get(room, 0) == 1 %}
-          {% set room_dict = {'room': room, 'error': errors.get(room, 0) | float(0), 'amps': currents.get(room, 0) | float(0)} %}
-          {% set ns.room_data = ns.room_data + [room_dict] %}
+      {% set rooms_data = room_data | from_json(default={}) %}
+      {% set max_amps = phase_max_amps | float(16.0) %}
+      {% set ns = namespace(room_list = [], selected = []) %}
+      {% for room, data in rooms_data.items() %}
+        {% if data.phase == 1 and data.needs_heating %}
+          {% set ns.room_list = ns.room_list + [{'room': room, 'error': data.error, 'amps': data.amps}] %}
         {% endif %}
       {% endfor %}
-      
-      {% set sorted_data = ns.room_data | sort(attribute='error', reverse=True) %}
-      {% set total_amps = 0.0 %}
-      {% set ns.selected = [] %}
-      {% for item in sorted_data %}
-        {% if total_amps + item.amps <= max_amps %}
-          {% set total_amps = total_amps + item.amps %}
+      {% set sorted = ns.room_list | sort(attribute='error', reverse=True) %}
+      {% set total = 0.0 %}
+      {% for item in sorted %}
+        {% if total + item.amps <= max_amps %}
+          {% set total = total + item.amps %}
           {% set ns.selected = ns.selected + [item.room] %}
         {% endif %}
       {% endfor %}
       {{ (ns.selected | tojson) | string }}
     
-    # Selection for Phase 2
     sel_p2: >-
-      {% set max_amps = phase_max_amps %}
-      {% set phases = phase_map | from_json(default={}) %}
-      {% set errors = terr_map | from_json(default={}) %}
-      {% set currents = amps_map | from_json(default={}) %}
-      {% set candidates = cand_list | from_json(default=[]) %}
-      
-      {% set ns = namespace(room_data = [], selected = []) %}
-      {% for room in candidates %}
-        {% if phases.get(room, 0) == 2 %}
-          {% set room_dict = {'room': room, 'error': errors.get(room, 0) | float(0), 'amps': currents.get(room, 0) | float(0)} %}
-          {% set ns.room_data = ns.room_data + [room_dict] %}
+      {% set rooms_data = room_data | from_json(default={}) %}
+      {% set max_amps = phase_max_amps | float(16.0) %}
+      {% set ns = namespace(room_list = [], selected = []) %}
+      {% for room, data in rooms_data.items() %}
+        {% if data.phase == 2 and data.needs_heating %}
+          {% set ns.room_list = ns.room_list + [{'room': room, 'error': data.error, 'amps': data.amps}] %}
         {% endif %}
       {% endfor %}
-      
-      {% set sorted_data = ns.room_data | sort(attribute='error', reverse=True) %}
-      {% set total_amps = 0.0 %}
-      {% set ns.selected = [] %}
-      {% for item in sorted_data %}
-        {% if total_amps + item.amps <= max_amps %}
-          {% set total_amps = total_amps + item.amps %}
+      {% set sorted = ns.room_list | sort(attribute='error', reverse=True) %}
+      {% set total = 0.0 %}
+      {% for item in sorted %}
+        {% if total + item.amps <= max_amps %}
+          {% set total = total + item.amps %}
           {% set ns.selected = ns.selected + [item.room] %}
         {% endif %}
       {% endfor %}
       {{ (ns.selected | tojson) | string }}
     
-    # Selection for Phase 3
     sel_p3: >-
-      {% set max_amps = phase_max_amps %}
-      {% set phases = phase_map | from_json(default={}) %}
-      {% set errors = terr_map | from_json(default={}) %}
-      {% set currents = amps_map | from_json(default={}) %}
-      {% set candidates = cand_list | from_json(default=[]) %}
-      
-      {% set ns = namespace(room_data = [], selected = []) %}
-      {% for room in candidates %}
-        {% if phases.get(room, 0) == 3 %}
-          {% set room_dict = {'room': room, 'error': errors.get(room, 0) | float(0), 'amps': currents.get(room, 0) | float(0)} %}
-          {% set ns.room_data = ns.room_data + [room_dict] %}
+      {% set rooms_data = room_data | from_json(default={}) %}
+      {% set max_amps = phase_max_amps | float(16.0) %}
+      {% set ns = namespace(room_list = [], selected = []) %}
+      {% for room, data in rooms_data.items() %}
+        {% if data.phase == 3 and data.needs_heating %}
+          {% set ns.room_list = ns.room_list + [{'room': room, 'error': data.error, 'amps': data.amps}] %}
         {% endif %}
       {% endfor %}
-      
-      {% set sorted_data = ns.room_data | sort(attribute='error', reverse=True) %}
-      {% set total_amps = 0.0 %}
-      {% set ns.selected = [] %}
-      {% for item in sorted_data %}
-        {% if total_amps + item.amps <= max_amps %}
-          {% set total_amps = total_amps + item.amps %}
+      {% set sorted = ns.room_list | sort(attribute='error', reverse=True) %}
+      {% set total = 0.0 %}
+      {% for item in sorted %}
+        {% if total + item.amps <= max_amps %}
+          {% set total = total + item.amps %}
           {% set ns.selected = ns.selected + [item.room] %}
         {% endif %}
       {% endfor %}
       {{ (ns.selected | tojson) | string }}
     
-    # Helper: Parse phase selections
-    sel_p1_parsed: "{{ sel_p1 | from_json(default=[]) }}"
-    sel_p2_parsed: "{{ sel_p2 | from_json(default=[]) }}"
-    sel_p3_parsed: "{{ sel_p3 | from_json(default=[]) }}"
-    
-    # Final list of rooms to turn ON (union of all phases, deduplicated)
     final_on: >-
       {% set p1 = sel_p1 | from_json(default=[]) %}
       {% set p2 = sel_p2 | from_json(default=[]) %}
       {% set p3 = sel_p3 | from_json(default=[]) %}
       {{ (p1 + p2 + p3) | unique | list | tojson }}
     
-    # Helper: Parse final selection
-    final_on_parsed: "{{ final_on | from_json(default=[]) }}"
-    
     # ===================================================================
-    # SECTION 12: SWITCH ENTITY MAPPING
+    # SECTION 4: SWITCH ENTITY MAPPING
     # ===================================================================
-    # Convert room names to switch entity IDs for rooms to turn ON
     sw_on: >-
-      {% set rooms_to_heat = final_on_parsed %}
-      {% set switch_prefix = 'switch.heating_' %}
+      {% set rooms_to_heat = final_on | from_json(default=[]) %}
       {% set switches = [] %}
       {% for room in rooms_to_heat %}
-        {% set switch_entity = switch_prefix ~ room %}
-        {% set switches = switches + [switch_entity] %}
+        {% set switches = switches + ['switch.heating_' ~ room] %}
       {% endfor %}
       {{ (switches | tojson) | string }}
     
-    # Convert room names to switch entity IDs for rooms to turn OFF
     sw_off: >-
       {% set rooms_to_heat = final_on | from_json(default=[]) %}
       {% set all_rooms = rooms_json | from_json(default=[]) %}
-      {% set rooms_to_off = [] %}
+      {% set switches = [] %}
       {% for room in all_rooms %}
         {% if room not in rooms_to_heat %}
-          {% set rooms_to_off = rooms_to_off + [room] %}
+          {% set switches = switches + ['switch.heating_' ~ room] %}
         {% endif %}
-      {% endfor %}
-      {% set switch_prefix = 'switch.heating_' %}
-      {% set switches = [] %}
-      {% for room in rooms_to_off %}
-        {% set switch_entity = switch_prefix ~ room %}
-        {% set switches = switches + [switch_entity] %}
       {% endfor %}
       {{ (switches | tojson) | string }}
     
     # ===================================================================
-    # SECTION 13: DEBUG INFORMATION
+    # SECTION 5: DEBUG OUTPUT
     # ===================================================================
-    # Debug: Check if cl_map is accessible and what it contains
-    dbg_cl_map_raw: "{{ cl_map }}"
-    dbg_cl_map_parsed: "{{ cl_map | from_json(default={}) }}"
-    dbg_rooms_json: "{{ rooms_json }}"
-    
-    # Comprehensive debug output with all key variables
     dbg: >-
+      {% set rooms_data = room_data | from_json(default={}) %}
       {% set rooms = rooms_json | from_json(default=[]) %}
-      {% set climate_map_debug = {} %}
-      {% for room in rooms %}
-        {% set climate_entity = 'climate.room_' ~ room %}
-        {% set climate_map_debug = climate_map_debug | combine({ room: climate_entity }) %}
+      {% set ns = namespace(candidates = [], sel_p1_list = [], sel_p2_list = [], sel_p3_list = []) %}
+      
+      # Build candidates list
+      {% for room, data in rooms_data.items() %}
+        {% if data.needs_heating %}
+          {% set ns.candidates = ns.candidates + [room] %}
+        {% endif %}
       {% endfor %}
       
-      {% set ns = namespace(now_dict={}, base_dict={}, eff_dict={}, debug_attrs={}) %}
-      {% for room in rooms %}
-        {% set climate_entity = 'climate.room_' ~ room %}
-        {% set entity_state = states(climate_entity) %}
-        {% set current_temp = state_attr(climate_entity, 'current_temperature') %}
-        {% set target_temp = state_attr(climate_entity, 'temperature') %}
-        
-        {% if current_temp is number %}
-          {% set current_float = current_temp | float %}
-        {% else %}
-          {% set current_float = None %}
+      # Build selections (same logic as sel_p1/2/3 but inline)
+      {% set max_amps = phase_max_amps | float(16.0) %}
+      {% for phase_num in [1, 2, 3] %}
+        {% set ns.room_list = [] %}
+        {% for room, data in rooms_data.items() %}
+          {% if data.phase == phase_num and data.needs_heating %}
+            {% set ns.room_list = ns.room_list + [{'room': room, 'error': data.error, 'amps': data.amps}] %}
+          {% endif %}
+        {% endfor %}
+        {% set sorted = ns.room_list | sort(attribute='error', reverse=True) %}
+        {% set total = 0.0 %}
+        {% set selected = [] %}
+        {% for item in sorted %}
+          {% if total + item.amps <= max_amps %}
+            {% set total = total + item.amps %}
+            {% set selected = selected + [item.room] %}
+          {% endif %}
+        {% endfor %}
+        {% if phase_num == 1 %}
+          {% set ns.sel_p1_list = selected %}
+        {% elif phase_num == 2 %}
+          {% set ns.sel_p2_list = selected %}
+        {% elif phase_num == 3 %}
+          {% set ns.sel_p3_list = selected %}
         {% endif %}
-        
-        {% if target_temp is number %}
-          {% set target_float = target_temp | float %}
-        {% else %}
-          {% set target_float = None %}
-        {% endif %}
-        
-        {% if current_float is not none %}
-          {% set ns.now_dict = ns.now_dict | combine({ room: current_float }) %}
-        {% endif %}
-        {% if target_float is not none %}
-          {% set ns.base_dict = ns.base_dict | combine({ room: target_float }) %}
-        {% endif %}
-        
-        {% set ns.debug_attrs = ns.debug_attrs | combine({ 
-          room: {
-            'entity': climate_entity,
-            'state': entity_state,
-            'current_temp_raw': current_temp,
-            'target_temp_raw': target_temp,
-            'current_is_number': current_temp is number,
-            'target_is_number': target_temp is number,
-            'current_is_none': current_temp is none,
-            'target_is_none': target_temp is none
-          }
-        }) %}
       {% endfor %}
       
-      {% set offset_val = offset_k | float(0) %}
-      {% for room in rooms %}
-        {% set base_temp = ns.base_dict.get(room, 22.0) %}
-        {% set effective_temp = base_temp + offset_val %}
-        {% set ns.eff_dict = ns.eff_dict | combine({ room: effective_temp }) %}
-      {% endfor %}
-      
+      {% set ns.temps_current = {} %}
+      {% set ns.temps_base = {} %}
+      {% set ns.temps_eff = {} %}
       {% set ns.errors_dict = {} %}
-      {% for room in rooms %}
-        {% set climate_entity = 'climate.room_' ~ room %}
-        {% set current_temp = state_attr(climate_entity, 'current_temperature') %}
-        {% set target_temp = state_attr(climate_entity, 'temperature') %}
-        {% if current_temp is number %}
-          {% set current = current_temp | float %}
-        {% else %}
-          {% set current = 22.0 %}
-        {% endif %}
-        {% if target_temp is number %}
-          {% set base_target = target_temp | float %}
-        {% else %}
-          {% set base_target = 22.0 %}
-        {% endif %}
-        {% set effective_target = base_target + offset_val %}
-        {% set error = effective_target - current %}
-        {% set ns.errors_dict = ns.errors_dict | combine({ room: error }) %}
-      {% endfor %}
-      
       {% set ns.phases_dict = {} %}
       {% set ns.amps_dict = {} %}
-      {% set ns.needs_heating_dict = {} %}
-      {% set ns.candidates_list = [] %}
-      {% for room in rooms %}
-        {% set sensor_l1 = 'sensor.current_l1_' ~ room ~ '_current' %}
-        {% set sensor_l2 = 'sensor.current_l2_' ~ room ~ '_current' %}
-        {% set sensor_l3 = 'sensor.current_l3_' ~ room ~ '_current' %}
-        {% set invalid_states = ['unknown', 'unavailable', 'None', ''] %}
-        
-        {% set phase = 0 %}
-        {% if states(sensor_l1) not in invalid_states %}
-          {% set phase = 1 %}
-        {% elif states(sensor_l2) not in invalid_states %}
-          {% set phase = 2 %}
-        {% elif states(sensor_l3) not in invalid_states %}
-          {% set phase = 3 %}
-        {% endif %}
-        {% set ns.phases_dict = ns.phases_dict | combine({ room: phase }) %}
-        
-        {% set live_current_ma = 0 %}
-        {% if states(sensor_l1) not in invalid_states %}
-          {% set live_current_ma = states(sensor_l1) | float(0) %}
-        {% elif states(sensor_l2) not in invalid_states %}
-          {% set live_current_ma = states(sensor_l2) | float(0) %}
-        {% elif states(sensor_l3) not in invalid_states %}
-          {% set live_current_ma = states(sensor_l3) | float(0) %}
-        {% endif %}
-        {% set live_current_a = live_current_ma / 1000 if live_current_ma > 0 else 0 %}
-        {% set sql_current_a = states('sensor.heater_' ~ room ~ '_max_current_a') | float(0) %}
-        {% set rated_current_a = states('input_number.heater_' ~ room ~ '_rated_a') | float(0) %}
-        {% set final_current = live_current_a if live_current_a > 0 else (sql_current_a if sql_current_a > 0 else rated_current_a) %}
-        {% set ns.amps_dict = ns.amps_dict | combine({ room: final_current }) %}
-        
-        {% set climate_entity = 'climate.room_' ~ room %}
-        {% set current_temp = state_attr(climate_entity, 'current_temperature') %}
-        {% set target_temp = state_attr(climate_entity, 'temperature') %}
-        {% if current_temp is number %}
-          {% set current = current_temp | float %}
-        {% else %}
-          {% set current = 22.0 %}
-        {% endif %}
-        {% if target_temp is number %}
-          {% set base_target = target_temp | float %}
-        {% else %}
-          {% set base_target = 22.0 %}
-        {% endif %}
-        {% set effective_target = base_target + offset_val %}
-        {% set hysteresis_k = 0.05 %}
-        {% set threshold = effective_target - hysteresis_k %}
-        {% set needs_heating = current < threshold %}
-        {% set ns.needs_heating_dict = ns.needs_heating_dict | combine({ room: needs_heating }) %}
-        {% if needs_heating %}
-          {% set ns.candidates_list = ns.candidates_list + [room] %}
-        {% endif %}
+      {% set ns.needs_dict = {} %}
+      {% for room, data in rooms_data.items() %}
+        {% set ns.temps_current = ns.temps_current | combine({room: data.current_temp}) %}
+        {% set ns.temps_base = ns.temps_base | combine({room: data.base_target}) %}
+        {% set ns.temps_eff = ns.temps_eff | combine({room: data.effective_target}) %}
+        {% set ns.errors_dict = ns.errors_dict | combine({room: data.error}) %}
+        {% set ns.phases_dict = ns.phases_dict | combine({room: data.phase}) %}
+        {% set ns.amps_dict = ns.amps_dict | combine({room: data.amps}) %}
+        {% set ns.needs_dict = ns.needs_dict | combine({room: data.needs_heating}) %}
       {% endfor %}
       
       {% set debug_data = {
         'timestamp': now().isoformat(),
-        'debug': {
-          'cl_map_raw': cl_map,
-          'cl_map_parsed': cl_map | from_json(default={}),
-          'cl_map_rebuilt': climate_map_debug,
-          'rooms_json': rooms_json,
-          'rooms_list': rooms,
-          'test_temp': dbg_test_temp,
-          'test_current': dbg_test_current,
-          'test_state': dbg_test_state,
-          't_set_base_raw': t_set_base,
-          't_now_raw': t_now,
-          't_now_dict_debug': ns.now_dict,
-          't_set_base_dict_debug': ns.base_dict,
-          't_set_eff_dict_debug': ns.eff_dict,
-          'entity_debug': ns.debug_attrs
-        },
         'offsets': {
           'total_k': offset_k | float(0),
           'preheat_k': preheat_offset_k | float(0),
@@ -637,20 +293,20 @@
           'dT_forecast_K': dT_forecast | float(0)
         },
         'temperatures': {
-          'set_effective': ns.eff_dict,
-          'current': ns.now_dict,
-          'set_base': ns.base_dict
+          'current': ns.temps_current,
+          'set_base': ns.temps_base,
+          'set_effective': ns.temps_eff
         },
         'errors': ns.errors_dict,
         'phases': ns.phases_dict,
         'currents_amps': ns.amps_dict,
-        'needs_heating': ns.needs_heating_dict,
-        'candidates': ns.candidates_list,
+        'needs_heating': ns.needs_dict,
+        'candidates': ns.candidates,
         'selected': {
-          'phase_1': sel_p1 | from_json(default=[]),
-          'phase_2': sel_p2 | from_json(default=[]),
-          'phase_3': sel_p3 | from_json(default=[]),
-          'final': final_on | from_json(default=[])
+          'phase_1': ns.sel_p1_list,
+          'phase_2': ns.sel_p2_list,
+          'phase_3': ns.sel_p3_list,
+          'final': (ns.sel_p1_list + ns.sel_p2_list + ns.sel_p3_list) | unique | list
         },
         'switches': {
           'on': sw_on | from_json(default=[]),
@@ -678,12 +334,27 @@
                     target:
                       entity_id: "climate.room_{{ repeat.item }}"
                     data:
-                      temperature: "{{ (t_set_eff | from_json(default={}))[repeat.item] | float }}"
+                      temperature: >-
+                        {% set rooms_data = room_data | from_json(default={}) %}
+                        {{ rooms_data[repeat.item].effective_target | float }}
     
     # ===================================================================
-    # ACTION 2: Log comprehensive debug information
+    # ACTION 2: Log debug information
     # ===================================================================
     - service: logbook.log
       data:
         name: "Heiz-Planer"
         message: "{{ dbg }}"
+    
+    # ===================================================================
+    # ACTION 3: Control heating switches
+    # ===================================================================
+    - parallel:
+        # Turn ON switches for selected rooms
+        - service: switch.turn_on
+          target:
+            entity_id: "{{ sw_on | from_json(default=[]) }}"
+        # Turn OFF switches for non-selected rooms
+        - service: switch.turn_off
+          target:
+            entity_id: "{{ sw_off | from_json(default=[]) }}"
