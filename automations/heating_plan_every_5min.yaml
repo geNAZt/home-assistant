@@ -336,21 +336,24 @@
       {% set ns.amps_dict = {} %}
       {% set ns.needs_dict = {} %}
       {% set ns.selected_rooms_debug = [] %}
-      {% for room, data in rooms_data.items() %}
-        {% set temp_dict_current = {room: data.current_temp} %}
-        {% set temp_dict_base = {room: data.base_target} %}
-        {% set temp_dict_eff = {room: data.effective_target} %}
-        {% set temp_dict_error = {room: data.error} %}
-        {% set temp_dict_phase = {room: data.phase} %}
-        {% set temp_dict_amps = {room: data.amps} %}
-        {% set temp_dict_needs = {room: data.needs_heating} %}
-        {% set ns.temps_current = ns.temps_current | combine(temp_dict_current) %}
-        {% set ns.temps_base = ns.temps_base | combine(temp_dict_base) %}
-        {% set ns.temps_eff = ns.temps_eff | combine(temp_dict_eff) %}
-        {% set ns.errors_dict = ns.errors_dict | combine(temp_dict_error) %}
-        {% set ns.phases_dict = ns.phases_dict | combine(temp_dict_phase) %}
-        {% set ns.amps_dict = ns.amps_dict | combine(temp_dict_amps) %}
-        {% set ns.needs_dict = ns.needs_dict | combine(temp_dict_needs) %}
+      {% for room in rooms %}
+        {% if rooms_data[room] is defined %}
+          {% set data = rooms_data[room] %}
+          {% set temp_dict_current = {room: data.current_temp} %}
+          {% set temp_dict_base = {room: data.base_target} %}
+          {% set temp_dict_eff = {room: data.effective_target} %}
+          {% set temp_dict_error = {room: data.error} %}
+          {% set temp_dict_phase = {room: data.phase} %}
+          {% set temp_dict_amps = {room: data.amps} %}
+          {% set temp_dict_needs = {room: data.needs_heating} %}
+          {% set ns.temps_current = ns.temps_current | combine(temp_dict_current) %}
+          {% set ns.temps_base = ns.temps_base | combine(temp_dict_base) %}
+          {% set ns.temps_eff = ns.temps_eff | combine(temp_dict_eff) %}
+          {% set ns.errors_dict = ns.errors_dict | combine(temp_dict_error) %}
+          {% set ns.phases_dict = ns.phases_dict | combine(temp_dict_phase) %}
+          {% set ns.amps_dict = ns.amps_dict | combine(temp_dict_amps) %}
+          {% set ns.needs_dict = ns.needs_dict | combine(temp_dict_needs) %}
+        {% endif %}
       {% endfor %}
       
       {# Build selected rooms list from phase selections #}
