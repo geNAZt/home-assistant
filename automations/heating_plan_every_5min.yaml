@@ -30,12 +30,11 @@
     # Base target temperature (setpoint) for each room
     t_set_base: >-
       {% set rooms = rooms_json | from_json(default=[]) %}
-      {% set climate_map = cl_map | from_json(default={}) %}
       {% set ns = namespace(m = {}) %}
       {% for room in rooms %}
-        {% set climate_entity = climate_map.get(room) %}
-        {% set target_temp = state_attr(climate_entity, 'temperature') if climate_entity else None %}
-        {% set temp_float = target_temp | float(22) %}
+        {% set climate_entity = 'climate.raum_' ~ room %}
+        {% set target_temp = state_attr(climate_entity, 'temperature') %}
+        {% set temp_float = target_temp | float(22) if target_temp is not none else 22.0 %}
         {% set ns.m = ns.m | combine({ room: temp_float }) %}
       {% endfor %}
       {{ (ns.m | tojson) | string }}
@@ -43,12 +42,11 @@
     # Current temperature for each room
     t_now: >-
       {% set rooms = rooms_json | from_json(default=[]) %}
-      {% set climate_map = cl_map | from_json(default={}) %}
       {% set ns = namespace(m = {}) %}
       {% for room in rooms %}
-        {% set climate_entity = climate_map.get(room) %}
-        {% set current_temp = state_attr(climate_entity, 'current_temperature') if climate_entity else None %}
-        {% set temp_float = current_temp | float(22) %}
+        {% set climate_entity = 'climate.raum_' ~ room %}
+        {% set current_temp = state_attr(climate_entity, 'current_temperature') %}
+        {% set temp_float = current_temp | float(22) if current_temp is not none else 22.0 %}
         {% set ns.m = ns.m | combine({ room: temp_float }) %}
       {% endfor %}
       {{ (ns.m | tojson) | string }}
@@ -409,10 +407,29 @@
     # ===================================================================
     # SECTION 13: DEBUG INFORMATION
     # ===================================================================
+    # Debug: Check if cl_map is accessible and what it contains
+    dbg_cl_map_raw: "{{ cl_map }}"
+    dbg_cl_map_parsed: "{{ cl_map | from_json(default={}) }}"
+    dbg_rooms_json: "{{ rooms_json }}"
+    
     # Comprehensive debug output with all key variables
     dbg: >-
+      {% set rooms = rooms_json | from_json(default=[]) %}
+      {% set climate_map_debug = {} %}
+      {% for room in rooms %}
+        {% set climate_entity = 'climate.raum_' ~ room %}
+        {% set climate_map_debug = climate_map_debug | combine({ room: climate_entity }) %}
+      {% endfor %}
+      
       {% set debug_data = {
         'timestamp': now().isoformat(),
+        'debug': {
+          'cl_map_raw': cl_map,
+          'cl_map_parsed': cl_map | from_json(default={}),
+          'cl_map_rebuilt': climate_map_debug,
+          'rooms_json': rooms_json,
+          'rooms_list': rooms
+        },
         'offsets': {
           'total_k': offset_k | float(0),
           'preheat_k': preheat_offset_k | float(0),
@@ -472,7 +489,7 @@
                 sequence:
                   - service: climate.set_temperature
                     target:
-                      entity_id: "{{ (cl_map | from_json(default={}))[repeat.item] }}"
+                      entity_id: "climate.raum_{{ repeat.item }}"
                     data:
                       temperature: "{{ (t_set_eff | from_json(default={}))[repeat.item] | float }}"
     
