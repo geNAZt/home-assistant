@@ -395,7 +395,9 @@
     # ACTION 1: Update temperature setpoints if offset is active
     # ===================================================================
     - choose:
-        - conditions: "{{ offset_k | float(0) > 0 }}"
+        - conditions:
+            - condition: template
+              value_template: "{{ offset_k | float(0) > 0 }}"
           sequence:
             - service: logbook.log
               data:
