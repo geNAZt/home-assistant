@@ -34,12 +34,16 @@
       {% for room in rooms %}
         {% set climate_entity = 'climate.raum_' ~ room %}
         {% set target_temp = state_attr(climate_entity, 'temperature') %}
-        {% if target_temp is none or target_temp == 'unknown' or target_temp == 'unavailable' %}
-          {% set temp_float = 22.0 %}
+        {% if target_temp is number %}
+          {% set temp_float = target_temp | float %}
+        {% elif target_temp is none or target_temp == 'unknown' or target_temp == 'unavailable' or target_temp == '' %}
+          {% set temp_float = None %}
         {% else %}
           {% set temp_float = target_temp | float(22) %}
         {% endif %}
-        {% set ns.m = ns.m | combine({ room: temp_float }) %}
+        {% if temp_float is not none %}
+          {% set ns.m = ns.m | combine({ room: temp_float }) %}
+        {% endif %}
       {% endfor %}
       {{ (ns.m | tojson) | string }}
     
@@ -50,12 +54,16 @@
       {% for room in rooms %}
         {% set climate_entity = 'climate.raum_' ~ room %}
         {% set current_temp = state_attr(climate_entity, 'current_temperature') %}
-        {% if current_temp is none or current_temp == 'unknown' or current_temp == 'unavailable' %}
-          {% set temp_float = 22.0 %}
+        {% if current_temp is number %}
+          {% set temp_float = current_temp | float %}
+        {% elif current_temp is none or current_temp == 'unknown' or current_temp == 'unavailable' or current_temp == '' %}
+          {% set temp_float = None %}
         {% else %}
           {% set temp_float = current_temp | float(22) %}
         {% endif %}
-        {% set ns.m = ns.m | combine({ room: temp_float }) %}
+        {% if temp_float is not none %}
+          {% set ns.m = ns.m | combine({ room: temp_float }) %}
+        {% endif %}
       {% endfor %}
       {{ (ns.m | tojson) | string }}
     
@@ -434,23 +442,44 @@
         {% set climate_map_debug = climate_map_debug | combine({ room: climate_entity }) %}
       {% endfor %}
       
-      {% set ns = namespace(now_dict={}, base_dict={}, eff_dict={}) %}
+      {% set ns = namespace(now_dict={}, base_dict={}, eff_dict={}, debug_attrs={}) %}
       {% for room in rooms %}
         {% set climate_entity = 'climate.raum_' ~ room %}
+        {% set entity_state = states(climate_entity) %}
         {% set current_temp = state_attr(climate_entity, 'current_temperature') %}
         {% set target_temp = state_attr(climate_entity, 'temperature') %}
-        {% if current_temp is none or current_temp == 'unknown' or current_temp == 'unavailable' %}
-          {% set current_float = 22.0 %}
+        {% set all_attrs = state_attr(climate_entity) %}
+        
+        {% if current_temp is number %}
+          {% set current_float = current_temp | float %}
         {% else %}
-          {% set current_float = current_temp | float(22) %}
+          {% set current_float = None %}
         {% endif %}
-        {% if target_temp is none or target_temp == 'unknown' or target_temp == 'unavailable' %}
-          {% set target_float = 22.0 %}
+        
+        {% if target_temp is number %}
+          {% set target_float = target_temp | float %}
         {% else %}
-          {% set target_float = target_temp | float(22) %}
+          {% set target_float = None %}
         {% endif %}
-        {% set ns.now_dict = ns.now_dict | combine({ room: current_float }) %}
-        {% set ns.base_dict = ns.base_dict | combine({ room: target_float }) %}
+        
+        {% if current_float is not none %}
+          {% set ns.now_dict = ns.now_dict | combine({ room: current_float }) %}
+        {% endif %}
+        {% if target_float is not none %}
+          {% set ns.base_dict = ns.base_dict | combine({ room: target_float }) %}
+        {% endif %}
+        
+        {% set ns.debug_attrs = ns.debug_attrs | combine({ 
+          room: {
+            'entity': climate_entity,
+            'state': entity_state,
+            'current_temp_raw': current_temp,
+            'target_temp_raw': target_temp,
+            'current_is_number': current_temp is number,
+            'target_is_number': target_temp is number,
+            'has_attrs': all_attrs is not none
+          }
+        }) %}
       {% endfor %}
       
       {% set offset_val = offset_k | float(0) %}
@@ -475,7 +504,8 @@
           't_now_raw': t_now,
           't_now_dict_debug': ns.now_dict,
           't_set_base_dict_debug': ns.base_dict,
-          't_set_eff_dict_debug': ns.eff_dict
+          't_set_eff_dict_debug': ns.eff_dict,
+          'entity_debug': ns.debug_attrs
         },
         'offsets': {
           'total_k': offset_k | float(0),
