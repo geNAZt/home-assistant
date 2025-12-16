@@ -63,6 +63,11 @@
     t_set_base_parsed: "{{ t_set_base | from_json(default={}) }}"
     t_now_parsed: "{{ t_now | from_json(default={}) }}"
     
+    # Debug: Test reading a single temperature to verify state_attr works
+    dbg_test_temp: "{{ state_attr('climate.raum_bad', 'temperature') }}"
+    dbg_test_current: "{{ state_attr('climate.raum_bad', 'current_temperature') }}"
+    dbg_test_state: "{{ states('climate.raum_bad') }}"
+    
     # ===================================================================
     # SECTION 3: PV EXCESS DETECTION
     # ===================================================================
@@ -429,22 +434,6 @@
         {% set climate_map_debug = climate_map_debug | combine({ room: climate_entity }) %}
       {% endfor %}
       
-      {% set temp_debug = {} %}
-      {% for room in rooms %}
-        {% set climate_entity = 'climate.raum_' ~ room %}
-        {% set target_temp = state_attr(climate_entity, 'temperature') %}
-        {% set current_temp = state_attr(climate_entity, 'current_temperature') %}
-        {% set entity_state = states(climate_entity) %}
-        {% set temp_debug = temp_debug | combine({ 
-          room: {
-            'entity': climate_entity,
-            'entity_state': entity_state,
-            'target_temp_raw': target_temp,
-            'current_temp_raw': current_temp
-          }
-        }) %}
-      {% endfor %}
-      
       {% set debug_data = {
         'timestamp': now().isoformat(),
         'debug': {
@@ -453,7 +442,11 @@
           'cl_map_rebuilt': climate_map_debug,
           'rooms_json': rooms_json,
           'rooms_list': rooms,
-          'temp_readings': temp_debug
+          'test_temp': dbg_test_temp,
+          'test_current': dbg_test_current,
+          'test_state': dbg_test_state,
+          't_set_base_raw': t_set_base,
+          't_now_raw': t_now
         },
         'offsets': {
           'total_k': offset_k | float(0),
