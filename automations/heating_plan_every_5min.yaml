@@ -335,6 +335,7 @@
       {% set ns.phases_dict = {} %}
       {% set ns.amps_dict = {} %}
       {% set ns.needs_dict = {} %}
+      {% set ns.selected_rooms_debug = [] %}
       {% for room, data in rooms_data.items() %}
         {% set ns.temps_current = ns.temps_current | combine({room: data.current_temp}) %}
         {% set ns.temps_base = ns.temps_base | combine({room: data.base_target}) %}
@@ -343,6 +344,26 @@
         {% set ns.phases_dict = ns.phases_dict | combine({room: data.phase}) %}
         {% set ns.amps_dict = ns.amps_dict | combine({room: data.amps}) %}
         {% set ns.needs_dict = ns.needs_dict | combine({room: data.needs_heating}) %}
+      {% endfor %}
+      
+      {# Build selected rooms list from phase selections #}
+      {% set all_selected = ns.sel_p1_list + ns.sel_p2_list + ns.sel_p3_list %}
+      {% for room in all_selected %}
+        {% if room not in ns.selected_rooms_debug %}
+          {% set ns.selected_rooms_debug = ns.selected_rooms_debug + [room] %}
+        {% endif %}
+      {% endfor %}
+      
+      {# Build switch lists #}
+      {% set ns.sw_on_list = [] %}
+      {% set ns.sw_off_list = [] %}
+      {% for room in ns.selected_rooms_debug %}
+        {% set ns.sw_on_list = ns.sw_on_list + ['switch.heating_' ~ room] %}
+      {% endfor %}
+      {% for room in rooms %}
+        {% if room not in ns.selected_rooms_debug %}
+          {% set ns.sw_off_list = ns.sw_off_list + ['switch.heating_' ~ room] %}
+        {% endif %}
       {% endfor %}
       
       {% set debug_data = {
@@ -383,8 +404,8 @@
           'final': (ns.sel_p1_list + ns.sel_p2_list + ns.sel_p3_list) | unique | list
         },
         'switches': {
-          'on': sw_on | from_json(default=[]),
-          'off': sw_off | from_json(default=[])
+          'on': ns.sw_on_list,
+          'off': ns.sw_off_list
         }
       } %}
       {{ (debug_data | tojson) | string }}
