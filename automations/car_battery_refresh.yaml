@@ -1,4 +1,5 @@
 - id: "car_battery_refresh"
+  alias: Car battery refresh
   description: "Refresh car battery data"
   mode: single
   triggers:

@@ -1,51 +1,33 @@
 - id: '1760034159712'
   alias: Water cycling
-  description: ''
-  triggers:
-  - trigger: state
-    entity_id:
-    - binary_sensor.presence_bad
-    to: 'on'
-  - trigger: state
-    entity_id:
-    - binary_sensor.presence_bad
-    to: 'off'
-  conditions:
-  - condition: or
-    conditions:
-    - condition: and
-      conditions:
-      - condition: state
-        entity_id: binary_sensor.presence_bad
-        state:
-        - 'on'
-      - condition: time
-        after: 07:00:00
-        before: '22:00:00'
-    - condition: state
-      entity_id: binary_sensor.presence_bad
-      state:
-      - 'off'
-  actions:
-  - choose:
-    - conditions:
-      - condition: state
-        entity_id: binary_sensor.presence_bad
-        state: 'on'
-      sequence:
-      - action: switch.turn_on
-        metadata: {}
-        data: {}
-        target:
-          entity_id: switch.water_cycling_pump
-    - conditions:
-      - condition: state
-        entity_id: binary_sensor.presence_bad
-        state: 'off'
-      sequence:
-      - action: switch.turn_off
-        metadata: {}
-        data: {}
-        target:
-          entity_id: switch.water_cycling_pump
+  description: ""
   mode: single
+  triggers:
+    - trigger: state
+      entity_id:
+        - binary_sensor.presence_bad
+      to:
+        - "on"
+  conditions: []
+  actions:
+    - action: switch.turn_on
+      metadata: {}
+      target:
+        entity_id: switch.water_cycling_pump
+      data: {}
+    - delay:
+        hours: 0
+        minutes: 1
+        seconds: 0
+        milliseconds: 0
+    - action: switch.turn_off
+      metadata: {}
+      target:
+        entity_id: switch.water_cycling_pump
+      data: {}
+    - delay:
+        hours: 2
+        minutes: 0
+        seconds: 0
+        milliseconds: 0
+  max_exceeded: silent
