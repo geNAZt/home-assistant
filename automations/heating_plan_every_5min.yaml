@@ -11,12 +11,13 @@
     # Central room list - modify here to add/remove rooms
     rooms_json: '["bad","kueche","schlafzimmer","flur","speisekammer","wohnzimmer","buero_merja","buero_fabian"]'
     
-    # Map each room to its climate entity (e.g., "bad" -> "climate.raum_bad")
+    # Map each room to its climate entity (e.g., "bad" -> "climate.room_bad")
+    # Note: AppDaemon creates entities as "climate.room_*" (English), not "climate.raum_*" (German)
     cl_map: >-
       {% set rooms = rooms_json | from_json(default=[]) %}
       {% set ns = namespace(m = {}) %}
       {% for room in rooms %}
-        {% set climate_entity = 'climate.raum_' ~ room %}
+        {% set climate_entity = 'climate.room_' ~ room %}
         {% set ns.m = ns.m | combine({ room: climate_entity }) %}
       {% endfor %}
       {{ (ns.m | tojson) | string }}
@@ -32,7 +33,7 @@
       {% set rooms = rooms_json | from_json(default=[]) %}
       {% set ns = namespace(m = {}) %}
       {% for room in rooms %}
-        {% set climate_entity = 'climate.raum_' ~ room %}
+        {% set climate_entity = 'climate.room_' ~ room %}
         {% set target_temp = state_attr(climate_entity, 'temperature') %}
         {% if target_temp is number %}
           {% set temp_float = target_temp | float %}
@@ -52,7 +53,7 @@
       {% set rooms = rooms_json | from_json(default=[]) %}
       {% set ns = namespace(m = {}) %}
       {% for room in rooms %}
-        {% set climate_entity = 'climate.raum_' ~ room %}
+        {% set climate_entity = 'climate.room_' ~ room %}
         {% set current_temp = state_attr(climate_entity, 'current_temperature') %}
         {% if current_temp is number %}
           {% set temp_float = current_temp | float %}
@@ -72,14 +73,14 @@
     t_now_parsed: "{{ t_now | from_json(default={}) }}"
     
     # Debug: Test reading a single temperature to verify state_attr works
-    dbg_test_temp: "{{ state_attr('climate.raum_bad', 'temperature') }}"
-    dbg_test_current: "{{ state_attr('climate.raum_bad', 'current_temperature') }}"
-    dbg_test_state: "{{ states('climate.raum_bad') }}"
+    dbg_test_temp: "{{ state_attr('climate.room_bad', 'temperature') }}"
+    dbg_test_current: "{{ state_attr('climate.room_bad', 'current_temperature') }}"
+    dbg_test_state: "{{ states('climate.room_bad') }}"
     
     # Debug: Try alternative entity ID patterns to find the actual entities
     # Check if entities exist with different naming patterns
-    dbg_entity_exists_bad: "{{ 'climate.raum_bad' in states.climate | map(attribute='entity_id') | list }}"
-    dbg_all_climate_entities: "{{ states.climate | map(attribute='entity_id') | list | select('match', '.*raum.*') | list }}"
+    dbg_entity_exists_bad: "{{ 'climate.room_bad' in states.climate | map(attribute='entity_id') | list }}"
+    dbg_all_climate_entities: "{{ states.climate | map(attribute='entity_id') | list | select('match', '.*room.*') | list }}"
     
     # ===================================================================
     # SECTION 3: PV EXCESS DETECTION
@@ -443,13 +444,13 @@
       {% set rooms = rooms_json | from_json(default=[]) %}
       {% set climate_map_debug = {} %}
       {% for room in rooms %}
-        {% set climate_entity = 'climate.raum_' ~ room %}
+        {% set climate_entity = 'climate.room_' ~ room %}
         {% set climate_map_debug = climate_map_debug | combine({ room: climate_entity }) %}
       {% endfor %}
       
       {% set ns = namespace(now_dict={}, base_dict={}, eff_dict={}, debug_attrs={}) %}
       {% for room in rooms %}
-        {% set climate_entity = 'climate.raum_' ~ room %}
+        {% set climate_entity = 'climate.room_' ~ room %}
         {% set entity_state = states(climate_entity) %}
         {% set current_temp = state_attr(climate_entity, 'current_temperature') %}
         {% set target_temp = state_attr(climate_entity, 'temperature') %}
@@ -571,7 +572,7 @@
                 sequence:
                   - service: climate.set_temperature
                     target:
-                      entity_id: "climate.raum_{{ repeat.item }}"
+                      entity_id: "climate.room_{{ repeat.item }}"
                     data:
                       temperature: "{{ (t_set_eff | from_json(default={}))[repeat.item] | float }}"
     
