@@ -155,11 +155,16 @@
     # Effective target temperature: Base temperature + offset for each room
     t_set_eff: >-
       {% set rooms = rooms_json | from_json(default=[]) %}
-      {% set base_temps = t_set_base | from_json(default={}) %}
       {% set offset = offset_k | float(0) %}
       {% set ns = namespace(m = {}) %}
       {% for room in rooms %}
-        {% set base_temp = base_temps.get(room, 22) %}
+        {% set climate_entity = 'climate.room_' ~ room %}
+        {% set target_temp = state_attr(climate_entity, 'temperature') %}
+        {% if target_temp is number %}
+          {% set base_temp = target_temp | float %}
+        {% else %}
+          {% set base_temp = 22.0 %}
+        {% endif %}
         {% set effective_temp = base_temp + offset %}
         {% set ns.m = ns.m | combine({ room: effective_temp }) %}
       {% endfor %}
