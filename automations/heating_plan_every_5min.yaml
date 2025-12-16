@@ -542,6 +542,63 @@
         {% set ns.errors_dict = ns.errors_dict | combine({ room: error }) %}
       {% endfor %}
       
+      {% set ns.phases_dict = {} %}
+      {% set ns.amps_dict = {} %}
+      {% set ns.needs_heating_dict = {} %}
+      {% set ns.candidates_list = [] %}
+      {% for room in rooms %}
+        {% set sensor_l1 = 'sensor.current_l1_' ~ room ~ '_current' %}
+        {% set sensor_l2 = 'sensor.current_l2_' ~ room ~ '_current' %}
+        {% set sensor_l3 = 'sensor.current_l3_' ~ room ~ '_current' %}
+        {% set invalid_states = ['unknown', 'unavailable', 'None', ''] %}
+        
+        {% set phase = 0 %}
+        {% if states(sensor_l1) not in invalid_states %}
+          {% set phase = 1 %}
+        {% elif states(sensor_l2) not in invalid_states %}
+          {% set phase = 2 %}
+        {% elif states(sensor_l3) not in invalid_states %}
+          {% set phase = 3 %}
+        {% endif %}
+        {% set ns.phases_dict = ns.phases_dict | combine({ room: phase }) %}
+        
+        {% set live_current_ma = 0 %}
+        {% if states(sensor_l1) not in invalid_states %}
+          {% set live_current_ma = states(sensor_l1) | float(0) %}
+        {% elif states(sensor_l2) not in invalid_states %}
+          {% set live_current_ma = states(sensor_l2) | float(0) %}
+        {% elif states(sensor_l3) not in invalid_states %}
+          {% set live_current_ma = states(sensor_l3) | float(0) %}
+        {% endif %}
+        {% set live_current_a = live_current_ma / 1000 if live_current_ma > 0 else 0 %}
+        {% set sql_current_a = states('sensor.heater_' ~ room ~ '_max_current_a') | float(0) %}
+        {% set rated_current_a = states('input_number.heater_' ~ room ~ '_rated_a') | float(0) %}
+        {% set final_current = live_current_a if live_current_a > 0 else (sql_current_a if sql_current_a > 0 else rated_current_a) %}
+        {% set ns.amps_dict = ns.amps_dict | combine({ room: final_current }) %}
+        
+        {% set climate_entity = 'climate.room_' ~ room %}
+        {% set current_temp = state_attr(climate_entity, 'current_temperature') %}
+        {% set target_temp = state_attr(climate_entity, 'temperature') %}
+        {% if current_temp is number %}
+          {% set current = current_temp | float %}
+        {% else %}
+          {% set current = 22.0 %}
+        {% endif %}
+        {% if target_temp is number %}
+          {% set base_target = target_temp | float %}
+        {% else %}
+          {% set base_target = 22.0 %}
+        {% endif %}
+        {% set effective_target = base_target + offset_val %}
+        {% set hysteresis_k = 0.05 %}
+        {% set threshold = effective_target - hysteresis_k %}
+        {% set needs_heating = current < threshold %}
+        {% set ns.needs_heating_dict = ns.needs_heating_dict | combine({ room: needs_heating }) %}
+        {% if needs_heating %}
+          {% set ns.candidates_list = ns.candidates_list + [room] %}
+        {% endif %}
+      {% endfor %}
+      
       {% set debug_data = {
         'timestamp': now().isoformat(),
         'debug': {
@@ -585,10 +642,10 @@
           'set_base': ns.base_dict
         },
         'errors': ns.errors_dict,
-        'phases': phase_map | from_json(default={}),
-        'currents_amps': amps_map | from_json(default={}),
-        'needs_heating': need_map | from_json(default={}),
-        'candidates': cand_list | from_json(default=[]),
+        'phases': ns.phases_dict,
+        'currents_amps': ns.amps_dict,
+        'needs_heating': ns.needs_heating_dict,
+        'candidates': ns.candidates_list,
         'selected': {
           'phase_1': sel_p1 | from_json(default=[]),
           'phase_2': sel_p2 | from_json(default=[]),
