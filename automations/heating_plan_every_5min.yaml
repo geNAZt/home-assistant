@@ -522,6 +522,26 @@
         {% set ns.eff_dict = ns.eff_dict | combine({ room: effective_temp }) %}
       {% endfor %}
       
+      {% set ns.errors_dict = {} %}
+      {% for room in rooms %}
+        {% set climate_entity = 'climate.room_' ~ room %}
+        {% set current_temp = state_attr(climate_entity, 'current_temperature') %}
+        {% set target_temp = state_attr(climate_entity, 'temperature') %}
+        {% if current_temp is number %}
+          {% set current = current_temp | float %}
+        {% else %}
+          {% set current = 22.0 %}
+        {% endif %}
+        {% if target_temp is number %}
+          {% set base_target = target_temp | float %}
+        {% else %}
+          {% set base_target = 22.0 %}
+        {% endif %}
+        {% set effective_target = base_target + offset_val %}
+        {% set error = effective_target - current %}
+        {% set ns.errors_dict = ns.errors_dict | combine({ room: error }) %}
+      {% endfor %}
+      
       {% set debug_data = {
         'timestamp': now().isoformat(),
         'debug': {
@@ -564,7 +584,7 @@
           'current': ns.now_dict,
           'set_base': ns.base_dict
         },
-        'errors': terr_map | from_json(default={}),
+        'errors': ns.errors_dict,
         'phases': phase_map | from_json(default={}),
         'currents_amps': amps_map | from_json(default={}),
         'needs_heating': need_map | from_json(default={}),
