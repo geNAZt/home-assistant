@@ -434,9 +434,7 @@
         {% set climate_map_debug = climate_map_debug | combine({ room: climate_entity }) %}
       {% endfor %}
       
-      {% set t_now_dict = {} %}
-      {% set t_set_base_dict = {} %}
-      {% set t_set_eff_dict = {} %}
+      {% set ns = namespace(now_dict={}, base_dict={}, eff_dict={}) %}
       {% for room in rooms %}
         {% set climate_entity = 'climate.raum_' ~ room %}
         {% set current_temp = state_attr(climate_entity, 'current_temperature') %}
@@ -451,15 +449,15 @@
         {% else %}
           {% set target_float = target_temp | float(22) %}
         {% endif %}
-        {% set t_now_dict = t_now_dict | combine({ room: current_float }) %}
-        {% set t_set_base_dict = t_set_base_dict | combine({ room: target_float }) %}
+        {% set ns.now_dict = ns.now_dict | combine({ room: current_float }) %}
+        {% set ns.base_dict = ns.base_dict | combine({ room: target_float }) %}
       {% endfor %}
       
       {% set offset_val = offset_k | float(0) %}
       {% for room in rooms %}
-        {% set base_temp = t_set_base_dict.get(room, 22.0) %}
+        {% set base_temp = ns.base_dict.get(room, 22.0) %}
         {% set effective_temp = base_temp + offset_val %}
-        {% set t_set_eff_dict = t_set_eff_dict | combine({ room: effective_temp }) %}
+        {% set ns.eff_dict = ns.eff_dict | combine({ room: effective_temp }) %}
       {% endfor %}
       
       {% set debug_data = {
@@ -474,7 +472,10 @@
           'test_current': dbg_test_current,
           'test_state': dbg_test_state,
           't_set_base_raw': t_set_base,
-          't_now_raw': t_now
+          't_now_raw': t_now,
+          't_now_dict_debug': ns.now_dict,
+          't_set_base_dict_debug': ns.base_dict,
+          't_set_eff_dict_debug': ns.eff_dict
         },
         'offsets': {
           'total_k': offset_k | float(0),
@@ -496,9 +497,9 @@
           'dT_forecast_K': dT_forecast | float(0)
         },
         'temperatures': {
-          'set_effective': t_set_eff_dict,
-          'current': t_now_dict,
-          'set_base': t_set_base_dict
+          'set_effective': ns.eff_dict,
+          'current': ns.now_dict,
+          'set_base': ns.base_dict
         },
         'errors': terr_map | from_json(default={}),
         'phases': phase_map | from_json(default={}),
