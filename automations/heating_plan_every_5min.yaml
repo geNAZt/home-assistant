@@ -203,10 +203,28 @@
       {{ (ns.selected | tojson) | string }}
     
     final_on: >-
-      {% set p1 = sel_p1 | from_json(default=[]) %}
-      {% set p2 = sel_p2 | from_json(default=[]) %}
-      {% set p3 = sel_p3 | from_json(default=[]) %}
-      {{ (p1 + p2 + p3) | unique | list | tojson }}
+      {% set rooms_data = room_data | from_json(default={}) %}
+      {% set max_amps = phase_max_amps | float(16.0) %}
+      {% set ns = namespace(final = []) %}
+      {% for phase_num in [1, 2, 3] %}
+        {% set ns.room_list = [] %}
+        {% for room, data in rooms_data.items() %}
+          {% if data.phase == phase_num and data.needs_heating %}
+            {% set ns.room_list = ns.room_list + [{'room': room, 'error': data.error, 'amps': data.amps}] %}
+          {% endif %}
+        {% endfor %}
+        {% set sorted = ns.room_list | sort(attribute='error', reverse=True) %}
+        {% set total = 0.0 %}
+        {% for item in sorted %}
+          {% if total + item.amps <= max_amps %}
+            {% set total = total + item.amps %}
+            {% if item.room not in ns.final %}
+              {% set ns.final = ns.final + [item.room] %}
+            {% endif %}
+          {% endif %}
+        {% endfor %}
+      {% endfor %}
+      {{ (ns.final | tojson) | string }}
     
     # ===================================================================
     # SECTION 4: SWITCH ENTITY MAPPING
