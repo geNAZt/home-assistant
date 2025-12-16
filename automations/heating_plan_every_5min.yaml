@@ -314,20 +314,33 @@
           {% endif %}
         {% endfor %}
         {% set sorted = ns.room_list | sort(attribute='error', reverse=True) %}
-        {% set total = 0.0 %}
-        {% set selected = [] %}
-        {% for item in sorted %}
-          {% if total + item.amps <= max_amps %}
-            {% set total = total + item.amps %}
-            {% set selected = selected + [item.room] %}
-          {% endif %}
-        {% endfor %}
         {% if phase_num == 1 %}
-          {% set ns.sel_p1_list = selected %}
+          {% set ns.sel_p1_list = [] %}
+          {% set total = 0.0 %}
+          {% for item in sorted %}
+            {% if total + item.amps <= max_amps %}
+              {% set total = total + item.amps %}
+              {% set ns.sel_p1_list = ns.sel_p1_list + [item.room] %}
+            {% endif %}
+          {% endfor %}
         {% elif phase_num == 2 %}
-          {% set ns.sel_p2_list = selected %}
+          {% set ns.sel_p2_list = [] %}
+          {% set total = 0.0 %}
+          {% for item in sorted %}
+            {% if total + item.amps <= max_amps %}
+              {% set total = total + item.amps %}
+              {% set ns.sel_p2_list = ns.sel_p2_list + [item.room] %}
+            {% endif %}
+          {% endfor %}
         {% elif phase_num == 3 %}
-          {% set ns.sel_p3_list = selected %}
+          {% set ns.sel_p3_list = [] %}
+          {% set total = 0.0 %}
+          {% for item in sorted %}
+            {% if total + item.amps <= max_amps %}
+              {% set total = total + item.amps %}
+              {% set ns.sel_p3_list = ns.sel_p3_list + [item.room] %}
+            {% endif %}
+          {% endfor %}
         {% endif %}
       {% endfor %}
       
