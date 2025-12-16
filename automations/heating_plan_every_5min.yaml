@@ -448,7 +448,6 @@
         {% set entity_state = states(climate_entity) %}
         {% set current_temp = state_attr(climate_entity, 'current_temperature') %}
         {% set target_temp = state_attr(climate_entity, 'temperature') %}
-        {% set all_attrs = state_attr(climate_entity) %}
         
         {% if current_temp is number %}
           {% set current_float = current_temp | float %}
@@ -477,7 +476,8 @@
             'target_temp_raw': target_temp,
             'current_is_number': current_temp is number,
             'target_is_number': target_temp is number,
-            'has_attrs': all_attrs is not none
+            'current_is_none': current_temp is none,
+            'target_is_none': target_temp is none
           }
         }) %}
       {% endfor %}
