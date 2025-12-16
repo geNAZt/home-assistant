@@ -434,6 +434,10 @@
         {% set climate_map_debug = climate_map_debug | combine({ room: climate_entity }) %}
       {% endfor %}
       
+      {% set t_now_parsed = t_now | from_json(default={}) %}
+      {% set t_set_base_parsed = t_set_base | from_json(default={}) %}
+      {% set t_set_eff_parsed = t_set_eff | from_json(default={}) %}
+      
       {% set debug_data = {
         'timestamp': now().isoformat(),
         'debug': {
@@ -468,9 +472,9 @@
           'dT_forecast_K': dT_forecast | float(0)
         },
         'temperatures': {
-          'set_effective': t_set_eff | from_json(default={}),
-          'current': t_now | from_json(default={}),
-          'set_base': t_set_base | from_json(default={})
+          'set_effective': t_set_eff_parsed,
+          'current': t_now_parsed,
+          'set_base': t_set_base_parsed
         },
         'errors': terr_map | from_json(default={}),
         'phases': phase_map | from_json(default={}),
