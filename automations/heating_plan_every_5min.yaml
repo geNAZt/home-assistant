@@ -245,13 +245,24 @@
     # Positive = too cold (needs heating), Negative = too warm
     terr_map: >-
       {% set rooms = rooms_json | from_json(default=[]) %}
-      {% set current_temps = t_now | from_json(default={}) %}
-      {% set target_temps = t_set_eff | from_json(default={}) %}
+      {% set offset = offset_k | float(0) %}
       {% set ns = namespace(m = {}) %}
       {% for room in rooms %}
-        {% set current = current_temps.get(room, 22) %}
-        {% set target = target_temps.get(room, 22) %}
-        {% set error = target - current %}
+        {% set climate_entity = 'climate.room_' ~ room %}
+        {% set current_temp = state_attr(climate_entity, 'current_temperature') %}
+        {% set target_temp = state_attr(climate_entity, 'temperature') %}
+        {% if current_temp is number %}
+          {% set current = current_temp | float %}
+        {% else %}
+          {% set current = 22.0 %}
+        {% endif %}
+        {% if target_temp is number %}
+          {% set base_target = target_temp | float %}
+        {% else %}
+          {% set base_target = 22.0 %}
+        {% endif %}
+        {% set effective_target = base_target + offset %}
+        {% set error = effective_target - current %}
         {% set ns.m = ns.m | combine({ room: error }) %}
       {% endfor %}
       {{ (ns.m | tojson) | string }}
@@ -266,14 +277,25 @@
     # Room needs heating if current temp < (target temp - 0.05K hysteresis)
     need_map: >-
       {% set rooms = rooms_json | from_json(default=[]) %}
-      {% set current_temps = t_now | from_json(default={}) %}
-      {% set target_temps = t_set_eff | from_json(default={}) %}
+      {% set offset = offset_k | float(0) %}
       {% set hysteresis_k = 0.05 %}
       {% set ns = namespace(m = {}) %}
       {% for room in rooms %}
-        {% set current = current_temps.get(room, 22) %}
-        {% set target = target_temps.get(room, 22) %}
-        {% set threshold = target - hysteresis_k %}
+        {% set climate_entity = 'climate.room_' ~ room %}
+        {% set current_temp = state_attr(climate_entity, 'current_temperature') %}
+        {% set target_temp = state_attr(climate_entity, 'temperature') %}
+        {% if current_temp is number %}
+          {% set current = current_temp | float %}
+        {% else %}
+          {% set current = 22.0 %}
+        {% endif %}
+        {% if target_temp is number %}
+          {% set base_target = target_temp | float %}
+        {% else %}
+          {% set base_target = 22.0 %}
+        {% endif %}
+        {% set effective_target = base_target + offset %}
+        {% set threshold = effective_target - hysteresis_k %}
         {% set needs_heating = current < threshold %}
         {% set ns.m = ns.m | combine({ room: needs_heating }) %}
       {% endfor %}
