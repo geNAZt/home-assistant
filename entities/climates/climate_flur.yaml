@@ -17,7 +17,7 @@ set_temperature:
     target:
       entity_id: input_number.heating_base_flur
     data:
-      value: "{{ state_attr('input_number.heating_base_flur', 'temperature') | float }}"
+      value: "{{ state_attr('climate.climate_room_flur', 'temperature') | float }}"
 set_hvac_mode:
   - choose:
     - conditions:
