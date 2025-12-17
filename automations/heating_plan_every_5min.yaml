@@ -632,11 +632,11 @@
               target:
                 entity_id: >-
                   {% set all_rooms = rooms_json | from_json(default=[]) %}
-                  {% set climates = [] %}
+                  {% set ns = namespace(climates = []) %}
                   {% for room in all_rooms %}
-                    {% set climates = climates + ['climate.climate_room_' ~ room] %}
+                    {% set ns.climates = ns.climates + ['climate.climate_room_' ~ room] %}
                   {% endfor %}
-                  {{ climates }}
+                  {{ ns.climates }}
               data:
                 hvac_mode: "off"
         # Normal operation: Select rooms based on phase and temperature (only when NOT blocked)
