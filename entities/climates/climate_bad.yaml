@@ -1,5 +1,5 @@
 platform: climate_template
-name: bad
+name: Climate room bad
 unique_id: climate_room_bad
 modes:
 - "auto"

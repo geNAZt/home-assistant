@@ -1,5 +1,5 @@
 platform: climate_template
-name: schlafzimmer
+name: Climate room schlafzimmer
 unique_id: climate_room_schlafzimmer
 modes:
 - "auto"

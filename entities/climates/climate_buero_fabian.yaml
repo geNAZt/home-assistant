@@ -1,5 +1,5 @@
 platform: climate_template
-name: buero_fabian
+name: Climate room buero_fabian
 unique_id: climate_room_buero_fabian
 modes:
 - "auto"

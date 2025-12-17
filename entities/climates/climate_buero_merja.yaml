@@ -1,5 +1,5 @@
 platform: climate_template
-name: buero_merja
+name: Climate room buero_merja
 unique_id: climate_room_buero_merja
 modes:
 - "auto"

@@ -1,5 +1,5 @@
 platform: climate_template
-name: flur
+name: Climate room flur
 unique_id: climate_room_flur
 modes:
 - "auto"

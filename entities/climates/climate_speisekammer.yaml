@@ -1,5 +1,5 @@
 platform: climate_template
-name: speisekammer
+name: Climate room speisekammer
 unique_id: climate_room_speisekammer
 modes:
 - "auto"

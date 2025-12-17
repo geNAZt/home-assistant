@@ -1,5 +1,5 @@
 platform: climate_template
-name: kueche
+name: Climate room kueche
 unique_id: climate_room_kueche
 modes:
 - "auto"
