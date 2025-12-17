@@ -1,0 +1,10 @@
+platform: group
+type: mean
+entities:
+[[% if temperatureSensors is defined %]]
+[[% for i in range( temperatureSensors ) %]]
+- sensor.temperature_[[ room ]]_[[ i + 1 ]]
+[[% endfor %]]
+[[% else %]]
+- sensor.temperature_[[ room ]]
+[[% endif %]]

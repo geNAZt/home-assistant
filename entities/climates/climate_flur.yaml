@@ -1,0 +1,30 @@
+platform: climate_template
+name: flur
+unique_id: climate_room_flur
+modes:
+- "auto"
+- "heat"
+- "off"
+min_temp: 12
+max_temp: 40
+temp_step: 0.1
+precision: 0.1
+current_temperature_template: "{{ states('sensor.temperature_flur_mean') }}"
+availability_template: "{{ is_state('input_boolean.heating_available_flur', 'on') }}"
+target_temperature_template: "{{ states('input_number.heating_base_flur') }}"
+set_hvac_mode:
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: "{{ states('climate.climate_room_flur') == 'off' }}"
+      sequence:
+        - action: switch.turn_off
+          target:
+            entity_id: switch.heating_flur
+    - conditions:
+      - condition: template
+        value_template: "{{ states('climate.climate_room_flur') == 'heat' }}"
+      sequence:
+        - action: switch.turn_on
+          target:
+            entity_id: switch.heating_flur

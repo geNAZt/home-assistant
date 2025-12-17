@@ -1,0 +1,4 @@
+platform: group
+type: mean
+entities:
+- sensor.temperature_buero_fabian

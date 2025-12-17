@@ -1,0 +1,30 @@
+platform: climate_template
+name: buero_fabian
+unique_id: climate_room_buero_fabian
+modes:
+- "auto"
+- "heat"
+- "off"
+min_temp: 12
+max_temp: 40
+temp_step: 0.1
+precision: 0.1
+current_temperature_template: "{{ states('sensor.temperature_buero_fabian_mean') }}"
+availability_template: "{{ is_state('input_boolean.heating_available_buero_fabian', 'on') }}"
+target_temperature_template: "{{ states('input_number.heating_base_buero_fabian') }}"
+set_hvac_mode:
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: "{{ states('climate.climate_room_buero_fabian') == 'off' }}"
+      sequence:
+        - action: switch.turn_off
+          target:
+            entity_id: switch.heating_buero_fabian
+    - conditions:
+      - condition: template
+        value_template: "{{ states('climate.climate_room_buero_fabian') == 'heat' }}"
+      sequence:
+        - action: switch.turn_on
+          target:
+            entity_id: switch.heating_buero_fabian

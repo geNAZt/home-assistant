@@ -1,0 +1,21 @@
+- alias: buero_fabian Heizung Sicherheitsschalter
+  id: heating_security_switch_buero_fabian
+  description: ""
+  mode: single
+  triggers:
+    - trigger: numeric_state
+      entity_id:
+        - sensor.security_temperature_buero_fabian_max
+      for:
+        hours: 0
+        minutes: 0
+        seconds: 30
+      above: 26
+  conditions: []
+  actions:
+    - action: climate.set_hvac_mode
+      metadata: {}
+      target:
+        entity_id: climate.climate_room_buero_fabian
+      data:
+        hvac_mode: "off"

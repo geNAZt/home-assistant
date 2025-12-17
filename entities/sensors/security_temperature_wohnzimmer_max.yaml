@@ -1,0 +1,5 @@
+platform: group
+type: max
+entities:
+- sensor.temperature_wohnzimmer_floor_1
+- sensor.temperature_wohnzimmer_floor_2

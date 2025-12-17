@@ -1,0 +1,18 @@
+platform: group
+type: max
+entities:
+[[% if securityTemperatureSensors is defined %]]
+[[% for i in range( securityTemperatureSensors ) %]]
+[[% if securitySameAsTemperature is defined and securitySameAsTemperature %]]
+- sensor.temperature_[[ room ]]_[[ i + 1 ]]
+[[% else %]]
+- sensor.temperature_[[ room ]]_floor_[[ i + 1 ]]
+[[% endif %]]
+[[% endfor %]]
+[[% else %]]
+[[% if securitySameAsTemperature is defined and securitySameAsTemperature %]]
+- sensor.temperature_[[ room ]]
+[[% else %]]
+- sensor.temperature_[[ room ]]_floor_1
+[[% endif %]]
+[[% endif %]]

@@ -7,7 +7,7 @@
       to: "on"
     - platform: numeric_state
       entity_id: sensor.lux_bad
-      below: 400        # waterLowLux
+      below: 120          # waterLowLux
       for: "00:00:05"
     - platform: state
       entity_id: input_boolean.auto_light_bad
@@ -27,7 +27,7 @@
     # Lux muss UNTER 120 sein
     - condition: numeric_state
       entity_id: sensor.lux_bad
-      below: 400
+      below: 120
 
     # Licht nur einschalten, wenn es wirklich aus ist
     - condition: state

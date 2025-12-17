@@ -1,6 +1,6 @@
 - platform: group
   name: "[[room]] Lights"
   entities:
-    [[#lights]]
-    - light.light_[[id]]_[[room]]
-    [[/lights]]
+    [[% for light_id in lights %]]
+    - light.light_[[light_id]]_[[room]]
+    [[% endfor %]]

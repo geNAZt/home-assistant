@@ -1,0 +1,6 @@
+platform: group
+type: mean
+entities:
+- sensor.temperature_flur_1
+- sensor.temperature_flur_2
+- sensor.temperature_flur_3

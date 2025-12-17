@@ -80,17 +80,29 @@
         
         {# Read temperatures #}
         {% set current_temp = state_attr(climate_entity, 'current_temperature') %}
-        {% set target_temp = state_attr(climate_entity, 'temperature') %}
+        {% set current_setpoint = state_attr(climate_entity, 'temperature') %}
+        
+        {# Get base temperature from helper, or use current setpoint if helper doesn't exist #}
+        {# This prevents offset accumulation by always using the original base temperature #}
+        {% set base_helper = 'input_number.heating_base_' ~ room %}
+        {% set stored_base = states(base_helper) | float(0) %}
+        {% if stored_base > 0 %}
+          {# Use stored base temperature (original, before any offsets) #}
+          {% set base_target = stored_base %}
+        {% elif current_setpoint is number %}
+          {# No stored base yet, use current setpoint as base (will be stored when offset is first applied) #}
+          {% set base_target = current_setpoint | float %}
+        {% else %}
+          {# Fallback default #}
+          {% set base_target = 22.0 %}
+        {% endif %}
+        
         {% if current_temp is number %}
           {% set current = current_temp | float %}
         {% else %}
           {% set current = 22.0 %}
         {% endif %}
-        {% if target_temp is number %}
-          {% set base_target = target_temp | float %}
-        {% else %}
-          {% set base_target = 22.0 %}
-        {% endif %}
+        
         {% set effective_target = base_target + offset %}
         {% set error = effective_target - current %}
         
@@ -473,8 +485,70 @@
   condition: []
   action:
     # ===================================================================
-    # ACTION 1: Update temperature setpoints if offset is active
+    # ACTION 1: Update temperature setpoints based on offset
     # ===================================================================
+    # Store base temperatures and apply/reset offsets
+    - repeat:
+        for_each: "{{ rooms_json | from_json(default=[]) }}"
+        sequence:
+          - choose:
+              # If offset is active: Store base temp (if not stored) and apply offset
+              - conditions:
+                  - condition: template
+                    value_template: "{{ offset_k | float(0) > 0 }}"
+                sequence:
+                  - service: input_number.set_value
+                    target:
+                      entity_id: "input_number.heating_base_{{ repeat.item }}"
+                    data:
+                      value: >-
+                        {% set base_helper = 'input_number.heating_base_' ~ repeat.item %}
+                        {% set stored_base = states(base_helper) | float(0) %}
+                        {% set rooms_data = room_data | from_json(default={}) %}
+                        {% if stored_base > 0 %}
+                          {# Keep existing stored base #}
+                          {{ stored_base }}
+                        {% else %}
+                          {# Store current setpoint as base (before offset is applied) #}
+                          {{ rooms_data[repeat.item].base_target | float }}
+                        {% endif %}
+                  - service: climate.set_temperature
+                    target:
+                      entity_id: "climate.room_{{ repeat.item }}"
+                    data:
+                      temperature: >-
+                        {% set base_helper = 'input_number.heating_base_' ~ repeat.item %}
+                        {% set stored_base = states(base_helper) | float(0) %}
+                        {% set offset = offset_k | float(0) %}
+                        {% if stored_base > 0 %}
+                          {# Use stored base + offset #}
+                          {{ stored_base + offset }}
+                        {% else %}
+                          {# Fallback: use calculated effective target #}
+                          {% set rooms_data = room_data | from_json(default={}) %}
+                          {{ rooms_data[repeat.item].effective_target | float }}
+                        {% endif %}
+              # If offset is 0: Reset to stored base temperature (if stored)
+              - conditions:
+                  - condition: template
+                    value_template: "{{ offset_k | float(0) == 0 }}"
+                sequence:
+                  - service: climate.set_temperature
+                    target:
+                      entity_id: "climate.room_{{ repeat.item }}"
+                    data:
+                      temperature: >-
+                        {% set base_helper = 'input_number.heating_base_' ~ repeat.item %}
+                        {% set stored_base = states(base_helper) | float(0) %}
+                        {% if stored_base > 0 %}
+                          {# Reset to stored base #}
+                          {{ stored_base }}
+                        {% else %}
+                          {# No stored base: use current setpoint (don't change) #}
+                          {% set rooms_data = room_data | from_json(default={}) %}
+                          {{ rooms_data[repeat.item].base_target | float }}
+                        {% endif %}
+    # Log offset status
     - choose:
         - conditions:
             - condition: template
@@ -484,16 +558,6 @@
               data:
                 name: "Heiz-Planer"
                 message: "Offset aktiv: {{ offset_k | float(0) }}K (PV: {{ pv_offset_k | float(0) }}K, Preheat: {{ preheat_offset_k | float(0) }}K)"
-            - repeat:
-                for_each: "{{ rooms_json | from_json(default=[]) }}"
-                sequence:
-                  - service: climate.set_temperature
-                    target:
-                      entity_id: "climate.room_{{ repeat.item }}"
-                    data:
-                      temperature: >-
-                        {% set rooms_data = room_data | from_json(default={}) %}
-                        {{ rooms_data[repeat.item].effective_target | float }}
     
     # ===================================================================
     # ACTION 2: Log debug information

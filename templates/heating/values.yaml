@@ -1,0 +1,16 @@
+- room: wohnzimmer
+  securityTemperatureSensors: 2
+- room: buero_merja
+  securityTemperatureSensors: 2
+- room: buero_fabian
+- room: flur
+  temperatureSensors: 3
+  securityTemperatureSensors: 2
+- room: kueche
+  securityTemperatureSensors: 3
+- room: speisekammer
+  securityTemperatureSensors: 2
+- room: schlafzimmer
+  securityTemperatureSensors: 2
+- room: bad
+  securitySameAsTemperature: true

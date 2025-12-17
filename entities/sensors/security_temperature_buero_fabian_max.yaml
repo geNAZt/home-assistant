@@ -1,0 +1,4 @@
+platform: group
+type: max
+entities:
+- sensor.temperature_buero_fabian_floor_1

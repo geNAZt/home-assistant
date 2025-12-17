@@ -4,7 +4,7 @@ Template generator script for Home Assistant configuration.
 
 This script processes template files in the templates/ directory:
 - Reads values.yaml from each subfolder
-- Uses Mustache templating engine to template filenames and content
+- Uses Jinja2 templating engine to template filenames and content
 - Generates output files with templated values
 """
 
@@ -13,9 +13,9 @@ from pathlib import Path
 from typing import Dict, List, Any
 
 try:
-    import chevron
+    from jinja2 import Environment, BaseLoader
 except ImportError:
-    print("Error: chevron package is required. Install it with: pip install chevron")
+    print("Error: jinja2 package is required. Install it with: pip install jinja2")
     exit(1)
 
 try:
@@ -25,47 +25,65 @@ except ImportError:
     exit(1)
 
 
-def load_values(values_path: Path) -> Dict[str, List[str]]:
-    """Load values.yaml and return as dictionary.
+def load_values(values_path: Path) -> List[Dict]:
+    """Load values.yaml and return as list of dictionaries.
     
-    Uses proper YAML parsing to handle the format: key: ["value1", "value2"]
+    Uses proper YAML parsing to handle the format.
     """
     with open(values_path, 'r', encoding='utf-8') as f:
         data = yaml.safe_load(f)
     
     if not data:
-        return {}
+        return []
     
-    # Convert all values to lists of strings
-    result = {}
-    for key, value in data.items():
-        if isinstance(value, list):
-            # Convert each item in the list to string
-            result[key] = [str(item) for item in value]
-        else:
-            # If it's not a list, wrap it in a list and convert to string
-            result[key] = [str(value)]
+    return data
+
+
+def create_jinja_env() -> Environment:
+    """Create Jinja2 environment with custom delimiters to avoid conflicts with Home Assistant templates.
     
-    return result
+    Uses [[ and ]] for variables and [[% and %]] for blocks to avoid conflicts with Home Assistant's {{ and {% syntax.
+    """
+    return Environment(
+        loader=BaseLoader(),
+        variable_start_string='[[',
+        variable_end_string=']]',
+        block_start_string='[[%',
+        block_end_string='%]]',
+        comment_start_string='[[#',
+        comment_end_string='#]]',
+        trim_blocks=True,
+        lstrip_blocks=True
+    )
 
 
 def template_content(content: str, context: Dict[str, Any]) -> str:
-    """Template the content using Mustache with custom delimiters to avoid conflicts with Home Assistant templates.
+    """Template the content using Jinja2 with custom delimiters to avoid conflicts with Home Assistant templates.
     
-    Uses [[ and ]] as delimiters to avoid conflicts with Home Assistant's {{ and {% syntax.
+    Uses [[ and ]] for variables and [[% and %]] for blocks to avoid conflicts with Home Assistant's {{ and {% syntax.
     """
-    # Use custom delimiters [[ and ]] to avoid conflicts with Home Assistant templates
-    return chevron.render(content, context, def_ldel='[[', def_rdel=']]')
+    env = create_jinja_env()
+    template = env.from_string(content)
+    return template.render(**context)
 
 
 def template_filename(filename: str, context: Dict[str, Any]) -> str:
-    """Template the filename - handle both old <% var %> and new [[var]] syntax."""
-    result = filename
-    # Replace Mustache syntax in filenames (using [[ ]] delimiters)
-    result = result.replace('[[room]]', context.get('room', ''))
-    # Also handle old syntax for backward compatibility
-    result = result.replace('<% room %>', context.get('room', ''))
-    return result
+    """Template the filename using Jinja2 with <% and %> delimiters for variables only."""
+    # For filenames, we only need variable substitution, so use simple string replacement
+    # or create a minimal Jinja2 environment
+    env = Environment(
+        loader=BaseLoader(),
+        variable_start_string='<%',
+        variable_end_string='%>',
+        block_start_string='<%#',  # Different from variable start
+        block_end_string='%>',
+        comment_start_string='<%!',  # Different from both
+        comment_end_string='%>',
+        trim_blocks=True,
+        lstrip_blocks=True
+    )
+    template = env.from_string(filename)
+    return template.render(**context)
 
 
 def process_template_file(template_path: Path, output_base: Path, context: Dict[str, Any], template_dir: Path):
@@ -122,7 +140,7 @@ def process_template_folder(template_folder: Path, output_base: Path):
         return
     
     print(f"\nProcessing template folder: {template_folder.name}")
-    print(f"Found {len(values)} rooms: {', '.join(values.keys())}")
+    print(f"Found {len(values)} room items")
     
     # Find all YAML files (excluding values.yaml)
     yaml_files = []
@@ -132,16 +150,11 @@ def process_template_folder(template_folder: Path, output_base: Path):
                 yaml_files.append(Path(root) / file)
     
     # Process each room
-    for room, ids in values.items():
-        print(f"\n  Processing room: {room} (ids: {ids})")
+    for item in values:
+        print(f"\n  Processing item: {item}")
         
         # Create Mustache context
-        # Convert ids list to list of objects for Mustache iteration
-        lights = [{'id': str(light_id)} for light_id in ids]
-        context = {
-            'room': room,
-            'lights': lights
-        }
+        context = item
         
         # Process each template file
         for template_file in yaml_files:
