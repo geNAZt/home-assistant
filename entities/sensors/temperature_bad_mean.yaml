@@ -1,4 +1,5 @@
 platform: group
+name: Temperature bad Mean
 type: mean
 entities:
 - sensor.temperature_bad

@@ -1,4 +1,5 @@
 platform: group
+name: Temperature buero_merja Mean
 type: mean
 entities:
 - sensor.temperature_buero_merja

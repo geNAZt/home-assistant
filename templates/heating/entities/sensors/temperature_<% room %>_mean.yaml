@@ -1,4 +1,5 @@
 platform: group
+name: Temperature [[ room ]] Mean
 type: mean
 entities:
 [[% if temperatureSensors is defined %]]

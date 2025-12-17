@@ -1,4 +1,5 @@
 platform: group
+name: Temperature buero_fabian Mean
 type: mean
 entities:
 - sensor.temperature_buero_fabian

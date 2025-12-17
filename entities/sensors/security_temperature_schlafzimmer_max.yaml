@@ -1,5 +1,6 @@
 platform: group
 type: max
+name: Security Temperature schlafzimmer Max
 entities:
 - sensor.temperature_schlafzimmer_floor_1
 - sensor.temperature_schlafzimmer_floor_2

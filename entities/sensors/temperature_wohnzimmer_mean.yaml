@@ -1,4 +1,5 @@
 platform: group
+name: Temperature wohnzimmer Mean
 type: mean
 entities:
 - sensor.temperature_wohnzimmer

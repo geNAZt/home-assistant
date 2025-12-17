@@ -1,4 +1,5 @@
 platform: group
+name: Temperature flur Mean
 type: mean
 entities:
 - sensor.temperature_flur_1

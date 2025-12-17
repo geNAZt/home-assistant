@@ -1,4 +1,5 @@
 platform: group
 type: max
+name: Security Temperature bad Max
 entities:
 - sensor.temperature_bad

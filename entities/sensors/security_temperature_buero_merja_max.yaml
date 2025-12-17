@@ -1,5 +1,6 @@
 platform: group
 type: max
+name: Security Temperature buero_merja Max
 entities:
 - sensor.temperature_buero_merja_floor_1
 - sensor.temperature_buero_merja_floor_2

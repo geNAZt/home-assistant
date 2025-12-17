@@ -1,5 +1,6 @@
 platform: group
 type: max
+name: Security Temperature [[ room ]] Max
 entities:
 [[% if securityTemperatureSensors is defined %]]
 [[% for i in range( securityTemperatureSensors ) %]]

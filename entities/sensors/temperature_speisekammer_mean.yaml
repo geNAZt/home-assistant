@@ -1,4 +1,5 @@
 platform: group
+name: Temperature speisekammer Mean
 type: mean
 entities:
 - sensor.temperature_speisekammer

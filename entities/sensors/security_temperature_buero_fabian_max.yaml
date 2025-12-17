@@ -1,4 +1,5 @@
 platform: group
 type: max
+name: Security Temperature buero_fabian Max
 entities:
 - sensor.temperature_buero_fabian_floor_1
