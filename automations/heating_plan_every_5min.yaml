@@ -29,7 +29,18 @@
     heating_block_enabled: "{{ is_state('input_boolean.heating_block_daytime', 'on') }}"
     
     # Check if heating should be blocked (blocking enabled AND outside preheat window)
-    heating_blocked: "{{ heating_block_enabled and not is_preheat_window }}"
+    heating_blocked: >-
+      {% set block_enabled = is_state('input_boolean.heating_block_daytime', 'on') %}
+      {% set preheat_active = is_preheat_window %}
+      {% if block_enabled %}
+        {% if not preheat_active %}
+          true
+        {% else %}
+          false
+        {% endif %}
+      {% else %}
+        false
+      {% endif %}
     
     C_eff: "{{ states('sensor.C_kWh_per_K_rolling') | float(10) }}"
     H_eff: "{{ states('sensor.H_kW_per_K_rolling_sql') | float(6.25) }}"
@@ -506,7 +517,7 @@
     - choose:
         - conditions:
             - condition: template
-              value_template: "{{ not heating_blocked }}"
+              value_template: "{{ heating_blocked != 'true' }}"
           sequence:
             - repeat:
                 for_each: "{{ rooms_json | from_json(default=[]) }}"
@@ -595,7 +606,7 @@
         # If heating is blocked (blocking enabled AND outside preheat window), explicitly set all climates to OFF
         - conditions:
             - condition: template
-              value_template: "{{ heating_blocked }}"
+              value_template: "{{ heating_blocked == 'true' }}"
           sequence:
             - service: logbook.log
               data:
@@ -616,7 +627,7 @@
         # Normal operation: Select rooms based on phase and temperature (only when NOT blocked)
         - conditions:
             - condition: template
-              value_template: "{{ not heating_blocked }}"
+              value_template: "{{ heating_blocked != 'true' }}"
           sequence:
             - parallel:
                 # Set HVAC mode to "heat" for selected rooms
