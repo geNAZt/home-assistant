@@ -73,7 +73,7 @@
       {% set ns = namespace(rooms = {}) %}
       
       {% for room in rooms %}
-        {% set climate_entity = 'climate.room_' ~ room %}
+        {% set climate_entity = 'climate.climate_room_' ~ room %}
         {% set sensor_l1 = 'sensor.current_l1_' ~ room ~ '_current' %}
         {% set sensor_l2 = 'sensor.current_l2_' ~ room ~ '_current' %}
         {% set sensor_l3 = 'sensor.current_l3_' ~ room ~ '_current' %}
@@ -296,7 +296,7 @@
         {% endfor %}
       {% endfor %}
       {% for room in ns.selected_rooms %}
-        {% set ns.climates = ns.climates + ['climate.room_' ~ room] %}
+        {% set ns.climates = ns.climates + ['climate.climate_room_' ~ room] %}
       {% endfor %}
       {{ (ns.climates | tojson) | string }}
     
@@ -325,7 +325,7 @@
       {% endfor %}
       {% for room in all_rooms %}
         {% if room not in ns.selected_rooms %}
-          {% set ns.climates = ns.climates + ['climate.room_' ~ room] %}
+          {% set ns.climates = ns.climates + ['climate.climate_room_' ~ room] %}
         {% endif %}
       {% endfor %}
       {{ (ns.climates | tojson) | string }}
@@ -428,11 +428,11 @@
       {% set ns.climates_on_list = [] %}
       {% set ns.climates_off_list = [] %}
       {% for room in ns.selected_rooms_debug %}
-        {% set ns.climates_on_list = ns.climates_on_list + ['climate.room_' ~ room] %}
+        {% set ns.climates_on_list = ns.climates_on_list + ['climate.climate_room_' ~ room] %}
       {% endfor %}
       {% for room in rooms %}
         {% if room not in ns.selected_rooms_debug %}
-          {% set ns.climates_off_list = ns.climates_off_list + ['climate.room_' ~ room] %}
+          {% set ns.climates_off_list = ns.climates_off_list + ['climate.climate_room_' ~ room] %}
         {% endif %}
       {% endfor %}
       
@@ -514,7 +514,7 @@
                         {% endif %}
                   - service: climate.set_temperature
                     target:
-                      entity_id: "climate.room_{{ repeat.item }}"
+                      entity_id: "climate.climate_room_{{ repeat.item }}"
                     data:
                       temperature: >-
                         {% set base_helper = 'input_number.heating_base_' ~ repeat.item %}
@@ -535,7 +535,7 @@
                 sequence:
                   - service: climate.set_temperature
                     target:
-                      entity_id: "climate.room_{{ repeat.item }}"
+                      entity_id: "climate.climate_room_{{ repeat.item }}"
                     data:
                       temperature: >-
                         {% set base_helper = 'input_number.heating_base_' ~ repeat.item %}
@@ -586,7 +586,7 @@
                   {% set all_rooms = rooms_json | from_json(default=[]) %}
                   {% set climates = [] %}
                   {% for room in all_rooms %}
-                    {% set climates = climates + ['climate.room_' ~ room] %}
+                    {% set climates = climates + ['climate.climate_room_' ~ room] %}
                   {% endfor %}
                   {{ climates }}
               data:
@@ -628,7 +628,7 @@
                         {% endfor %}
                       {% endfor %}
                       {% for room in ns.selected_rooms %}
-                        {% set ns.climates = ns.climates + ['climate.room_' ~ room] %}
+                        {% set ns.climates = ns.climates + ['climate.climate_room_' ~ room] %}
                       {% endfor %}
                       {{ ns.climates }}
                   data:
@@ -667,7 +667,7 @@
                       {% endfor %}
                       {% for room in all_rooms %}
                         {% if room not in ns.selected_rooms %}
-                          {% set ns.climates = ns.climates + ['climate.room_' ~ room] %}
+                          {% set ns.climates = ns.climates + ['climate.climate_room_' ~ room] %}
                         {% endif %}
                       {% endfor %}
                       {{ ns.climates }}
