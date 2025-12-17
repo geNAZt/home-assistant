@@ -520,7 +520,13 @@
     - choose:
         - conditions:
             - condition: template
-              value_template: "{{ heating_blocked != 'true' }}"
+              value_template: >-
+                {% set block_enabled = is_state('input_boolean.heating_block_daytime', 'on') %}
+                {% set current_ts = as_timestamp(now()) %}
+                {% set window_start = as_timestamp(now().replace(hour=0, minute=0, second=0, microsecond=0)) %}
+                {% set window_end = as_timestamp(now().replace(hour=6, minute=0, second=0, microsecond=0)) %}
+                {% set preheat_active = window_start <= current_ts < window_end %}
+                {{ not block_enabled or preheat_active }}
           sequence:
             - repeat:
                 for_each: "{{ rooms_json | from_json(default=[]) }}"
@@ -609,7 +615,13 @@
         # If heating is blocked (blocking enabled AND outside preheat window), explicitly set all climates to OFF
         - conditions:
             - condition: template
-              value_template: "{{ heating_blocked == 'true' }}"
+              value_template: >-
+                {% set block_enabled = is_state('input_boolean.heating_block_daytime', 'on') %}
+                {% set current_ts = as_timestamp(now()) %}
+                {% set window_start = as_timestamp(now().replace(hour=0, minute=0, second=0, microsecond=0)) %}
+                {% set window_end = as_timestamp(now().replace(hour=6, minute=0, second=0, microsecond=0)) %}
+                {% set preheat_active = window_start <= current_ts < window_end %}
+                {{ block_enabled and not preheat_active }}
           sequence:
             - service: logbook.log
               data:
@@ -630,7 +642,13 @@
         # Normal operation: Select rooms based on phase and temperature (only when NOT blocked)
         - conditions:
             - condition: template
-              value_template: "{{ heating_blocked != 'true' }}"
+              value_template: >-
+                {% set block_enabled = is_state('input_boolean.heating_block_daytime', 'on') %}
+                {% set current_ts = as_timestamp(now()) %}
+                {% set window_start = as_timestamp(now().replace(hour=0, minute=0, second=0, microsecond=0)) %}
+                {% set window_end = as_timestamp(now().replace(hour=6, minute=0, second=0, microsecond=0)) %}
+                {% set preheat_active = window_start <= current_ts < window_end %}
+                {{ not block_enabled or preheat_active }}
           sequence:
             - parallel:
                 # Set HVAC mode to "heat" for selected rooms
