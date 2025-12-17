@@ -11,7 +11,13 @@ temp_step: 0.1
 precision: 0.1
 current_temperature_template: "{{ states('sensor.temperature_speisekammer_mean') }}"
 availability_template: "{{ is_state('input_boolean.heating_available_speisekammer', 'on') }}"
-set_temperature: []
+target_temperature_template: "{{ states('input_number.heating_final_speisekammer') }}"
+set_temperature:
+  - action: input_number.set_value
+    target:
+      entity_id: input_number.heating_final_speisekammer
+    data:
+      value: "{{ state_attr('climate.climate_room_speisekammer', 'temperature') | float }}"
 set_hvac_mode:
   - choose:
     - conditions:
