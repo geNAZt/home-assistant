@@ -31,8 +31,11 @@
     # Check if heating should be blocked (blocking enabled AND outside preheat window)
     heating_blocked: >-
       {% set block_enabled = is_state('input_boolean.heating_block_daytime', 'on') %}
-      {% set preheat_active = is_preheat_window %}
       {% if block_enabled %}
+        {% set current_ts = as_timestamp(now()) %}
+        {% set window_start = as_timestamp(now().replace(hour=0, minute=0, second=0, microsecond=0)) %}
+        {% set window_end = as_timestamp(now().replace(hour=6, minute=0, second=0, microsecond=0)) %}
+        {% set preheat_active = window_start <= current_ts < window_end %}
         {% if not preheat_active %}
           true
         {% else %}
