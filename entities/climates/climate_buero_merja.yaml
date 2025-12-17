@@ -11,13 +11,7 @@ temp_step: 0.1
 precision: 0.1
 current_temperature_template: "{{ states('sensor.temperature_buero_merja_mean') }}"
 availability_template: "{{ is_state('input_boolean.heating_available_buero_merja', 'on') }}"
-target_temperature_template: "{{ states('input_number.heating_base_buero_merja') }}"
-set_temperature:
-  - action: input_number.set_value
-    target:
-      entity_id: input_number.heating_base_buero_merja
-    data:
-      value: "{{ state_attr('climate.climate_room_buero_merja', 'temperature') | float }}"
+set_temperature: []
 set_hvac_mode:
   - choose:
     - conditions:
