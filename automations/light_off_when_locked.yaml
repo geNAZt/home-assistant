@@ -13,11 +13,11 @@
     data: {}
     target:
       entity_id:
-      - light.room_bad
-      - light.room_buero_fabian
-      - light.room_buero_merja
-      - light.room_flur
-      - light.room_kueche
-      - light.room_schlafzimmer
-      - light.room_speisekammer
-      - light.room_wohnzimmer
+      - light.licht_bad_virtuell
+      - light.licht_buero_fabian_virtuell
+      - light.licht_buero_merja_virtuell
+      - light.licht_flur_virtuell
+      - light.licht_kueche_virtuell
+      - light.licht_schlafzimmer_virtuell
+      - light.licht_speisekammer_virtuell
+      - light.licht_wohnzimmer_virtuell
