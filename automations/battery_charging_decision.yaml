@@ -1,0 +1,289 @@
+- id: battery_charging_decision
+  alias: Battery Charging Decision
+  description: Decides when to charge the battery based on time, battery state, and PV forecast
+  mode: single
+  trigger:
+    - platform: time_pattern
+      minutes: "/1"
+  variables:
+    # Current time and hour
+    current_hour: "{{ now().hour }}"
+    is_charge_window: >-
+      {% set hour = current_hour | int(0) %}
+      {{ hour >= 0 and hour < 6 }}
+    
+    # Battery state
+    battery_soc: "{{ states('sensor.pv_battery1_state_of_charge') | float(0) }}"
+    battery_max_capacity_wh: "{{ states('sensor.pv_battery1_size_max') | float(0) }}"
+    battery_max_capacity_kwh: "{{ (battery_max_capacity_wh / 1000.0) | float(0) }}"
+    
+    # Battery energy calculations
+    battery_current_energy_kwh: "{{ (battery_max_capacity_kwh * battery_soc / 100.0) | float(0) }}"
+    target_soc: 75.0
+    target_energy_kwh: "{{ (battery_max_capacity_kwh * target_soc / 100.0) | float(0) }}"
+    energy_to_75_percent_kwh: "{{ (target_energy_kwh - battery_current_energy_kwh) | float(0) }}"
+    
+    # Manual override
+    override_enabled: "{{ is_state('input_boolean.charge_solar_battery_override', 'on') }}"
+    
+    # Time calculations for charge window (00:00 to 06:00)
+    now_ts: "{{ as_timestamp(now()) }}"
+    end_time_6am: "{{ as_timestamp(now().replace(hour=6, minute=0, second=0, microsecond=0)) }}"
+    hours_until_6am: "{{ ((end_time_6am - now_ts) / 3600.0) | float(0) }}"
+    charging_hours: >-
+      {% set hours = hours_until_6am | float(0) %}
+      {% if hours < 0.1 %}
+        0.1
+      {% else %}
+        {{ hours }}
+      {% endif %}
+    
+    # PV start wattage threshold
+    pv_start_wattage: 500
+    
+  condition: []
+  action:
+    # First, query Solcast forecast to analyze PV production
+    - service: solcast_solar.query_forecast_data
+      data:
+        start_date_time: "{{ now().isoformat() }}"
+        end_date_time: "{{ (now() + timedelta(hours=24)).isoformat() }}"
+      response_variable: solcast_response
+    - variables:
+        # Extract forecast data from response (handle different response structures)
+        forecast_data: >-
+          {% set resp = solcast_response | default({}) %}
+          {% if resp.result is defined and resp.result.response is defined %}
+            {{ resp.result.response.data | default([]) }}
+          {% elif resp.response is defined and resp.response.data is defined %}
+            {{ resp.response.data | default([]) }}
+          {% elif resp.data is defined %}
+            {{ resp.data | default([]) }}
+          {% else %}
+            []
+          {% endif %}
+        
+        # Calculate total PV production until 16:00 today
+        pv_total_until_16h_kwh: >-
+          {% set forecast = forecast_data | default([]) %}
+          {% set now_ts_val = now_ts | float(0) %}
+          {% set target_16h = as_timestamp(now().replace(hour=16, minute=0, second=0, microsecond=0)) | float(0) %}
+          {% set ns = namespace(total=0.0) %}
+          
+          {% if forecast | length > 0 %}
+            {% for item in forecast %}
+              {% set item_time_str = item.period_start | default('') %}
+              {% if item_time_str %}
+                {% set item_ts = as_timestamp(item_time_str) | float(0) %}
+                {% if item_ts >= now_ts_val and item_ts <= target_16h %}
+                  {% set pv_kw = (item.pv_estimate | default(0)) | float(0) %}
+                  {# Solcast provides kW, convert to kWh (30-minute intervals = 0.5 hours) #}
+                  {% set ns.total = ns.total + (pv_kw * 0.5) %}
+                {% endif %}
+              {% endif %}
+            {% endfor %}
+          {% endif %}
+          
+          {{ ns.total | float(0) }}
+        
+        # Check if PV is enough to charge battery to 75% by 16:00
+        pv_enough_to_charge: >-
+          {% set pv_total = pv_total_until_16h_kwh | float(0) %}
+          {% set energy_needed = energy_to_75_percent_kwh | float(0) %}
+          {{ pv_total >= energy_needed if energy_needed > 0 else true }}
+        
+        # Find when PV reaches start wattage (500W)
+        pv_start_time_str: >-
+          {% set forecast = forecast_data | default([]) %}
+          {% set now_ts_val = now_ts | float(0) %}
+          {% set threshold_kw = (pv_start_wattage / 1000.0) | float(0) %}
+          {% set ns = namespace(found_time=None) %}
+          
+          {% if forecast | length > 0 %}
+            {% for item in forecast %}
+              {% set item_time_str = item.period_start | default('') %}
+              {% if item_time_str and not ns.found_time %}
+                {% set item_ts = as_timestamp(item_time_str) | float(0) %}
+                {% if item_ts > now_ts_val %}
+                  {% set pv_kw = (item.pv_estimate | default(0)) | float(0) %}
+                  {% if pv_kw >= threshold_kw %}
+                    {% set ns.found_time = item_time_str %}
+                  {% endif %}
+                {% endif %}
+              {% endif %}
+            {% endfor %}
+          {% endif %}
+          
+          {{ ns.found_time | default('') }}
+        
+        # Calculate energy needed until PV starts (assuming 500W consumption)
+        energy_until_pv_start_kwh: >-
+          {% set pv_start = pv_start_time_str | default('') %}
+          {% if pv_start and pv_enough_to_charge %}
+            {% set pv_start_ts = as_timestamp(pv_start) | float(0) %}
+            {% set now_ts_val = now_ts | float(0) %}
+            {% set hours_until_pv = ((pv_start_ts - now_ts_val) / 3600.0) | float(0) %}
+            {% if hours_until_pv > 0 %}
+              {# Assume 500W average consumption until PV starts #}
+              {{ ((pv_start_wattage / 1000.0) * hours_until_pv) | float(0) }}
+            {% else %}
+              0.0
+            {% endif %}
+          {% else %}
+            0.0
+          {% endif %}
+        
+        # Determine target energy based on PV forecast
+        # If PV is enough: charge only until PV starts
+        # If PV is not enough: charge to 75% target
+        calculated_target_energy_kwh: >-
+          {% set pv_enough = pv_enough_to_charge | default(false) %}
+          {% set base_target = target_energy_kwh | float(0) %}
+          {% if pv_enough %}
+            {# PV is enough - charge only until PV starts #}
+            {% set energy_until_pv = energy_until_pv_start_kwh | float(0) %}
+            {% set current_energy = battery_current_energy_kwh | float(0) %}
+            {% set target = current_energy + energy_until_pv %}
+            {# Don't exceed 75% target #}
+            {% if target > base_target %}
+              {{ base_target }}
+            {% else %}
+              {{ target }}
+            {% endif %}
+          {% else %}
+            {# PV is not enough - charge to 75% target #}
+            {{ base_target }}
+          {% endif %}
+        
+        # Calculate energy needed to reach target
+        energy_needed_kwh: "{{ (calculated_target_energy_kwh - battery_current_energy_kwh) | float(0) }}"
+        
+        # Calculate required charging power (W) to reach target in remaining hours
+        charging_power_w: >-
+          {% if energy_needed_kwh > 0.01 and charging_hours > 0 %}
+            {% set power = (energy_needed_kwh / charging_hours) * 1000.0 %}
+            {% if power > 5000 %}
+              5000
+            {% else %}
+              {{ power | int }}
+            {% endif %}
+          {% else %}
+            0
+          {% endif %}
+        
+        # Debug logbook data
+        dbg: >-
+          {% set debug_data = {
+            'timestamp': now().isoformat(),
+            'time': {
+              'current_hour': current_hour | int(0),
+              'is_charge_window': is_charge_window,
+              'hours_until_6am': hours_until_6am | float(0),
+              'charging_hours': charging_hours | float(0)
+            },
+            'battery': {
+              'soc_percent': battery_soc | float(0),
+              'max_capacity_kwh': battery_max_capacity_kwh | float(0),
+              'current_energy_kwh': battery_current_energy_kwh | float(0),
+              'target_soc_percent': target_soc | float(0),
+              'target_energy_kwh': target_energy_kwh | float(0),
+              'energy_to_75_percent_kwh': energy_to_75_percent_kwh | float(0)
+            },
+            'pv_forecast': {
+              'total_until_16h_kwh': pv_total_until_16h_kwh | float(0),
+              'enough_to_charge': pv_enough_to_charge,
+              'start_time': pv_start_time_str | default('not_found'),
+              'start_wattage': pv_start_wattage | int(0),
+              'energy_until_pv_start_kwh': energy_until_pv_start_kwh | float(0)
+            },
+            'charging': {
+              'calculated_target_energy_kwh': calculated_target_energy_kwh | float(0),
+              'energy_needed_kwh': energy_needed_kwh | float(0),
+              'charging_power_w': charging_power_w | int(0)
+            },
+            'override': {
+              'enabled': override_enabled
+            }
+          } %}
+          {{ (debug_data | tojson) | string }}
+    
+    - choose:
+        # Handle manual override
+        - conditions:
+            - condition: template
+              value_template: "{{ override_enabled }}"
+          sequence:
+            - service: logbook.log
+              data:
+                name: "Battery Charging"
+                message: "Override enabled - enabling battery charging"
+            - service: select.select_option
+              target:
+                entity_id: select.pv_storage_remote_command_mode
+              data:
+                option: "Charge from PV and AC"
+            - service: number.set_value
+              target:
+                entity_id: number.pv_storage_remote_charge_limit
+              data:
+                value: 5000
+        
+        # Handle charge window (00:00 to 06:00)
+        - conditions:
+            - condition: template
+              value_template: "{{ is_charge_window }}"
+            - condition: template
+              value_template: "{{ energy_needed_kwh > 0.01 }}"
+            - condition: template
+              value_template: "{{ charging_hours > 0 }}"
+          sequence:
+            - service: logbook.log
+              data:
+                name: "Battery Charging"
+                message: >-
+                  Charge window active: Need {{ energy_needed_kwh | round(2) }} kWh 
+                  over {{ charging_hours | round(2) }} hours = {{ charging_power_w }}W
+                  (PV enough: {{ pv_enough_to_charge }}, 
+                  PV until 16h: {{ pv_total_until_16h_kwh | round(2) }} kWh,
+                  Energy until PV start: {{ energy_until_pv_start_kwh | round(2) }} kWh,
+                  Target: {{ calculated_target_energy_kwh | round(2) }} kWh)
+            - service: logbook.log
+              data:
+                name: "Battery Charging Debug"
+                message: "{{ dbg }}"
+            - service: select.select_option
+              target:
+                entity_id: select.pv_storage_remote_command_mode
+              data:
+                option: "Charge from PV and AC"
+            - service: number.set_value
+              target:
+                entity_id: number.pv_storage_remote_charge_limit
+              data:
+                value: "{{ charging_power_w }}"
+        
+        # Default: Maximize self consumption (outside charge window or if no charging needed)
+        - conditions: []
+          sequence:
+            - service: logbook.log
+              data:
+                name: "Battery Charging"
+                message: >-
+                  Setting to maximize self consumption 
+                  (SoC: {{ battery_soc | round(1) }}%, 
+                  Hour: {{ current_hour }},
+                  In charge window: {{ is_charge_window }})
+            - service: logbook.log
+              data:
+                name: "Battery Charging Debug"
+                message: "{{ dbg }}"
+            - service: select.select_option
+              target:
+                entity_id: select.pv_storage_remote_command_mode
+              data:
+                option: "Maximize self consumption"
+            - service: number.set_value
+              target:
+                entity_id: number.pv_storage_remote_charge_limit
+              data:
+                value: 5000
