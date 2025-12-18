@@ -514,81 +514,69 @@
   condition: []
   action:
     # ===================================================================
-    # ACTION 1: Update temperature setpoints based on offset (skip if heating blocked)
+    # ACTION 1: Update temperature setpoints based on offset (always executed)
     # ===================================================================
-    # Store base temperatures and apply/reset offsets (only when NOT blocked)
-    - choose:
-        - conditions:
-            - condition: template
-              value_template: >-
-                {% set block_enabled = is_state('input_boolean.heating_block_daytime', 'on') %}
-                {% set current_ts = as_timestamp(now()) %}
-                {% set window_start = as_timestamp(now().replace(hour=0, minute=0, second=0, microsecond=0)) %}
-                {% set window_end = as_timestamp(now().replace(hour=6, minute=0, second=0, microsecond=0)) %}
-                {% set preheat_active = window_start <= current_ts < window_end %}
-                {{ not block_enabled or preheat_active }}
-          sequence:
-            - repeat:
-                for_each: "{{ rooms_json | from_json(default=[]) }}"
+    # Store base temperatures and apply/reset offsets (always, regardless of blocking)
+    - repeat:
+        for_each: "{{ rooms_json | from_json(default=[]) }}"
+        sequence:
+          - choose:
+              # If offset is active: Store base temp (if not stored) and apply offset
+              - conditions:
+                  - condition: template
+                    value_template: "{{ offset_k | float(0) > 0 }}"
                 sequence:
-                  - choose:
-                      # If offset is active: Store base temp (if not stored) and apply offset
-                      - conditions:
-                          - condition: template
-                            value_template: "{{ offset_k | float(0) > 0 }}"
-                        sequence:
-                          - service: input_number.set_value
-                            target:
-                              entity_id: "input_number.heating_base_{{ repeat.item }}"
-                            data:
-                              value: >-
-                                {% set base_helper = 'input_number.heating_base_' ~ repeat.item %}
-                                {% set stored_base = states(base_helper) | float(0) %}
-                                {% set rooms_data = room_data | from_json(default={}) %}
-                                {% if stored_base > 0 %}
-                                  {# Keep existing stored base #}
-                                  {{ stored_base }}
-                                {% else %}
-                                  {# Store current setpoint as base (before offset is applied) #}
-                                  {{ rooms_data[repeat.item].base_target | float }}
-                                {% endif %}
-                          - service: climate.set_temperature
-                            target:
-                              entity_id: "climate.climate_room_{{ repeat.item }}"
-                            data:
-                              temperature: >-
-                                {% set base_helper = 'input_number.heating_base_' ~ repeat.item %}
-                                {% set stored_base = states(base_helper) | float(0) %}
-                                {% set offset = offset_k | float(0) %}
-                                {% if stored_base > 0 %}
-                                  {# Use stored base + offset #}
-                                  {{ stored_base + offset }}
-                                {% else %}
-                                  {# Fallback: use calculated effective target #}
-                                  {% set rooms_data = room_data | from_json(default={}) %}
-                                  {{ rooms_data[repeat.item].effective_target | float }}
-                                {% endif %}
-                      # If offset is 0: Reset to stored base temperature (if stored)
-                      - conditions:
-                          - condition: template
-                            value_template: "{{ offset_k | float(0) == 0 }}"
-                        sequence:
-                          - service: climate.set_temperature
-                            target:
-                              entity_id: "climate.climate_room_{{ repeat.item }}"
-                            data:
-                              temperature: >-
-                                {% set base_helper = 'input_number.heating_base_' ~ repeat.item %}
-                                {% set stored_base = states(base_helper) | float(0) %}
-                                {% if stored_base > 0 %}
-                                  {# Reset to stored base #}
-                                  {{ stored_base }}
-                                {% else %}
-                                  {# No stored base: use current setpoint (don't change) #}
-                                  {% set rooms_data = room_data | from_json(default={}) %}
-                                  {{ rooms_data[repeat.item].base_target | float }}
-                                {% endif %}
-            # When heating is blocked, skip temperature adjustments
+                  - service: input_number.set_value
+                    target:
+                      entity_id: "input_number.heating_base_{{ repeat.item }}"
+                    data:
+                      value: >-
+                        {% set base_helper = 'input_number.heating_base_' ~ repeat.item %}
+                        {% set stored_base = states(base_helper) | float(0) %}
+                        {% set rooms_data = room_data | from_json(default={}) %}
+                        {% if stored_base > 0 %}
+                          {# Keep existing stored base #}
+                          {{ stored_base }}
+                        {% else %}
+                          {# Store current setpoint as base (before offset is applied) #}
+                          {{ rooms_data[repeat.item].base_target | float }}
+                        {% endif %}
+                  - service: climate.set_temperature
+                    target:
+                      entity_id: "climate.climate_room_{{ repeat.item }}"
+                    data:
+                      temperature: >-
+                        {% set base_helper = 'input_number.heating_base_' ~ repeat.item %}
+                        {% set stored_base = states(base_helper) | float(0) %}
+                        {% set offset = offset_k | float(0) %}
+                        {% if stored_base > 0 %}
+                          {# Use stored base + offset #}
+                          {{ stored_base + offset }}
+                        {% else %}
+                          {# Fallback: use calculated effective target #}
+                          {% set rooms_data = room_data | from_json(default={}) %}
+                          {{ rooms_data[repeat.item].effective_target | float }}
+                        {% endif %}
+              # If offset is 0: Reset to stored base temperature (if stored)
+              - conditions:
+                  - condition: template
+                    value_template: "{{ offset_k | float(0) == 0 }}"
+                sequence:
+                  - service: climate.set_temperature
+                    target:
+                      entity_id: "climate.climate_room_{{ repeat.item }}"
+                    data:
+                      temperature: >-
+                        {% set base_helper = 'input_number.heating_base_' ~ repeat.item %}
+                        {% set stored_base = states(base_helper) | float(0) %}
+                        {% if stored_base > 0 %}
+                          {# Reset to stored base #}
+                          {{ stored_base }}
+                        {% else %}
+                          {# No stored base: use current setpoint (don't change) #}
+                          {% set rooms_data = room_data | from_json(default={}) %}
+                          {{ rooms_data[repeat.item].base_target | float }}
+                        {% endif %}
     # Log offset status
     - choose:
         - conditions:
