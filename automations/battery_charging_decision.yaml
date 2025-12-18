@@ -53,32 +53,45 @@
         # Extract forecast data from response (handle different response structures)
         forecast_data: >-
           {% set resp = solcast_response | default({}) %}
+          {% set ns = namespace(data=[]) %}
           {% if resp.result is defined and resp.result.response is defined %}
-            {{ resp.result.response.data | default([]) }}
+            {% set ns.data = resp.result.response.data | default([]) %}
           {% elif resp.response is defined and resp.response.data is defined %}
-            {{ resp.response.data | default([]) }}
+            {% set ns.data = resp.response.data | default([]) %}
           {% elif resp.data is defined %}
-            {{ resp.data | default([]) }}
-          {% else %}
-            []
+            {% set ns.data = resp.data | default([]) %}
           {% endif %}
+          {{ ns.data }}
         
         # Calculate total PV production until 16:00 today
+        # Subtract pv_start_wattage (500W) since that goes to house consumption, not battery
         pv_total_until_16h_kwh: >-
           {% set forecast = forecast_data | default([]) %}
           {% set now_ts_val = now_ts | float(0) %}
           {% set target_16h = as_timestamp(now().replace(hour=16, minute=0, second=0, microsecond=0)) | float(0) %}
+          {% set consumption_kw = (pv_start_wattage / 1000.0) | float(0) %}
           {% set ns = namespace(total=0.0) %}
           
           {% if forecast | length > 0 %}
             {% for item in forecast %}
-              {% set item_time_str = item.period_start | default('') %}
-              {% if item_time_str %}
-                {% set item_ts = as_timestamp(item_time_str) | float(0) %}
+              {% set period_start = item.period_start | default(None) %}
+              {% if period_start %}
+                {# Handle both datetime objects and string timestamps #}
+                {% if period_start is string %}
+                  {% set item_ts = as_timestamp(period_start) | float(0) %}
+                {% else %}
+                  {# It's a datetime object, convert to timestamp #}
+                  {% set item_ts = as_timestamp(period_start.isoformat()) | float(0) %}
+                {% endif %}
+                
                 {% if item_ts >= now_ts_val and item_ts <= target_16h %}
                   {% set pv_kw = (item.pv_estimate | default(0)) | float(0) %}
-                  {# Solcast provides kW, convert to kWh (30-minute intervals = 0.5 hours) #}
-                  {% set ns.total = ns.total + (pv_kw * 0.5) %}
+                  {# Subtract house consumption - only excess goes to battery #}
+                  {% set excess_kw = pv_kw - consumption_kw %}
+                  {% if excess_kw > 0 %}
+                    {# Solcast provides kW, convert to kWh (30-minute intervals = 0.5 hours) #}
+                    {% set ns.total = ns.total + (excess_kw * 0.5) %}
+                  {% endif %}
                 {% endif %}
               {% endif %}
             {% endfor %}
@@ -101,9 +114,18 @@
           
           {% if forecast | length > 0 %}
             {% for item in forecast %}
-              {% set item_time_str = item.period_start | default('') %}
-              {% if item_time_str and not ns.found_time %}
-                {% set item_ts = as_timestamp(item_time_str) | float(0) %}
+              {% set period_start = item.period_start | default(None) %}
+              {% if period_start and not ns.found_time %}
+                {# Handle both datetime objects and string timestamps #}
+                {% if period_start is string %}
+                  {% set item_ts = as_timestamp(period_start) | float(0) %}
+                  {% set item_time_str = period_start %}
+                {% else %}
+                  {# It's a datetime object, convert to timestamp and ISO string #}
+                  {% set item_ts = as_timestamp(period_start.isoformat()) | float(0) %}
+                  {% set item_time_str = period_start.isoformat() %}
+                {% endif %}
+                
                 {% if item_ts > now_ts_val %}
                   {% set pv_kw = (item.pv_estimate | default(0)) | float(0) %}
                   {% if pv_kw >= threshold_kw %}
