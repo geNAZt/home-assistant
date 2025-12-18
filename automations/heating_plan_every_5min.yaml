@@ -13,7 +13,7 @@
     hysteresis_k: 0.05
     
     # PV and preheat parameters
-    pv_forecast_w: "{{ states('sensor.solcast_pv_forecast_leistung_in_30_minuten') | float(0) }}"
+    pv_forecast_w: "{{ states('sensor.filtered_exported_power_w') | float(0) }}"
     pv_thr_w: "{{ states('input_number.pv_excess_threshold_w') | float(0) }}"
     has_pv_excess: "{{ pv_forecast_w > pv_thr_w }}"
     pv_offset_k: "{{ 0.5 if has_pv_excess else 0 }}"
