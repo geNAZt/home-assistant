@@ -1,5 +1,0 @@
-appdaemon==4.5.3
-simple_pid
-requests
-json
-sqlite3

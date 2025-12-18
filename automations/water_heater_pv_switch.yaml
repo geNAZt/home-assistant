@@ -1,0 +1,93 @@
+- id: water_heater_pv_switch
+  alias: Water Heater PV Switch Control
+  description: Controls water heater PV switches based on PV excess power (500W stage 1, 1600W stage 2)
+  mode: restart
+  trigger:
+    - platform: time_pattern
+      minutes: "/5"
+  variables:
+    # Current PV excess power
+    exported_power: "{{ states('sensor.filtered_exported_power_w') | float(0) }}"
+    
+    # Current switch states
+    stage_1_state: "{{ is_state('switch.water_heater_pv_switch_powerr_usage_stage_1', 'on') }}"
+    stage_2_state: "{{ is_state('switch.water_heater_pv_switch_powerr_usage_stage_2', 'on') }}"
+    
+    # Determine which stage should be active
+    should_stage_1: "{{ exported_power >= 500 and exported_power < 1600 }}"
+    should_stage_2: "{{ exported_power >= 1600 }}"
+    should_all_off: "{{ exported_power < 500 }}"
+  
+  condition: []
+  action:
+    - choose:
+        # Stage 2: >= 1600W - Turn on stage 2, turn off stage 1
+        - conditions:
+            - condition: template
+              value_template: "{{ should_stage_2 }}"
+          sequence:
+            - if:
+                - condition: template
+                  value_template: "{{ not stage_2_state }}"
+              then:
+                - service: switch.turn_on
+                  target:
+                    entity_id: switch.water_heater_pv_switch_powerr_usage_stage_2
+                - service: logbook.log
+                  data:
+                    name: Water Heater PV Switch
+                    message: "PV excess {{ exported_power | round(2) }} W >= 1600W, turning on stage 2"
+            - if:
+                - condition: template
+                  value_template: "{{ stage_1_state }}"
+              then:
+                - service: switch.turn_off
+                  target:
+                    entity_id: switch.water_heater_pv_switch_powerr_usage_stage_1
+        # Stage 1: >= 500W and < 1600W - Turn on stage 1, turn off stage 2
+        - conditions:
+            - condition: template
+              value_template: "{{ should_stage_1 }}"
+          sequence:
+            - if:
+                - condition: template
+                  value_template: "{{ not stage_1_state }}"
+              then:
+                - service: switch.turn_on
+                  target:
+                    entity_id: switch.water_heater_pv_switch_powerr_usage_stage_1
+                - service: logbook.log
+                  data:
+                    name: Water Heater PV Switch
+                    message: "PV excess {{ exported_power | round(2) }} W >= 500W, turning on stage 1"
+            - if:
+                - condition: template
+                  value_template: "{{ stage_2_state }}"
+              then:
+                - service: switch.turn_off
+                  target:
+                    entity_id: switch.water_heater_pv_switch_powerr_usage_stage_2
+        # All off: < 500W - Turn off both stages
+        - conditions:
+            - condition: template
+              value_template: "{{ should_all_off }}"
+          sequence:
+            - if:
+                - condition: or
+                  conditions:
+                    - condition: template
+                      value_template: "{{ stage_1_state }}"
+                    - condition: template
+                      value_template: "{{ stage_2_state }}"
+              then:
+                - service: switch.turn_off
+                  target:
+                    entity_id:
+                      - switch.water_heater_pv_switch_powerr_usage_stage_1
+                      - switch.water_heater_pv_switch_powerr_usage_stage_2
+                - service: logbook.log
+                  data:
+                    name: Water Heater PV Switch
+                    message: "PV excess {{ exported_power | round(2) }} W < 500W, turning off all stages"
+      default: []
+
