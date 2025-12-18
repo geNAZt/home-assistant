@@ -1,0 +1,120 @@
+- id: car_battery_charger_pgrid
+  alias: Car Battery Charger PGrid Update
+  description: Updates car charger pgrid value every 2 seconds based on PV excess power availability
+  mode: restart
+  trigger:
+    - platform: time_pattern
+      seconds: "/2"
+  variables:
+    # Current state
+    current_power: "{{ states('sensor.goe_288025_nrg_11') | float(0) }}"
+    exported_power: "{{ states('sensor.filtered_exported_power_w') | float(0) }}"
+    imported_power: "{{ states('sensor.filtered_imported_power_w') | float(0) }}"
+    
+    # Usage stages (from consumption config)
+    usage_stages: [7200, 4800, 3200, 2400, 1600]
+    
+    # Determine current allowed usage
+    # Try to get from consumption tracker first, then infer from current power
+    current_usage: >-
+      {% set tracker = states('sensor.car_charger_usage_total') | float(0) %}
+      {% set stages = usage_stages %}
+      {% set usage = 0 %}
+      
+      {# Try to determine usage from tracker #}
+      {% if tracker > 0 %}
+        {% for stage in stages | sort(reverse=true) %}
+          {% if tracker >= stage * 0.8 %}
+            {% set usage = stage %}
+            {% break %}
+          {% endif %}
+        {% endfor %}
+      {% endif %}
+      
+      {# If no usage determined, infer from current power #}
+      {% if usage == 0 and current_power > 0 %}
+        {% for stage in stages | sort(reverse=true) %}
+          {% if current_power <= stage %}
+            {% set usage = stage %}
+            {% break %}
+          {% endif %}
+        {% endfor %}
+        {% if usage == 0 %}
+          {% set usage = stages | max %}
+        {% endif %}
+      {% elif usage == 0 %}
+        {% set usage = stages | min %}
+      {% endif %}
+      
+      {{ usage }}
+    
+    # Calculate pgrid value
+    pgrid_value: >-
+      {% set cur = current_power | float(0) %}
+      {% set usage = current_usage | float(0) %}
+      {% set exp = exported_power | float(0) %}
+      {% set imp = imported_power | float(0) %}
+      
+      {% if cur > usage %}
+        {# Current power exceeds allowed usage - limit it #}
+        {{ cur - usage }}
+      {% elif exp > 0 %}
+        {# Excess power available - calculate wanted power #}
+        {% set v = exp %}
+        {% if v > usage %}
+          {% set v = usage %}
+        {% endif %}
+        {% set wanted = usage - cur %}
+        {% if wanted > v %}
+          {% set wanted = v %}
+        {% endif %}
+        {# Return negative value for excess power #}
+        {{ wanted * -1 }}
+      {% elif imp > 0 %}
+        {# No excess power, but importing - set to imported value #}
+        {{ imp }}
+      {% else %}
+        {# No excess power and not importing - force stop #}
+        10500
+      {% endif %}
+  
+  condition: []
+  action:
+    - service: goecharger_api2.set_pv_data
+      data:
+        pgrid: "{{ pgrid_value }}"
+    - choose:
+        - conditions:
+            - condition: template
+              value_template: "{{ current_power > current_usage }}"
+          sequence:
+            - service: logbook.log
+              data:
+                name: Car Battery Charger
+                message: "Current power ({{ current_power | round(2) }} W) exceeds allowed usage ({{ current_usage | round(2) }} W), setting pgrid to {{ pgrid_value | round(2) }} W"
+        - conditions:
+            - condition: template
+              value_template: "{{ exported_power > 0 }}"
+          sequence:
+            - service: logbook.log
+              data:
+                name: Car Battery Charger
+                message: "Excess power available: {{ exported_power | round(2) }} W, setting pgrid to {{ pgrid_value | round(2) }} W"
+        - conditions:
+            - condition: template
+              value_template: "{{ imported_power > 0 }}"
+          sequence:
+            - service: logbook.log
+              data:
+                name: Car Battery Charger
+                message: "No excess power, importing {{ imported_power | round(2) }} W, setting pgrid to {{ imported_power | round(2) }} W"
+        - conditions:
+            - condition: template
+              value_template: "{{ exported_power <= 0 and imported_power <= 0 }}"
+          sequence:
+            - service: logbook.log
+              data:
+                name: Car Battery Charger
+                message: "No excess power available and not importing, forcing stop (pgrid=10500)"
+      default: []
+

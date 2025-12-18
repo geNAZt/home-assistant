@@ -1,200 +1,23 @@
 """Consumption management for the energy manager."""
 
 from datetime import datetime, timedelta, timezone
-from .models import EnergyConsumer, AdditionalConsumer
+from .models import AdditionalConsumer
 
 
 class ConsumptionManager:
     """Manages energy consumption tracking and control."""
 
-    def __init__(self, hass_instance, battery_manager, phase_control, virtual_entity_manager, ac_charging_manager=None):
+    def __init__(self, hass_instance, virtual_entity_manager):
         """Initialize consumption manager.
         
         Args:
             hass_instance: The AppDaemon Hass instance
-            battery_manager: BatteryManager instance
-            phase_control: PhaseControl instance
             virtual_entity_manager: VirtualEntityManager instance
-            ac_charging_manager: ACChargingManager instance (optional)
         """
         self.hass = hass_instance
-        self.battery_manager = battery_manager
-        self.phase_control = phase_control
         self.virtual_entity_manager = virtual_entity_manager
-        self.ac_charging_manager = ac_charging_manager
         
-        self._turned_on = []
-        self._known = []
         self._consumptions = {}
-
-    def register_consumer(self, group, name, phase, current, turn_on, turn_off, can_be_delayed, consume_more):
-        """Register a new energy consumer.
-        
-        Args:
-            group: Consumer group name
-            name: Consumer name
-            phase: Electrical phase identifier
-            current: Current consumption in watts
-            turn_on: Function to turn on the consumer
-            turn_off: Function to turn off the consumer
-            can_be_delayed: Function to check if consumption can be delayed
-            consume_more: Function to increase consumption
-            
-        Returns:
-            EnergyConsumer: The created consumer object
-        """
-        ec = EnergyConsumer(group, name, phase, current, turn_on, turn_off, can_be_delayed, consume_more)
-        self._known.append(ec)
-        return ec
-
-    def turn_on_consumer(self, ec: EnergyConsumer):
-        """Turn on an energy consumer.
-        
-        Args:
-            ec: The energy consumer to turn on
-        """
-        try:
-            # Check if already turned on
-            if ec in self._turned_on:
-                self.hass.log("Consumer %s/%s already turned on, skipping" % (ec.name, ec.group))
-                return
-
-            # Check for phase control
-            if len(ec.phase) > 0:
-                self.hass.log("Checking phase control for %s/%s (phase: %s)" % (ec.name, ec.group, ec.phase))
-                if not self.phase_control.check_phase(ec):
-                    self.hass.log("Phase check failed for %s/%s" % (ec.name, ec.group))
-                    return
-
-            # Check if allowed to consume
-            self.hass.log("Checking if allowed to consume for %s/%s" % (ec.name, ec.group))
-            if self._allowed_to_consume(ec):
-                if len(ec.phase) > 0:
-                    self.hass.log("Adding phase for %s/%s" % (ec.name, ec.group))
-                    self.phase_control.add_phase(ec)
-
-                self.hass.log("  > Turning on %s/%s" % (ec.name, ec.group))
-                ec.turn_on()
-                self._turned_on.append(ec)
-                self.hass.log("Successfully turned on %s/%s" % (ec.name, ec.group))
-            else:
-                self.hass.log("Not allowed to consume for %s/%s" % (ec.name, ec.group))
-        except Exception as ex:
-            self.hass.log("ERROR in turn_on_consumer for %s/%s: %s" % (ec.name, ec.group, str(ex)))
-
-    def turn_off_consumer(self, ec: EnergyConsumer):
-        """Turn off an energy consumer.
-        
-        Args:
-            ec: The energy consumer to turn off
-        """
-        try:
-            ec.turn_off()
-
-            # Check if already turned on
-            if ec not in self._turned_on:
-                self.hass.log("Consumer %s/%s not in turned_on list, skipping removal" % (ec.name, ec.group))
-                return
-            
-            if len(ec.phase) > 0:
-                self.hass.log("Removing phase for %s/%s" % (ec.name, ec.group))
-                self.phase_control.remove_phase(ec)
-
-            self._turned_on.remove(ec)
-            self.hass.log("Successfully turned off %s/%s" % (ec.name, ec.group))
-        except Exception as ex:
-            self.hass.log("ERROR in turn_off_consumer for %s/%s: %s" % (ec.name, ec.group, str(ex)))
-
-    def _can_be_delayed(self, ec: EnergyConsumer):
-        """Check if a consumer can be delayed.
-        
-        Args:
-            ec: The energy consumer to check
-            
-        Returns:
-            bool: True if the consumer can be delayed, False otherwise
-        """
-        try:
-            result = ec.can_be_delayed()
-            self.hass.log("Consumer %s/%s can_be_delayed: %s" % (ec.name, ec.group, result))
-            return result
-        except Exception as ex:
-            self.hass.log("ERROR in _can_be_delayed for %s/%s: %s" % (ec.name, ec.group, str(ex)))
-            return False
-
-    def _allowed_to_consume(self, ec: EnergyConsumer):
-        """Check if a consumer is allowed to consume energy.
-        
-        Args:
-            ec: The energy consumer to check
-            
-        Returns:
-            bool: True if allowed to consume, False otherwise
-        """
-        try:
-            max_current = 15500 * 3
-            new_current = float(0)
-            self.hass.log("Initial max_current: %.2f, new_current: %.2f" % (max_current, new_current))
-
-            # Check for battery
-            battery_charge = self.battery_manager.get_battery_charge_percent()
-            self.hass.log("Battery charge: %.2f%%" % battery_charge)
-            if battery_charge > 15:
-                new_current += 21000
-                self.hass.log("Added battery current: 21000, new_current now: %.2f" % new_current)
-            
-            # Check for additional PV input
-            pv_production = float(self.hass.get_state("sensor.solar_panel_production_w"))
-            battery_charge_pv = float(self.hass.get_state("sensor.solar_panel_to_battery_w"))
-            pv_over_production = pv_production - battery_charge_pv
-            self.hass.log("PV production: %.2f, PV to battery: %.2f, over production: %.2f" % 
-                         (pv_production, battery_charge_pv, pv_over_production))
-            
-            if pv_over_production > 100:
-                pv_current = pv_over_production / float(230)  # Rough estimate since we don't have a voltage tracker on PV
-                new_current += pv_current * 1000
-                self.hass.log("Added PV current: %.2f, new_current now: %.2f" % (pv_current * 1000, new_current))
-
-            current_used = float(0)
-            for ent in self._turned_on:
-                if ent.group != ec.group or ent.name != ec.name:
-                    current_used += ent.current
-            self.hass.log("Current used by other consumers: %.2f" % current_used)
-
-            if new_current > 0:
-                self.hass.log("new_current > 0, checking if PV is enough")
-                # Check if PV is enough, if not can we delay?
-                if current_used + ec.current > new_current:
-                    self.hass.log("current_used + ec.current (%.2f) > new_current (%.2f)" % 
-                                 (current_used + ec.current, new_current))
-                    if self._can_be_delayed(ec):
-                        max_current = new_current
-                        self.hass.log("Consumer can be delayed, setting max_current to new_current: %.2f" % max_current)
-            else:
-                self.hass.log("new_current <= 0, checking if consumption can be delayed")
-                # Check if this consumption can be delayed
-                if self._can_be_delayed(ec):
-                    tomorrow_estimate = self._estimated_production_tomorrow()
-                    battery_remaining_capacity = self.battery_manager.get_remaining_battery_capacity()
-                    self.hass.log("Tomorrow estimate: %.2f, battery remaining: %.2f" % 
-                                 (tomorrow_estimate, battery_remaining_capacity))
-                    if tomorrow_estimate >= battery_remaining_capacity:
-                        max_current = 0
-                        self.hass.log("Setting max_current to 0 (tomorrow estimate >= battery remaining)")
-            
-            total_required = current_used + ec.current
-            self.hass.log("Total required: %.2f, max_current: %.2f" % (total_required, max_current))
-            
-            if total_required > max_current:
-                self.hass.log("NOT allowed to consume (total_required > max_current)")
-                return False
-            else:
-                self.hass.log("ALLOWED to consume (total_required <= max_current)")
-                return True
-                
-        except Exception as ex:
-            self.hass.log("ERROR in _allowed_to_consume for %s/%s: %s" % (ec.name, ec.group, str(ex)))
-            return False
 
     def energy_consumption_rate(self, tracker):
         """Calculate the energy consumption rate for a tracker.
@@ -279,18 +102,6 @@ class ConsumptionManager:
                     else:
                         value.real_usage = 0
 
-    def get_consumptions(self):
-        """Get the consumptions dictionary."""
-        return self._consumptions
-
-    def get_turned_on(self):
-        """Get the list of turned on consumers."""
-        return self._turned_on
-
-    def get_known(self):
-        """Get the list of known consumers."""
-        return self._known
-
     def manage_additional_consumption(self, exported_watt, panel_to_house_w, consumption_config):
         """Manage additional consumption based on exported power.
         
@@ -311,50 +122,6 @@ class ConsumptionManager:
             self.hass.log("Current active consumptions for priority %d: %s" % (priority, list(cur_consumptions.keys())))
             for key, value in cur_consumptions.items():
                 self.hass.log("Current active consumption '%s' for priority %d: %d" % (key, priority, value.real_usage))
-
-        battery_charge_in_kwh = self.battery_manager.get_current_battery_capacity()
-        
-        # Check daily energy added to battery from PV vs AC charging
-        # Only trigger midday heating topup if more energy came from PV than AC today
-        # This prevents false triggers when battery is high from completed AC charging
-        pv_to_battery_daily_kwh = 0.0
-        ac_to_battery_daily_kwh = 0.0
-        try:
-            pv_to_battery_daily_kwh = float(self.hass.get_state("sensor.solar_panel_to_battery_daily", default=0))
-            if pv_to_battery_daily_kwh < 0:
-                pv_to_battery_daily_kwh = 0.0
-        except Exception as ex:
-            self.hass.log("Error getting PV to battery daily energy: %s" % str(ex))
-        
-        try:
-            ac_to_battery_daily_kwh = float(self.hass.get_state("sensor.solar_grid_to_battery_daily", default=0))
-            if ac_to_battery_daily_kwh < 0:
-                ac_to_battery_daily_kwh = 0.0
-        except Exception as ex:
-            self.hass.log("Error getting AC to battery daily energy: %s" % str(ex))
-        
-        # Only consider battery charge as valid for consume_more if PV has contributed more energy than AC today
-        # This ensures we only trigger midday topup when battery charge is primarily from PV, not AC
-        # Use a threshold: PV energy must be at least 0.5 kWh more than AC energy (to account for noise)
-        pv_advantage_kwh = pv_to_battery_daily_kwh - ac_to_battery_daily_kwh
-        pv_advantage_threshold_kwh = 0.5  # Minimum advantage for PV over AC
-        
-        if pv_advantage_kwh >= pv_advantage_threshold_kwh:
-            # PV has contributed more energy than AC today, so battery charge is likely from PV
-            if battery_charge_in_kwh > 8.5:
-                self.hass.log("PV advantage today: %.3f kWh (PV: %.3f, AC: %.3f), battery charge: %.3f kWh - calling consume_more" % 
-                             (pv_advantage_kwh, pv_to_battery_daily_kwh, ac_to_battery_daily_kwh, battery_charge_in_kwh))
-                for ec in self._known:
-                    self.hass.log("Calling consume_more for consumer: %s" % ec.name)
-                    ec.consume_more()
-            else:
-                self.hass.log("PV advantage today: %.3f kWh (PV: %.3f, AC: %.3f) but battery charge (%.3f kWh) not high enough for consume_more" % 
-                             (pv_advantage_kwh, pv_to_battery_daily_kwh, ac_to_battery_daily_kwh, battery_charge_in_kwh))
-        else:
-            # AC has contributed more (or equal) energy than PV today, likely from AC charging
-            # Don't trigger midday topup even if battery is high
-            self.hass.log("AC advantage or insufficient PV today: PV advantage %.3f kWh (PV: %.3f, AC: %.3f) < %.3f kWh threshold, battery charge: %.3f kWh - skipping consume_more to avoid AC charging trigger" % 
-                         (pv_advantage_kwh, pv_to_battery_daily_kwh, ac_to_battery_daily_kwh, pv_advantage_threshold_kwh, battery_charge_in_kwh)) 
 
         # If we have export power check if we can use it
         if exported_watt > 300:
@@ -609,8 +376,6 @@ class ConsumptionManager:
         Returns:
             float: Estimated production in kWh
         """
-        if self.ac_charging_manager:
-            return self.ac_charging_manager._estimated_production_tomorrow()
         
         # Fallback if AC charging manager not available
         try:

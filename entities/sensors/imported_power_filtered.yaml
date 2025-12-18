@@ -1,0 +1,7 @@
+platform: filter
+name: filtered_imported_power_w
+entity_id: sensor.solar_imported_power_w
+filters:
+  - filter: time_simple_moving_average
+    window_size: "00:05"
+    precision: 3

@@ -3,86 +3,9 @@ energy_manager:
   module: energy_manager
   class: EnergyManager
   virtuals:
-    solar_battery:
-      events:
-        usage_change:
-          code: |
-            self.log("Solar battery usage change: %.2f w" % value)
-            self.call_service("number/set_value", entity_id="number.pv_storage_remote_charge_limit", value=value)
     car:
-      events:
-        imported_power_update:
-          code: |
-            cur = self.get_state("sensor.goe_288025_nrg_11")
-
-            try:
-              c = float(cur)
-            except ValueError:
-              c = 0
-
-            if c > entity.usage:
-              self.call_service("goecharger_api2/set_pv_data", pgrid=c-entity.usage)
-            else:
-              self.call_service("goecharger_api2/set_pv_data", pgrid=value)
-        exported_power_update:
-          code: |
-            v = value
-            c = 0
-            cur = self.get_state("sensor.goe_288025_nrg_11")
-
-            try:
-              c = float(cur)
-            except ValueError:
-              c = 0
-
-            self.log("Current power: %.2f w, Export power: %.2f w, Allowed usage: %.2f w" % (c, v, entity.usage))
-
-            if c > entity.usage:
-              self.call_service("goecharger_api2/set_pv_data", pgrid=c-entity.usage)
-            else:
-              if v > entity.usage:
-                v = entity.usage
-
-              wanted = entity.usage - c
-              if wanted > v:
-                wanted = v
-
-              self.log("Exported power update: %.2f w" % wanted)
-              self.call_service("goecharger_api2/set_pv_data", pgrid=wanted * -1)
-        switched:
-          code: |
-            if not value:
-              self.call_service("goecharger_api2/set_pv_data", pgrid=10500)
-            else:
-              self.call_service("goecharger_api2/set_pv_data", pgrid=0)
+      events: {}
   consumption:
-    solar_battery:
-      tracker: sensor.pv_battery1_power
-      priority: 0
-      can_be_turned_off: false
-      stages:
-      - usage: 400
-        switch: virtual.solar_battery
-      - usage: 1000
-        switch: virtual.solar_battery
-      - usage: 1500
-        switch: virtual.solar_battery
-      - usage: 2000
-        switch: virtual.solar_battery
-      - usage: 2400
-        switch: virtual.solar_battery
-      - usage: 2800
-        switch: virtual.solar_battery      
-      - usage: 3000
-        switch: virtual.solar_battery
-      - usage: 3500
-        switch: virtual.solar_battery
-      - usage: 4000
-        switch: virtual.solar_battery
-      - usage: 4500
-        switch: virtual.solar_battery
-      - usage: 5000
-        switch: virtual.solar_battery
     car:
       tracker: sensor.car_charger_usage_total
       priority: 1

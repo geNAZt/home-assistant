@@ -90,7 +90,3 @@ class VirtualEntityManager:
             self._virtual_entities[entity].switched = False
             self.hass.log("Virtual entity %s switched to False" % entity)
 
-    def get_virtual_entities(self):
-        """Get the virtual entities dictionary."""
-        return self._virtual_entities
-

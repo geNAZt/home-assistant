@@ -17,22 +17,3 @@ class VirtualEntity:
     switched: bool
     events: dict
 
-
-@dataclass
-class EnergyConsumer:
-    """Represents an energy consumer with control functions."""
-    group: str
-    name: str
-    phase: str
-    current: float
-
-    turn_on: callable
-    turn_off: callable
-    can_be_delayed: callable
-    consume_more: callable
-
-    def update_current(self, current):
-        """Update the current value if the new value is higher."""
-        if current > self.current:
-            self.current = current
-
