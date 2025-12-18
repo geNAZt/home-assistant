@@ -54,12 +54,13 @@
       {% set usage = current_usage | float(0) %}
       {% set exp = exported_power | float(0) %}
       {% set imp = imported_power | float(0) %}
+      {% set min_stage = usage_stages | min %}
       
       {% if cur > usage %}
         {# Current power exceeds allowed usage - limit it #}
         {{ cur - usage }}
-      {% elif exp > 0 %}
-        {# Excess power available - calculate wanted power #}
+      {% elif exp >= min_stage %}
+        {# Excess power available and above minimum stage - calculate wanted power #}
         {% set v = exp %}
         {% if v > usage %}
           {% set v = usage %}
@@ -70,6 +71,9 @@
         {% endif %}
         {# Return negative value for excess power #}
         {{ wanted * -1 }}
+      {% elif exp > 0 %}
+        {# Exported power exists but below minimum stage - force stop #}
+        10500
       {% elif imp > 0 %}
         {# No excess power, but importing - set to imported value #}
         {{ imp }}
