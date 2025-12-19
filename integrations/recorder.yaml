@@ -1,3 +1,13 @@
 recorder:
   db_url: !secret recorder_db_url
   purge_keep_days: 400
+  exclude:
+    entities:
+      - sensor.pv_m1_ac_power_a
+      - sensor.pv_m1_ac_power_b
+      - sensor.pv_m1_ac_power_c
+      - sensor.pv_m1_ac_va_a
+      - sensor.pv_m1_ac_va_b
+      - sensor.pv_m1_ac_va_c
+      - sensor.pv_ac_var
+      - sensor.pv_dc_current
