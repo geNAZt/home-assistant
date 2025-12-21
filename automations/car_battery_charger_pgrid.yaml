@@ -32,30 +32,4 @@
     - service: goecharger_api2.set_pv_data
       data:
         pgrid: "{{ pgrid_value }}"
-    - choose:
-        - conditions:
-            - condition: template
-              value_template: "{{ exported_power > 1600 }}"
-          sequence:
-            - service: logbook.log
-              data:
-                name: Car Battery Charger
-                message: "Exported power ({{ exported_power | round(2) }} W) above 1.6kW, setting pgrid to {{ pgrid_value | round(2) }} W"
-        - conditions:
-            - condition: template
-              value_template: "{{ exported_power <= 1600 and charger_usage == 0 }}"
-          sequence:
-            - service: logbook.log
-              data:
-                name: Car Battery Charger
-                message: "Exported power ({{ exported_power | round(2) }} W) below 1.6kW and charger off, setting pgrid to 0"
-        - conditions:
-            - condition: template
-              value_template: "{{ exported_power <= 1600 and charger_usage > 0 }}"
-          sequence:
-            - service: logbook.log
-              data:
-                name: Car Battery Charger
-                message: "Exported power ({{ exported_power | round(2) }} W) below 1.6kW, forcing stop (pgrid=10500)"
-      default: []
-
+    
