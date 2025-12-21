@@ -46,21 +46,78 @@
       {% endif %}
     
     C_eff: "{{ states('sensor.C_kWh_per_K_rolling') | float(10) }}"
-    H_eff: "{{ states('sensor.H_kW_per_K_rolling_sql') | float(6.25) }}"
+    H_eff: "{{ states('sensor.H_kW_per_K_effective') | float(6.25) }}"
     dT_forecast: "{{ states('input_number.delta_t_forecast_k') | float(0) }}"
+    
+    # Calculate expected inside temperature drop based on forecast
+    # Uses minimum forecasted outside temp to estimate actual inside temp drop
+    expected_temp_drop: >-
+      {% set current_outside = states('sensor.outside_temperature') | float(0) %}
+      {% set current_inside = states('sensor.inside_temp_mean_now') | float(22.0) %}
+      {% set forecast_attr = state_attr('weather.home', 'forecast') %}
+      {% set min_forecast_outside = current_outside %}
+      {% if forecast_attr is iterable %}
+        {% for day in forecast_attr %}
+          {% if day.templow is defined and day.templow is number %}
+            {% set day_low = day.templow | float %}
+            {% if day_low < min_forecast_outside %}
+              {% set min_forecast_outside = day_low %}
+            {% endif %}
+          {% endif %}
+        {% endfor %}
+      {% endif %}
+      {# Calculate expected inside temp drop using heat loss model #}
+      {# Inside temp drop is proportional to outside drop, reduced by thermal mass #}
+      {% set outside_drop = current_outside - min_forecast_outside %}
+      {% if outside_drop > 0 %}
+        {# Estimate inside drop: thermal mass reduces the impact of outside temp changes #}
+        {# Use H_eff and C_eff to estimate the attenuation factor #}
+        {# Improved formula: inside_drop ≈ outside_drop * (H_eff * time_constant / C_eff) #}
+        {# Where time_constant represents how quickly the building responds to outside changes #}
+        {# Adjusted to match observed behavior: ~7-10% of outside drop becomes inside drop #}
+        {% set H = H_eff | float(0.03) %}
+        {% set C = C_eff | float(12.93) %}
+        {% set time_constant = 24.0 %}
+        {# Attenuation factor: how much inside temp responds to outside temp change #}
+        {# Based on observed data: inside drop ≈ 7-10% of outside drop for typical buildings #}
+        {% set attenuation = (H * time_constant) / C %}
+        {# Clamp attenuation to reasonable range (5-15%) to match observed behavior #}
+        {% set attenuation_clamped = 0.15 if attenuation > 0.15 else (0.05 if attenuation < 0.05 else attenuation) %}
+        {% set inside_drop = outside_drop * attenuation_clamped %}
+        {{ inside_drop | float(0) }}
+      {% else %}
+        0
+      {% endif %}
     
     preheat_offset_k: >-
       {% set heat_capacity = C_eff | float(0) %}
       {% set heating_power = H_eff | float(0) %}
-      {% set temp_drop = dT_forecast | float(0) %}
-      {% set energy_needed_kwh = heating_power * temp_drop %}
-      {% set offset_raw = (energy_needed_kwh / heat_capacity) if heat_capacity > 0 else 0 %}
+      {% set preheat_hours = 6.0 %}
       {% if not is_preheat_window %}
         0
+      {% elif heat_capacity <= 0 or heating_power <= 0 %}
+        0
       {% else %}
-        {% set offset_clamped_low = 0.2 if offset_raw < 0.2 else offset_raw %}
-        {% set offset_clamped = 0.6 if offset_clamped_low > 0.6 else offset_clamped_low %}
-        {{ offset_clamped }}
+        {# Improved formula: use expected inside temperature drop #}
+        {# This better reflects the actual temperature drop that will occur during the day #}
+        {% set temp_drop = expected_temp_drop | float(0) %}
+        {% if temp_drop <= 0 %}
+          {# Fallback to original delta_t_forecast if expected drop calculation fails #}
+          {% set temp_drop = dT_forecast | float(0) %}
+        {% endif %}
+        {% if temp_drop <= 0 %}
+          0
+        {% else %}
+          {# Corrected formula: offset = (C_eff * temp_drop) / (H_eff * preheat_hours) #}
+          {# Energy needed to compensate: C_eff * temp_drop (kWh) #}
+          {# Energy we can input during preheat: H_eff * offset * preheat_hours (kWh) #}
+          {# Setting equal: offset = (C_eff * temp_drop) / (H_eff * preheat_hours) #}
+          {% set offset_raw = (heat_capacity * temp_drop) / (heating_power * preheat_hours) %}
+          {# Clamp between 0.2 and 0.6 #}
+          {% set offset_clamped_high = 0.6 if offset_raw > 0.6 else offset_raw %}
+          {% set offset_clamped = 0.2 if offset_clamped_high < 0.2 else offset_clamped_high %}
+          {{ offset_clamped }}
+        {% endif %}
       {% endif %}
     
     offset_k: >-
