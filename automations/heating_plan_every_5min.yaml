@@ -371,21 +371,72 @@
         end:   "{{ (now() + timedelta(hours=24)).strftime('%Y-%m-%d %H:00:00') }}"
       response_variable: tibber_resp
 
-    # 2) Preis-Gate bestimmen
+    # 2) Preis-Gate bestimmen (robuste Extraktion + Perzentil)
     - variables:
+        # 2.1 Rohdaten -> einheitliches Array [{price: ..., start_time: ...}, ...]
         tib_prices: >-
-          {% set pd = tibber_resp.get('prices', {}) if tibber_resp else {} %}
-          {% set keys = pd.keys()|list %}
-          {% set fk = keys[0] if keys|length>0 else None %}
-          {{ (pd[fk] if fk else []) | tojson }}
-        price_is_cheap_now: >-
-          {% set lst = tib_prices|from_json(default=[]) %}
+          {% set raw = tibber_resp %}
+          {% set arr = [] %}
+          {# Fall A: Antwort ist ein Mapping/Dikt #}
+          {% if raw is not string and raw is not sequence and (raw.keys is defined) %}
+            {% if 'prices' in raw %}
+              {% set pd = raw['prices'] %}
+              {% if pd is not string and (pd.keys is defined) %}
+                {% set k = (pd.keys()|list|first) %}
+                {% set arr = pd[k] if k else [] %}
+              {% elif pd is sequence %}
+                {% set arr = pd %}
+              {% endif %}
+            {% else %}
+              {# evtl. direkt ein Standort-Name als Top-Level-Key oder Wrapper 'result'/'data' #}
+              {% set k = (raw.keys()|list|first) %}
+              {% if k and (raw[k] is sequence) %}
+                {% set arr = raw[k] %}
+              {% elif 'result' in raw and (raw['result'] is sequence) %}
+                {% set arr = raw['result'] %}
+              {% elif 'data' in raw and (raw['data'] is sequence) %}
+                {% set arr = raw['data'] %}
+              {% endif %}
+            {% endif %}
+          {# Fall B: Antwort ist direkt eine Liste #}
+          {% elif raw is sequence %}
+            {% set arr = raw %}
+          {% endif %}
+          {{ arr | tojson }}
+
+        # 2.2 Perzentil-Schwelle (unteres x-Perzentil des Tages)
+        price_quantile_thr: >-
+          {% set lst = tib_prices|from_json(default=[]) | map(attribute='price') | list %}
           {% if lst|length == 0 %}
+            {{ none }}
+          {% else %}
+            {% set p = states('input_number.price_percentile_cutoff')|float(0.10) %}
+            {% set p = 0 if p < 0 else (1 if p > 1 else p) %}
+            {% set n = lst|length %}
+            {% set sorted = lst|sort %}
+            {% set idx = ((n-1) * p) | round(0, 'floor') %}
+            {{ sorted[idx] }}
+          {% endif %}
+
+        # 2.3 Ist der aktuelle Preis günstig?
+        price_is_cheap_now: >-
+          {% set thr = price_quantile_thr %}
+          {% if thr is not number %}
             {{ true if is_state('input_boolean.heating_ignore_price','on') else false }}
           {% else %}
-            {% set pmax = (lst | map(attribute='price') | list | max) %}
-            {% set thr  = (pmax * price_pct_of_max|float(0.10)) %}
-            {{ current_price_eur|float(99) <= thr }}
+            {{ states('sensor.backerstrasse_3b_strompreis')|float(99) <= thr|float }}
+          {% endif %}
+
+        # (Optional) kompaktes Preis-Debug fürs Log
+        price_debug: >-
+          {% set lst = tib_prices|from_json(default=[]) | map(attribute='price') | list %}
+          {% if lst|length == 0 %}
+            {{ {'n':0} | tojson }}
+          {% else %}
+            {% set pmin = (lst|min) %}
+            {% set pmax = (lst|max) %}
+            {% set p = states('input_number.price_percentile_cutoff')|float(0.10) %}
+            {{ {'n': lst|length, 'pmin': pmin, 'pmax': pmax, 'pctl': p, 'thr': price_quantile_thr} | tojson }}
           {% endif %}
 
     # 2b) Pmax/Threshold in Helper schreiben (für die UI-Sichtkontrolle)
@@ -504,7 +555,8 @@
         message: >-
           Offset={{ offset_k|float(0) }}K (PV={{ pv_offset_k|float(0) }} / Preheat={{ preheat_offset_k|float(0) }}),
           PreisOK={{ price_is_cheap_now }}, PVexcess={{ has_pv_excess }},
-          Preheat={{ is_preheat_window }}, DayAllow={{ heating_allowed_now }}
+          Preheat={{ is_preheat_window }}, DayAllow={{ heating_allowed_now }},
+          PriceDbg={{ price_debug }}
 
     # ACTION 3: HVAC-Modus anhand heating_allowed_now
     - choose:
