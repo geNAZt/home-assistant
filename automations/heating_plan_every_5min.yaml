@@ -18,42 +18,31 @@
     has_pv_excess: "{{ pv_forecast_w > pv_thr_w }}"
     pv_offset_k: "{{ 0.5 if has_pv_excess else 0 }}"
     
+    # PV-/Top-Up-Fenster: nur mittags 12–14 Uhr & nur wenn PV-Überschuss
+    is_midday_topup_window: >-
+      {% set nowts = as_timestamp(now()) %}
+      {% set t0 = as_timestamp(now().replace(hour=12, minute=0, second=0, microsecond=0)) %}
+      {% set t1 = as_timestamp(now().replace(hour=14, minute=0, second=0, microsecond=0)) %}
+      {{ t0 <= nowts < t1 }}
+
+    # Preheat-Fenster 00–06 Uhr (Preis egal)
     is_preheat_window: >-
-      {% set current_ts = as_timestamp(now()) %}
-      {% set window_start = as_timestamp(now().replace(hour=0, minute=0, second=0, microsecond=0)) %}
-      {% set window_end = as_timestamp(now().replace(hour=6, minute=0, second=0, microsecond=0)) %}
-      {{ window_start <= current_ts < window_end }}
+      {% set nowts = as_timestamp(now()) %}
+      {% set t0 = as_timestamp(now().replace(hour=0, minute=0, second=0, microsecond=0)) %}
+      {% set t1 = as_timestamp(now().replace(hour=6, minute=0, second=0, microsecond=0)) %}
+      {{ t0 <= nowts < t1 }}
     
     # Heating blocking: When enabled, only allow heating during preheat window (00:00-06:00)
     # Turn this switch ON to block heating outside preheat window
     heating_block_enabled: "{{ is_state('input_boolean.heating_block_daytime', 'on') }}"
     
-    # Check if heating should be blocked (blocking enabled AND outside preheat window)
-    heating_blocked: >-
-      {% set block_enabled = is_state('input_boolean.heating_block_daytime', 'on') %}
-      {% if block_enabled %}
-        {% set current_ts = as_timestamp(now()) %}
-        {% set window_start = as_timestamp(now().replace(hour=0, minute=0, second=0, microsecond=0)) %}
-        {% set window_end = as_timestamp(now().replace(hour=6, minute=0, second=0, microsecond=0)) %}
-        {% set preheat_active = window_start <= current_ts < window_end %}
-        {% if not preheat_active %}
-          true
-        {% else %}
-          false
-        {% endif %}
-      {% else %}
-        false
-      {% endif %}
-    
     C_eff: "{{ states('sensor.C_kWh_per_K_rolling') | float(10) }}"
     H_eff: "{{ states('sensor.H_kW_per_K_effective') | float(6.25) }}"
     dT_forecast: "{{ states('input_number.delta_t_forecast_k') | float(0) }}"
     
-    # Calculate expected inside temperature drop based on forecast
-    # Uses minimum forecasted outside temp to estimate actual inside temp drop
+    # Erwarteter Tages-Abkühlbetrag innen (konservativ gedämpft über H/C)
     expected_temp_drop: >-
       {% set current_outside = states('sensor.outside_temperature') | float(0) %}
-      {% set current_inside = states('sensor.inside_temp_mean_now') | float(22.0) %}
       {% set forecast_attr = state_attr('weather.home', 'forecast') %}
       {% set min_forecast_outside = current_outside %}
       {% if forecast_attr is iterable %}
@@ -66,71 +55,43 @@
           {% endif %}
         {% endfor %}
       {% endif %}
-      {# Calculate expected inside temp drop using heat loss model #}
-      {# Inside temp drop is proportional to outside drop, reduced by thermal mass #}
       {% set outside_drop = current_outside - min_forecast_outside %}
       {% if outside_drop > 0 %}
-        {# Estimate inside drop: thermal mass reduces the impact of outside temp changes #}
-        {# Use H_eff and C_eff to estimate the attenuation factor #}
-        {# Improved formula: inside_drop ≈ outside_drop * (H_eff * time_constant / C_eff) #}
-        {# Where time_constant represents how quickly the building responds to outside changes #}
-        {# Adjusted to match observed behavior: ~7-10% of outside drop becomes inside drop #}
         {% set H = H_eff | float(0.03) %}
         {% set C = C_eff | float(12.93) %}
-        {% set time_constant = 24.0 %}
-        {# Attenuation factor: how much inside temp responds to outside temp change #}
-        {# Based on observed data: inside drop ≈ 7-10% of outside drop for typical buildings #}
-        {% set attenuation = (H * time_constant) / C %}
-        {# Clamp attenuation to reasonable range (5-15%) to match observed behavior #}
-        {% set attenuation_clamped = 0.15 if attenuation > 0.15 else (0.05 if attenuation < 0.05 else attenuation) %}
-        {% set inside_drop = outside_drop * attenuation_clamped %}
-        {{ inside_drop | float(0) }}
-      {% else %}
-        0
-      {% endif %}
+        {% set attenuation = (H * 24.0) / C %}
+        {% set att = 0.15 if attenuation > 0.15 else (0.05 if attenuation < 0.05 else attenuation) %}
+        {{ (outside_drop * att) | float(0) }}
+      {% else %} 0 {% endif %}
     
+    # Preheat-Offset (K) aus C/H und erwartetem Drop, auf 0.2–0.6 begrenzt
     preheat_offset_k: >-
-      {% set heat_capacity = C_eff | float(0) %}
-      {% set heating_power = H_eff | float(0) %}
-      {% set preheat_hours = 6.0 %}
-      {% if not is_preheat_window %}
-        0
-      {% elif heat_capacity <= 0 or heating_power <= 0 %}
-        0
+      {% if not is_preheat_window %} 0
       {% else %}
-        {# Improved formula: use expected inside temperature drop #}
-        {# This better reflects the actual temperature drop that will occur during the day #}
+        {% set C = C_eff | float(0) %}
+        {% set H = H_eff | float(0) %}
+        {% set hours = 6.0 %}
         {% set temp_drop = expected_temp_drop | float(0) %}
-        {% if temp_drop <= 0 %}
-          {# Fallback to original delta_t_forecast if expected drop calculation fails #}
-          {% set temp_drop = dT_forecast | float(0) %}
-        {% endif %}
-        {% if temp_drop <= 0 %}
-          0
+        {% if temp_drop <= 0 %}{% set temp_drop = dT_forecast | float(0) %}{% endif %}
+        {% if C <= 0 or H <= 0 or temp_drop <= 0 %} 0
         {% else %}
-          {# Corrected formula: offset = (C_eff * temp_drop) / (H_eff * preheat_hours) #}
-          {# Energy needed to compensate: C_eff * temp_drop (kWh) #}
-          {# Energy we can input during preheat: H_eff * offset * preheat_hours (kWh) #}
-          {# Setting equal: offset = (C_eff * temp_drop) / (H_eff * preheat_hours) #}
-          {% set offset_raw = (heat_capacity * temp_drop) / (heating_power * preheat_hours) %}
-          {# Clamp between 0.2 and 0.6 #}
-          {% set offset_clamped_high = 0.6 if offset_raw > 0.6 else offset_raw %}
-          {% set offset_clamped = 0.2 if offset_clamped_high < 0.2 else offset_clamped_high %}
-          {{ offset_clamped }}
+          {% set off_raw = (C * temp_drop) / (H * hours) %}
+          {% set off = 0.6 if off_raw > 0.6 else (0.2 if off_raw < 0.2 else off_raw) %}
+          {{ off }}
         {% endif %}
       {% endif %}
-    
+
+    # ===== Tibber Preisfenster =====
+    # Anteil des Tagesmax, der "billig" ist (z.B. 0.10 = unter 10% des Max-Preises)
+    price_pct_of_max: "{{ states('input_number.price_percentile_cutoff')|float(0.10) }}"
+    current_price_eur: "{{ states('sensor.backerstrasse_3b_strompreis')|float(99) }}"
+
+    # Gesamt-Offset
     offset_k: >-
-      {% set preheat = preheat_offset_k | float(0) %}
-      {% set pv = pv_offset_k | float(0) %}
-      {% set total = preheat + pv %}
-      {% if total < 0 %}
-        0
-      {% elif total > 0.6 %}
-        0.6
-      {% else %}
-        {{ total }}
-      {% endif %}
+      {% set total = (preheat_offset_k|float(0)) + (pv_offset_k|float(0)) %}
+      {% if total < 0 %} 0
+      {% elif total > 0.6 %} 0.6
+      {% else %} {{ total }}{% endif %}
     
     # ===================================================================
     # SECTION 2: COMPREHENSIVE ROOM DATA (Single Pass)
@@ -400,176 +361,65 @@
         {% endif %}
       {% endfor %}
       {{ (ns.climates | tojson) | string }}
-    
-    # ===================================================================
-    # SECTION 5: DEBUG OUTPUT
-    # ===================================================================
-    dbg: >-
-      {% set rooms_data = room_data | from_json(default={}) %}
-      {% set rooms = rooms_json | from_json(default=[]) %}
-      {% set ns = namespace(candidates = [], sel_p1_list = [], sel_p2_list = [], sel_p3_list = []) %}
-      
-      {# Build candidates list #}
-      {% for room in rooms %}
-        {% if rooms_data[room] is defined and rooms_data[room].needs_heating %}
-          {% set ns.candidates = ns.candidates + [room] %}
-        {% endif %}
-      {% endfor %}
-      
-      {# Build selections (same logic as action/3 but inline) #}
-      {% set max_amps = phase_max_amps | float(16.0) %}
-      {% for phase_num in [1, 2, 3] %}
-        {% set ns.room_list = [] %}
-        {% for room in rooms %}
-          {% if rooms_data[room] is defined %}
-            {% set data = rooms_data[room] %}
-            {% if data.phase == phase_num and data.needs_heating %}
-              {% set room_amps = data.amps | float(0) %}
-              {% set room_error = data.error | float(0) %}
-              {% set ns.room_list = ns.room_list + [{'room': room, 'error': room_error, 'amps': room_amps}] %}
-            {% endif %}
-          {% endif %}
-        {% endfor %}
-        {% set sorted = ns.room_list | sort(attribute='error', reverse=True) %}
-        {% set max_amps_float = max_amps | float(16.0) %}
-        {% set ns.phase_total = 0.0 %}
-        {% if phase_num == 1 %}
-          {% set ns.sel_p1_list = [] %}
-          {% for item in sorted %}
-            {% set item_amps = item.amps | float(0) %}
-            {% set current_total = ns.phase_total | float(0) %}
-            {% set new_total = current_total + item_amps %}
-            {% set new_total_float = new_total | float(0) %}
-            {% if new_total_float <= max_amps_float %}
-              {% set ns.phase_total = new_total_float %}
-              {% set ns.sel_p1_list = ns.sel_p1_list + [item.room] %}
-            {% endif %}
-          {% endfor %}
-        {% elif phase_num == 2 %}
-          {% set ns.sel_p2_list = [] %}
-          {% set ns.phase_total = 0.0 %}
-          {% for item in sorted %}
-            {% set item_amps = item.amps | float(0) %}
-            {% set current_total = ns.phase_total | float(0) %}
-            {% set new_total = current_total + item_amps %}
-            {% set new_total_float = new_total | float(0) %}
-            {% if new_total_float <= max_amps_float %}
-              {% set ns.phase_total = new_total_float %}
-              {% set ns.sel_p2_list = ns.sel_p2_list + [item.room] %}
-            {% endif %}
-          {% endfor %}
-        {% elif phase_num == 3 %}
-          {% set ns.sel_p3_list = [] %}
-          {% set ns.phase_total = 0.0 %}
-          {% for item in sorted %}
-            {% set item_amps = item.amps | float(0) %}
-            {% set current_total = ns.phase_total | float(0) %}
-            {% set new_total = current_total + item_amps %}
-            {% set new_total_float = new_total | float(0) %}
-            {% if new_total_float <= max_amps_float %}
-              {% set ns.phase_total = new_total_float %}
-              {% set ns.sel_p3_list = ns.sel_p3_list + [item.room] %}
-            {% endif %}
-          {% endfor %}
-        {% endif %}
-      {% endfor %}
-      
-      {% set ns.temps_current = {} %}
-      {% set ns.temps_base = {} %}
-      {% set ns.temps_eff = {} %}
-      {% set ns.errors_dict = {} %}
-      {% set ns.phases_dict = {} %}
-      {% set ns.amps_dict = {} %}
-      {% set ns.needs_dict = {} %}
-      {% set ns.selected_rooms_debug = [] %}
-      {% for room in rooms %}
-        {% if rooms_data[room] is defined %}
-          {% set data = rooms_data[room] %}
-          {% set temp_dict_current = {room: data.current_temp} %}
-          {% set temp_dict_base = {room: data.base_target} %}
-          {% set temp_dict_eff = {room: data.effective_target} %}
-          {% set temp_dict_error = {room: data.error} %}
-          {% set temp_dict_phase = {room: data.phase} %}
-          {% set temp_dict_amps = {room: data.amps} %}
-          {% set temp_dict_needs = {room: data.needs_heating} %}
-          {% set ns.temps_current = ns.temps_current | combine(temp_dict_current) %}
-          {% set ns.temps_base = ns.temps_base | combine(temp_dict_base) %}
-          {% set ns.temps_eff = ns.temps_eff | combine(temp_dict_eff) %}
-          {% set ns.errors_dict = ns.errors_dict | combine(temp_dict_error) %}
-          {% set ns.phases_dict = ns.phases_dict | combine(temp_dict_phase) %}
-          {% set ns.amps_dict = ns.amps_dict | combine(temp_dict_amps) %}
-          {% set ns.needs_dict = ns.needs_dict | combine(temp_dict_needs) %}
-        {% endif %}
-      {% endfor %}
-      
-      {# Build selected rooms list from phase selections #}
-      {% set all_selected = ns.sel_p1_list + ns.sel_p2_list + ns.sel_p3_list %}
-      {% for room in all_selected %}
-        {% if room not in ns.selected_rooms_debug %}
-          {% set ns.selected_rooms_debug = ns.selected_rooms_debug + [room] %}
-        {% endif %}
-      {% endfor %}
-      
-      {# Build climate entity lists #}
-      {% set ns.climates_on_list = [] %}
-      {% set ns.climates_off_list = [] %}
-      {% for room in ns.selected_rooms_debug %}
-        {% set ns.climates_on_list = ns.climates_on_list + ['climate.climate_room_' ~ room] %}
-      {% endfor %}
-      {% for room in rooms %}
-        {% if room not in ns.selected_rooms_debug %}
-          {% set ns.climates_off_list = ns.climates_off_list + ['climate.climate_room_' ~ room] %}
-        {% endif %}
-      {% endfor %}
-      
-      {% set debug_data = {
-        'timestamp': now().isoformat(),
-        'offsets': {
-          'total_k': offset_k | float(0),
-          'preheat_k': preheat_offset_k | float(0),
-          'pv_k': pv_offset_k | float(0)
-        },
-        'pv': {
-          'forecast_w': pv_forecast_w | float(0),
-          'threshold_w': pv_thr_w | float(0),
-          'has_excess': has_pv_excess
-        },
-        'preheat': {
-          'is_window': is_preheat_window,
-          'window_active': is_preheat_window,
-          'block_enabled': heating_block_enabled,
-          'heating_blocked': heating_blocked
-        },
-        'thermal': {
-          'C_eff_kWh_per_K': C_eff | float(0),
-          'H_eff_kW_per_K': H_eff | float(0),
-          'dT_forecast_K': dT_forecast | float(0)
-        },
-        'temperatures': {
-          'current': ns.temps_current,
-          'set_base': ns.temps_base,
-          'set_effective': ns.temps_eff
-        },
-        'errors': ns.errors_dict,
-        'phases': ns.phases_dict,
-        'currents_amps': ns.amps_dict,
-        'needs_heating': ns.needs_dict,
-        'candidates': ns.candidates,
-        'selected': {
-          'phase_1': ns.sel_p1_list,
-          'phase_2': ns.sel_p2_list,
-          'phase_3': ns.sel_p3_list,
-          'final': (ns.sel_p1_list + ns.sel_p2_list + ns.sel_p3_list) | unique | list
-        },
-        'climates': {
-          'heat': ns.climates_on_list,
-          'off': ns.climates_off_list
-        }
-      } %}
-      {{ (debug_data | tojson) | string }}
   
   condition: []
   action:
+    # 1) Tagespreise laden
+    - service: tibber.get_prices
+      data:
+        start: "{{ now().strftime('%Y-%m-%d %H:00:00') }}"
+        end:   "{{ (now() + timedelta(hours=24)).strftime('%Y-%m-%d %H:00:00') }}"
+      response_variable: tibber_resp
+
+    # 2) Preis-Gate bestimmen
+    - variables:
+        tib_prices: >-
+          {% set pd = tibber_resp.get('prices', {}) if tibber_resp else {} %}
+          {% set keys = pd.keys()|list %}
+          {% set fk = keys[0] if keys|length>0 else None %}
+          {{ (pd[fk] if fk else []) | tojson }}
+        price_is_cheap_now: >-
+          {% set lst = tib_prices|from_json(default=[]) %}
+          {% if lst|length == 0 %}
+            {{ true if is_state('input_boolean.heating_ignore_price','on') else false }}
+          {% else %}
+            {% set pmax = (lst | map(attribute='price') | list | max) %}
+            {% set thr  = (pmax * price_pct_of_max|float(0.10)) %}
+            {{ current_price_eur|float(99) <= thr }}
+          {% endif %}
+
+    # 2b) Pmax/Threshold in Helper schreiben (für die UI-Sichtkontrolle)
+    - variables:
+        pmax_eur: >-
+          {% set lst = tib_prices|from_json(default=[]) %}
+          {% if lst|length > 0 %}
+            {{ (lst | map(attribute='price') | list | max) }}
+          {% else %} 0 {% endif %}
+        thr_eur: >-
+          {% set pct = states('input_number.price_percentile_cutoff')|float(0.10) %}
+          {{ (pmax_eur|float(0)) * pct }}
+
+    - service: input_number.set_value
+      target: { entity_id: input_number.tibber_pmax_today }
+      data:
+        value: "{{ pmax_eur|float(0) }}"
+
+    - service: input_number.set_value
+      target: { entity_id: input_number.tibber_threshold_today }
+      data:
+        value: "{{ thr_eur|float(0) }}"
+
+    # 3) Endgültiges Heizerlaubnis
+    - variables:
+        # tagsüber nur, wenn (Preis günstig) ODER (12–14 & PV-Excess)
+        allow_daytime_heat: >-
+          {% set topup_ok = (is_midday_topup_window and has_pv_excess) %}
+          {{ price_is_cheap_now or topup_ok }}
+        heating_allowed_now: >-
+          {% if is_preheat_window %} true
+          {% elif heating_block_enabled %} false
+          {% else %} {{ allow_daytime_heat }}
+          {% endif %}
     # ===================================================================
     # ACTION 1: Update temperature setpoints based on offset (always executed)
     # ===================================================================
@@ -651,134 +501,40 @@
     - service: logbook.log
       data:
         name: "Heiz-Planer"
-        message: "{{ dbg }}"
-    
-    # ===================================================================
-    # ACTION 3: Control heating climate modes
-    # ===================================================================
+        message: >-
+          Offset={{ offset_k|float(0) }}K (PV={{ pv_offset_k|float(0) }} / Preheat={{ preheat_offset_k|float(0) }}),
+          PreisOK={{ price_is_cheap_now }}, PVexcess={{ has_pv_excess }},
+          Preheat={{ is_preheat_window }}, DayAllow={{ heating_allowed_now }}
+
+    # ACTION 3: HVAC-Modus anhand heating_allowed_now
     - choose:
-        # If heating is blocked (blocking enabled AND outside preheat window), explicitly set all climates to OFF
-        - conditions:
-            - condition: template
-              value_template: >-
-                {% set block_enabled = is_state('input_boolean.heating_block_daytime', 'on') %}
-                {% set current_ts = as_timestamp(now()) %}
-                {% set window_start = as_timestamp(now().replace(hour=0, minute=0, second=0, microsecond=0)) %}
-                {% set window_end = as_timestamp(now().replace(hour=6, minute=0, second=0, microsecond=0)) %}
-                {% set preheat_active = window_start <= current_ts < window_end %}
-                {{ block_enabled and not preheat_active }}
+        # Heizen VERBOTEN -> alles AUS
+        - conditions: "{{ not heating_allowed_now }}"
           sequence:
-            - service: logbook.log
-              data:
-                name: "Heiz-Planer"
-                message: "Heizung blockiert (nur Preheating erlaubt): Alle Klimageräte AUS"
-            # Explicitly set all climate entities to HVAC mode "off"
             - service: climate.set_hvac_mode
               target:
                 entity_id: >-
-                  {% set all_rooms = rooms_json | from_json(default=[]) %}
-                  {% set ns = namespace(climates = []) %}
-                  {% for room in all_rooms %}
-                    {% set ns.climates = ns.climates + ['climate.climate_room_' ~ room] %}
-                  {% endfor %}
-                  {{ ns.climates }}
+                  {{ (rooms_json|from_json(default=[])) | map('regex_replace','^','climate.climate_room_') | list }}
               data:
                 hvac_mode: "off"
-        # Normal operation: Select rooms based on phase and temperature (only when NOT blocked)
-        - conditions:
-            - condition: template
-              value_template: >-
-                {% set block_enabled = is_state('input_boolean.heating_block_daytime', 'on') %}
-                {% set current_ts = as_timestamp(now()) %}
-                {% set window_start = as_timestamp(now().replace(hour=0, minute=0, second=0, microsecond=0)) %}
-                {% set window_end = as_timestamp(now().replace(hour=6, minute=0, second=0, microsecond=0)) %}
-                {% set preheat_active = window_start <= current_ts < window_end %}
-                {{ not block_enabled or preheat_active }}
+
+        # Heizen ERLAUBT -> selektierte AN, rest AUS
+        - conditions: "{{ heating_allowed_now }}"
           sequence:
-            - parallel:
-                # Set HVAC mode to "heat" for selected rooms
+            - variables:
+                on_list:  "{{ climates_on  | from_json(default=[]) }}"
+                off_list: "{{ climates_off | from_json(default=[]) }}"
+            - if:
+                - condition: template
+                  value_template: "{{ on_list|length > 0 }}"
+              then:
                 - service: climate.set_hvac_mode
-                  target:
-                    entity_id: >-
-                      {% set rooms_data = room_data | from_json(default={}) %}
-                      {% set max_amps = phase_max_amps | float(16.0) %}
-                      {% set all_rooms = rooms_json | from_json(default=[]) %}
-                      {% set ns = namespace(selected_rooms = [], climates = []) %}
-                      {% for phase_num in [1, 2, 3] %}
-                        {% set ns.room_list = [] %}
-                        {% for room in all_rooms %}
-                          {% if rooms_data[room] is defined %}
-                            {% set data = rooms_data[room] %}
-                            {% if data.phase == phase_num and data.needs_heating %}
-                              {% set room_amps = data.amps | float(0) %}
-                              {% set room_error = data.error | float(0) %}
-                              {% set ns.room_list = ns.room_list + [{'room': room, 'error': room_error, 'amps': room_amps}] %}
-                            {% endif %}
-                          {% endif %}
-                        {% endfor %}
-                        {% set sorted = ns.room_list | sort(attribute='error', reverse=True) %}
-                        {% set max_amps_float = max_amps | float(16.0) %}
-                        {% set ns.phase_total = 0.0 %}
-                        {% for item in sorted %}
-                          {% set item_amps = item.amps | float(0) %}
-                          {% set current_total = ns.phase_total | float(0) %}
-                          {% set new_total = current_total + item_amps %}
-                          {% set new_total_float = new_total | float(0) %}
-                          {% if new_total_float <= max_amps_float %}
-                            {% set ns.phase_total = new_total_float %}
-                            {% if item.room not in ns.selected_rooms %}
-                              {% set ns.selected_rooms = ns.selected_rooms + [item.room] %}
-                            {% endif %}
-                          {% endif %}
-                        {% endfor %}
-                      {% endfor %}
-                      {% for room in ns.selected_rooms %}
-                        {% set ns.climates = ns.climates + ['climate.climate_room_' ~ room] %}
-                      {% endfor %}
-                      {{ ns.climates }}
-                  data:
-                    hvac_mode: "heat"
-                # Set HVAC mode to "off" for non-selected rooms
+                  target: { entity_id: "{{ on_list }}" }
+                  data: { hvac_mode: "heat" }
+            - if:
+                - condition: template
+                  value_template: "{{ off_list|length > 0 }}"
+              then:
                 - service: climate.set_hvac_mode
-                  target:
-                    entity_id: >-
-                      {% set rooms_data = room_data | from_json(default={}) %}
-                      {% set max_amps = phase_max_amps | float(16.0) %}
-                      {% set all_rooms = rooms_json | from_json(default=[]) %}
-                      {% set ns = namespace(selected_rooms = [], climates = []) %}
-                      {% for phase_num in [1, 2, 3] %}
-                        {% set ns.room_list = [] %}
-                        {% for room in all_rooms %}
-                          {% if rooms_data[room] is defined %}
-                            {% set data = rooms_data[room] %}
-                            {% if data.phase == phase_num and data.needs_heating %}
-                              {% set room_amps = data.amps | float(0) %}
-                              {% set room_error = data.error | float(0) %}
-                              {% set ns.room_list = ns.room_list + [{'room': room, 'error': room_error, 'amps': room_amps}] %}
-                            {% endif %}
-                          {% endif %}
-                        {% endfor %}
-                        {% set sorted = ns.room_list | sort(attribute='error', reverse=True) %}
-                        {% set max_amps_float = max_amps | float(16.0) %}
-                        {% set ns.phase_total = 0.0 %}
-                        {% for item in sorted %}
-                          {% set item_amps = item.amps | float(0) %}
-                          {% set current_total = ns.phase_total | float(0) %}
-                          {% set new_total = current_total + item_amps %}
-                          {% set new_total_float = new_total | float(0) %}
-                          {% if new_total_float <= max_amps_float %}
-                            {% set ns.phase_total = new_total_float %}
-                            {% if item.room not in ns.selected_rooms %}
-                              {% set ns.selected_rooms = ns.selected_rooms + [item.room] %}
-                            {% endif %}
-                          {% endif %}
-                        {% endfor %}
-                      {% endfor %}
-                      {% for room in all_rooms %}
-                        {% if room not in ns.selected_rooms %}
-                          {% set ns.climates = ns.climates + ['climate.climate_room_' ~ room] %}
-                        {% endif %}
-                      {% endfor %}
-                      {{ ns.climates }}
-                  data:
-                    hvac_mode: "off"
+                  target: { entity_id: "{{ off_list }}" }
+                  data: { hvac_mode: "off" }

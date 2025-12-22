@@ -1,7 +1,0 @@
-platform: history_stats
-name: duty_bad_12_14
-entity_id: switch.heating_bad
-state: "on"
-type: ratio
-start: "{{ now().replace(hour=12,minute=0,second=0) }}"
-end: "{{ now().replace(hour=14,minute=0,second=0) }}"

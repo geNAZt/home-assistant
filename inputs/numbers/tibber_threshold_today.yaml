@@ -1,0 +1,5 @@
+name: Tibber Schwelle billig
+min: 0
+max: 2
+step: 0.001
+unit_of_measurement: "€/kWh"
