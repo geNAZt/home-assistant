@@ -371,14 +371,13 @@
         end:   "{{ (now() + timedelta(hours=24)).strftime('%Y-%m-%d %H:00:00') }}"
       response_variable: tibber_resp
 
-    # 2) Preis-Gate bestimmen (robuste Extraktion + Perzentil)
+    # 2) Preis-Gate bestimmen (robuste Extraktion + Perzentil, ohne from_json)
     - variables:
         # 2.1 Rohdaten -> einheitliches Array [{price: ..., start_time: ...}, ...]
         tib_prices_arr: >-
           {% set raw = tibber_resp %}
           {% set arr = [] %}
           {% if raw is mapping and 'prices' in raw and (raw['prices'] is mapping) %}
-            {# nimm den ersten Standort-Key, z.B. "Suthfeld " (mit möglichem Leerzeichen) #}
             {% set first_key = (raw['prices'].keys() | list | first) %}
             {% if first_key %}
               {% set arr = raw['prices'][first_key] %}
@@ -386,11 +385,12 @@
           {% elif raw is sequence %}
             {% set arr = raw %}
           {% endif %}
-          {{ arr | tojson }}
+          {{ arr }}
 
         # 2.2 Perzentil-Schwelle (unteres x-Perzentil des Tages)
         price_quantile_thr: >-
-          {% set prices = tib_prices_arr | from_json(default=[]) | map(attribute='price') | list %}
+          {% set items = tib_prices_arr if tib_prices_arr is sequence else [] %}
+          {% set prices = items | map(attribute='price') | select('number') | list %}
           {% if prices | length == 0 %}
             {{ none }}
           {% else %}
@@ -405,22 +405,22 @@
 
         # 2.3 Ist der aktuelle Preis günstig?
         price_is_cheap_now: >-
-          {% set thr = price_quantile_thr %}
-          {% if thr is number %}
-            {{ states('sensor.backerstrasse_3b_strompreis') | float(999) <= thr }}
+          {% if price_quantile_thr is number %}
+            {{ states('sensor.backerstrasse_3b_strompreis') | float(999) <= price_quantile_thr }}
           {% else %}
             {{ is_state('input_boolean.heating_ignore_price','on') }}
           {% endif %}
 
         # Optional: kompaktes Preis-Debug fürs Log
         price_debug: >-
-          {% set arr = tib_prices_arr | from_json(default=[]) %}
-          {% set prs = arr | map(attribute='price') | list %}
+          {% set items = tib_prices_arr if tib_prices_arr is sequence else [] %}
+          {% set prs = items | map(attribute='price') | select('number') | list %}
           {% if prs | length == 0 %}
-            {{ {'n':0} | tojson }}
+            {{ {'n': 0} | tojson }}
           {% else %}
             {{ {'n': prs|length, 'min': (prs|min), 'max': (prs|max), 'thr': price_quantile_thr} | tojson }}
           {% endif %}
+
 
     # 2b) Pmax/Threshold in Helper schreiben (für die UI-Sichtkontrolle)
     - variables:
