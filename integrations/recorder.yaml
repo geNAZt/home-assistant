@@ -5,6 +5,10 @@ recorder:
     entity_globs:
       - sensor.pv_ac_voltage*
       - sensor.pv_ac_current_*
+      - sensor.pv_m1_ac_var*
+      - sensor.pv_m1_ac_current*
+      - sensor.pv_m1_ac_pf*
+      - sensor.pv_m1_ac_voltage_*
     entities:
       - sensor.pv_m1_ac_power_a
       - sensor.pv_m1_ac_power_b
@@ -22,3 +26,6 @@ recorder:
       - sensor.pv_ac_current
       - sensor.pv_dc_voltage
       - sensor.goe_288025_lmsc_delta
+      - sensor.pv_m1_ac_var
+      - sensor.pv_m1_ac_current
+      - sensor.pv_m1_ac_pf
