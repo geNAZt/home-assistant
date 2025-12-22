@@ -541,35 +541,25 @@
           Preheat={{ is_preheat_window }}, DayAllow={{ heating_allowed_now }},
           PriceDbg={{ price_debug }}
 
-    # ACTION 3: HVAC-Modus anhand heating_allowed_now
-    - choose:
-        # Heizen VERBOTEN -> alles AUS
-        - conditions: "{{ not heating_allowed_now }}"
-          sequence:
-            - service: climate.set_hvac_mode
-              target:
-                entity_id: >-
-                  {{ (rooms_json|from_json(default=[])) | map('regex_replace','^','climate.climate_room_') | list }}
-              data:
-                hvac_mode: "off"
+    - variables:
+        should_heat_now: >
+          {{ heating_allowed_now | string == 'true' }}
 
-        # Heizen ERLAUBT -> selektierte AN, rest AUS
-        - conditions: "{{ heating_allowed_now }}"
+    - choose:
+        - conditions: "{{ should_heat_now }}"
           sequence:
             - variables:
-                on_list:  "{{ climates_on  | from_json(default=[]) }}"
-                off_list: "{{ climates_off | from_json(default=[]) }}"
-            - if:
-                - condition: template
-                  value_template: "{{ on_list|length > 0 }}"
-              then:
-                - service: climate.set_hvac_mode
-                  target: { entity_id: "{{ on_list }}" }
-                  data: { hvac_mode: "heat" }
-            - if:
-                - condition: template
-                  value_template: "{{ off_list|length > 0 }}"
-              then:
-                - service: climate.set_hvac_mode
-                  target: { entity_id: "{{ off_list }}" }
-                  data: { hvac_mode: "off" }
+                on_list: "{{ climates_on }}"
+                off_list: "{{ climates_off }}"
+            - service: climate.set_hvac_mode
+              target: { entity_id: "{{ on_list }}" }
+              data: { hvac_mode: heat }
+            - service: climate.set_hvac_mode
+              target: { entity_id: "{{ off_list }}" }
+              data: { hvac_mode: "off" }
+        - conditions: "{{ not should_heat_now }}"
+          sequence:
+            # Wenn gesperrt: alles aus
+            - service: climate.set_hvac_mode
+              target: { entity_id: "{{ climates_on + climates_off }}" }
+              data: { hvac_mode: "off" }
