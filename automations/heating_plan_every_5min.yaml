@@ -537,7 +537,6 @@
       data:
         name: "Heiz-Planer"
         message: >-
-          Offset={{ offset_k|float(0) }}K (PV={{ pv_offset_k|float(0) }} / Preheat={{ preheat_offset_k|float(0) }}),
           PreisOK={{ price_is_cheap_now }}, PVexcess={{ has_pv_excess }},
           Preheat={{ is_preheat_window }}, DayAllow={{ heating_allowed_now }},
           PriceDbg={{ price_debug }}
