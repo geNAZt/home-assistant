@@ -1,0 +1,6 @@
+platform: statistics
+name: inside_temp_mean_last_6h
+entity_id: sensor.inside_temp_mean_now
+state_characteristic: mean
+max_age:
+  hours: 6
