@@ -1,18 +1,25 @@
 name: Heizenergie letztes Jahr
 query: >
   SELECT
-    ROUND(SUM(energy_Wh) / 1000, 1) AS value
+    ROUND(SUM(delta_kwh), 1) AS value
   FROM (
     SELECT
-      MAX(s.sum) - MIN(s.sum) AS energy_Wh
+      m.statistic_id,
+      CASE m.unit_of_measurement
+        WHEN 'Wh'  THEN (MAX(s.sum) - MIN(s.sum)) / 1000.0
+        WHEN 'kWh' THEN (MAX(s.sum) - MIN(s.sum))
+        ELSE (MAX(s.sum) - MIN(s.sum)) / 1000.0
+      END AS delta_kwh
     FROM statistics s
-    JOIN statistics_meta m
-      ON s.metadata_id = m.id
-    WHERE (m.statistic_id LIKE 'sensor.heating_usage_%' OR m.statistic_id IN ('sensor.water_heating_pump_usage', 'sensor.water_cycling_pump_usage', 'sensor.shellyplus2pm_485519a264d8_switch_1_energy'))
+    JOIN statistics_meta m ON s.metadata_id = m.id
+    WHERE (m.statistic_id LIKE 'sensor.heating_usage_%'
+          OR m.statistic_id IN ('sensor.water_heating_pump_usage',
+                                'sensor.water_cycling_pump_usage',
+                                'sensor.shellyplus2pm_485519a264d8_switch_1_energy'))
       AND m.statistic_id NOT LIKE '%total%'
       AND m.statistic_id NOT LIKE '%gesamt%'
-      AND FROM_UNIXTIME(s.start_ts) >= DATE_SUB(CURDATE(), INTERVAL 1 YEAR)
-    GROUP BY s.metadata_id
-  ) AS t;
+      AND s.start_ts >= UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 1 YEAR))
+    GROUP BY s.metadata_id, m.unit_of_measurement, m.statistic_id
+  ) t
 column: "value"
 unit_of_measurement: "kWh"
