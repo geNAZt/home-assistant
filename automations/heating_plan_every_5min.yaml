@@ -541,25 +541,80 @@
           Preheat={{ is_preheat_window }}, DayAllow={{ heating_allowed_now }},
           PriceDbg={{ price_debug }}
 
-    - variables:
-        should_heat_now: >
-          {{ heating_allowed_now | string == 'true' }}
-
+    # === 9) Phase-safe HVAC control =================================
     - choose:
-        - conditions: "{{ should_heat_now }}"
+        - conditions:
+            - condition: template
+              value_template: "{{ heating_allowed_now | string == 'true' }}"
           sequence:
+            # Build phase-safe lists from selections (enforce per-phase amps)
             - variables:
-                on_list: "{{ climates_on }}"
-                off_list: "{{ climates_off }}"
-            - service: climate.set_hvac_mode
-              target: { entity_id: "{{ on_list }}" }
-              data: { hvac_mode: heat }
-            - service: climate.set_hvac_mode
-              target: { entity_id: "{{ off_list }}" }
-              data: { hvac_mode: "off" }
-        - conditions: "{{ not should_heat_now }}"
-          sequence:
-            # Wenn gesperrt: alles aus
-            - service: climate.set_hvac_mode
-              target: { entity_id: "{{ climates_on + climates_off }}" }
-              data: { hvac_mode: "off" }
+                cap: "{{ phase_max_amps | float(16) }}"
+                rd: "{{ room_data | from_json }}"
+                p1_keep: >-
+                  {% set ns = namespace(load=0, keep=[]) %}
+                  {% for r in sel_p1 %}
+                    {% set a = rd[r]['amps'] | float(0) %}
+                    {% if ns.load + a <= cap %}
+                      {% set ns.load = ns.load + a %}
+                      {% set _ = ns.keep.append('climate.climate_room_' ~ r) %}
+                    {% endif %}
+                  {% endfor %}
+                  {{ ns.keep }}
+                p2_keep: >-
+                  {% set ns = namespace(load=0, keep=[]) %}
+                  {% for r in sel_p2 %}
+                    {% set a = rd[r]['amps'] | float(0) %}
+                    {% if ns.load + a <= cap %}
+                      {% set ns.load = ns.load + a %}
+                      {% set _ = ns.keep.append('climate.climate_room_' ~ r) %}
+                    {% endif %}
+                  {% endfor %}
+                  {{ ns.keep }}
+                p3_keep: >-
+                  {% set ns = namespace(load=0, keep=[]) %}
+                  {% for r in sel_p3 %}
+                    {% set a = rd[r]['amps'] | float(0) %}
+                    {% if ns.load + a <= cap %}
+                      {% set ns.load = ns.load + a %}
+                      {% set _ = ns.keep.append('climate.climate_room_' ~ r) %}
+                    {% endif %}
+                  {% endfor %}
+                  {{ ns.keep }}
+                phase_safe_on: "{{ p1_keep + p2_keep + p3_keep }}"
+                # Everything planned but not allowed by phase guard must be off
+                planned_on: "{{ climates_on }}"
+                planned_off: "{{ climates_off }}"
+                to_off: >-
+                  {{ (planned_on + planned_off) | reject('in', phase_safe_on) | list }}
+
+            # Heat the allowed ones
+            - if:
+                - condition: template
+                  value_template: "{{ phase_safe_on | count > 0 }}"
+              then:
+                - service: climate.set_hvac_mode
+                  target: { entity_id: "{{ phase_safe_on }}" }
+                  data: { hvac_mode: heat }
+
+            # Off for everybody else (incl. blocked by phase cap)
+            - if:
+                - condition: template
+                  value_template: "{{ to_off | count > 0 }}"
+              then:
+                - service: climate.set_hvac_mode
+                  target: { entity_id: "{{ to_off }}" }
+                  data: { hvac_mode: "off" }
+
+            # Optional: log how many made it per phase
+            - service: logbook.log
+              data:
+                name: Heiz-Planer
+                message: >-
+                  Phase guard: cap={{ cap }}A | P1={{ p1_keep|count }} | P2={{ p2_keep|count }} | P3={{ p3_keep|count }}
+      default:
+        # If heating not allowed now: switch everything off
+        - service: climate.set_hvac_mode
+          target: { entity_id: "{{ climates_on + climates_off }}" }
+          data: { hvac_mode: "off" }
+
