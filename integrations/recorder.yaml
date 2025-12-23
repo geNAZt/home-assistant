@@ -9,6 +9,7 @@ recorder:
       - sensor.pv_m1_ac_current*
       - sensor.pv_m1_ac_pf*
       - sensor.pv_m1_ac_voltage_*
+      - sensor.goe_288025_nrg_*
     entities:
       - sensor.pv_m1_ac_power_a
       - sensor.pv_m1_ac_power_b
@@ -29,3 +30,5 @@ recorder:
       - sensor.pv_m1_ac_var
       - sensor.pv_m1_ac_current
       - sensor.pv_m1_ac_pf
+      - sensor.pv_ac_frequency
+      - sensor.knx_interface_telegrams
