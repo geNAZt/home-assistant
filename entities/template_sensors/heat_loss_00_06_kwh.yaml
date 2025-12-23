@@ -2,20 +2,11 @@ sensor:
 - name: heat_loss_00_06_kwh
   unit_of_measurement: "kWh"
   state: >
-    {# 1) H_eff #}
-    {% set H = states('sensor.H_kW_per_K_effective')|float( states('sensor.H_kW_per_K_rolling')|float(0.072) ) %}
-    {# 2) ΔT-Quelle: bevorzugt SQL-Mittel 00–06, sonst Live-Sensor, sonst weather.home #}
-    {% set To_sql = states('sensor.outside_temp_mean_00_06_sql') %}
-    {% set Ti_sql = states('sensor.inside_temp_mean_00_06_sql') %}
-    {% set To_live = states('sensor.outside_temperature') %}
-    {% set To_weather = state_attr('weather.home','temperature') %}
-    {% set Ti_set = 22.0 %}
-    {% set To = (To_sql if To_sql not in ['unknown','unavailable','none'] else
-                 (To_live if To_live not in ['unknown','unavailable','none'] else
-                  To_weather)) | float(none) %}
-    {% set Ti = (Ti_sql if Ti_sql not in ['unknown','unavailable','none'] else Ti_set) | float(none) %}
-    {% if H>0 and To is not none and Ti is not none %}
+    {% set H = states('sensor.H_kW_per_K_effective')|float(states('sensor.H_kW_per_K_rolling')|float(none)) %}
+    {% set To = states('input_number.outside_temp_mean_00_06')|float(none) %}
+    {% set Ti = states('input_number.inside_temp_mean_00_06')|float(none) %}
+    {% if H is not none and H>0 and To is not none and Ti is not none %}
       {{ (H * max(Ti-To,0) * 6) | round(2) }}
     {% else %}
-      unknown
+      {{ none }}
     {% endif %}

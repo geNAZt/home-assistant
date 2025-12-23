@@ -1,5 +1,5 @@
 - id: inside_temp_at_00_06_snapshot
-  alias: "Snapshot inside_temp_mean_now at 00:00 and 06:00"
+  alias: "Snapshot temps at 00:00/06:00 + mean(00-06) at 06:00"
   mode: single
   trigger:
     - platform: time
@@ -8,25 +8,44 @@
     - platform: time
       at: "06:00:00"
       id: t06
+
   action:
     - choose:
-        - conditions: >
-            {{ trigger.id == 't00'
-               and states('sensor.inside_temp_mean_now') not in ['unknown','unavailable','none'] }}
+        - conditions:
+            - condition: template
+              value_template: >
+                {{ trigger.id == 't00'
+                   and states('sensor.inside_temp_mean_now') not in ['unknown','unavailable','none'] }}
           sequence:
             - service: input_number.set_value
-              target: {entity_id: input_number.inside_temp_at_00}
-              data: {value: "{{ states('sensor.inside_temp_mean_now')|float(0) }}"}
-            - service: input_datetime.set_datetime
-              target: {entity_id: input_datetime.inside_temp_at_00_ts}
-              data: {datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"}
-        - conditions: >
-            {{ trigger.id == 't06'
-               and states('sensor.inside_temp_mean_now') not in ['unknown','unavailable','none'] }}
+              target: { entity_id: input_number.inside_temp_at_00 }
+              data: { value: "{{ states('sensor.inside_temp_mean_now')|float(0) }}" }
+
+        - conditions:
+            - condition: template
+              value_template: >
+                {{ trigger.id == 't06'
+                   and states('sensor.inside_temp_mean_now') not in ['unknown','unavailable','none'] }}
           sequence:
+            # (A) 06:00 Innen-Temp wie gehabt
             - service: input_number.set_value
-              target: {entity_id: input_number.inside_temp_at_06}
-              data: {value: "{{ states('sensor.inside_temp_mean_now')|float(0) }}"}
-            - service: input_datetime.set_datetime
-              target: {entity_id: input_datetime.inside_temp_at_06_ts}
-              data: {datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"}
+              target: { entity_id: input_number.inside_temp_at_06 }
+              data: { value: "{{ states('sensor.inside_temp_mean_now')|float(0) }}" }
+
+            # (B) 06:00 Mittelwerte 00–06 einfrieren (aus statistics “last 6h”)
+            - choose:
+                - conditions:
+                    - condition: template
+                      value_template: >
+                        {{ states('sensor.inside_temp_mean_last_6h') not in ['unknown','unavailable','none']
+                           and states('sensor.outside_temp_mean_last_6h') not in ['unknown','unavailable','none']
+                           and (state_attr('sensor.inside_temp_mean_last_6h','count')|int(0)) >= 20
+                           and (state_attr('sensor.outside_temp_mean_last_6h','count')|int(0)) >= 20 }}
+                  sequence:
+                    - service: input_number.set_value
+                      target: { entity_id: input_number.inside_temp_mean_00_06 }
+                      data: { value: "{{ states('sensor.inside_temp_mean_last_6h')|float(0) }}" }
+
+                    - service: input_number.set_value
+                      target: { entity_id: input_number.outside_temp_mean_00_06 }
+                      data: { value: "{{ states('sensor.outside_temp_mean_last_6h')|float(0) }}" }
