@@ -40,58 +40,50 @@
     H_eff: "{{ states('sensor.H_kW_per_K_effective') | float(6.25) }}"
     dT_forecast: "{{ states('input_number.delta_t_forecast_k') | float(0) }}"
     
-    # Erwarteter Tages-Abkühlbetrag innen (konservativ gedämpft über H/C)
-    expected_temp_drop: >-
+    # --- Preheat goal (room-specific) ---
+    preheat_end_hour: 6          # preheat window ends 06:00
+    target_hour: 22              # want condition at 22:00
+    target_below_base_k: 0.3     # at 22:00: base - 0.3K
+    max_total_offset_k: 1.0      # <= 1K above each room's base (includes PV + preheat)
+
+    # Outside avg estimate for 06:00–22:00 (hourly forecast if available,
+    # else daily high/low average, else current outside temp)
+    outside_avg_6_22_c: >-
       {% set current_outside = states('sensor.outside_temperature') | float(0) %}
       {% set forecast_attr = state_attr('weather.home', 'forecast') %}
-      {% set min_forecast_outside = current_outside %}
+      {% set t0 = as_timestamp(now().replace(hour=6, minute=0, second=0, microsecond=0)) %}
+      {% set t1 = as_timestamp(now().replace(hour=22, minute=0, second=0, microsecond=0)) %}
+      {% set ns = namespace(sum=0.0, n=0) %}
       {% if forecast_attr is iterable %}
-        {% for day in forecast_attr %}
-          {% if day.templow is defined and day.templow is number %}
-            {% set day_low = day.templow | float %}
-            {% if day_low < min_forecast_outside %}
-              {% set min_forecast_outside = day_low %}
+        {# Try hourly points: forecast items with datetime + temperature #}
+        {% for p in forecast_attr %}
+          {% if p.datetime is defined and p.temperature is defined %}
+            {% set ts = as_timestamp(p.datetime) %}
+            {% if ts is number and t0 <= ts < t1 %}
+              {% set ns.sum = ns.sum + (p.temperature | float(0)) %}
+              {% set ns.n = ns.n + 1 %}
             {% endif %}
           {% endif %}
         {% endfor %}
-      {% endif %}
-      {% set outside_drop = current_outside - min_forecast_outside %}
-      {% if outside_drop > 0 %}
-        {% set H = H_eff | float(0.03) %}
-        {% set C = C_eff | float(12.93) %}
-        {% set attenuation = (H * 24.0) / C %}
-        {% set att = 0.15 if attenuation > 0.15 else (0.05 if attenuation < 0.05 else attenuation) %}
-        {{ (outside_drop * att) | float(0) }}
-      {% else %} 0 {% endif %}
-    
-    # Preheat-Offset (K) aus C/H und erwartetem Drop, auf 0.2–0.6 begrenzt
-    preheat_offset_k: >-
-      {% if not is_preheat_window %} 0
-      {% else %}
-        {% set C = C_eff | float(0) %}
-        {% set H = H_eff | float(0) %}
-        {% set hours = 6.0 %}
-        {% set temp_drop = expected_temp_drop | float(0) %}
-        {% if temp_drop <= 0 %}{% set temp_drop = dT_forecast | float(0) %}{% endif %}
-        {% if C <= 0 or H <= 0 or temp_drop <= 0 %} 0
+        {% if ns.n > 0 %}
+          {{ ns.sum / ns.n }}
         {% else %}
-          {% set off_raw = (C * temp_drop) / (H * hours) %}
-          {% set off = 0.6 if off_raw > 0.6 else (0.2 if off_raw < 0.2 else off_raw) %}
-          {{ off }}
+          {# Fallback: daily high/low average on first forecast item #}
+          {% set first = forecast_attr | first %}
+          {% if first is mapping and first.temperature is defined and first.templow is defined %}
+            {{ ((first.temperature | float(0)) + (first.templow | float(0))) / 2.0 }}
+          {% else %}
+            {{ current_outside }}
+          {% endif %}
         {% endif %}
+      {% else %}
+        {{ current_outside }}
       {% endif %}
 
     # ===== Tibber Preisfenster =====
     # Anteil des Tagesmax, der "billig" ist (z.B. 0.10 = unter 10% des Max-Preises)
     price_pct_of_max: "{{ states('input_number.price_percentile_cutoff')|float(0.10) }}"
     current_price_eur: "{{ states('sensor.backerstrasse_3b_strompreis')|float(99) }}"
-
-    # Gesamt-Offset
-    offset_k: >-
-      {% set total = (preheat_offset_k|float(0)) + (pv_offset_k|float(0)) %}
-      {% if total < 0 %} 0
-      {% elif total > 0.6 %} 0.6
-      {% else %} {{ total }}{% endif %}
     
     # ===================================================================
     # SECTION 2: COMPREHENSIVE ROOM DATA (Single Pass)
@@ -99,7 +91,6 @@
     # Build all room data in one pass - no JSON parsing needed!
     room_data: >-
       {% set rooms = rooms_json | from_json(default=[]) %}
-      {% set offset = offset_k | float(0) %}
       {% set hyst = hysteresis_k | float(0.05) %}
       {% set invalid_states = ['unknown', 'unavailable', 'None', ''] %}
       {% set ns = namespace(rooms = {}) %}
@@ -135,7 +126,29 @@
           {% set current = 22.0 %}
         {% endif %}
         
-        {% set effective_target = base_target + offset %}
+        {% set pv_off = pv_offset_k | float(0) %}
+        {% set cap = max_total_offset_k | float(1.0) %}
+        {% set margin = target_below_base_k | float(0.3) %}
+        {% set dt = ((target_hour | float(22)) - (preheat_end_hour | float(6))) %}
+        {% set C = C_eff | float(0) %}
+        {% set H = H_eff | float(0) %}
+        {% set T_out = outside_avg_6_22_c | float(states('sensor.outside_temperature') | float(0)) %}
+
+        {% set preheat_off = 0.0 %}
+        {% if is_preheat_window and C > 0 and H > 0 and dt > 0 %}
+          {% set k = H / C %}
+          {% set f = 2.718281828 ** (-(k * dt)) %}
+          {% if f < 0.05 %}{% set f = 0.05 %}{% endif %} {# numerical safety #}
+          {% set D_base = (base_target - T_out) * (1 - f) %}
+          {% set raw = (D_base - margin) / f %}
+          {% if raw > 0 %}{% set preheat_off = raw %}{% else %}{% set preheat_off = 0.0 %}{% endif %}
+        {% endif %}
+
+        {% set room_offset = preheat_off + pv_off %}
+        {% if room_offset > cap %}{% set room_offset = cap %}{% endif %}
+        {% if room_offset < 0 %}{% set room_offset = 0 %}{% endif %}
+
+        {% set effective_target = base_target + room_offset %}
         {% set error = effective_target - current %}
         
         {# Determine phase #}
@@ -183,6 +196,9 @@
             'current_temp': current,
             'base_target': base_target,
             'effective_target': effective_target,
+            'offset': room_offset,
+            'preheat_offset': preheat_off,
+            'pv_offset': pv_off,
             'error': error,
             'phase': phase,
             'amps': amps,
@@ -273,34 +289,6 @@
         {% endif %}
       {% endfor %}
       {{ (ns.selected | tojson) | string }}
-    
-    final_on: >-
-      {% set rooms_data = room_data | from_json(default={}) %}
-      {% set all_rooms = rooms_json | from_json(default=[]) %}
-      {% set max_amps = phase_max_amps | float(16.0) %}
-      {% set ns = namespace(final = []) %}
-      {% for phase_num in [1, 2, 3] %}
-        {% set ns.room_list = [] %}
-        {% for room in all_rooms %}
-          {% if rooms_data[room] is defined %}
-            {% set data = rooms_data[room] %}
-            {% if data.phase == phase_num and data.needs_heating %}
-              {% set ns.room_list = ns.room_list + [{'room': room, 'error': data.error, 'amps': data.amps}] %}
-            {% endif %}
-          {% endif %}
-        {% endfor %}
-        {% set sorted = ns.room_list | sort(attribute='error', reverse=True) %}
-        {% set total = 0.0 %}
-        {% for item in sorted %}
-          {% if total + item.amps <= max_amps %}
-            {% set total = total + item.amps %}
-            {% if item.room not in ns.final %}
-              {% set ns.final = ns.final + [item.room] %}
-            {% endif %}
-          {% endif %}
-        {% endfor %}
-      {% endfor %}
-      {{ (ns.final | tojson) | string }}
     
     # ===================================================================
     # SECTION 4: CLIMATE ENTITY MAPPING (for debug output)
@@ -421,7 +409,6 @@
             {{ {'n': prs|length, 'min': (prs|min), 'max': (prs|max), 'thr': price_quantile_thr} | tojson }}
           {% endif %}
 
-
     # 2b) Pmax/Threshold in Helper schreiben (für die UI-Sichtkontrolle)
     - variables:
         pmax_eur: >-
@@ -465,7 +452,9 @@
               # If offset is active: Store base temp (if not stored) and apply offset
               - conditions:
                   - condition: template
-                    value_template: "{{ offset_k | float(0) > 0 }}"
+                    value_template: >-
+                      {% set rd = room_data | from_json(default={}) %}
+                      {{ (rd[repeat.item].offset | float(0)) > 0 }}
                 sequence:
                   - service: input_number.set_value
                     target:
@@ -489,19 +478,19 @@
                       temperature: >-
                         {% set base_helper = 'input_number.heating_base_' ~ repeat.item %}
                         {% set stored_base = states(base_helper) | float(0) %}
-                        {% set offset = offset_k | float(0) %}
+                        {% set rd = room_data | from_json(default={}) %}
+                        {% set off = rd[repeat.item].offset | float(0) %}
                         {% if stored_base > 0 %}
-                          {# Use stored base + offset #}
-                          {{ stored_base + offset }}
+                          {{ stored_base + off }}
                         {% else %}
-                          {# Fallback: use calculated effective target #}
-                          {% set rooms_data = room_data | from_json(default={}) %}
-                          {{ rooms_data[repeat.item].effective_target | float }}
+                          {{ (rd[repeat.item].base_target | float(21.5)) + off }}
                         {% endif %}
               # If offset is 0: Reset to stored base temperature (if stored)
               - conditions:
                   - condition: template
-                    value_template: "{{ offset_k | float(0) == 0 }}"
+                    value_template: >-
+                      {% set rd = room_data | from_json(default={}) %}
+                      {{ (rd[repeat.item].offset | float(0)) == 0 }}
                 sequence:
                   - service: climate.set_temperature
                     target:
@@ -522,12 +511,24 @@
     - choose:
         - conditions:
             - condition: template
-              value_template: "{{ offset_k | float(0) > 0 }}"
+              value_template: >-
+                {% set rd = room_data | from_json(default={}) %}
+                {% set ns = namespace(any=false) %}
+                {% for r, d in rd.items() %}
+                  {% if (d.offset | float(0)) > 0 %}{% set ns.any = true %}{% endif %}
+                {% endfor %}
+                {{ ns.any }}
           sequence:
             - service: logbook.log
               data:
                 name: "Heiz-Planer"
-                message: "Offset aktiv: {{ offset_k | float(0) }}K (PV: {{ pv_offset_k | float(0) }}K, Preheat: {{ preheat_offset_k | float(0) }}K)"
+                message: >-
+                  {% set rd = room_data | from_json(default={}) %}
+                  {% set offs = rd.values() | map(attribute='offset') | list %}
+                  {% set pre = rd.values() | map(attribute='preheat_offset') | list %}
+                  Offset aktiv (room): total_min={{ offs|min }}K total_max={{ offs|max }}K,
+                  preheat_min={{ pre|min }}K preheat_max={{ pre|max }}K,
+                  PV={{ pv_offset_k | float(0) }}K
     
     # ===================================================================
     # ACTION 2: Log debug information
