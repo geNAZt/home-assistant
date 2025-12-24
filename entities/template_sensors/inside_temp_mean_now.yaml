@@ -2,6 +2,8 @@ sensor:
   - name: inside_temp_mean_now
     unique_id: inside_temp_mean_now
     unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
     state: >
       {# Liste deiner Temperatur-Sensoren #}
       {% set sensors = [
@@ -13,7 +15,8 @@ sensor:
         'sensor.temperature_schlafzimmer',
         'sensor.temperature_buero_fabian',
         'sensor.temperature_buero_merja',
-        'sensor.temperature_bad'
+        'sensor.temperature_bad',
+        'sensor.temperature_speisekammer'
       ] %}
       {% set ns = namespace(vals=[]) %}
       {% for e in sensors %}
