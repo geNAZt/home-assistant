@@ -22,7 +22,10 @@
     target_soc: 75.0
     target_energy_kwh: "{{ (battery_max_capacity_kwh * target_soc / 100.0) | float(0) }}"
     energy_to_75_percent_kwh: "{{ (target_energy_kwh - battery_current_energy_kwh) | float(0) }}"
-    
+
+    min_reserve_soc: 5.0
+    min_reserve_energy_kwh: "{{ (battery_max_capacity_kwh * min_reserve_soc / 100.0) | float(0) }}"
+
     # Manual override
     override_enabled: "{{ is_state('input_boolean.charge_solar_battery_override', 'on') }}"
     
@@ -135,26 +138,19 @@
         # If PV is enough: charge only until PV starts
         # If PV is not enough: charge to 75% target
         calculated_target_energy_kwh: >-
-          {% set pv_enough = pv_enough_to_charge | default(false) %}
           {% set base_target = target_energy_kwh | float(0) %}
-          {% if pv_enough %}
-            {# PV is enough - charge only until PV starts #}
-            {% set energy_until_pv = energy_until_pv_start_kwh | float(0) %}
-            {% set current_energy = battery_current_energy_kwh | float(0) %}
-            {% set target = current_energy + energy_until_pv %}
-            {# Don't exceed 75% target #}
-            {% if target > base_target %}
-              {{ base_target }}
-            {% else %}
-              {{ target }}
-            {% endif %}
+          {% if pv_enough_to_charge %}
+            {# Absolutes Ziel: (Verbrauch bis PV-Start) + Reserve, gedeckelt auf 75%-Ziel #}
+            {% set reserve = (energy_until_pv_start_kwh | float(0)) + (min_reserve_energy_kwh | float(0)) %}
+            {{ [reserve, base_target] | min }}
           {% else %}
-            {# PV is not enough - charge to 75% target #}
             {{ base_target }}
           {% endif %}
         
         # Calculate energy needed to reach target
-        energy_needed_kwh: "{{ (calculated_target_energy_kwh - battery_current_energy_kwh) | float(0) }}"
+        energy_needed_kwh: >-
+          {% set need = (calculated_target_energy_kwh - battery_current_energy_kwh) | float(0) %}
+          {{ 0 if need < 0 else need }}
         
         # Calculate required charging power (W) to reach target in remaining hours
         charging_power_w: >-
