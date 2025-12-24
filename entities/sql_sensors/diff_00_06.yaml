@@ -42,4 +42,4 @@ query: >
       ORDER BY s.start_ts DESC
       LIMIT 1
     ) t1;
-column: "valu
+column: "value"
