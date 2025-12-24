@@ -1,25 +1,48 @@
 name: Heizenergie letztes Jahr
 query: >
   SELECT
-    ROUND(SUM(delta_kwh), 1) AS value
+    ROUND(SUM(
+      CASE uom
+        WHEN 'Wh'  THEN (max_v - min_v) / 1000.0
+        WHEN 'kWh' THEN (max_v - min_v)
+        ELSE (max_v - min_v) / 1000.0
+      END
+    ), 1) AS value
   FROM (
     SELECT
-      m.statistic_id,
-      CASE m.unit_of_measurement
-        WHEN 'Wh'  THEN (MAX(s.sum) - MIN(s.sum)) / 1000.0
-        WHEN 'kWh' THEN (MAX(s.sum) - MIN(s.sum))
-        ELSE (MAX(s.sum) - MIN(s.sum)) / 1000.0
-      END AS delta_kwh
-    FROM statistics s
-    JOIN statistics_meta m ON s.metadata_id = m.id
-    WHERE (m.statistic_id LIKE 'sensor.heating_usage_%'
-          OR m.statistic_id IN ('sensor.water_heating_pump_usage',
-                                'sensor.water_cycling_pump_usage',
-                                'sensor.shellyplus2pm_485519a264d8_switch_1_energy'))
-      AND m.statistic_id NOT LIKE '%total%'
-      AND m.statistic_id NOT LIKE '%gesamt%'
-      AND s.start_ts >= UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 1 YEAR))
-    GROUP BY s.metadata_id, m.unit_of_measurement, m.statistic_id
-  ) t
+      sm.entity_id,
+
+      /* unit_of_measurement is typically in state_attributes.shared_attrs */
+      COALESCE(
+        MAX(JSON_UNQUOTE(JSON_EXTRACT(sa.shared_attrs, '$.unit_of_measurement'))),
+        MAX(JSON_UNQUOTE(JSON_EXTRACT(s.attributes,  '$.unit_of_measurement')))
+      ) AS uom,
+
+      MAX(CAST(s.state AS DECIMAL(20,6))) AS max_v,
+      MIN(CAST(s.state AS DECIMAL(20,6))) AS min_v
+    FROM states s
+    JOIN states_meta sm
+      ON s.metadata_id = sm.metadata_id
+    LEFT JOIN state_attributes sa
+      ON s.attributes_id = sa.attributes_id
+    WHERE
+      (
+        sm.entity_id LIKE 'sensor.heating_usage_%'
+        OR sm.entity_id IN (
+          'sensor.water_heating_pump_usage',
+          'sensor.water_cycling_pump_usage',
+          'sensor.shellyplus2pm_485519a264d8_switch_1_energy'
+        )
+      )
+      AND sm.entity_id NOT LIKE '%total%'
+      AND sm.entity_id NOT LIKE '%gesamt%'
+      AND s.last_updated_ts >= UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 1 YEAR))
+
+      /* skip non-numeric states */
+      AND s.state NOT IN ('unknown', 'unavailable', '')
+      AND s.state REGEXP '^-?[0-9]+(\\.[0-9]+)?$'
+    GROUP BY
+      sm.entity_id
+  ) t;
 column: "value"
 unit_of_measurement: "kWh"

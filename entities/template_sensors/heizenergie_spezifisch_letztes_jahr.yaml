@@ -9,5 +9,5 @@ sensor:
     {% if e <= 0 %}
       0
     {% else %}
-      {{ (e / 141) | round(1) }}
+      {{ (e / 141) | round(5) }}
     {% endif %}
