@@ -659,9 +659,13 @@
             # Optional: log how many made it per phase
             - service: logbook.log
               data:
-                name: Heiz-Planer
+                name: "Heiz-Planer"
                 message: >-
-                  Phase guard: cap={{ cap }}A | P1={{ p1_keep|count }} | P2={{ p2_keep|count }} | P3={{ p3_keep|count }}
+                  Phase guard: cap={{ cap }}A |
+                  P1={{ p1_keep|length }} {{ p1_keep }} |
+                  P2={{ p2_keep|length }} {{ p2_keep }} |
+                  P3={{ p3_keep|length }} {{ p3_keep }} |
+                  planned_on={{ planned_on|length }}
       default:
         # If heating not allowed now: switch everything off
         - variables:
