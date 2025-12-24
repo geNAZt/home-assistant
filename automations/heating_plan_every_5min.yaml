@@ -566,46 +566,47 @@
             - condition: template
               value_template: "{{ heating_allowed_now }}"
           sequence:
-            - variables:
+            variables:
                 cap: "{{ phase_max_amps | float(16) }}"
-                rd: "{{ room_data | from_json(default={}) }}"
+                rd: "{{ room_data | from_json }}"
 
-                sel1: "{{ sel_p1 | from_json(default=[]) }}"
-                sel2: "{{ sel_p2 | from_json(default=[]) }}"
-                sel3: "{{ sel_p3 | from_json(default=[]) }}"
+                # Nimm die vorigen Selektionen
+                sel1: "{{ sel_p1 }}"
+                sel2: "{{ sel_p2 }}"
+                sel3: "{{ sel_p3 }}"
+                planned_on: "{{ climates_on }}"
+                planned_off: "{{ climates_off }}"
 
-                planned_on:  "{{ climates_on  | from_json(default=[]) }}"
-                planned_off: "{{ climates_off | from_json(default=[]) }}"
-
+                # Greedy-Pack je Phase (ohne .append()):
                 p1_keep: >-
-                  {% set ns = namespace(load=0, keep=[]) %}
+                  {% set ns = namespace(load=0.0, keep=[]) %}
                   {% for r in sel1 %}
                     {% set a = rd[r]['amps'] | float(0) %}
                     {% if ns.load + a <= cap %}
                       {% set ns.load = ns.load + a %}
-                      {% set ns.keep = ns.keep + ['climate.climate_room_' ~ r] %}
+                      {% set ns.keep = ns.keep + [ rd[r]['entity'] ] %}
                     {% endif %}
                   {% endfor %}
                   {{ ns.keep }}
 
                 p2_keep: >-
-                  {% set ns = namespace(load=0, keep=[]) %}
+                  {% set ns = namespace(load=0.0, keep=[]) %}
                   {% for r in sel2 %}
                     {% set a = rd[r]['amps'] | float(0) %}
                     {% if ns.load + a <= cap %}
                       {% set ns.load = ns.load + a %}
-                      {% set ns.keep = ns.keep + ['climate.climate_room_' ~ r] %}
+                      {% set ns.keep = ns.keep + [ rd[r]['entity'] ] %}
                     {% endif %}
                   {% endfor %}
                   {{ ns.keep }}
 
                 p3_keep: >-
-                  {% set ns = namespace(load=0, keep=[]) %}
+                  {% set ns = namespace(load=0.0, keep=[]) %}
                   {% for r in sel3 %}
                     {% set a = rd[r]['amps'] | float(0) %}
                     {% if ns.load + a <= cap %}
                       {% set ns.load = ns.load + a %}
-                      {% set ns.keep = ns.keep + ['climate.climate_room_' ~ r] %}
+                      {% set ns.keep = ns.keep + [ rd[r]['entity'] ] %}
                     {% endif %}
                   {% endfor %}
                   {{ ns.keep }}
