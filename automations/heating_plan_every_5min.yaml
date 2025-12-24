@@ -11,6 +11,7 @@
     rooms_json: '["bad","kueche","schlafzimmer","flur","speisekammer","wohnzimmer","buero_merja","buero_fabian"]'
     phase_max_amps: 16.0
     hysteresis_k: 0.05
+    stop_margin_k: 0.1   # früher ausmachen, um Overshoot zu reduzieren
     
     # PV and preheat parameters
     pv_forecast_w: "{{ states('sensor.filtered_exported_power_w') | float(0) }}"
@@ -100,7 +101,7 @@
         {% set sensor_l1 = 'sensor.current_l1_' ~ room ~ '_current' %}
         {% set sensor_l2 = 'sensor.current_l2_' ~ room ~ '_current' %}
         {% set sensor_l3 = 'sensor.current_l3_' ~ room ~ '_current' %}
-        
+
         {# Read temperatures #}
         {% set current_temp = state_attr(climate_entity, 'current_temperature') %}
         {% set current_setpoint = state_attr(climate_entity, 'temperature') %}
@@ -186,8 +187,30 @@
         {% endif %}
         
         {# Determine if heating is needed #}
-        {% set threshold = effective_target - hyst %}
-        {% set needs_heating = current < threshold %}
+        {# --- is_heating (robust) --- #}
+        {% set st = states(climate_entity) %}
+        {% set is_heating = (st == 'heat') %}
+
+        {# --- Start/Stop Schwellen --- #}
+        {% set stop_margin = stop_margin_k | float(0.1) %}
+        {% set stop_th  = effective_target - stop_margin %}
+        {% set start_th = stop_th - hyst %}
+
+        {# --- Cooldown check --- #}
+        {% set cd_ent = 'input_datetime.heating_cooldown_until_' ~ room %}
+        {% set cd_state = states(cd_ent) %}
+        {% set cd_ts = as_timestamp(cd_state) if cd_state not in invalid_states else 0 %}
+        {% set nowts = as_timestamp(now()) %}
+        {% set cooldown_ok = (cd_ts == 0) or (nowts >= cd_ts) %}
+
+        {# --- Start/Stop Decision --- #}
+        {% if is_heating %}
+          {# Wenn bereits heizt: weiterlaufen lassen bis stop_th erreicht #}
+          {% set needs_heating = current < stop_th %}
+        {% else %}
+          {# Wenn aus: erst bei start_th starten, aber nur wenn Cooldown vorbei #}
+          {% set needs_heating = (current < start_th) and cooldown_ok %}
+        {% endif %}
         
         {# Build room data structure #}
         {% set ns.rooms = ns.rooms | combine({ 
@@ -412,13 +435,12 @@
     # 2b) Pmax/Threshold in Helper schreiben (für die UI-Sichtkontrolle)
     - variables:
         pmax_eur: >-
-          {% set lst = tib_prices|from_json(default=[]) %}
-          {% if lst|length > 0 %}
-            {{ (lst | map(attribute='price') | list | max) }}
-          {% else %} 0 {% endif %}
+          {% set items = tib_prices_arr if tib_prices_arr is sequence else [] %}
+          {% set prices = items | map(attribute='price') | select('number') | list %}
+          {{ (prices|max) if prices|length else 0 }}
         thr_eur: >-
-          {% set pct = states('input_number.price_percentile_cutoff')|float(0.10) %}
-          {{ (pmax_eur|float(0)) * pct }}
+          {# UI-Helper soll am besten das echte Quantil zeigen, nicht pmax*pct #}
+          {{ price_quantile_thr if price_quantile_thr is number else 0 }}
 
     - service: input_number.set_value
       target: { entity_id: input_number.tibber_pmax_today }
@@ -437,10 +459,7 @@
           {% set topup_ok = (is_midday_topup_window and has_pv_excess) %}
           {{ price_is_cheap_now or topup_ok }}
         heating_allowed_now: >-
-          {% if is_preheat_window %} true
-          {% elif heating_block_enabled %} false
-          {% else %} {{ allow_daytime_heat }}
-          {% endif %}
+          {{ is_preheat_window or (not heating_block_enabled and allow_daytime_heat) }}
     # ===================================================================
     # ACTION 1: Update temperature setpoints based on offset (always executed)
     # ===================================================================
@@ -545,15 +564,22 @@
     - choose:
         - conditions:
             - condition: template
-              value_template: "{{ heating_allowed_now | string == 'true' }}"
+              value_template: "{{ heating_allowed_now }}"
           sequence:
             - variables:
                 cap: "{{ phase_max_amps | float(16) }}"
-                rd: "{{ room_data | from_json }}"
+                rd: "{{ room_data | from_json(default={}) }}"
+
+                sel1: "{{ sel_p1 | from_json(default=[]) }}"
+                sel2: "{{ sel_p2 | from_json(default=[]) }}"
+                sel3: "{{ sel_p3 | from_json(default=[]) }}"
+
+                planned_on:  "{{ climates_on  | from_json(default=[]) }}"
+                planned_off: "{{ climates_off | from_json(default=[]) }}"
 
                 p1_keep: >-
                   {% set ns = namespace(load=0, keep=[]) %}
-                  {% for r in sel_p1 %}
+                  {% for r in sel1 %}
                     {% set a = rd[r]['amps'] | float(0) %}
                     {% if ns.load + a <= cap %}
                       {% set ns.load = ns.load + a %}
@@ -564,7 +590,7 @@
 
                 p2_keep: >-
                   {% set ns = namespace(load=0, keep=[]) %}
-                  {% for r in sel_p2 %}
+                  {% for r in sel2 %}
                     {% set a = rd[r]['amps'] | float(0) %}
                     {% if ns.load + a <= cap %}
                       {% set ns.load = ns.load + a %}
@@ -575,7 +601,7 @@
 
                 p3_keep: >-
                   {% set ns = namespace(load=0, keep=[]) %}
-                  {% for r in sel_p3 %}
+                  {% for r in sel3 %}
                     {% set a = rd[r]['amps'] | float(0) %}
                     {% if ns.load + a <= cap %}
                       {% set ns.load = ns.load + a %}
@@ -585,9 +611,17 @@
                   {{ ns.keep }}
 
                 phase_safe_on: "{{ p1_keep + p2_keep + p3_keep }}"
-                planned_on: "{{ climates_on }}"
-                planned_off: "{{ climates_off }}"
                 to_off: "{{ (planned_on + planned_off) | reject('in', phase_safe_on) | list }}"
+                cooldown_minutes: "{{ states('input_number.heating_cooldown_minutes')|int(10) }}"
+                to_off_rooms: >-
+                  {% set rooms = to_off | map('regex_replace','^climate\\.climate_room_','') | list %}
+                  {% set ns = namespace(out=[]) %}
+                  {% for r in rooms %}
+                    {% if states('climate.climate_room_' ~ r) == 'heat' %}
+                      {% set ns.out = ns.out + [r] %}
+                    {% endif %}
+                  {% endfor %}
+                  {{ ns.out }}
 
             # Heat the allowed ones
             - if:
@@ -598,7 +632,7 @@
                   target: { entity_id: "{{ phase_safe_on }}" }
                   data: { hvac_mode: heat }
 
-            # Off for everybody else (incl. blocked by phase cap)
+            # Off for everybody else (incl. blocked by phase cap) value_template: "{{ to_off | count > 0 }}"
             - if:
                 - condition: template
                   value_template: "{{ to_off | count > 0 }}"
@@ -606,6 +640,19 @@
                 - service: climate.set_hvac_mode
                   target: { entity_id: "{{ to_off }}" }
                   data: { hvac_mode: "off" }
+            - if:
+                - condition: template
+                  value_template: "{{ to_off_rooms | count > 0 and cooldown_minutes > 0 }}"
+              then:
+                - repeat:
+                    for_each: "{{ to_off_rooms }}"
+                    sequence:
+                      - service: input_datetime.set_datetime
+                        target:
+                          entity_id: "input_datetime.heating_cooldown_until_{{ repeat.item }}"
+                        data:
+                          date: "{{ (now() + timedelta(minutes=cooldown_minutes)).strftime('%Y-%m-%d') }}"
+                          time: "{{ (now() + timedelta(minutes=cooldown_minutes)).strftime('%H:%M:%S') }}"
 
             # Optional: log how many made it per phase
             - service: logbook.log
@@ -615,7 +662,37 @@
                   Phase guard: cap={{ cap }}A | P1={{ p1_keep|count }} | P2={{ p2_keep|count }} | P3={{ p3_keep|count }}
       default:
         # If heating not allowed now: switch everything off
-        - service: climate.set_hvac_mode
-          target: { entity_id: "{{ climates_on + climates_off }}" }
-          data: { hvac_mode: "off" }
+        - variables:
+            cooldown_minutes: "{{ states('input_number.heating_cooldown_minutes')|int(10) }}"
+            all_rooms: "{{ rooms_json | from_json(default=[]) }}"
+            rooms_heating_now: >-
+              {% set ns = namespace(out=[]) %}
+              {% for r in all_rooms %}
+                {% if states('climate.climate_room_' ~ r) == 'heat' %}
+                  {% set ns.out = ns.out + [r] %}
+                {% endif %}
+              {% endfor %}
+              {{ ns.out }}
+            climates_heating_now: >-
+              {{ rooms_heating_now | map('regex_replace','^(.*)$','climate.climate_room_\\1') | list }}
+        - if:
+            - condition: template
+              value_template: "{{ climates_heating_now | count > 0 }}"
+          then:
+            - service: climate.set_hvac_mode
+              target: { entity_id: "{{ climates_heating_now }}" }
+              data: { hvac_mode: "off" }
+        - if:
+            - condition: template
+              value_template: "{{ cooldown_minutes > 0 and rooms_heating_now | count > 0 }}"
+          then:
+            - repeat:
+                for_each: "{{ rooms_heating_now }}"
+                sequence:
+                  - service: input_datetime.set_datetime
+                    target:
+                      entity_id: "input_datetime.heating_cooldown_until_{{ repeat.item }}"
+                    data:
+                      date: "{{ (now() + timedelta(minutes=cooldown_minutes)).strftime('%Y-%m-%d') }}"
+                      time: "{{ (now() + timedelta(minutes=cooldown_minutes)).strftime('%H:%M:%S') }}"
 

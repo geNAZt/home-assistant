@@ -1,0 +1,7 @@
+name: Heating cooldown
+min: 0
+max: 60
+step: 1
+unit_of_measurement: "min"
+mode: box
+initial: 10
