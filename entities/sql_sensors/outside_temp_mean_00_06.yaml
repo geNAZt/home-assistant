@@ -1,0 +1,15 @@
+name: outside_temp_mean_00_06
+unit_of_measurement: "°C"
+query: >
+  SELECT ROUND(AVG(s.mean), 2) AS value
+  FROM statistics_short_term s
+  JOIN statistics_meta m ON m.id = s.metadata_id
+  WHERE m.statistic_id = 'sensor.outside_temperature'
+    AND s.mean IS NOT NULL
+    AND s.start_ts >= UNIX_TIMESTAMP(
+      IF(TIME(NOW()) < '06:00:00', DATE_SUB(CURDATE(), INTERVAL 1 DAY), CURDATE())
+    )
+    AND s.start_ts <  UNIX_TIMESTAMP(
+      IF(TIME(NOW()) < '06:00:00', DATE_SUB(CURDATE(), INTERVAL 1 DAY), CURDATE())
+    ) + 6*3600;
+column: "value"
