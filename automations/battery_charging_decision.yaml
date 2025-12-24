@@ -50,82 +50,58 @@
         end_date_time: "{{ (now() + timedelta(hours=24)).isoformat() }}"
       response_variable: solcast_response
     - variables:
-        # Extract forecast data from response (handle different response structures)
-        forecast_data: >-
-          {% set resp = solcast_response | default({}) %}
-          {% set ns = namespace(data=[]) %}
-          {% if resp.result is defined and resp.result.response is defined %}
-            {% set ns.data = resp.result.response.data | default([]) %}
-          {% elif resp.response is defined and resp.response.data is defined %}
-            {% set ns.data = resp.response.data | default([]) %}
-          {% elif resp.data is defined %}
-            {% set ns.data = resp.data | default([]) %}
-          {% endif %}
-          {{ ns.data }}
-        
-        # Calculate total PV production until 16:00 today
-        # Subtract pv_start_wattage (500W) since that goes to house consumption, not battery
+        # direkt aus solcast_response lesen
         pv_total_until_16h_kwh: >-
-          {% set forecast = forecast_data | default([]) %}
+          {% set forecast = solcast_response.data | default([]) %}
           {% set now_ts_val = now_ts | float(0) %}
           {% set target_16h = as_timestamp(now().replace(hour=16, minute=0, second=0, microsecond=0)) | float(0) %}
           {% set consumption_kw = (pv_start_wattage / 1000.0) | float(0) %}
           {% set ns = namespace(total=0.0) %}
-          
-          {% if forecast | length > 0 %}
-            {% for item in forecast %}
-              {% set period_start = item.period_start | default(None) %}
-              {% if period_start %}
-                {# Handle both datetime objects and string timestamps #}
-                {% if period_start is string %}
-                  {% set item_ts = as_timestamp(period_start) | float(0) %}
-                {% else %}
-                  {# It's a datetime object, convert to timestamp #}
-                  {% set item_ts = as_timestamp(period_start.isoformat()) | float(0) %}
-                {% endif %}
-                
-                {% if item_ts >= now_ts_val and item_ts <= target_16h %}
-                  {% set pv_kw = (item.pv_estimate | default(0)) | float(0) %}
-                  {# Subtract house consumption - only excess goes to battery #}
-                  {% set excess_kw = pv_kw - consumption_kw %}
-                  {% if excess_kw > 0 %}
-                    {# Solcast provides kW, convert to kWh (30-minute intervals = 0.5 hours) #}
-                    {% set ns.total = ns.total + (excess_kw * 0.5) %}
-                  {% endif %}
+
+          {% for item in forecast %}
+            {% set period_start = item.period_start | default(None) %}
+            {% if period_start %}
+              {% if period_start is string %}
+                {% set item_ts = as_timestamp(period_start) | float(0) %}
+              {% else %}
+                {% set item_ts = as_timestamp(period_start.isoformat()) | float(0) %}
+              {% endif %}
+
+              {% if item_ts >= now_ts_val and item_ts <= target_16h %}
+                {% set pv_kw = (item.pv_estimate | default(0)) | float(0) %}
+                {% set excess_kw = pv_kw - consumption_kw %}
+                {% if excess_kw > 0 %}
+                  {% set ns.total = ns.total + (excess_kw * 0.5) %}
                 {% endif %}
               {% endif %}
-            {% endfor %}
-          {% endif %}
-          
+            {% endif %}
+          {% endfor %}
+
           {{ ns.total | float(0) }}
-        
-        # Check if PV is enough to charge battery to 75% by 16:00
+
         pv_enough_to_charge: >-
           {% set pv_total = pv_total_until_16h_kwh | float(0) %}
           {% set energy_needed = energy_to_75_percent_kwh | float(0) %}
           {{ pv_total >= energy_needed if energy_needed > 0 else true }}
-        
-        # Find when PV reaches start wattage (500W)
+
         pv_start_time_str: >-
-          {% set forecast = forecast_data | default([]) %}
+          {% set forecast = solcast_response.data | default([]) %}
           {% set now_ts_val = now_ts | float(0) %}
           {% set threshold_kw = (pv_start_wattage / 1000.0) | float(0) %}
           {% set ns = namespace(found_time=None) %}
-          
-          {% if forecast | length > 0 %}
-            {% for item in forecast %}
+
+          {% for item in forecast %}
+            {% if not ns.found_time %}
               {% set period_start = item.period_start | default(None) %}
-              {% if period_start and not ns.found_time %}
-                {# Handle both datetime objects and string timestamps #}
+              {% if period_start %}
                 {% if period_start is string %}
                   {% set item_ts = as_timestamp(period_start) | float(0) %}
                   {% set item_time_str = period_start %}
                 {% else %}
-                  {# It's a datetime object, convert to timestamp and ISO string #}
                   {% set item_ts = as_timestamp(period_start.isoformat()) | float(0) %}
                   {% set item_time_str = period_start.isoformat() %}
                 {% endif %}
-                
+
                 {% if item_ts > now_ts_val %}
                   {% set pv_kw = (item.pv_estimate | default(0)) | float(0) %}
                   {% if pv_kw >= threshold_kw %}
@@ -133,9 +109,9 @@
                   {% endif %}
                 {% endif %}
               {% endif %}
-            {% endfor %}
-          {% endif %}
-          
+            {% endif %}
+          {% endfor %}
+
           {{ ns.found_time | default('') }}
         
         # Calculate energy needed until PV starts (assuming 500W consumption)
