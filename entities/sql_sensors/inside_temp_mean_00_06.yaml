@@ -1,4 +1,4 @@
-name: inside_temp_mean_00_06_sql
+name: inside_temp_mean_00_06
 unit_of_measurement: "°C"
 query: >
   SELECT ROUND(AVG(s.mean), 2) AS value
