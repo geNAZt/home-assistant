@@ -191,7 +191,13 @@
         {% set st = states(climate_entity) %}
         {% set is_heating = (st == 'heat') %}
 
-        {# --- Start/Stop Schwellen --- #}
+        {# --- Safety band: heat if ≥ lower_safety_band_k under setpoint --- #}
+        {% set lower_safety_band_k = 1.0 %}
+        {% set sp_eff = effective_target %}
+        {% set sp_now = (state_attr(climate_entity,'temperature') if state_attr(climate_entity,'temperature') is number else sp_eff) | float(sp_eff) %}
+        {% set must_heat = current <= (sp_now - lower_safety_band_k) %}
+
+        {# --- Start/Stop thresholds --- #}
         {% set stop_margin = stop_margin_k | float(0.1) %}
         {% set stop_th  = effective_target - stop_margin %}
         {% set start_th = stop_th - hyst %}
@@ -203,15 +209,15 @@
         {% set nowts = as_timestamp(now()) %}
         {% set cooldown_ok = (cd_ts == 0) or (nowts >= cd_ts) %}
 
-        {# --- Start/Stop Decision --- #}
+        {# --- Decision (must_heat DOES NOT bypass cooldown when OFF) --- #}
         {% if is_heating %}
-          {# Wenn bereits heizt: weiterlaufen lassen bis stop_th erreicht #}
-          {% set needs_heating = current < stop_th %}
+          {# running -> may continue till stop_th or if safety says must_heat #}
+          {% set needs_heating = (current < stop_th) or must_heat %}
         {% else %}
-          {# Wenn aus: erst bei start_th starten, aber nur wenn Cooldown vorbei #}
-          {% set needs_heating = (current < start_th) and cooldown_ok %}
+          {# off -> can start only if cooldown_ok; allow either normal start or safety #}
+          {% set needs_heating = ((current < start_th) and cooldown_ok) or (must_heat and cooldown_ok) %}
         {% endif %}
-        
+
         {# Build room data structure #}
         {% set ns.rooms = ns.rooms | combine({ 
           room: {
@@ -225,7 +231,8 @@
             'error': error,
             'phase': phase,
             'amps': amps,
-            'needs_heating': needs_heating
+            'needs_heating': needs_heating,
+            'must_heat': must_heat
           }
         }) %}
       {% endfor %}
@@ -242,20 +249,19 @@
       {% set ns = namespace(room_list = [], selected = []) %}
       {% for room in all_rooms %}
         {% if rooms_data[room] is defined %}
-          {% set data = rooms_data[room] %}
-          {% if data.phase == 1 and data.needs_heating %}
-            {% set ns.room_list = ns.room_list + [{'room': room, 'error': data.error, 'amps': data.amps}] %}
+          {% set d = rooms_data[room] %}
+          {% if d.phase == 1 and d.needs_heating %}
+            {% set score = (1000 if d.must_heat else 0) + (d.error | float(0)) %}
+            {% set ns.room_list = ns.room_list + [{'room': room, 'amps': d.amps, 'score': score}] %}
           {% endif %}
         {% endif %}
       {% endfor %}
-      {% set sorted = ns.room_list | sort(attribute='error', reverse=True) %}
+      {% set sorted = ns.room_list | sort(attribute='score', reverse=True) %}
       {% set total = 0.0 %}
-      {% set max_amps_float = max_amps | float(16.0) %}
       {% for item in sorted %}
-        {% set item_amps = item.amps | float(0) %}
-        {% set new_total = total + item_amps %}
-        {% if new_total <= max_amps_float %}
-          {% set total = new_total %}
+        {% set a = item.amps | float(0) %}
+        {% if total + a <= max_amps %}
+          {% set total = total + a %}
           {% set ns.selected = ns.selected + [item.room] %}
         {% endif %}
       {% endfor %}
@@ -268,20 +274,19 @@
       {% set ns = namespace(room_list = [], selected = []) %}
       {% for room in all_rooms %}
         {% if rooms_data[room] is defined %}
-          {% set data = rooms_data[room] %}
-          {% if data.phase == 2 and data.needs_heating %}
-            {% set ns.room_list = ns.room_list + [{'room': room, 'error': data.error, 'amps': data.amps}] %}
+          {% set d = rooms_data[room] %}
+          {% if d.phase == 2 and d.needs_heating %}
+            {% set score = (1000 if d.must_heat else 0) + (d.error | float(0)) %}
+            {% set ns.room_list = ns.room_list + [{'room': room, 'amps': d.amps, 'score': score}] %}
           {% endif %}
         {% endif %}
       {% endfor %}
-      {% set sorted = ns.room_list | sort(attribute='error', reverse=True) %}
+      {% set sorted = ns.room_list | sort(attribute='score', reverse=True) %}
       {% set total = 0.0 %}
-      {% set max_amps_float = max_amps | float(16.0) %}
       {% for item in sorted %}
-        {% set item_amps = item.amps | float(0) %}
-        {% set new_total = total + item_amps %}
-        {% if new_total <= max_amps_float %}
-          {% set total = new_total %}
+        {% set a = item.amps | float(0) %}
+        {% if total + a <= max_amps %}
+          {% set total = total + a %}
           {% set ns.selected = ns.selected + [item.room] %}
         {% endif %}
       {% endfor %}
@@ -294,20 +299,19 @@
       {% set ns = namespace(room_list = [], selected = []) %}
       {% for room in all_rooms %}
         {% if rooms_data[room] is defined %}
-          {% set data = rooms_data[room] %}
-          {% if data.phase == 3 and data.needs_heating %}
-            {% set ns.room_list = ns.room_list + [{'room': room, 'error': data.error, 'amps': data.amps}] %}
+          {% set d = rooms_data[room] %}
+          {% if d.phase == 3 and d.needs_heating %}
+            {% set score = (1000 if d.must_heat else 0) + (d.error | float(0)) %}
+            {% set ns.room_list = ns.room_list + [{'room': room, 'amps': d.amps, 'score': score}] %}
           {% endif %}
         {% endif %}
       {% endfor %}
-      {% set sorted = ns.room_list | sort(attribute='error', reverse=True) %}
+      {% set sorted = ns.room_list | sort(attribute='score', reverse=True) %}
       {% set total = 0.0 %}
-      {% set max_amps_float = max_amps | float(16.0) %}
       {% for item in sorted %}
-        {% set item_amps = item.amps | float(0) %}
-        {% set new_total = total + item_amps %}
-        {% if new_total <= max_amps_float %}
-          {% set total = new_total %}
+        {% set a = item.amps | float(0) %}
+        {% if total + a <= max_amps %}
+          {% set total = total + a %}
           {% set ns.selected = ns.selected + [item.room] %}
         {% endif %}
       {% endfor %}
@@ -564,7 +568,10 @@
     - choose:
         - conditions:
             - condition: template
-              value_template: "{{ heating_allowed_now }}"
+              value_template: >-
+                {% set rd = room_data | from_json(default={}) %}
+                {% set safety = rd.values() | selectattr('must_heat') | list | count > 0 %}
+                {{ heating_allowed_now or safety }}
           sequence:
             - variables:
                 cap: "{{ phase_max_amps | float(16) }}"
