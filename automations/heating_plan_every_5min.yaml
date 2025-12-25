@@ -191,16 +191,22 @@
         {% set st = states(climate_entity) %}
         {% set is_heating = (st == 'heat') %}
 
-        {# --- Safety band: heat if ≥ lower_safety_band_k under setpoint --- #}
+        {# --- Safety band --- #}
         {% set lower_safety_band_k = 1.5 %}
         {% set sp_eff = effective_target %}
-        {% set sp_now = (state_attr(climate_entity,'temperature') if state_attr(climate_entity,'temperature') is number else sp_eff) | float(sp_eff) %}
-        {% set must_heat = current <= (sp_now - lower_safety_band_k) %}
+        {% set sp_now = (state_attr(climate_entity,'temperature')
+                          if state_attr(climate_entity,'temperature') is number
+                          else sp_eff) | float(sp_eff) %}
+        {# start condition for safety: at/below setpoint - lower_band #}
+        {% set must_heat_start = current <= (sp_now - lower_safety_band_k) %}
 
-        {# --- Start/Stop thresholds --- #}
+        {# --- Start/Stop thresholds (normal) --- #}
         {% set stop_margin = stop_margin_k | float(0.1) %}
         {% set stop_th  = effective_target - stop_margin %}
-        {% set start_th = stop_th - hyst %}
+        {% set start_th = stop_th - (hysteresis_k | float(0.05)) %}
+
+        {# --- Safety stop threshold: setpoint - lower_band + stop_margin --- #}
+        {% set safety_stop_th = (sp_now - lower_safety_band_k + stop_margin) %}
 
         {# --- Cooldown check --- #}
         {% set cd_ent = 'input_datetime.heating_cooldown_until_' ~ room %}
@@ -209,18 +215,26 @@
         {% set nowts = as_timestamp(now()) %}
         {% set cooldown_ok = (cd_ts == 0) or (nowts >= cd_ts) %}
 
-        {# --- Decision (must_heat DOES NOT bypass cooldown when OFF) --- #}
+        {# --- Decision
+             - If OFF: may start on (normal start) OR (safety start), both respect cooldown
+             - If ON and we're currently in safety range: only continue up to safety_stop_th
+             - If ON and not in safety range: use normal stop_th
+        --- #}
         {% if is_heating %}
-          {# running -> may continue till stop_th or if safety says must_heat #}
-          {% set needs_heating = (current < stop_th) or must_heat %}
+          {% if must_heat_start %}
+            {# running from safety band -> cap at setpoint - lower + stop_margin #}
+            {% set needs_heating = (current < safety_stop_th) %}
+          {% else %}
+            {# normal run #}
+            {% set needs_heating = (current < stop_th) %}
+          {% endif %}
         {% else %}
-          {# off -> can start only if cooldown_ok; allow either normal start or safety #}
-          {% set needs_heating = ((current < start_th) and cooldown_ok) or (must_heat and cooldown_ok) %}
+          {% set needs_heating = cooldown_ok and ((current < start_th) or must_heat_start) %}
         {% endif %}
 
         {# Build room data structure #}
-        {% set ns.rooms = ns.rooms | combine({ 
-          room: {
+        {% set ns.rooms = ns.rooms | combine({
+          room: ns.rooms.get(room, {}) | combine({
             'entity': climate_entity,
             'current_temp': current,
             'base_target': base_target,
@@ -232,8 +246,8 @@
             'phase': phase,
             'amps': amps,
             'needs_heating': needs_heating,
-            'must_heat': must_heat
-          }
+            'must_heat': must_heat_start
+          })
         }) %}
       {% endfor %}
       {{ (ns.rooms | tojson) | string }}
