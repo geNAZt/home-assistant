@@ -74,8 +74,9 @@
             {% if dt is not none and t is not none %}
               {% set ts = as_timestamp(dt) %}
               {% if ts is number %}
-                {% set hour = (ts - (ts % 3600)) | int %}
-                {% set ns.m = ns.m | combine({ hour: (t|float(0)) }) %}
+                {% set hour = ((ts - (ts % 3600)) | int) %}
+                {% set key = hour | string %}
+                {% set ns.m = ns.m | combine({ key: (t|float(0)) }) %}
               {% endif %}
             {% endif %}
           {% endfor %}
@@ -93,8 +94,9 @@
             {% if dt is not none and pr is not none %}
               {% set ts = as_timestamp(dt) %}
               {% if ts is number and (t00 <= ts < t06) %}
-                {% set hour = (ts - (ts % 3600)) | int %}
-                {% set Tout = wx_map[hour] if wx_map[hour] is defined else Tout_fallback %}
+                {% set hour = ((ts - (ts % 3600)) | int) %}
+                {% set key = hour | string %}
+                {% set Tout = wx_map[key] if wx_map[key] is defined else Tout_fallback %}
                 {% set w = (Tbase - (Tout|float(0))) %}
                 {% if w < 0 %}{% set w = 0 %}{% endif %}
                 {% set ns.num = ns.num + (pr|float(0)) * w %}
@@ -113,8 +115,9 @@
             {% if dt is not none and pr is not none %}
               {% set ts = as_timestamp(dt) %}
               {% if ts is number and (t06 <= ts < t24) %}
-                {% set hour = (ts - (ts % 3600)) | int %}
-                {% set Tout = wx_map[hour] if wx_map[hour] is defined else Tout_fallback %}
+                {% set hour = ((ts - (ts % 3600)) | int) %}
+                {% set key = hour | string %}
+                {% set Tout = wx_map[key] if wx_map[key] is defined else Tout_fallback %}
                 {% set w = (Tbase - (Tout|float(0))) %}
                 {% if w < 0 %}{% set w = 0 %}{% endif %}
                 {% set ns.num = ns.num + (pr|float(0)) * w %}
