@@ -4,7 +4,7 @@ binary_sensor:
     {% set pN = states('input_number.tibber_price_dw_00_06')|float(0) %}
     {% set pD = states('input_number.tibber_price_dw_06_24')|float(0) %}
     {% set H = states('sensor.h_kw_per_k_effective')|float(0) %}
-    {% set C = states('sensor.c_eff_last_night')|float(0) %}
+    {% set C = states('sensor.C_kWh_per_K_rolling')|float(0) %}
     {% set dt = states('input_number.preheat_dt_hours')|float(12) %}
     {% set m  = states('input_number.preheat_margin_pct')|float(0.02) %}
     {% if pN>0 and pD>0 and H>0 and C>0 and dt>0 %}
