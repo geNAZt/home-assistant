@@ -10,15 +10,17 @@
   action:
     # --- Plan-Tag festlegen: heute wenn <06:00, sonst morgen ---
     - variables:
-        base: >-
-          {% set b = now().replace(hour=0, minute=0, second=0, microsecond=0) %}
+        # base_ts ist ein FLOAT/INT timestamp (sekunden)
+        base_ts: >-
+          {% set ts = as_timestamp(now().replace(hour=0, minute=0, second=0)) %}
           {% if now().hour >= 6 %}
-            {% set b = b + timedelta(days=1) %}
+            {% set ts = ts + 86400 %}
           {% endif %}
-          {{ b }}
-        t00: "{{ as_timestamp(base) }}"
-        t06: "{{ as_timestamp(base.replace(hour=6)) }}"
-        t24: "{{ as_timestamp(base + timedelta(days=1)) }}"
+          {{ ts }}
+
+        t00: "{{ base_ts | float(0) }}"
+        t06: "{{ (base_ts | float(0)) + 6*3600 }}"
+        t24: "{{ (base_ts | float(0)) + 24*3600 }}"
 
     # --- 1) Wetter-Forecast holen (hourly) ---
     - service: weather.get_forecasts
@@ -30,8 +32,8 @@
     # --- 2) Tibber-Preise für genau diesen Plan-Tag holen (00:00..24:00) ---
     - service: tibber.get_prices
       data:
-        start: "{{ base.strftime('%Y-%m-%d %H:%M:%S') }}"
-        end: "{{ (base + timedelta(days=1)).strftime('%Y-%m-%d %H:%M:%S') }}"
+        start: "{{ (base_ts | float(0)) | timestamp_custom('%Y-%m-%d %H:%M:%S', true) }}"
+        end:   "{{ ((base_ts | float(0)) + 86400) | timestamp_custom('%Y-%m-%d %H:%M:%S', true) }}"
       response_variable: tibber_resp
 
     - variables:
