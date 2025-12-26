@@ -1,0 +1,22 @@
+sensor:
+- name: "Preheat Penalty Faktor"
+  unit_of_measurement: "x"
+  state: >-
+    {% set H = states('sensor.h_kw_per_k_effective')|float(0) %}
+    {% set C = states('sensor.c_eff_last_night')|float(0) %}
+    {% set dt = states('input_number.preheat_dt_hours')|float(12) %}
+    {% if H>0 and C>0 and dt>0 %}
+      {{ (2.718281828 ** ((H/C) * dt)) | round(3) }}
+    {% else %}
+      0
+    {% endif %}
+- name: "Preheat Spread Ratio (bedarfgewichtet)"
+  unit_of_measurement: "x"
+  state: >-
+    {% set pN = states('input_number.tibber_price_dw_00_06')|float(0) %}
+    {% set pD = states('input_number.tibber_price_dw_06_24')|float(0) %}
+    {% if pN>0 and pD>0 %}
+      {{ (pD/pN) | round(3) }}
+    {% else %}
+      0
+    {% endif %}

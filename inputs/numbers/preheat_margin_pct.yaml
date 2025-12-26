@@ -1,0 +1,7 @@
+name: "Preheat Sicherheitsmarge"
+min: 0
+max: 0.2
+step: 0.01
+unit_of_measurement: "%"
+mode: box
+initial: 0.02

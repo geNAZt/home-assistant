@@ -1,0 +1,106 @@
+- id: tibber_update_demand_weighted_prices
+  alias: "Heizung: Bedarf-gewichtete Tibber Ø Preise (00–06, 06–24)"
+  mode: single
+  trigger:
+    - platform: time_pattern
+      minutes: "0"
+    - platform: homeassistant
+      event: start
+
+  action:
+    - service: tibber.get_prices
+      data:
+        start: "{{ now().strftime('%Y-%m-%d %H:00:00') }}"
+        end:   "{{ (now() + timedelta(hours=24)).strftime('%Y-%m-%d %H:00:00') }}"
+      response_variable: tibber_resp
+
+    - variables:
+        # --- 1) Preise extrahieren -> Array ---
+        prices_arr: >-
+          {% set raw = tibber_resp %}
+          {% set arr = [] %}
+          {% if raw is mapping and 'prices' in raw and (raw['prices'] is mapping) %}
+            {% set first_key = (raw['prices'].keys() | list | first) %}
+            {% if first_key %}{% set arr = raw['prices'][first_key] %}{% endif %}
+          {% elif raw is sequence %}
+            {% set arr = raw %}
+          {% endif %}
+          {{ arr if arr is sequence else [] }}
+
+        # --- 2) Wetter-Forecast (stündlich) -> Mapping hour_ts -> outside_temp ---
+        wx_map: >-
+          {% set fc = state_attr('weather.home','forecast') %}
+          {% set ns = namespace(m={}) %}
+          {% if fc is iterable %}
+            {% for p in fc %}
+              {% set dt = p.datetime if p.datetime is defined else (p.datetime_iso if p.datetime_iso is defined else none) %}
+              {% set t  = p.temperature if p.temperature is defined else none %}
+              {% if dt is not none and t is not none %}
+                {% set ts = as_timestamp(dt) %}
+                {% if ts is number %}
+                  {# auf Stundenbeginn runden #}
+                  {% set hour = (ts - (ts % 3600)) | int %}
+                  {% set ns.m = ns.m | combine({ hour: (t|float(0)) }) %}
+                {% endif %}
+              {% endif %}
+            {% endfor %}
+          {% endif %}
+          {{ ns.m }}
+
+        # --- 3) Demand weight je Stunde: w = max(0, Tbase - Tout) ---
+        Tbase: "{{ states('input_number.preheat_base_indoor_c')|float(21.5) }}"
+        Tout_fallback: "{{ states('sensor.outside_temperature')|float(0) }}"
+
+        # --- 4) Bedarf-Ø Preis für Fenster berechnen (00-06 und 06-24) ---
+        # Wir nutzen NUR Stunden, die im Tibber-Array vorhanden sind.
+        dw_00_06: >-
+          {% set items = prices_arr %}
+          {% set t0 = as_timestamp(now().replace(hour=0, minute=0, second=0, microsecond=0)) %}
+          {% set t1 = as_timestamp(now().replace(hour=6, minute=0, second=0, microsecond=0)) %}
+          {% set ns = namespace(num=0.0, den=0.0) %}
+          {% for p in items %}
+            {% set dt = p.start_time if p.start_time is defined else (p.startsAt if p.startsAt is defined else none) %}
+            {% set pr = p.price if p.price is defined else (p.total if p.total is defined else none) %}
+            {% if dt is not none and pr is not none %}
+              {% set ts = as_timestamp(dt) %}
+              {% if ts is number and t0 <= ts < t1 %}
+                {% set hour = (ts - (ts % 3600)) | int %}
+                {% set Tout = wx_map[hour] if wx_map[hour] is defined else Tout_fallback %}
+                {% set w = (Tbase - (Tout|float(0))) %}
+                {% if w < 0 %}{% set w = 0 %}{% endif %}
+                {% set ns.num = ns.num + (pr|float(0)) * w %}
+                {% set ns.den = ns.den + w %}
+              {% endif %}
+            {% endif %}
+          {% endfor %}
+          {{ (ns.num / ns.den) if ns.den>0 else 0 }}
+
+        dw_06_24: >-
+          {% set items = prices_arr %}
+          {% set t0 = as_timestamp(now().replace(hour=6, minute=0, second=0, microsecond=0)) %}
+          {% set t1 = as_timestamp((now() + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)) %}
+          {% set ns = namespace(num=0.0, den=0.0) %}
+          {% for p in items %}
+            {% set dt = p.start_time if p.start_time is defined else (p.startsAt if p.startsAt is defined else none) %}
+            {% set pr = p.price if p.price is defined else (p.total if p.total is defined else none) %}
+            {% if dt is not none and pr is not none %}
+              {% set ts = as_timestamp(dt) %}
+              {% if ts is number and t0 <= ts < t1 %}
+                {% set hour = (ts - (ts % 3600)) | int %}
+                {% set Tout = wx_map[hour] if wx_map[hour] is defined else Tout_fallback %}
+                {% set w = (Tbase - (Tout|float(0))) %}
+                {% if w < 0 %}{% set w = 0 %}{% endif %}
+                {% set ns.num = ns.num + (pr|float(0)) * w %}
+                {% set ns.den = ns.den + w %}
+              {% endif %}
+            {% endif %}
+          {% endfor %}
+          {{ (ns.num / ns.den) if ns.den>0 else 0 }}
+
+    - service: input_number.set_value
+      target: { entity_id: input_number.tibber_price_dw_00_06 }
+      data: { value: "{{ dw_00_06|float(0) }}" }
+
+    - service: input_number.set_value
+      target: { entity_id: input_number.tibber_price_dw_06_24 }
+      data: { value: "{{ dw_06_24|float(0) }}" }

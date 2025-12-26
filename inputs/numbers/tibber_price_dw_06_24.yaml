@@ -1,0 +1,6 @@
+name: "Tibber Bedarf-Ø Preis 06–24"
+min: 0
+max: 2
+step: 0.001
+unit_of_measurement: "€/kWh"
+mode: box
