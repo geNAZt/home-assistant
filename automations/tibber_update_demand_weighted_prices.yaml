@@ -8,20 +8,34 @@
       event: start
 
   action:
+    # --- Plan-Tag festlegen: heute wenn <06:00, sonst morgen ---
+    - variables:
+        base: >-
+          {% set b = now().replace(hour=0, minute=0, second=0, microsecond=0) %}
+          {% if now().hour >= 6 %}
+            {% set b = b + timedelta(days=1) %}
+          {% endif %}
+          {{ b }}
+        t00: "{{ as_timestamp(base) }}"
+        t06: "{{ as_timestamp(base.replace(hour=6, minute=0, second=0, microsecond=0)) }}"
+        t24: "{{ as_timestamp(base + timedelta(days=1)) }}"
+
+    # --- 1) Wetter-Forecast holen (hourly) ---
+    - service: weather.get_forecasts
+      data:
+        type: hourly
+        entity_id: weather.home
+      response_variable: wx_resp
+
+    # --- 2) Tibber-Preise für genau diesen Plan-Tag holen (00:00..24:00) ---
     - service: tibber.get_prices
       data:
-        start: >-
-          {% set base = now().replace(hour=0, minute=0, second=0, microsecond=0) %}
-          {% if now().hour >= 6 %}{% set base = base + timedelta(days=1) %}{% endif %}
-          {{ base.strftime('%Y-%m-%d %H:%M:%S') }}
-        end: >-
-          {% set base = now().replace(hour=0, minute=0, second=0, microsecond=0) %}
-          {% if now().hour >= 6 %}{% set base = base + timedelta(days=1) %}{% endif %}
-          {{ (base + timedelta(days=1)).strftime('%Y-%m-%d %H:%M:%S') }}
+        start: "{{ base.strftime('%Y-%m-%d %H:%M:%S') }}"
+        end: "{{ (base + timedelta(days=1)).strftime('%Y-%m-%d %H:%M:%S') }}"
       response_variable: tibber_resp
 
     - variables:
-        # --- 1) Preise extrahieren -> Array ---
+        # -------- Preise extrahieren (Array) --------
         prices_arr: >-
           {% set raw = tibber_resp %}
           {% set arr = [] %}
@@ -33,48 +47,50 @@
           {% endif %}
           {{ arr if arr is sequence else [] }}
 
-        # --- 2) Wetter-Forecast (stündlich) -> Mapping hour_ts -> outside_temp ---
-        wx_map: >-
-          {% set fc = state_attr('weather.home','forecast') %}
-          {% set ns = namespace(m={}) %}
-          {% if fc is iterable %}
-            {% for p in fc %}
-              {% set dt = p.datetime if p.datetime is defined else (p.datetime_iso if p.datetime_iso is defined else none) %}
-              {% set t  = p.temperature if p.temperature is defined else none %}
-              {% if dt is not none and t is not none %}
-                {% set ts = as_timestamp(dt) %}
-                {% if ts is number %}
-                  {# auf Stundenbeginn runden #}
-                  {% set hour = (ts - (ts % 3600)) | int %}
-                  {% set ns.m = ns.m | combine({ hour: (t|float(0)) }) %}
-                {% endif %}
-              {% endif %}
-            {% endfor %}
+        # -------- Forecast extrahieren (Array) --------
+        # weather.get_forecasts liefert typischerweise:
+        # wx_resp = { "weather.home": { "forecast": [ {datetime, temperature, ...}, ...] } }
+        forecast_arr: >-
+          {% set raw = wx_resp %}
+          {% set out = [] %}
+          {% if raw is mapping %}
+            {% set e = raw.get('weather.home') %}
+            {% if e is mapping and e.get('forecast') is iterable %}
+              {% set out = e.get('forecast') %}
+            {% elif raw.get('forecast') is iterable %}
+              {% set out = raw.get('forecast') %}
+            {% endif %}
           {% endif %}
+          {{ out if out is iterable else [] }}
+
+        # -------- wx_map bauen: hour_ts -> outside_temp --------
+        wx_map: >-
+          {% set ns = namespace(m={}) %}
+          {% for p in forecast_arr %}
+            {% set dt = p.datetime if p.datetime is defined else (p.datetime_iso if p.datetime_iso is defined else none) %}
+            {% set t  = p.temperature if p.temperature is defined else none %}
+            {% if dt is not none and t is not none %}
+              {% set ts = as_timestamp(dt) %}
+              {% if ts is number %}
+                {% set hour = (ts - (ts % 3600)) | int %}
+                {% set ns.m = ns.m | combine({ hour: (t|float(0)) }) %}
+              {% endif %}
+            {% endif %}
+          {% endfor %}
           {{ ns.m }}
 
-        # --- 3) Demand weight je Stunde: w = max(0, Tbase - Tout) ---
         Tbase: "{{ states('input_number.preheat_base_indoor_c')|float(21.5) }}"
         Tout_fallback: "{{ states('sensor.outside_temperature')|float(0) }}"
 
-        # --- 4) Bedarf-Ø Preis für Fenster berechnen (00-06 und 06-24) ---
-        # Wir nutzen NUR Stunden, die im Tibber-Array vorhanden sind.
+        # -------- Demand-weighted Ø Preis 00–06 --------
         dw_00_06: >-
-          {% set items = prices_arr %}
-          {% set base = now().replace(hour=0, minute=0, second=0, microsecond=0) %}
-          {% if now().hour >= 6 %}{% set base = base + timedelta(days=1) %}{% endif %}
-
-          {% set t00 = as_timestamp(base) %}
-          {% set t06 = as_timestamp(base.replace(hour=6)) %}
-          {% set t24 = as_timestamp(base + timedelta(days=1)) %}
-
           {% set ns = namespace(num=0.0, den=0.0) %}
-          {% for p in items %}
+          {% for p in prices_arr %}
             {% set dt = p.start_time if p.start_time is defined else (p.startsAt if p.startsAt is defined else none) %}
             {% set pr = p.price if p.price is defined else (p.total if p.total is defined else none) %}
             {% if dt is not none and pr is not none %}
               {% set ts = as_timestamp(dt) %}
-              {% if ts is number and t00 <= ts < t06 %}
+              {% if ts is number and (t00 <= ts < t06) %}
                 {% set hour = (ts - (ts % 3600)) | int %}
                 {% set Tout = wx_map[hour] if wx_map[hour] is defined else Tout_fallback %}
                 {% set w = (Tbase - (Tout|float(0))) %}
@@ -86,22 +102,15 @@
           {% endfor %}
           {{ (ns.num / ns.den) if ns.den>0 else 0 }}
 
+        # -------- Demand-weighted Ø Preis 06–24 --------
         dw_06_24: >-
-          {% set items = prices_arr %}
-          {% set base = now().replace(hour=0, minute=0, second=0, microsecond=0) %}
-          {% if now().hour >= 6 %}{% set base = base + timedelta(days=1) %}{% endif %}
-
-          {% set t00 = as_timestamp(base) %}
-          {% set t06 = as_timestamp(base.replace(hour=6)) %}
-          {% set t24 = as_timestamp(base + timedelta(days=1)) %}
-
           {% set ns = namespace(num=0.0, den=0.0) %}
-          {% for p in items %}
+          {% for p in prices_arr %}
             {% set dt = p.start_time if p.start_time is defined else (p.startsAt if p.startsAt is defined else none) %}
             {% set pr = p.price if p.price is defined else (p.total if p.total is defined else none) %}
             {% if dt is not none and pr is not none %}
               {% set ts = as_timestamp(dt) %}
-              {% if ts is number and t06 <= ts < t24 %}
+              {% if ts is number and (t06 <= ts < t24) %}
                 {% set hour = (ts - (ts % 3600)) | int %}
                 {% set Tout = wx_map[hour] if wx_map[hour] is defined else Tout_fallback %}
                 {% set w = (Tbase - (Tout|float(0))) %}
