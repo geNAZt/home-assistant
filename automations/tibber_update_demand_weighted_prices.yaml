@@ -10,8 +10,14 @@
   action:
     - service: tibber.get_prices
       data:
-        start: "{{ now().strftime('%Y-%m-%d %H:00:00') }}"
-        end:   "{{ (now() + timedelta(hours=24)).strftime('%Y-%m-%d %H:00:00') }}"
+        start: >-
+          {% set base = now().replace(hour=0, minute=0, second=0, microsecond=0) %}
+          {% if now().hour >= 6 %}{% set base = base + timedelta(days=1) %}{% endif %}
+          {{ base.strftime('%Y-%m-%d %H:%M:%S') }}
+        end: >-
+          {% set base = now().replace(hour=0, minute=0, second=0, microsecond=0) %}
+          {% if now().hour >= 6 %}{% set base = base + timedelta(days=1) %}{% endif %}
+          {{ (base + timedelta(days=1)).strftime('%Y-%m-%d %H:%M:%S') }}
       response_variable: tibber_resp
 
     - variables:
@@ -55,15 +61,20 @@
         # Wir nutzen NUR Stunden, die im Tibber-Array vorhanden sind.
         dw_00_06: >-
           {% set items = prices_arr %}
-          {% set t0 = as_timestamp(now().replace(hour=0, minute=0, second=0, microsecond=0)) %}
-          {% set t1 = as_timestamp(now().replace(hour=6, minute=0, second=0, microsecond=0)) %}
+          {% set base = now().replace(hour=0, minute=0, second=0, microsecond=0) %}
+          {% if now().hour >= 6 %}{% set base = base + timedelta(days=1) %}{% endif %}
+
+          {% set t00 = as_timestamp(base) %}
+          {% set t06 = as_timestamp(base.replace(hour=6)) %}
+          {% set t24 = as_timestamp(base + timedelta(days=1)) %}
+
           {% set ns = namespace(num=0.0, den=0.0) %}
           {% for p in items %}
             {% set dt = p.start_time if p.start_time is defined else (p.startsAt if p.startsAt is defined else none) %}
             {% set pr = p.price if p.price is defined else (p.total if p.total is defined else none) %}
             {% if dt is not none and pr is not none %}
               {% set ts = as_timestamp(dt) %}
-              {% if ts is number and t0 <= ts < t1 %}
+              {% if ts is number and t00 <= ts < t06 %}
                 {% set hour = (ts - (ts % 3600)) | int %}
                 {% set Tout = wx_map[hour] if wx_map[hour] is defined else Tout_fallback %}
                 {% set w = (Tbase - (Tout|float(0))) %}
@@ -77,15 +88,20 @@
 
         dw_06_24: >-
           {% set items = prices_arr %}
-          {% set t0 = as_timestamp(now().replace(hour=6, minute=0, second=0, microsecond=0)) %}
-          {% set t1 = as_timestamp((now() + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)) %}
+          {% set base = now().replace(hour=0, minute=0, second=0, microsecond=0) %}
+          {% if now().hour >= 6 %}{% set base = base + timedelta(days=1) %}{% endif %}
+
+          {% set t00 = as_timestamp(base) %}
+          {% set t06 = as_timestamp(base.replace(hour=6)) %}
+          {% set t24 = as_timestamp(base + timedelta(days=1)) %}
+
           {% set ns = namespace(num=0.0, den=0.0) %}
           {% for p in items %}
             {% set dt = p.start_time if p.start_time is defined else (p.startsAt if p.startsAt is defined else none) %}
             {% set pr = p.price if p.price is defined else (p.total if p.total is defined else none) %}
             {% if dt is not none and pr is not none %}
               {% set ts = as_timestamp(dt) %}
-              {% if ts is number and t0 <= ts < t1 %}
+              {% if ts is number and t06 <= ts < t24 %}
                 {% set hour = (ts - (ts % 3600)) | int %}
                 {% set Tout = wx_map[hour] if wx_map[hour] is defined else Tout_fallback %}
                 {% set w = (Tbase - (Tout|float(0))) %}
