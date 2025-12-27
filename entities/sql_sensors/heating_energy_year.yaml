@@ -10,39 +10,33 @@ query: >
     ), 1) AS value
   FROM (
     SELECT
-      sm.entity_id,
+      sm.statistic_id,
 
       /* unit_of_measurement is typically in state_attributes.shared_attrs */
-      COALESCE(
-        MAX(JSON_UNQUOTE(JSON_EXTRACT(sa.shared_attrs, '$.unit_of_measurement'))),
-        MAX(JSON_UNQUOTE(JSON_EXTRACT(s.attributes,  '$.unit_of_measurement')))
-      ) AS uom,
+      sm.unit_of_measurement AS uom,
 
       MAX(CAST(s.state AS DECIMAL(20,6))) AS max_v,
       MIN(CAST(s.state AS DECIMAL(20,6))) AS min_v
-    FROM states s
-    JOIN states_meta sm
-      ON s.metadata_id = sm.metadata_id
-    LEFT JOIN state_attributes sa
-      ON s.attributes_id = sa.attributes_id
+    FROM statistics s
+    JOIN statistics_meta sm
+      ON s.metadata_id = sm.id
     WHERE
       (
-        sm.entity_id LIKE 'sensor.heating_usage_%'
-        OR sm.entity_id IN (
+        sm.statistic_id LIKE 'sensor.heating_usage_%'
+        OR sm.statistic_id IN (
           'sensor.water_heating_pump_usage',
           'sensor.water_cycling_pump_usage',
           'sensor.shellyplus2pm_485519a264d8_switch_1_energy'
         )
       )
-      AND sm.entity_id NOT LIKE '%total%'
-      AND sm.entity_id NOT LIKE '%gesamt%'
-      AND s.last_updated_ts >= UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 1 YEAR))
+      AND sm.statistic_id NOT LIKE '%total%'
+      AND sm.statistic_id NOT LIKE '%gesamt%'
+      AND s.start_ts >= UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 1 YEAR))
 
       /* skip non-numeric states */
-      AND s.state NOT IN ('unknown', 'unavailable', '')
       AND s.state REGEXP '^-?[0-9]+(\\.[0-9]+)?$'
     GROUP BY
-      sm.entity_id
+      sm.statistic_id
   ) t;
 column: "value"
 unit_of_measurement: "kWh"
