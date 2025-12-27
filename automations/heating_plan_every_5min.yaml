@@ -18,7 +18,7 @@
     pv_thr_w: "{{ states('input_number.pv_excess_threshold_w') | float(0) }}"
     has_pv_excess: "{{ pv_forecast_w > pv_thr_w }}"
     pv_offset_k: "{{ 0.5 if has_pv_excess else 0 }}"
-    
+
     # PV-/Top-Up-Fenster: nur mittags 12–14 Uhr & nur wenn PV-Überschuss
     is_midday_topup_window: >-
       {% set nowts = as_timestamp(now()) %}
@@ -35,7 +35,7 @@
     
     # Heating blocking: When enabled, only allow heating during preheat window (00:00-06:00)
     # Turn this switch ON to block heating outside preheat window
-    heating_block_enabled: "{{ is_state('input_boolean.heating_block_daytime', 'on') }}"
+    heating_block_enabled: "{{ is_state('input_boolean.heating_block_daytime', 'on') or is_state('binary_sensor.preheat_erlaubt_demand_weighted', 'off') }}"
     
     C_eff: "{{ states('sensor.C_kWh_per_K_rolling') | float(10) }}"
     H_eff: "{{ states('sensor.H_kW_per_K_effective') | float(6.25) }}"
@@ -136,7 +136,7 @@
         {% set T_out = outside_avg_6_22_c | float(states('sensor.outside_temperature') | float(0)) %}
 
         {% set preheat_off = 0.0 %}
-        {% if is_preheat_window and C > 0 and H > 0 and dt > 0 %}
+        {% if is_preheat_window and C > 0 and H > 0 and dt > 0 and heating_block_enabled %}
           {% set k = H / C %}
           {% set f = 2.718281828 ** (-(k * dt)) %}
           {% if f < 0.05 %}{% set f = 0.05 %}{% endif %} {# numerical safety #}
