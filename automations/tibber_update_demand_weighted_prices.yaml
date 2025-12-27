@@ -13,7 +13,7 @@
         # base_ts ist ein FLOAT/INT timestamp (sekunden)
         base_ts: >-
           {% set ts = as_timestamp(now().replace(hour=0, minute=0, second=0)) %}
-          {% if now().hour >= 6 %}
+          {% if now().hour >= 22 %}
             {% set ts = ts + 86400 %}
           {% endif %}
           {{ ts }}
