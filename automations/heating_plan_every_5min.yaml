@@ -35,7 +35,7 @@
     
     # Heating blocking: When enabled, only allow heating during preheat window (00:00-06:00)
     # Turn this switch ON to block heating outside preheat window
-    heating_block_enabled: "{{ is_state('input_boolean.heating_block_daytime', 'on') or is_state('binary_sensor.preheat_erlaubt_demand_weighted', 'off') }}"
+    heating_block_enabled: "{{ is_state('input_boolean.heating_block_daytime', 'on') and is_state('binary_sensor.preheat_erlaubt_demand_weighted', 'on') }}"
     
     C_eff: "{{ states('sensor.C_kWh_per_K_rolling') | float(10) }}"
     H_eff: "{{ states('sensor.H_kW_per_K_effective') | float(6.25) }}"
