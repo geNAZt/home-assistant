@@ -11,6 +11,6 @@
     # Verify idToken
     - action: notify.send_message
       data:
-        message: '{"id_token": "{{ trigger.data.id_token }}"}'
+        message: '{"id_token": "{{ trigger.json.id_token }}"}'
         entity_id: notify.file
     - action: shell_command.git_update        

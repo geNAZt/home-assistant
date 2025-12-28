@@ -16,7 +16,7 @@ jobs:
         with:
           script: |
             return { idToken: await core.getIDToken() };
-      - uses: joelwmale/webhook-action@2.1.0
+      - uses: joelwmale/webhook-action@master
         with:
           url: https://home.genazt.me/api/webhook/git_update
-          body: '{"idToken": "${{ steps.id-token.outputs.idToken }}"}'
+          body: '{"id_token": "${{ steps.id-token.outputs.idToken }}"}'
