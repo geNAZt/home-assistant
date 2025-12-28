@@ -1,0 +1,4 @@
+- platform: file
+  name: id_token
+  filename: /config/file_notifications/id_token.txt
+  timestamp: false
