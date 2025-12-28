@@ -1,0 +1,22 @@
+name: Deploy Config
+
+on:
+  push:
+    branches: [ '*' ]
+
+jobs:
+  deploy_config:
+    permissions:
+      id-token: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate ID Token
+        id: id-token
+        uses: actions/github-script@v8
+        with:
+          script: |
+            return { idToken: await github.auth.getIDToken() };
+      - uses: joelwmale/webhook-action@2.1.0
+        with:
+          url: ${{ secrets.HASS_WEBHOOK_URL }}/update_config
+          body: '{"idToken": "${{ steps.id-token.outputs.idToken }}"}'
