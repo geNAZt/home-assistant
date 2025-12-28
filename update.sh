@@ -25,8 +25,64 @@ if [ -z "$ID_TOKEN" ]; then
     exit 1
 fi
 
-# Set the ID token
-export GITHUB_TOKEN=$ID_TOKEN
+PAYLOAD=$(echo $ID_TOKEN | cut -d '.' -f 2)
+
+# Get the middle part of the ID token to get the issuer
+ISSUER=$(echo $PAYLOAD | base64 -d | jq -r '.iss')
+if [ -z "$ISSUER" ]; then
+    echo "No issuer found"
+    exit 1
+fi
+
+# Get the KID
+KID=$(echo $ID_TOKEN | cut -d '.' -f 1 | base64 -d | jq -r '.kid')
+if [ -z "$KID" ]; then
+    echo "No KID found"
+    exit 1
+fi
+
+PUBLIC_KEY_FILE="/tmp/public_key_${KID}.pem"
+if [ ! -f "$PUBLIC_KEY_FILE" ]; then
+    # Download the correct public key
+    JWKS_URL="${ISSUER}/.well-known/jwks"
+    JWKS_CONTENT=$(curl -s $JWKS_URL)
+    if [ -z "$JWKS_CONTENT" ]; then
+        echo "No JWKS content found"
+        exit 1
+    fi
+
+    # Get the public key
+    PUBLIC_KEY=$(echo $JWKS_CONTENT | jq -r '.keys[] | select(.kid == "'${KID}'") | .x5c[0]')
+    if [ -z "$PUBLIC_KEY" ]; then
+        echo "No public key found"
+        exit 1
+    fi
+
+    echo "$PUBLIC_KEY" > /tmp/cert_${KID}.pem
+    openssl x509 -pubkey -noout -in /tmp/cert_${KID}.pem > /tmp/key_${KID}.pem
+fi
+
+# Get the public key in PEM format
+echo "$PAYLOAD" > /tmp/payload.b64
+SIGNATURE=$(echo $ID_TOKEN | cut -d '.' -f 3 | base64 -d)
+echo "$SIGNATURE" > /tmp/signature.dat
+
+VERIFY_COMPLETE=$(openssl dgst -sha256 -verify /tmp/key_${KID}.pem -signature /tmp/signature.dat /tmp/payload.b64)
+if [ -z "$VERIFY_COMPLETE" ]; then
+    echo "Verification failed"
+    exit 1
+fi
+
+SUBJECT=$(echo $PAYLOAD | base64 -d | jq -r '.sub')
+if [ -z "$SUBJECT" ]; then
+    echo "No subject found"
+    exit 1
+fi
+
+if [ "$SUBJECT" != "repo:geNAZt/home-assistant:ref:refs/heads/main" ]; then
+    echo "Subject is not repo:geNAZt/home-assistant:ref:refs/heads/main"
+    exit 1
+fi
 
 # Check if ~/.ssh exists
 if [ ! -d ~/.ssh ]; then
