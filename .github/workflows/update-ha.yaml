@@ -14,8 +14,8 @@ jobs:
         id: id-token
         uses: actions/github-script@v8
         with:
-          script: |
-            return { idToken: await core.getIDToken() };
+          script: return await core.getIDToken()
+          result-encoding: string
       - uses: joelwmale/webhook-action@master
         with:
           url: https://home.genazt.me/api/webhook/git_update
