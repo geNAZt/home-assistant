@@ -12,7 +12,7 @@ fi
 
 # Exchange github token for id token
 # We need to read the last line of the id_token.txt file
-ID_TOKEN=$(tail -r /config/file_notifications/id_token.txt | grep -m 1 '.')
+ID_TOKEN="$(awk 'NF{last=$0} END{print last}' /config/file_notifications/id_token.txt)"
 if [ -z "$ID_TOKEN" ]; then
     echo "No ID token found"
     exit 1
