@@ -15,7 +15,7 @@ jobs:
         uses: actions/github-script@v8
         with:
           script: |
-            return { idToken: await github.auth.getIDToken() };
+            return { idToken: await await require('@actions/core').getIDToken() };
       - uses: joelwmale/webhook-action@2.1.0
         with:
           url: ${{ secrets.HASS_WEBHOOK_URL }}/update_config
