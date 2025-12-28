@@ -31,4 +31,4 @@ tts/*
 # Lock files
 *.lock
 
-app/
+file_notifications/*

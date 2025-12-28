@@ -11,3 +11,6 @@ automation: !include_dir_merge_list automations/
 
 # Automations I create in the UI
 automation ui: !include automations.yaml
+
+allowlist_external_dirs:
+  - /config/file_notifications

@@ -8,6 +8,11 @@ if ! command -v yq &> /dev/null; then
     apk add yq
 fi
 
+# Check if ~/.ssh exists
+if [ ! -d ~/.ssh ]; then
+    mkdir -p ~/.ssh
+fi
+
 # Check if we have a SSH key loaded
 if [ ! -f ~/.ssh/id_ed25519 ]; then 
     yq '.git_ssh_key' /config/secrets.yaml -r > ~/.ssh/id_ed25519

@@ -18,5 +18,5 @@ jobs:
             return { idToken: await core.getIDToken() };
       - uses: joelwmale/webhook-action@2.1.0
         with:
-          url: ${{ secrets.HASS_WEBHOOK_URL }}/update_config
+          url: https://home.genazt.me/api/webhook/git_update
           body: '{"idToken": "${{ steps.id-token.outputs.idToken }}"}'
