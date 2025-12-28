@@ -1,1 +1,1 @@
-git_update: bash -c "cd /config && source update.sh"
+git_update: bash -c "cd /config && chmod +x ./update.sh && ./update.sh"
