@@ -34,6 +34,10 @@ HEADER=$(printf '%s' "$ID_TOKEN" | cut -d '.' -f 1)
 PAYLOAD=$(printf '%s' "$ID_TOKEN" | cut -d '.' -f 2)
 SIGNATURE=$(printf '%s' "$ID_TOKEN" | cut -d '.' -f 3)
 
+SIGNING_INPUT_FILE=/tmp/jwt_signing_input.txt
+SIG_FILE=/tmp/jwt_signature.bin
+printf '%s.%s' "$HEADER" "$PAYLOAD" > "$SIGNING_INPUT_FILE"
+
 HEADER_JSON="$(printf '%s' "$HEADER" \
   | tr '_-' '/+' \
   | awk '{p=$0; r=length(p)%4; if(r==2)p=p"=="; else if(r==3)p=p"="; print p}' \
@@ -44,10 +48,10 @@ JSON="$(printf '%s' "$PAYLOAD" \
   | awk '{p=$0; r=length(p)%4; if(r==2)p=p"=="; else if(r==3)p=p"="; print p}' \
   | base64 -d)"
 
-SIG="$(printf '%s' "$SIGNATURE" \
+printf '%s' "$SIGNATURE" \
   | tr '_-' '/+' \
   | awk '{p=$0; r=length(p)%4; if(r==2)p=p"=="; else if(r==3)p=p"="; print p}' \
-  | base64 -d)"
+  | base64 -d > "$SIG_FILE"
 
 # Get the middle part of the ID token to get the issuer
 ISSUER=$(printf '%s' "$JSON" | jq -r '.iss')
@@ -91,8 +95,8 @@ fi
 echo "$PAYLOAD" > /tmp/payload.b64
 echo "$SIG" > /tmp/signature.dat
 
-VERIFY_COMPLETE=$(openssl dgst -sha256 -verify /tmp/public_key_${KID}.pem -signature /tmp/signature.dat /tmp/payload.b64)
-if [ -z "$VERIFY_COMPLETE" ]; then
+VERIFY_COMPLETE=$(openssl dgst -sha256 -verify /tmp/public_key_${KID}.pem -signature $SIG_FILE $SIGNING_INPUT_FILE)
+if [ "$VERIFY_COMPLETE" == "Verification failure" ]; then
     echo "Verification failed"
     exit 1
 fi
