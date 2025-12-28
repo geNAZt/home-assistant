@@ -13,4 +13,10 @@
       data:
         message: '{"id_token": "{{ trigger.json.id_token }}"}'
         entity_id: notify.file
-    - action: shell_command.git_update        
+    - action: shell_command.git_update     
+    - action: notify.mobile_app_poco_x7_pro_fabian
+      data:
+        message: Git update has been complete. Restarting now
+    - action: homeassistant.restart
+      metadata: {}
+      data: {}
