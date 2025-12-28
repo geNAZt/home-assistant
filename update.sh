@@ -10,6 +10,11 @@ if ! command -v jq &> /dev/null; then
     apk add jq
 fi
 
+# Check if openssl is installed
+if ! command -v openssl &> /dev/null; then
+    apk add openssl
+fi
+
 # Exchange github token for id token
 # We need to read the last line of the id_token.txt file
 ID_TOKEN="$(awk 'NF{last=$0} END{print last}' /config/file_notifications/id_token.txt)"
@@ -19,29 +24,47 @@ if [ -z "$ID_TOKEN" ]; then
 fi
 
 # Parse the ID token
-ID_TOKEN=$(echo $ID_TOKEN | jq -r '.id_token')
+ID_TOKEN=$(printf '%s' "$ID_TOKEN" | jq -r '.id_token')
 if [ -z "$ID_TOKEN" ]; then
     echo "No ID token found"
     exit 1
 fi
 
-PAYLOAD=$(echo $ID_TOKEN | cut -d '.' -f 2)
+HEADER=$(printf '%s' "$ID_TOKEN" | cut -d '.' -f 1)
+PAYLOAD=$(printf '%s' "$ID_TOKEN" | cut -d '.' -f 2)
+SIGNATURE=$(printf '%s' "$ID_TOKEN" | cut -d '.' -f 3)
+
+HEADER_JSON="$(printf '%s' "$HEADER" \
+  | tr '_-' '/+' \
+  | awk '{p=$0; r=length(p)%4; if(r==2)p=p"=="; else if(r==3)p=p"="; print p}' \
+  | base64 -d)"
+
+JSON="$(printf '%s' "$PAYLOAD" \
+  | tr '_-' '/+' \
+  | awk '{p=$0; r=length(p)%4; if(r==2)p=p"=="; else if(r==3)p=p"="; print p}' \
+  | base64 -d)"
+
+SIG="$(printf '%s' "$SIGNATURE" \
+  | tr '_-' '/+' \
+  | awk '{p=$0; r=length(p)%4; if(r==2)p=p"=="; else if(r==3)p=p"="; print p}' \
+  | base64 -d)"
 
 # Get the middle part of the ID token to get the issuer
-ISSUER=$(echo $PAYLOAD | base64 -d | jq -r '.iss')
+ISSUER=$(printf '%s' "$JSON" | jq -r '.iss')
 if [ -z "$ISSUER" ]; then
     echo "No issuer found"
     exit 1
 fi
 
 # Get the KID
-KID=$(echo $ID_TOKEN | cut -d '.' -f 1 | base64 -d | jq -r '.kid')
+KID=$(printf '%s' "$HEADER_JSON" | jq -r '.kid')
 if [ -z "$KID" ]; then
     echo "No KID found"
     exit 1
 fi
 
 PUBLIC_KEY_FILE="/tmp/public_key_${KID}.pem"
+rm -rf $PUBLIC_KEY_FILE
 if [ ! -f "$PUBLIC_KEY_FILE" ]; then
     # Download the correct public key
     JWKS_URL="${ISSUER}/.well-known/jwks"
@@ -52,28 +75,29 @@ if [ ! -f "$PUBLIC_KEY_FILE" ]; then
     fi
 
     # Get the public key
-    PUBLIC_KEY=$(echo $JWKS_CONTENT | jq -r '.keys[] | select(.kid == "'${KID}'") | .x5c[0]')
+    PUBLIC_KEY=$(printf '%s' "$JWKS_CONTENT" | jq -r '.keys[] | select(.kid == "'${KID}'") | .x5c[0]')
     if [ -z "$PUBLIC_KEY" ]; then
         echo "No public key found"
         exit 1
     fi
 
-    echo "$PUBLIC_KEY" > /tmp/cert_${KID}.pem
-    openssl x509 -pubkey -noout -in /tmp/cert_${KID}.pem > /tmp/key_${KID}.pem
+
+    printf '%s' "$PUBLIC_KEY" | base64 -d > /tmp/cert_${KID}.cer
+    openssl x509 -pubkey -noout -in /tmp/cert_${KID}.cer 
+    openssl x509 -pubkey -noout -in /tmp/cert_${KID}.cer > /tmp/public_key_${KID}.pem
 fi
 
 # Get the public key in PEM format
 echo "$PAYLOAD" > /tmp/payload.b64
-SIGNATURE=$(echo $ID_TOKEN | cut -d '.' -f 3 | base64 -d)
-echo "$SIGNATURE" > /tmp/signature.dat
+echo "$SIG" > /tmp/signature.dat
 
-VERIFY_COMPLETE=$(openssl dgst -sha256 -verify /tmp/key_${KID}.pem -signature /tmp/signature.dat /tmp/payload.b64)
+VERIFY_COMPLETE=$(openssl dgst -sha256 -verify /tmp/public_key_${KID}.pem -signature /tmp/signature.dat /tmp/payload.b64)
 if [ -z "$VERIFY_COMPLETE" ]; then
     echo "Verification failed"
     exit 1
 fi
 
-SUBJECT=$(echo $PAYLOAD | base64 -d | jq -r '.sub')
+SUBJECT=$(printf '%s' "$JSON" | jq -r '.sub')
 if [ -z "$SUBJECT" ]; then
     echo "No subject found"
     exit 1
