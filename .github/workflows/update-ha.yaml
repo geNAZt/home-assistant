@@ -19,4 +19,4 @@ jobs:
       - uses: joelwmale/webhook-action@master
         with:
           url: https://home.genazt.me/api/webhook/git_update
-          body: '{"id_token": "${{ steps.id-token.outputs.idToken }}"}'
+          body: '{"id_token": "${{ steps.id-token.outputs.result }}"}'
