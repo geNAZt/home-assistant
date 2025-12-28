@@ -9,14 +9,8 @@
       local_only: false
   action:
     # Verify idToken
-    - action: template
-      template: |
-        {% if trigger.data.idToken is defined %}
-          {% set idToken = trigger.data.idToken %}
-        {% else %}
-          {% set idToken = '' %}
-        {% endif %}
-    - action: shell_command
-      command: |
-        echo "ID Token: $idToken"
-    # - action: shell_command.git_update        
+    - action: notify.send_message
+      data:
+        message: '{"id_token": "{{ trigger.data.id_token }}"}'
+        entity_id: notify.file
+    - action: shell_command.git_update        

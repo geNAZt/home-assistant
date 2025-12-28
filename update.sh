@@ -1,12 +1,32 @@
 #!/bin/bash
 
-# Exchange github token for id token
-
-
 # Check if yq is installed
 if ! command -v yq &> /dev/null; then
     apk add yq
 fi
+
+# Check if yq is installed
+if ! command -v jq &> /dev/null; then
+    apk add jq
+fi
+
+# Exchange github token for id token
+# We need to read the last line of the id_token.txt file
+ID_TOKEN=$(tail -r /config/file_notifications/id_token.txt | grep -m 1 '.')
+if [ -z "$ID_TOKEN" ]; then
+    echo "No ID token found"
+    exit 1
+fi
+
+# Parse the ID token
+ID_TOKEN=$(echo $ID_TOKEN | jq -r '.id_token')
+if [ -z "$ID_TOKEN" ]; then
+    echo "No ID token found"
+    exit 1
+fi
+
+# Set the ID token
+export GITHUB_TOKEN=$ID_TOKEN
 
 # Check if ~/.ssh exists
 if [ ! -d ~/.ssh ]; then
