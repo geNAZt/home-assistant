@@ -2,6 +2,8 @@ homeassistant:
   # Load packages
   packages: !include_dir_named integrations
   external_url: "https://home.genazt.me"
+  allowlist_external_dirs:
+  - /config/file_notifications
 
 template: !include_dir_list ./entities/template_sensors/
 climate: 
@@ -12,5 +14,3 @@ automation: !include_dir_merge_list automations/
 # Automations I create in the UI
 automation ui: !include automations.yaml
 
-allowlist_external_dirs:
-  - /config/file_notifications
