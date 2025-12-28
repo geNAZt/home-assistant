@@ -23,7 +23,7 @@
     target_energy_kwh: "{{ (battery_max_capacity_kwh * target_soc / 100.0) | float(0) }}"
     energy_to_75_percent_kwh: "{{ (target_energy_kwh - battery_current_energy_kwh) | float(0) }}"
 
-    min_reserve_soc: 5.0
+    min_reserve_soc: 50.0
     min_reserve_energy_kwh: "{{ (battery_max_capacity_kwh * min_reserve_soc / 100.0) | float(0) }}"
 
     # Manual override
