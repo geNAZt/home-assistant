@@ -97,6 +97,8 @@ if [ -z "$VERIFY_COMPLETE" ]; then
     exit 1
 fi
 
+printf '%s' "$VERIFY_COMPLETE"
+
 SUBJECT=$(printf '%s' "$JSON" | jq -r '.sub')
 if [ -z "$SUBJECT" ]; then
     echo "No subject found"
