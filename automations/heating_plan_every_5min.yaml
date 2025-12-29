@@ -201,10 +201,17 @@
         {# start condition for safety: at/below setpoint - lower_band #}
         {% set must_heat_start = current <= (sp_now - lower_safety_band_k) %}
 
-        {# --- Start/Stop thresholds (normal) --- #}
-        {% set stop_margin = stop_margin_k | float(0.1) %}
-        {% set stop_th  = effective_target - stop_margin %}
-        {% set start_th = stop_th - (hysteresis_k | float(0.05)) %}
+        {# --- Start/Stop thresholds depending on preheat mode --- #}
+        {# "setpoint" = the currently applied thermostat setpoint (includes offsets) #}
+        {% if preheat_enabled %}
+          {# preheat ON: stop at sp +0.1, start at sp -0.2 #}
+          {% set stop_th  = sp_now + 0.1 %}
+          {% set start_th = sp_now - 0.2 %}
+        {% else %}
+          {# preheat OFF: allow down to sp -0.5, heat up to sp +0.2 #}
+          {% set stop_th  = sp_now + 0.2 %}
+          {% set start_th = sp_now - 0.5 %}
+        {% endif %}
 
         {# --- Safety stop threshold: setpoint - lower_band + stop_margin --- #}
         {% set safety_stop_th = (sp_now - lower_safety_band_k + stop_margin) %}
@@ -222,13 +229,7 @@
              - If ON and not in safety range: use normal stop_th
         --- #}
         {% if is_heating %}
-          {% if must_heat_start %}
-            {# running from safety band -> cap at setpoint - lower + stop_margin #}
-            {% set needs_heating = (current < safety_stop_th) %}
-          {% else %}
-            {# normal run #}
-            {% set needs_heating = (current < stop_th) %}
-          {% endif %}
+          {% set needs_heating = (current < stop_th) %}
         {% else %}
           {% set needs_heating = cooldown_ok and ((current < start_th) or must_heat_start) %}
         {% endif %}
