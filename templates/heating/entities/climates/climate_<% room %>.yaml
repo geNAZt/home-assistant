@@ -15,19 +15,19 @@ target_temperature_template: "{{ states('input_number.heating_final_[[ room ]]')
 set_temperature:
   - action: input_number.set_value
     target:
-      entity_id: input_number.heating_final_{{ room }}
+      entity_id: input_number.heating_final_[[ room ]]
     data:
-      value: "{{ state_attr('climate.climate_room_{{ room }}', 'temperature') | float(0) }}"
+      value: "{{ state_attr('climate.climate_room_[[ room ]]', 'temperature') | float(0) }}"
   - choose:
       - conditions:
           - condition: template
-            value_template: "{{ states('input_number.heating_base_' ~ room) | float(0) > 0 }}"
+            value_template: "{{ states('input_number.heating_base_[[ room ]]') | float(0) > 0 }}"
         sequence:
           - action: input_number.set_value
             target:
-              entity_id: input_number.heating_base_{{ room }}
+              entity_id: input_number.heating_base_[[ room ]]
             data:
-              value: "{{ state_attr('climate.climate_room_' ~ room, 'temperature') | float(0) }}"
+              value: "{{ state_attr('climate.climate_room_[[ room ]]', 'temperature') | float(0) }}"
 set_hvac_mode:
   - choose:
     - conditions:
