@@ -3,8 +3,8 @@ sensor:
     unit_of_measurement: "kWh/(K·Tag)"
     state: >
       {% set E = states('sensor.heating_energy_24h_sql')|float(0) %}
-      {% set Tin = states('sensor.inside_temp_mean_24h_sql')|float(0) %}
-      {% set Tout = states('sensor.outside_temp_mean_24h_sql')|float(0) %}
+      {% set Tin = states('sensor.inside_temp_mean_24h')|float(0) %}
+      {% set Tout = states('sensor.outside_temp_mean_24h')|float(0) %}
       {% set dT = Tin - Tout %}
       {% if dT > 0 %}
         {{ (E / dT) | round(2) }}
