@@ -1,0 +1,8 @@
+- trigger:
+    - platform: time_pattern
+      minutes: "/5"
+    - platform: state
+      entity_id: sensor.heating_usage_total
+  sensor:
+    - name: heating_usage_total_sampled
+      state: "{{ states('sensor.heating_usage_total') }}"

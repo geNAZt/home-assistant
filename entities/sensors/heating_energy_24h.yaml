@@ -1,6 +1,6 @@
 platform: statistics
 name: heating_energy_24h
-entity_id: sensor.heating_usage_total
+entity_id: sensor.heating_usage_total_sampled
 state_characteristic: change
 max_age:
   hours: 24
