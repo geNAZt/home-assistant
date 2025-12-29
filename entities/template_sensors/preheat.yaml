@@ -2,13 +2,20 @@ sensor:
 - name: "Preheat Penalty Faktor"
   unit_of_measurement: "x"
   state: >-
-    {% set H = states('sensor.h_kw_per_k_effective')|float(0) %}
-    {% set C = states('sensor.C_kWh_per_K_rolling')|float(0) %}
-    {% set dt = states('input_number.preheat_dt_hours')|float(12) %}
-    {% if H>0 and C>0 and dt>0 %}
-      {{ (2.718281828 ** ((H/C) * dt)) | round(3) }}
+    {% set H = states('sensor.h_kw_per_k_effective') | float(0) %}
+    {% set C = states('sensor.C_kWh_per_K_rolling') | float(0) %}
+    {% set dt = states('input_number.preheat_dt_hours') | float(12) %}
+
+    {% if H > 0 and C > 0 and dt > 0 %}
+      {{ (2.718281828 ** ((H / C) * dt)) | round(3) }}
     {% else %}
-      0
+      {# restart-safe: keep previous value if it exists, else 0 #}
+      {% set prev = this.state %}
+      {% if prev not in ['unknown', 'unavailable', 'none', None, ''] %}
+        {{ prev }}
+      {% else %}
+        0
+      {% endif %}
     {% endif %}
 - name: "Preheat Spread Ratio (bedarfgewichtet)"
   unit_of_measurement: "x"
