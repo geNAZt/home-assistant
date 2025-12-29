@@ -4,12 +4,8 @@ sensor:
   device_class: energy
   state_class: total_increasing
   # Summe aller Zonen/Matten-Energiesensoren:
-  state: >
-    {# --- read previous value (for restart safety + monotonic) --- #}
-    {% set prev = this.state %}
-    {% set prev_f = (prev | float(none)) if prev not in ['unknown','unavailable','none','', None] else none %}
-
-    {# --- list inputs --- #}
+  state: >-
+    {% set invalid = ['unknown','unavailable','none','', None] %}
     {% set src = [
       'sensor.heating_usage_wohnzimmer',
       'sensor.heating_usage_kueche',
@@ -21,29 +17,49 @@ sensor:
       'sensor.heating_usage_bad'
     ] %}
 
-    {# If any source is unavailable/unknown, keep previous (restart-safe) #}
-    {% set bad = ['unknown','unavailable','none','', None] %}
-    {% set any_bad = false %}
+    {# previous value (used whenever any input is missing) #}
+    {% set prev_raw = this.state %}
+    {% set prev = (prev_raw | float(none)) if prev_raw not in invalid else none %}
+
+    {# require ALL sensors valid #}
+    {% set ns = namespace(all_ok=true) %}
     {% for e in src %}
-      {% if states(e) in bad %}
-        {% set any_bad = true %}
+      {% if states(e) in invalid %}
+        {% set ns.all_ok = false %}
       {% endif %}
     {% endfor %}
 
-    {% if any_bad %}
-      {{ prev_f if prev_f is not none else 0 }}
-    {% else %}
-      {# All sources valid -> compute sum #}
-      {% set total_wh = 0.0 %}
+    {% if ns.all_ok %}
+      {% set ns = namespace(total_wh=0.0) %}
       {% for e in src %}
-        {% set total_wh = total_wh + (states(e) | float(0)) %}
+        {% set ns.total_wh = ns.total_wh + (states(e) | float(0)) %}
       {% endfor %}
-      {% set total_kwh = (total_wh / 1000) %}
+      {% set computed_kwh = ns.total_wh / 1000 %}
 
-      {# Enforce total_increasing: never go below previous #}
-      {% if prev_f is not none and total_kwh < prev_f %}
-        {{ prev_f }}
+      {# enforce total_increasing: never go below previous #}
+      {% if prev is not none %}
+        {{ [prev, computed_kwh] | max }}
       {% else %}
-        {{ total_kwh }}
+        {{ computed_kwh }}
       {% endif %}
+    {% else %}
+      {# if anything missing -> always report previous; if none yet -> unknown #}
+      {{ prev if prev is not none else 'unknown' }}
     {% endif %}
+  attributes:
+    missing_sources: >-
+      {% set invalid = ['unknown','unavailable','none','', None] %}
+      {% set src = [
+        'sensor.heating_usage_wohnzimmer',
+        'sensor.heating_usage_kueche',
+        'sensor.heating_usage_flur',
+        'sensor.heating_usage_schlafzimmer',
+        'sensor.heating_usage_buero_merja',
+        'sensor.heating_usage_buero_fabian',
+        'sensor.heating_usage_speisekammer',
+        'sensor.heating_usage_bad'
+      ] %}
+      {{ src | select('in', src) | list
+         | reject('equalto', none) | list
+         | select('string') | list
+         | selectattr('', 'defined') | list }}
