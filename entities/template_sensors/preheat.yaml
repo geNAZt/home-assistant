@@ -25,5 +25,11 @@ sensor:
     {% if pN>0 and pD>0 %}
       {{ (pD/pN) | round(3) }}
     {% else %}
-      0
+      {# restart-safe: keep previous value if it exists, else 0 #}
+      {% set prev = this.state %}
+      {% if prev not in ['unknown', 'unavailable', 'none', None, ''] %}
+        {{ prev }}
+      {% else %}
+        0
+      {% endif %}
     {% endif %}
