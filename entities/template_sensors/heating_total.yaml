@@ -5,13 +5,45 @@ sensor:
   state_class: total_increasing
   # Summe aller Zonen/Matten-Energiesensoren:
   state: >
-    {{ (
-      states('sensor.heating_usage_wohnzimmer')|float(0) +
-      states('sensor.heating_usage_kueche')|float(0) +
-      states('sensor.heating_usage_flur')|float(0) +
-      states('sensor.heating_usage_schlafzimmer')|float(0) +
-      states('sensor.heating_usage_buero_merja')|float(0) +
-      states('sensor.heating_usage_buero_fabian')|float(0) +
-      states('sensor.heating_usage_speisekammer')|float(0) +
-      states('sensor.heating_usage_bad')|float(0)
-    ) / 1000 }}
+    {# --- read previous value (for restart safety + monotonic) --- #}
+    {% set prev = this.state %}
+    {% set prev_f = (prev | float(none)) if prev not in ['unknown','unavailable','none','', None] else none %}
+
+    {# --- list inputs --- #}
+    {% set src = [
+      'sensor.heating_usage_wohnzimmer',
+      'sensor.heating_usage_kueche',
+      'sensor.heating_usage_flur',
+      'sensor.heating_usage_schlafzimmer',
+      'sensor.heating_usage_buero_merja',
+      'sensor.heating_usage_buero_fabian',
+      'sensor.heating_usage_speisekammer',
+      'sensor.heating_usage_bad'
+    ] %}
+
+    {# If any source is unavailable/unknown, keep previous (restart-safe) #}
+    {% set bad = ['unknown','unavailable','none','', None] %}
+    {% set any_bad = false %}
+    {% for e in src %}
+      {% if states(e) in bad %}
+        {% set any_bad = true %}
+      {% endif %}
+    {% endfor %}
+
+    {% if any_bad %}
+      {{ prev_f if prev_f is not none else 0 }}
+    {% else %}
+      {# All sources valid -> compute sum #}
+      {% set total_wh = 0.0 %}
+      {% for e in src %}
+        {% set total_wh = total_wh + (states(e) | float(0)) %}
+      {% endfor %}
+      {% set total_kwh = (total_wh / 1000) %}
+
+      {# Enforce total_increasing: never go below previous #}
+      {% if prev_f is not none and total_kwh < prev_f %}
+        {{ prev_f }}
+      {% else %}
+        {{ total_kwh }}
+      {% endif %}
+    {% endif %}
