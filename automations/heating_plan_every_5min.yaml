@@ -214,7 +214,7 @@
         {% endif %}
 
         {# --- Safety stop threshold: setpoint - lower_band + stop_margin --- #}
-        {% set safety_stop_th = (sp_now - lower_safety_band_k + stop_margin) %}
+        {% set safety_stop_th = (sp_now - lower_safety_band_k + (stop_margin_k | float(0.1))) %}
 
         {# --- Cooldown check --- #}
         {% set cd_ent = 'input_datetime.heating_cooldown_until_' ~ room %}
