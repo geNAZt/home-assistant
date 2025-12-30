@@ -18,16 +18,6 @@ set_temperature:
       entity_id: input_number.heating_final_buero_merja
     data:
       value: "{{ state_attr('climate.climate_room_buero_merja', 'temperature') | float(0) }}"
-  - choose:
-      - conditions:
-          - condition: template
-            value_template: "{{ states('input_number.heating_base_buero_merja') | float(0) > 0 }}"
-        sequence:
-          - action: input_number.set_value
-            target:
-              entity_id: input_number.heating_base_buero_merja
-            data:
-              value: "{{ state_attr('climate.climate_room_buero_merja', 'temperature') | float(0) }}"
 set_hvac_mode:
   - choose:
     - conditions:
