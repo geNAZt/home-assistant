@@ -504,14 +504,13 @@
                 {% else %}
                   {{ rd[room].base_target | float(22) }}
                 {% endif %}
-              off: "{{ rd[room].offset | float(0) }}"
-              target_sp: "{{ (base + off) | float }}"
+              offset_k: "{{ rd[room].offset | float(0) }}"
+              target_sp: "{{ (base + offset_k) | float }}"
 
           - choose:
-              # Offset active -> apply base + offset
               - conditions:
                   - condition: template
-                    value_template: "{{ off > 0 }}"
+                    value_template: "{{ offset_k > 0 }}"
                 sequence:
                   - service: climate.set_temperature
                     target:
@@ -522,12 +521,11 @@
                     target:
                       entity_id: "input_number.heating_offset_{{ repeat.item }}"
                     data:
-                      value: "{{ off }}"
+                      value: "{{ offset_k }}"
 
-              # Offset = 0 -> reset to stored base (if it exists), otherwise don't touch setpoint
               - conditions:
                   - condition: template
-                    value_template: "{{ off == 0 }}"
+                    value_template: "{{ offset_k == 0 }}"
                 sequence:
                   - choose:
                       - conditions:

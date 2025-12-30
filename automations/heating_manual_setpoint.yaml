@@ -24,40 +24,19 @@
         room: "{{ trigger.entity_id | regex_replace('^climate\\.climate_room_', '') }}"
         base_ent: "{{ 'input_number.heating_base_' ~ room }}"
         off_ent: "{{ 'input_number.heating_offset_' ~ room }}"
-
-        new_sp: >-
-          {{ trigger.to_state.attributes.temperature
-             if trigger.to_state is not none and trigger.to_state.attributes.temperature is number
-             else none }}
-
-        old_sp: >-
-          {{ trigger.from_state.attributes.temperature
-             if trigger.from_state is not none and trigger.from_state.attributes.temperature is number
-             else none }}
-
-        off: "{{ states(off_ent) | float(0) }}"
+        new_sp: "{{ trigger.to_state.attributes.temperature | float(0) }}"
+        offset_k: "{{ states(off_ent) | float(0) }}"
+        new_base: "{{ (new_sp - offset_k) | round(1) }}"
         eps: 0.06
 
         changed: >-
-          {% if new_sp is number and old_sp is number %}
-            {{ (new_sp - old_sp) | abs > eps }}
-          {% elif new_sp is number and old_sp is not number %}
-            true
-          {% else %}
-            false
-          {% endif %}
-
-        new_base: >-
-          {% if new_sp is number %}
-            {{ (new_sp - off) | round(1) }}
-          {% else %}
-            {{ none }}
-          {% endif %}
+          {% set old = trigger.from_state.attributes.temperature | float(0) %}
+          {{ new_sp > 0 and (new_sp - old) | abs > eps }}
 
     - choose:
         - conditions:
             - condition: template
-              value_template: "{{ changed and new_base is number }}"
+              value_template: "{{ changed }}"
           sequence:
             - service: input_number.set_value
               target: { entity_id: "{{ base_ent }}" }
@@ -67,4 +46,4 @@
               data:
                 name: "Heiz-Planer"
                 message: >-
-                  Manual SP persisted {{ room }}: sp={{ new_sp }}, off={{ off }}, base={{ new_base }}
+                  Manual SP persisted {{ room }}: sp={{ new_sp }}, off={{ offset_k }}, base={{ new_base }}
