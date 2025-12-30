@@ -485,71 +485,68 @@
             {{ is_preheat_window or (not heating_block_enabled and allow_daytime_heat) }}
           {% endif %}
     # ===================================================================
-    # ACTION 1: Update temperature setpoints based on offset (always executed)
+    # ACTION 1: Apply offsets to thermostats (planner-owned) + persist offset
     # ===================================================================
-    # Store base temperatures and apply/reset offsets (always, regardless of blocking)
+    - service: input_boolean.turn_on
+      target: { entity_id: input_boolean.heating_planner_applying }
+
     - repeat:
         for_each: "{{ rooms_json | from_json(default=[]) }}"
         sequence:
+          - variables:
+              room: "{{ repeat.item }}"
+              rd: "{{ room_data | from_json(default={}) }}"
+              base_ent: "input_number.heating_base_{{ repeat.item }}"
+              stored_base: "{{ states(base_ent) | float(0) }}"
+              base: >-
+                {% if stored_base > 0 %}
+                  {{ stored_base }}
+                {% else %}
+                  {{ rd[room].base_target | float(22) }}
+                {% endif %}
+              off: "{{ rd[room].offset | float(0) }}"
+              target_sp: "{{ (base + off) | float }}"
+
           - choose:
-              # If offset is active: Store base temp (if not stored) and apply offset
+              # Offset active -> apply base + offset
               - conditions:
                   - condition: template
-                    value_template: >-
-                      {% set rd = room_data | from_json(default={}) %}
-                      {{ (rd[repeat.item].offset | float(0)) > 0 }}
+                    value_template: "{{ off > 0 }}"
                 sequence:
+                  - service: climate.set_temperature
+                    target:
+                      entity_id: "climate.climate_room_{{ repeat.item }}"
+                    data:
+                      temperature: "{{ target_sp }}"
                   - service: input_number.set_value
                     target:
-                      entity_id: "input_number.heating_base_{{ repeat.item }}"
+                      entity_id: "input_number.heating_offset_{{ repeat.item }}"
                     data:
-                      value: >-
-                        {% set base_helper = 'input_number.heating_base_' ~ repeat.item %}
-                        {% set stored_base = states(base_helper) | float(0) %}
-                        {% set rooms_data = room_data | from_json(default={}) %}
-                        {% if stored_base > 0 %}
-                          {# Keep existing stored base #}
-                          {{ stored_base }}
-                        {% else %}
-                          {# Store current setpoint as base (before offset is applied) #}
-                          {{ rooms_data[repeat.item].base_target | float }}
-                        {% endif %}
-                  - service: climate.set_temperature
-                    target:
-                      entity_id: "climate.climate_room_{{ repeat.item }}"
-                    data:
-                      temperature: >-
-                        {% set base_helper = 'input_number.heating_base_' ~ repeat.item %}
-                        {% set stored_base = states(base_helper) | float(0) %}
-                        {% set rd = room_data | from_json(default={}) %}
-                        {% set off = rd[repeat.item].offset | float(0) %}
-                        {% if stored_base > 0 %}
-                          {{ stored_base + off }}
-                        {% else %}
-                          {{ (rd[repeat.item].base_target | float(21.5)) + off }}
-                        {% endif %}
-              # If offset is 0: Reset to stored base temperature (if stored)
+                      value: "{{ off }}"
+
+              # Offset = 0 -> reset to stored base (if it exists), otherwise don't touch setpoint
               - conditions:
                   - condition: template
-                    value_template: >-
-                      {% set rd = room_data | from_json(default={}) %}
-                      {{ (rd[repeat.item].offset | float(0)) == 0 }}
+                    value_template: "{{ off == 0 }}"
                 sequence:
-                  - service: climate.set_temperature
+                  - choose:
+                      - conditions:
+                          - condition: template
+                            value_template: "{{ stored_base > 0 }}"
+                        sequence:
+                          - service: climate.set_temperature
+                            target:
+                              entity_id: "climate.climate_room_{{ repeat.item }}"
+                            data:
+                              temperature: "{{ base }}"
+                  - service: input_number.set_value
                     target:
-                      entity_id: "climate.climate_room_{{ repeat.item }}"
+                      entity_id: "input_number.heating_offset_{{ repeat.item }}"
                     data:
-                      temperature: >-
-                        {% set base_helper = 'input_number.heating_base_' ~ repeat.item %}
-                        {% set stored_base = states(base_helper) | float(0) %}
-                        {% if stored_base > 0 %}
-                          {# Reset to stored base #}
-                          {{ stored_base }}
-                        {% else %}
-                          {# No stored base: use current setpoint (don't change) #}
-                          {% set rooms_data = room_data | from_json(default={}) %}
-                          {{ rooms_data[repeat.item].base_target | float }}
-                        {% endif %}
+                      value: 0
+
+    - service: input_boolean.turn_off
+      target: { entity_id: input_boolean.heating_planner_applying }
     # Log offset status
     - choose:
         - conditions:
