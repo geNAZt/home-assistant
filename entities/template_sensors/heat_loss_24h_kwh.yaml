@@ -1,0 +1,12 @@
+sensor:
+- name: heat_loss_24h_kwh
+  unit_of_measurement: "kWh"
+  state: >
+    {% set H = states('sensor.H_kW_per_K_effective')|float(states('sensor.H_kW_per_K_rolling')|float(none)) %}
+    {% set To = states('sensor.outside_temp_mean_24h')|float(none) %}
+    {% set Ti = states('sensor.inside_temp_mean_24h')|float(none) %}
+    {% if H is not none and H>0 and To is not none and Ti is not none %}
+      {{ (H * max(Ti-To,0) * 24) | round(2) }}
+    {% else %}
+      {{ none }}
+    {% endif %}
