@@ -1,25 +1,14 @@
 sensor:
-- name: deltaT_24h_actual_sql
-  unit_of_measurement: "K"
-  state: >
-    {% set ti = states('sensor.inside_temp_mean_24h_sql')|float(none) %}
-    {% set to = states('sensor.outside_temp_mean_24h_sql')|float(none) %}
-    {% if ti is not none and to is not none %}
-      {{ max(ti - to, 0) | round(2) }}
-    {% else %} unknown {% endif %}
-  availability: >
-    {{ states('sensor.inside_temp_mean_24h_sql') not in ['unknown','unavailable','none']
-       and states('sensor.outside_temp_mean_24h_sql') not in ['unknown','unavailable','none'] }}
 - name: h_k_w_per_k_raw
   unit_of_measurement: "kW/K"
   state: >
-    {% set E = states('sensor.heating_energy_24h_sql')|float(0) %}
-    {% set dT = states('sensor.deltaT_24h_actual_sql')|float(0) %}
+    {% set E = states('sensor.heating_energy_24h')|float(0) %}
+    {% set dT = states('sensor.deltaT_24h')|float(0) %}
     {% if E > 0 and dT > 0.5 %}
       {{ (E / (dT * 24.0)) | round(3) }}
     {% else %}
       {{ states('sensor.h_k_w_per_k_raw') if states('sensor.h_k_w_per_k_raw') not in ['unknown','unavailable'] else 0 }}
     {% endif %}
   availability: >
-    {{ states('sensor.heating_energy_24h_sql') not in ['unknown','unavailable','none']
-       and states('sensor.deltaT_24h_actual_sql')|float(0) > 0.5 }}
+    {{ states('sensor.heating_energy_24h') not in ['unknown','unavailable','none']
+       and states('sensor.deltaT_24h')|float(0) > 0.5 }}

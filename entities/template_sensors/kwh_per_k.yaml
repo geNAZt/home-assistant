@@ -4,4 +4,4 @@ sensor:
   device_class: "energy"
   state_class: measurement
   state: >
-    {{ states('sensor.heating_energy_24h_sql') | float / states('sensor.deltaT_24h_actual_sql') | float }}
+    {{ states('sensor.heating_energy_24h') | float / states('sensor.deltaT_24h') | float }}
