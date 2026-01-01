@@ -13,9 +13,9 @@ sensor:
 - name: kWh_per_K_day_rolling
   unit_of_measurement: "kWh/(K·Tag)"
   state: >
-    {% set e = states('sensor.heating_usage_daily_total')|float(0) %}
+    {% set e = states('sensor.heating_energy_24h')|float(0) %}
     {% set dT = states('sensor.deltaT_24h')|float(0) %}
-    {{ (e / dT) if dT > 0 else 0 | round(3) }}
+    {{ ((e / dT) if dT > 0 else 0) | round(3) }}
 - name: Wh_per_K_day_rolling
   unit_of_measurement: "Wh/(K·Tag)"
   state: >

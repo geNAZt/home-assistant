@@ -1,0 +1,4 @@
+platform: derivative
+name: indoor_temp_rate
+source: sensor.indoor_temp_filtered
+unit_time: h

@@ -1,0 +1,15 @@
+sensor:
+- name: temp_rate_pos
+  unit_of_measurement: "K/h"
+  state_class: measurement
+  state: >
+    {% set r = states('sensor.indoor_temp_rate')|float(0) %}
+    {{ max(r, 0) | round(4) }}
+- name: net_power_pos
+  unit_of_measurement: "kW"
+  state_class: measurement
+  device_class: power
+  state: >
+    {% set ph = states('sensor.heating_energy_24h')|float(0) %}
+    {% set pl = states('sensor.heat_loss_24h_kwh')|float(0) %}
+    {{ max(ph - pl, 0) | round(4) }}

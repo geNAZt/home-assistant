@@ -1,0 +1,7 @@
+platform: filter
+name: indoor_temp_filtered
+entity_id: sensor.inside_temp_mean_now
+filters:
+  - filter: time_simple_moving_average
+    window_size: "00:10"
+    precision: 2

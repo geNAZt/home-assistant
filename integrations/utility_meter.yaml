@@ -122,9 +122,6 @@ utility_meter:
     source: sensor.solar_exported_power_kwh
     name: Solar Exported Power Yearly
     cycle: yearly
-  heating_usage_daily_total:
-    source: sensor.heating_usage_total    # oder Summe aller Zonen, s.u.
-    cycle: daily
   solar_panel_to_battery_daily:
     source: sensor.solar_panel_to_battery_total
     name: Solar Panel To Battery Daily
@@ -132,4 +129,10 @@ utility_meter:
   solar_grid_to_battery_daily:
     source: sensor.solar_grid_to_battery_total
     name: Solar Grid To Battery Daily
+    cycle: daily
+  temp_gain_day:
+    source: sensor.temp_gain_total
+    cycle: daily
+  stored_energy_day:
+    source: sensor.stored_energy_total
     cycle: daily

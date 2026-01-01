@@ -1,0 +1,7 @@
+platform: statistics
+name: wind_speed_mean_24h
+entity_id: sensor.wind_speed_now_kmh
+state_characteristic: mean
+max_age:
+  hours: 24
+keep_last_sample: true
