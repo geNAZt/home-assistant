@@ -1,0 +1,27 @@
+- id: heater_buero_merja_max_current_ma_update
+  alias: "Update buero_merja Max Current record"
+  mode: single
+  trigger:
+    - platform: state
+      entity_id:
+        - sensor.current_l1_buero_merja_current
+        - sensor.current_l2_buero_merja_current
+        - sensor.current_l3_buero_merja_current
+  # Only act on real numbers (ignore unavailable/unknown)
+  condition:
+    - condition: template
+      value_template: "{{ trigger.to_state.state is number }}"
+  action:
+    - variables:
+        new_val: "{{ trigger.to_state.state | float(0) }}"
+        old_max: "{{ states('input_number.heater_buero_merja_max_current_ma_record') | float(0) }}"
+    - choose:
+        - conditions:
+            - condition: template
+              value_template: "{{ new_val > old_max }}"
+          sequence:
+            - service: input_number.set_value
+              target:
+                entity_id: input_number.heater_buero_merja_max_current_ma_record
+              data:
+                value: "{{ new_val | round(0) }}"

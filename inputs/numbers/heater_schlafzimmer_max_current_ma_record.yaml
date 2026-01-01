@@ -1,0 +1,6 @@
+name: Heater schlafzimmer max current (record)
+min: 0
+max: 100000
+step: 1
+unit_of_measurement: "mA"
+mode: box
