@@ -234,6 +234,13 @@
           {% set needs_heating = cooldown_ok and ((current < start_th) or must_heat_start) %}
         {% endif %}
 
+        {# --- Security temperature check: force off if security temp > 26°C --- #}
+        {% set security_sensor = 'sensor.security_temperature_' ~ room ~ '_max' %}
+        {% set security_temp = states(security_sensor) | float(0) %}
+        {% if security_temp > 26 %}
+          {% set needs_heating = false %}
+        {% endif %}
+
         {# Build room data structure #}
         {% set ns.rooms = ns.rooms | combine({
           room: ns.rooms.get(room, {}) | combine({
