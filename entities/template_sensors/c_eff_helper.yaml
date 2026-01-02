@@ -10,6 +10,12 @@ sensor:
   state_class: measurement
   device_class: power
   state: >
-    {% set ph = states('sensor.heating_energy_24h')|float(0) %}
-    {% set pl = states('sensor.heat_loss_24h_kwh')|float(0) %}
-    {{ max(ph - pl, 0) | round(4) }}
+    {# Instantaneous heating power (derivative of total energy) #}
+    {% set heating_power = states('sensor.heating_power_rate')|float(0) %}
+    {# Instantaneous heat loss power = H × ΔT #}
+    {% set H = states('sensor.H_kW_per_K_effective')|float(0) %}
+    {% set Ti = states('sensor.inside_temp_mean_now')|float(0) %}
+    {% set To = states('sensor.outside_temperature')|float(0) %}
+    {% set heat_loss_power = H * max(Ti - To, 0) %}
+    {# Net power going into storage (only positive) #}
+    {{ max(heating_power - heat_loss_power, 0) | round(4) }}
