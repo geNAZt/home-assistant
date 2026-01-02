@@ -2,8 +2,9 @@ sensor:
 - name: c_eff_day
   unit_of_measurement: "kWh/K"
   state: >
-    {% set E = states('sensor.stored_energy_day')|float(0) %}
-    {% set dT = states('sensor.temp_gain_day')|float(0) %}
+    {# Use rolling 24h sensors instead of daily-reset utility meters #}
+    {% set E = states('sensor.stored_energy_24h')|float(0) %}
+    {% set dT = states('sensor.temp_gain_24h')|float(0) %}
     {% if dT > 0.15 and E > 0 %}
       {{ (E / dT) | round(2) }}
     {% else %}

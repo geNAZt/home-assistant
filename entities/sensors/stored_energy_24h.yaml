@@ -1,0 +1,8 @@
+platform: statistics
+name: stored_energy_24h
+entity_id: sensor.stored_energy_total
+state_characteristic: change
+max_age:
+  hours: 24
+keep_last_sample: true
+precision: 3
