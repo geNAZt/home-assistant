@@ -1,5 +1,9 @@
-platform: derivative
-name: heating_power_rate
-source: sensor.heating_usage_total
-unit_time: h
-round: 4
+platform: statistics
+name: heating_energy_10min
+entity_id: sensor.heating_usage_total
+state_characteristic: change
+max_age:
+  minutes: 10
+sampling_size: 20
+precision: 4
+keep_last_sample: true

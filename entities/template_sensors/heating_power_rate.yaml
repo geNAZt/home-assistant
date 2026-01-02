@@ -1,0 +1,38 @@
+sensor:
+  - name: heating_power_rate
+    unit_of_measurement: "kW"
+    state_class: measurement
+    device_class: power
+    state: >
+      {# Convert 10-minute energy change to power (kW) #}
+      {# Change is in kWh over 10 minutes = 1/6 hour #}
+      {% set invalid = ['unknown','unavailable','none','', None] %}
+      {% set energy_change_raw = states('sensor.heating_energy_10min') %}
+      {% if energy_change_raw in invalid %}
+        {# If unavailable, keep previous value or return 0 #}
+        {% set prev = this.state %}
+        {% if prev not in invalid %}
+          {{ prev | float(0) }}
+        {% else %}
+          0
+        {% endif %}
+      {% else %}
+        {% set energy_change = energy_change_raw | float(0) %}
+        {% if energy_change >= 0 %}
+          {% set power_kw = energy_change / (10.0 / 60.0) %}
+          {# Cap at reasonable maximum (20 kW for a house) to filter outliers #}
+          {% if power_kw > 20 %}
+            {# If power is too high, likely due to data gap - use previous or 0 #}
+            {% set prev = this.state %}
+            {% if prev not in invalid and prev | float(0) <= 20 %}
+              {{ prev | float(0) }}
+            {% else %}
+              0
+            {% endif %}
+          {% else %}
+            {{ power_kw | round(4) }}
+          {% endif %}
+        {% else %}
+          0
+        {% endif %}
+      {% endif %}
