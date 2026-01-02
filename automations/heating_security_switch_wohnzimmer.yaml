@@ -6,10 +6,6 @@
     - trigger: numeric_state
       entity_id:
         - sensor.security_temperature_wohnzimmer_max
-      for:
-        hours: 0
-        minutes: 0
-        seconds: 30
       above: 26
   conditions: []
   actions:
