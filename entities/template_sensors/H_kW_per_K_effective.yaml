@@ -6,6 +6,7 @@ sensor:
       {% set v_kmh = states('sensor.wind_speed_mean_24h')|float(0) %}
       {% set v_ms = v_kmh / 3.6 %}
       {% set n50 = 0.95 %}
+      {% set volumen = 388 %}
 
       {# 1. Berechne den realen Luftwechsel n_v bei aktueller Windgeschwindigkeit #}
       {# Wir nutzen die physikalische Druckformel #}
@@ -13,7 +14,7 @@ sensor:
 
       {# 2. Umrechnung in kW/K (Annahme: Hausvolumen ca. 500m3, Luftkapazität 0.34 Wh/m3K) #}
       {# Formel: Volumen * n_v * 0.34 / 1000 #}
-      {% set H_wind_anteil = 500 * n_v * 0.34 / 1000 %}
+      {% set H_wind_anteil = volumen * n_v * 0.34 / 1000 %}
 
       {# 3. Ergebnis: Basis-Transmission + dynamischer Windanteil #}
       {# Wir nehmen an, dass im H_basis ein kleiner Teil Lüftung schon drin ist, #}
