@@ -4,6 +4,5 @@ entity_id: sensor.temp_gain_total
 state_characteristic: change
 max_age:
   hours: 24
-sampling_size: 100
 precision: 3
 keep_last_sample: true
