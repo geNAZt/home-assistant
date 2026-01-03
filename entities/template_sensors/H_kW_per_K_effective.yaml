@@ -4,12 +4,21 @@ sensor:
     state: >
       {% set H = states('sensor.H_kW_per_K_rolling')|float(0.055) %}
       {% set v_kmh = states('sensor.wind_speed_mean_24h')|float(0) %}
-      {# Vereinfachte physikalische Annäherung #}
       {% set v_ms = v_kmh / 3.6 %}
       {% set n50 = 0.95 %}
-      {# Der Exponent 0.67 steht für die Art der Undichtigkeiten #}
-      {% set boost = ( (0.6 * v_ms**2) / 50 )**0.67 * (n50 / 0.05) %}
-      {{ (H * boost) | round(3) }}
+
+      {# 1. Berechne den realen Luftwechsel n_v bei aktueller Windgeschwindigkeit #}
+      {# Wir nutzen die physikalische Druckformel #}
+      {% set n_v = n50 * ((0.6 * v_ms**2) / 50)**0.67 %}
+
+      {# 2. Umrechnung in kW/K (Annahme: Hausvolumen ca. 500m3, Luftkapazität 0.34 Wh/m3K) #}
+      {# Formel: Volumen * n_v * 0.34 / 1000 #}
+      {% set H_wind_anteil = 500 * n_v * 0.34 / 1000 %}
+
+      {# 3. Ergebnis: Basis-Transmission + dynamischer Windanteil #}
+      {# Wir nehmen an, dass im H_basis ein kleiner Teil Lüftung schon drin ist, #}
+      {# daher addieren wir nur den Effekt über einer leichten Brise #}
+      {{ (H_basis + H_wind_anteil) | round(3) }}
     availability: >
       {{ states('sensor.H_kW_per_K_rolling') not in ['unknown','unavailable','none']
          and states('sensor.wind_speed_mean_24h') not in ['unknown','unavailable','none'] }}
