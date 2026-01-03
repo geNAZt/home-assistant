@@ -4,8 +4,11 @@ sensor:
     state: >
       {% set H = states('sensor.H_kW_per_K_rolling')|float(0.055) %}
       {% set v_kmh = states('sensor.wind_speed_mean_24h')|float(0) %}
+      {# Vereinfachte physikalische Annäherung #}
       {% set v_ms = v_kmh / 3.6 %}
-      {% set boost = 1 + 0.1 * max(0, v_ms - 3) %}
+      {% set n50 = 0.95 %}
+      {# Der Exponent 0.67 steht für die Art der Undichtigkeiten #}
+      {% set boost = ( (0.6 * v_ms**2) / 50 )**0.67 * (n50 / 0.05) %}
       {{ (H * boost) | round(3) }}
     availability: >
       {{ states('sensor.H_kW_per_K_rolling') not in ['unknown','unavailable','none']
