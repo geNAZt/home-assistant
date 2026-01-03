@@ -1,6 +1,6 @@
 platform: filter
 name: C_kWh_per_K_rolling
-entity_id: sensor.c_eff_last_night
+entity_id: sensor.c_eff_day
 filters:
   - filter: outlier
     window_size: 10

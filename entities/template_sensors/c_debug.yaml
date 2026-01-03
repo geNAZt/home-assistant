@@ -1,9 +1,0 @@
-sensor:
-- name: c_debug_components
-  state: >
-    {% set E  = states('sensor.heating_energy_00_06_today_sql')|float(0) %}
-    {% set L  = states('sensor.heat_loss_00_06_kwh')|float(0) %}
-    {% set dT = states('sensor.deltaT_preheat_00_06')|float(0) %}
-    {% set Es = max(E-L,0) %}
-    {% set dT_from_C = (Es / (states('sensor.c_eff_last_night')|float(1))) if Es>0 else 0 %}
-    {{ dict(E=E, Loss=L, Es=Es, dT_sensor=dT, dT_from_C=dT_from_C)|tojson }}
