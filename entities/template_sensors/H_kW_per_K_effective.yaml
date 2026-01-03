@@ -2,7 +2,7 @@ sensor:
   - name: H_kW_per_K_effective
     unit_of_measurement: "kW/K"
     state: >
-      {% set H = states('sensor.H_kW_per_K_rolling')|float(0.055) %}
+      {% set H_basis = states('sensor.H_kW_per_K_rolling')|float(0.055) %}
       {% set v_kmh = states('sensor.wind_speed_mean_24h')|float(0) %}
       {% set v_ms = v_kmh / 3.6 %}
       {% set n50 = 0.95 %}
