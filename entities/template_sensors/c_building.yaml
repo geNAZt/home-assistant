@@ -1,4 +1,8 @@
 sensor:
+- name: "C_kWh_per_K_rolling"
+  unit_of_measurement: "kWh/K"
+  state: >
+    {{ states('sensor.c_building') | float(7.0) }}
 - name: "C Building"
   unique_id: c_building
   unit_of_measurement: "kWh/K"

@@ -1,7 +1,0 @@
-platform: filter
-name: C_kWh_per_K_rolling
-entity_id: sensor.c_building
-filters:
-  - filter: time_simple_moving_average
-    window_size: "168:00"     # 7 Tage
-    precision: 2
