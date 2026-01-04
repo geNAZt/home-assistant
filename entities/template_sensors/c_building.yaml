@@ -7,6 +7,7 @@ sensor:
   unique_id: c_building
   unit_of_measurement: "kWh/K"
   state: >
+    {% set invalid = ['unknown','unavailable','none','', None] %}
     {% set t_start = states('input_number.cooldown_start_temp') | float(0) %}
     {% set t_now = states('sensor.inside_temp_mean_now') | float(0) %}
     {% set h_start = states('input_number.cooldown_start_h_wind') | float(0) %}
@@ -22,8 +23,24 @@ sensor:
         {% set energy_lost = h_start * avg_delta_t * duration_h %}
         {{ (energy_lost / temp_drop) | round(2) }}
       {% else %}
-        {{ this.state | float(7.0) }}
+        {% set prev = this.state %}
+        {% if prev not in invalid %}
+          {{ prev }}
+        {% else %}
+          unknown
+        {% endif %}
       {% endif %}
     {% else %}
-      {{ this.state | float(7.0) }}
+      {% set prev = this.state %}
+      {% if prev not in invalid %}
+        {{ prev }}
+      {% else %}
+        unknown
+      {% endif %}
     {% endif %}
+  availability: >
+    {% set invalid = ['unknown','unavailable','none','', None] %}
+    {{ states('sensor.inside_temp_mean_now') not in invalid and 
+      states('input_number.cooldown_start_temp') not in invalid and 
+      states('input_number.cooldown_start_h_wind') not in invalid and 
+      states('input_datetime.cooldown_start_time') not in invalid }}
