@@ -1,0 +1,6 @@
+name: "H-Wert bei Start Abkühlung"
+unit_of_measurement: "kW/K"
+min: 0
+max: 1
+step: 0.001
+mode: box

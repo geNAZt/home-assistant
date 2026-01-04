@@ -1,0 +1,32 @@
+- id: heating_start_for_c
+  alias: "Heizung: Startwerte für C-Berechnung speichern"
+  description: "Speichert die Werte, sobald alle Heizungen aufhören zu heizen"
+  trigger:
+    - platform: template
+      value_template: >
+        {% set heating = expand('climate.climate_room_bad', 'climate.climate_room_buero_fabian', 'climate.climate_room_buero_merja', 'climate.climate_room_flur', 'climate.climate_room_kueche', 'climate.climate_room_schlafzimmer', 'climate.climate_room_speisekammer', 'climate.climate_room_wohnzimmer') 
+              | selectattr('state', 'eq', 'heat') | list | count %}
+        {{ heating == 0 }}
+      for:
+        minutes: 5 # Verhindert kurzes Triggern bei Taktung
+  condition:
+    - condition: template
+      # Sicherstellen, dass wir nicht mitten am Tag messen (Sonneneinstrahlung verfälscht C)
+      value_template: "{{ now().hour >= 18 or now().hour <= 5 }}"
+  action:
+    - service: input_number.set_value
+      target:
+        entity_id: input_number.cooldown_start_temp
+      data:
+        value: "{{ states('sensor.inside_temp_mean_now') | float }}"
+    - service: input_number.set_value
+      target:
+        entity_id: input_number.cooldown_start_h_wind
+      data:
+        value: "{{ states('sensor.H_kW_per_K_effective') | float }}"
+    - service: input_datetime.set_datetime
+      target:
+        entity_id: input_datetime.cooldown_start_time
+      data:
+        datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+  mode: single
