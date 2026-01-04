@@ -8,7 +8,7 @@ sensor:
     {% set delta_t = states('sensor.deltaT_24h') | float(20) %}
     
     {# 2. Zeitraum berechnen (wie lange muss es halten?) #}
-    {% set hours_to_bridge = 22 - 6 %} # 6-22 Uhr
+    {% set hours_to_bridge = 22 - 6 %}
     
     {% if hours_to_bridge > 0 %}
       {# 3. Prognostizierter Energieverlust in kWh #}

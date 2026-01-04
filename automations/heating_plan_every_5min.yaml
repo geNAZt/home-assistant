@@ -38,15 +38,11 @@
     preheat_enabled: "{{ is_state('binary_sensor.preheat_erlaubt_demand_weighted', 'on') }}"
     heating_block_enabled: "{{ is_state('input_boolean.heating_block_daytime', 'on') and preheat_enabled }}"
     
-    C_eff: "{{ states('sensor.C_kWh_per_K_rolling') | float(10) }}"
-    H_eff: "{{ states('sensor.H_kW_per_K_effective') | float(6.25) }}"
-    dT_forecast: "{{ states('input_number.delta_t_forecast_k') | float(0) }}"
-    
     # --- Preheat goal (room-specific) ---
     preheat_end_hour: 6          # preheat window ends 06:00
     target_hour: 22              # want condition at 22:00
     target_below_base_k: 0.3     # at 22:00: base - 0.3K
-    max_total_offset_k: 1.0      # <= 1K above each room's base (includes PV + preheat)
+    max_total_offset_k: 2.0      # <= 2K above each room's base (includes PV + preheat)
 
     # Outside avg estimate for 06:00–22:00 (hourly forecast if available,
     # else daily high/low average, else current outside temp)
@@ -130,20 +126,10 @@
         
         {% set pv_off = pv_offset_k | float(0) %}
         {% set cap = max_total_offset_k | float(1.0) %}
-        {% set margin = target_below_base_k | float(0.3) %}
-        {% set dt = ((target_hour | float(22)) - (preheat_end_hour | float(6))) %}
-        {% set C = C_eff | float(0) %}
-        {% set H = H_eff | float(0) %}
-        {% set T_out = outside_avg_6_22_c | float(states('sensor.outside_temperature') | float(0)) %}
 
         {% set preheat_off = 0.0 %}
-        {% if is_preheat_window and C > 0 and H > 0 and dt > 0 and preheat_enabled %}
-          {% set k = H / C %}
-          {% set f = 2.718281828 ** (-(k * dt)) %}
-          {% if f < 0.05 %}{% set f = 0.05 %}{% endif %}
-          {% set D_base = (base_target - T_out) * (1 - f) %}
-          {% set raw = (D_base - margin) / f %}
-          {% set preheat_off = raw if raw > 0 else 0.0 %}
+        {% if is_preheat_window and preheat_enabled %}
+          {% set preheat_off = states('sensor.heating_preheat_offset_dynamic') | float(0) %}
         {% endif %}
 
         {% set room_offset = preheat_off + pv_off %}
