@@ -1,0 +1,17 @@
+- id: heating_stop_for_c
+  alias: "Heizung: C-Berechnung zurücksetzen bei Heizstart"
+  description: "Setzt die Startzeit zurück, sobald eine Heizung aktiv wird"
+  trigger:
+    - platform: template
+      value_template: >
+        {% set heating = expand('climate.climate_room_bad', 'climate.climate_room_buero_fabian', 'climate.climate_room_buero_merja', 'climate.climate_room_flur', 'climate.climate_room_kueche', 'climate.climate_room_schlafzimmer', 'climate.climate_room_speisekammer', 'climate.climate_room_wohnzimmer') 
+              | selectattr('state', 'eq', 'heat') | list | count %}
+        {{ heating > 0 }}
+  action:
+    - service: input_datetime.set_datetime
+      target:
+        entity_id: input_datetime.cooldown_start_time
+      data:
+        # Wir setzen es auf den Unix-Nullpunkt (1970), um "Inaktivität" zu signalisieren
+        timestamp: 0
+  mode: single
