@@ -1,0 +1,33 @@
+sensor:
+- name: "Heating Savings Today"
+  unique_id: heating_savings_today
+  unit_of_measurement: "€"
+  state: >
+    {# 1. Parameter laden #}
+    {% set C = states('sensor.C_kWh_per_K_rolling') | float(13.28) %}
+    {# Wir nehmen den Offset, der heute Morgen aktiv war #}
+    {% set offset = states('sensor.heating_preheat_offset_dynamic') | float(0) %}
+    
+    {# 2. Preise laden (Euro/kWh) #}
+    {# Hier die Entitäten deiner Tibber-Durchschnittspreise einsetzen #}
+    {% set price_night = states('input_number.tibber_price_dw_00_06') | float(0.20) %}
+    {% set price_day = states('input_number.tibber_price_dw_06_24') | float(0.35) %}
+    
+    {# 3. COP der Wärmepumpe (geschätzt 4.0 bei aktuellen Temperaturen) #}
+    {% set cop = 1.0 %}
+    
+    {% if offset > 0 and price_day > price_night %}
+      {# Benötigte thermische Energie in kWh #}
+      {% set energy_thermal_kwh = offset * C %}
+      {# Strombedarf in kWh #}
+      {% set energy_electrical_kwh = energy_thermal_kwh / cop %}
+      
+      {# Ersparnis: (Kosten am Tag) - (Kosten in der Nacht) #}
+      {% set savings = (energy_electrical_kwh * price_day) - (energy_electrical_kwh * price_night) %}
+      {{ savings | round(2) }}
+    {% else %}
+      0.0
+    {% endif %}
+  attributes:
+    energy_stored_kwh: >
+      {{ (states('sensor.heating_preheat_offset_dynamic') | float(0) * states('sensor.C_kWh_per_K_rolling') | float(13.28)) | round(2) }}
