@@ -12,14 +12,15 @@ sensor:
     {% set t_now = states('sensor.inside_temp_mean_now') | float(0) %}
     {% set h_start = states('input_number.cooldown_start_h_wind') | float(0) %}
     {% set start_time = states('input_datetime.cooldown_start_time') %}
-    
-    {% if t_start > 0 and start_time != '1970-01-01 00:00:00' %}
-      {% set duration_h = (as_timestamp(now()) - as_timestamp(start_time)) / 3600 %}
+    {% set start_ts = as_timestamp(start_time) %}
+          
+    {% if t_start > 0 and start_ts > 100000 %}
+      {% set duration_h = (as_timestamp(now()) - start_ts) / 3600 %}
       {% set temp_drop = t_start - t_now %}
       {% set avg_delta_t = states('sensor.deltaT_24h') | float(0) %}
       
       {# Wir brauchen mindestens 3h Abkühlung und 0.2K Drop für ein sauberes Ergebnis #}
-      {% if duration_h > 3 and temp_drop > 0.2 %}
+      {% if duration_h > 3 and temp_drop > 0.15 %}
         {% set energy_lost = h_start * avg_delta_t * duration_h %}
         {{ (energy_lost / temp_drop) | round(2) }}
       {% else %}
