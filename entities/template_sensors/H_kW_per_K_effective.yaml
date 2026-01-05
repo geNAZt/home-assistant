@@ -16,7 +16,7 @@ sensor:
       {% set H_wind_zuschlag = (volumen * n_real * 0.34 / 1000) * 0.1 %}
 
       {# Gesamtwert #}
-      {{ (H_basis + H_wind_zuschlag) | round(3) }}
+      {{ (H_basis + (H_wind_zuschlag * 0.1)) | round(3) }}
     availability: >
       {{ states('sensor.H_kW_per_K_rolling') not in ['unknown','unavailable','none']
          and states('sensor.wind_speed_mean_24h') not in ['unknown','unavailable','none'] }}

@@ -15,10 +15,10 @@ sensor:
       {% set total_energy_loss = h_wind * delta_t * hours_to_bridge %}
       
       {# 4. Nötiger Temperatur-Hub: Kelvin = kWh / (kWh/K) #}
-      {% set needed_offset = total_energy_loss / c_real %}
+      {% set needed_offset = (total_energy_loss / c_real) + 0.3 %}
       
       {# Limitierung auf vernünftige Werte (z.B. max 2K) #}
-      {{ [needed_offset, 2.0] | min | round(2) }}
+      {{ [needed_offset, 2.5] | min | round(2) }}
     {% else %}
       0
     {% endif %}
