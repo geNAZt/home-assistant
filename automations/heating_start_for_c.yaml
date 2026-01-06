@@ -17,6 +17,9 @@
         {{ heating == 0 and temp_rise <= 0 and sonneneinstrahlung == 0 }}
       for:
         minutes: 5 # Verhindert kurzes Triggern bei Taktung
+  condition:
+    - condition: template
+      value_template: "{{ (states('input_datetime.cooldown_start_time') | float) == 0 }}"
   action:
     - service: input_number.set_value
       target:
