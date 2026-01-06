@@ -8,10 +8,13 @@
         {% set heating = expand('climate.climate_room_bad', 'climate.climate_room_buero_fabian', 'climate.climate_room_buero_merja', 'climate.climate_room_flur', 'climate.climate_room_kueche', 'climate.climate_room_schlafzimmer', 'climate.climate_room_speisekammer', 'climate.climate_room_wohnzimmer') 
               | selectattr('state', 'eq', 'heat') | list | count %}
 
+        # Wir checken, ob die interne Temp steigt
+        {% set temp_rise = states('sensor.indoor_temp_rate') | float(0) %}
+
         # Wir checken, ob die Sonneneinstrahlung 0 ist
         {% set sonneneinstrahlung = states('sensor.barsinghausen_hohenb_sonneneinstrahlung') | float(0) %}
 
-        {{ heating == 0 and sonneneinstrahlung == 0 }}
+        {{ heating == 0 and temp_rise <= 0 and sonneneinstrahlung == 0 }}
       for:
         minutes: 5 # Verhindert kurzes Triggern bei Taktung
   action:
