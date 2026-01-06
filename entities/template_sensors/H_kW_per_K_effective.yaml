@@ -2,21 +2,27 @@ sensor:
   - name: H_kW_per_K_effective
     unit_of_measurement: "kW/K"
     state: >
+      {# 1. BASIS-TRANSMISSION (Hülle) #}
       {% set H_basis = states('sensor.H_kW_per_K_rolling')|float(0.074) %}
+      
+      {# 2. WIND-INFILTRATION (Sherman-Grimsrud Modell mit Abschirmfaktor) #}
       {% set v_kmh = states('sensor.wind_speed_mean_24h')|float(0) %}
       {% set v_ms = v_kmh / 3.6 %}
       {% set n50 = 0.95 %}
       {% set volumen = 388 %}
-
-      {# Physikalischer Luftwechsel n_v nach dem Sherman-Grimsrud Modell (vereinfacht) #}
-      {# Wir nutzen einen Realitätsfaktor von ca. 0.04 bis 0.07 für den n50-Wert #}
       {% set n_real = n50 * (v_ms / 10) %} 
-
-      {# Berechnung des zusätzlichen Wind-H-Werts in kW/K #}
+      {# 0.1 Faktor für die stark geschützte Lage (Kessel-Lage) #}
       {% set H_wind_zuschlag = (volumen * n_real * 0.34 / 1000) * 0.1 %}
 
-      {# Gesamtwert #}
-      {{ (H_basis + (H_wind_zuschlag * 0.1)) | round(3) }}
+      {# 3. HRV-LÜFTUNGSVERLUST (Stiebel Eltron LWZ 180) #}
+      {# Hier greifen wir auf die eingestellten 120m³/h und 85% WRG zurück #}
+      {% set flow = states('input_number.hrv_flow_rate') | float(120) %}
+      {% set wrg = states('input_number.hrv_wrg_efficiency') | float(0.85) %}
+      {# Formel: Volumenstrom * Wärmekapazität * (1 - Wirkungsgrad) #}
+      {% set H_hrv = (flow * 0.34 * (1 - wrg)) / 1000 %}
+
+      {# GESAMT-H (Hülle + Wind + HRV) #}
+      {{ (H_basis + H_wind_zuschlag + H_hrv) | round(4) }}
     availability: >
       {{ states('sensor.H_kW_per_K_rolling') not in ['unknown','unavailable','none']
          and states('sensor.wind_speed_mean_24h') not in ['unknown','unavailable','none'] }}

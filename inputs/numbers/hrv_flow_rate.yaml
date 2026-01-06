@@ -1,0 +1,8 @@
+name: HRV Flowrate
+min: 60
+max: 250
+step: 1
+initial: 120
+unit_of_measurement: m³/h
+icon: mdi:water-pump
+mode: box
