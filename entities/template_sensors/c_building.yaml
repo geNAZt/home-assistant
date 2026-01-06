@@ -2,7 +2,7 @@ sensor:
 - name: "C_kWh_per_K_rolling"
   unit_of_measurement: "kWh/K"
   state: >
-    {{ states('sensor.c_building') | float(7.0) }}
+    {{ states('sensor.c_building') | float(10.2) }}
 - name: "C Building"
   unique_id: c_building
   unit_of_measurement: "kWh/K"
@@ -40,8 +40,7 @@ sensor:
       {% endif %}
     {% endif %}
   availability: >
-    {% set invalid = ['unknown','unavailable','none','', None] %}
-    {{ states('sensor.inside_temp_mean_now') not in invalid and 
-      states('input_number.cooldown_start_temp') not in invalid and 
-      states('input_number.cooldown_start_h_wind') not in invalid and 
-      states('input_datetime.cooldown_start_time') not in invalid }}
+    {{ is_number(states('sensor.inside_temp_mean_now')) and 
+      is_number(states('input_number.cooldown_start_temp')) and 
+      is_number(states('input_number.cooldown_start_h_wind')) and 
+      is_number(states('input_datetime.cooldown_start_time')) }}
