@@ -4,15 +4,16 @@
   trigger:
     - platform: template
       value_template: >
+        # Wir checken, ob eine Heizung aktiv ist
         {% set heating = expand('climate.climate_room_bad', 'climate.climate_room_buero_fabian', 'climate.climate_room_buero_merja', 'climate.climate_room_flur', 'climate.climate_room_kueche', 'climate.climate_room_schlafzimmer', 'climate.climate_room_speisekammer', 'climate.climate_room_wohnzimmer') 
               | selectattr('state', 'eq', 'heat') | list | count %}
-        {{ heating == 0 }}
+
+        # Wir checken, ob die Sonneneinstrahlung 0 ist
+        {% set sonneneinstrahlung = states('sensor.barsinghausen_hohenb_sonneneinstrahlung') | float(0) %}
+
+        {{ heating == 0 and sonneneinstrahlung == 0 }}
       for:
         minutes: 5 # Verhindert kurzes Triggern bei Taktung
-  condition:
-    - condition: template
-      # Sicherstellen, dass wir nicht mitten am Tag messen (Sonneneinstrahlung verfälscht C)
-      value_template: "{{ now().hour >= 18 or now().hour <= 5 }}"
   action:
     - service: input_number.set_value
       target:
