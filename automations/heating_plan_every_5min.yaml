@@ -39,49 +39,7 @@
     heating_block_enabled: "{{ is_state('input_boolean.heating_block_daytime', 'on') and preheat_enabled }}"
     
     # --- Preheat goal (room-specific) ---
-    preheat_end_hour: 6          # preheat window ends 06:00
-    target_hour: 22              # want condition at 22:00
-    target_below_base_k: 0.3     # at 22:00: base - 0.3K
     max_total_offset_k: 2.0      # <= 2K above each room's base (includes PV + preheat)
-
-    # Outside avg estimate for 06:00–22:00 (hourly forecast if available,
-    # else daily high/low average, else current outside temp)
-    outside_avg_6_22_c: >-
-      {% set current_outside = states('sensor.outside_temperature') | float(0) %}
-      {% set forecast_attr = state_attr('weather.home', 'forecast') %}
-      {% set t0 = as_timestamp(now().replace(hour=6, minute=0, second=0, microsecond=0)) %}
-      {% set t1 = as_timestamp(now().replace(hour=22, minute=0, second=0, microsecond=0)) %}
-      {% set ns = namespace(sum=0.0, n=0) %}
-      {% if forecast_attr is iterable %}
-        {# Try hourly points: forecast items with datetime + temperature #}
-        {% for p in forecast_attr %}
-          {% if p.datetime is defined and p.temperature is defined %}
-            {% set ts = as_timestamp(p.datetime) %}
-            {% if ts is number and t0 <= ts < t1 %}
-              {% set ns.sum = ns.sum + (p.temperature | float(0)) %}
-              {% set ns.n = ns.n + 1 %}
-            {% endif %}
-          {% endif %}
-        {% endfor %}
-        {% if ns.n > 0 %}
-          {{ ns.sum / ns.n }}
-        {% else %}
-          {# Fallback: daily high/low average on first forecast item #}
-          {% set first = forecast_attr | first %}
-          {% if first is mapping and first.temperature is defined and first.templow is defined %}
-            {{ ((first.temperature | float(0)) + (first.templow | float(0))) / 2.0 }}
-          {% else %}
-            {{ current_outside }}
-          {% endif %}
-        {% endif %}
-      {% else %}
-        {{ current_outside }}
-      {% endif %}
-
-    # ===== Tibber Preisfenster =====
-    # Anteil des Tagesmax, der "billig" ist (z.B. 0.10 = unter 10% des Max-Preises)
-    price_pct_of_max: "{{ states('input_number.price_percentile_cutoff')|float(0.10) }}"
-    current_price_eur: "{{ states('sensor.backerstrasse_3b_strompreis')|float(99) }}"
     
     # ===================================================================
     # SECTION 2: COMPREHENSIVE ROOM DATA (Single Pass)
@@ -388,89 +346,12 @@
   
   condition: []
   action:
-    # 1) Tagespreise laden
-    - service: tibber.get_prices
-      data:
-        start: "{{ now().strftime('%Y-%m-%d %H:00:00') }}"
-        end:   "{{ (now() + timedelta(hours=24)).strftime('%Y-%m-%d %H:00:00') }}"
-      response_variable: tibber_resp
-
-    # 2) Preis-Gate bestimmen (robuste Extraktion + Perzentil, ohne from_json)
-    - variables:
-        # 2.1 Rohdaten -> einheitliches Array [{price: ..., start_time: ...}, ...]
-        tib_prices_arr: >-
-          {% set raw = tibber_resp %}
-          {% set arr = [] %}
-          {% if raw is mapping and 'prices' in raw and (raw['prices'] is mapping) %}
-            {% set first_key = (raw['prices'].keys() | list | first) %}
-            {% if first_key %}
-              {% set arr = raw['prices'][first_key] %}
-            {% endif %}
-          {% elif raw is sequence %}
-            {% set arr = raw %}
-          {% endif %}
-          {{ arr }}
-
-        # 2.2 Perzentil-Schwelle (unteres x-Perzentil des Tages)
-        price_quantile_thr: >-
-          {% set items = tib_prices_arr if tib_prices_arr is sequence else [] %}
-          {% set prices = items | map(attribute='price') | select('number') | list %}
-          {% if prices | length == 0 %}
-            {{ none }}
-          {% else %}
-            {# Eingabe kann 0–1 oder 0–100 sein #}
-            {% set p = states('input_number.price_percentile_cutoff') | float(0.10) %}
-            {% if p > 1 %}{% set p = p / 100 %}{% endif %}
-            {% set p = 0 if p < 0 else (1 if p > 1 else p) %}
-            {% set sorted = prices | sort %}
-            {% set idx = ((sorted | length - 1) * p) | round(0, 'floor') %}
-            {{ sorted[idx] }}
-          {% endif %}
-
-        # 2.3 Ist der aktuelle Preis günstig?
-        price_is_cheap_now: >-
-          {% if price_quantile_thr is number %}
-            {{ states('sensor.backerstrasse_3b_strompreis') | float(999) <= price_quantile_thr }}
-          {% else %}
-            {{ is_state('input_boolean.heating_ignore_price','on') }}
-          {% endif %}
-
-        # Optional: kompaktes Preis-Debug fürs Log
-        price_debug: >-
-          {% set items = tib_prices_arr if tib_prices_arr is sequence else [] %}
-          {% set prs = items | map(attribute='price') | select('number') | list %}
-          {% if prs | length == 0 %}
-            {{ {'n': 0} | tojson }}
-          {% else %}
-            {{ {'n': prs|length, 'min': (prs|min), 'max': (prs|max), 'thr': price_quantile_thr} | tojson }}
-          {% endif %}
-
-    # 2b) Pmax/Threshold in Helper schreiben (für die UI-Sichtkontrolle)
-    - variables:
-        pmax_eur: >-
-          {% set items = tib_prices_arr if tib_prices_arr is sequence else [] %}
-          {% set prices = items | map(attribute='price') | select('number') | list %}
-          {{ (prices|max) if prices|length else 0 }}
-        thr_eur: >-
-          {# UI-Helper soll am besten das echte Quantil zeigen, nicht pmax*pct #}
-          {{ price_quantile_thr if price_quantile_thr is number else 0 }}
-
-    - service: input_number.set_value
-      target: { entity_id: input_number.tibber_pmax_today }
-      data:
-        value: "{{ pmax_eur|float(0) }}"
-
-    - service: input_number.set_value
-      target: { entity_id: input_number.tibber_threshold_today }
-      data:
-        value: "{{ thr_eur|float(0) }}"
-
     # 3) Endgültiges Heizerlaubnis
     - variables:
         # tagsüber nur, wenn (Preis günstig) ODER (12–14 & PV-Excess)
         allow_daytime_heat: >-
           {% set topup_ok = (is_midday_topup_window and has_pv_excess) %}
-          {{ price_is_cheap_now or topup_ok }}
+          {{ topup_ok }}
         heating_allowed_now: >-
           {% if not preheat_enabled %}
             true
