@@ -5,7 +5,7 @@
   trigger:
     - platform: time_pattern
       seconds: "/2"
-  conditions:
+  condition:
   - condition: template
     value_template: "{{ states('binary_sensor.goe_288025_car_0') == 'on' }}"
   variables:
@@ -29,8 +29,6 @@
         {# Exported power below threshold and charger is on - force stop #}
         10500
       {% endif %}
-  
-  condition: []
   action:
     - service: goecharger_api2.set_pv_data
       data:

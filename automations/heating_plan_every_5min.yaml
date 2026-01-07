@@ -442,17 +442,6 @@
                   preheat_min={{ pre|min }}K preheat_max={{ pre|max }}K,
                   PV={{ pv_offset_k | float(0) }}K
     
-    # ===================================================================
-    # ACTION 2: Log debug information
-    # ===================================================================
-    - service: logbook.log
-      data:
-        name: "Heiz-Planer"
-        message: >-
-          PreisOK={{ price_is_cheap_now }}, PVexcess={{ has_pv_excess }},
-          Preheat={{ is_preheat_window }}, DayAllow={{ heating_allowed_now }},
-          PriceDbg={{ price_debug }}
-
     # === 9) Phase-safe HVAC control =================================
     - choose:
         - conditions:
