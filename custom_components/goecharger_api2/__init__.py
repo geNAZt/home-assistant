@@ -75,7 +75,8 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     if not coordinator.last_update_success:
         raise ConfigEntryNotReady
     else:
-        await coordinator.read_versions()
+        if not await coordinator.read_versions():
+            raise ConfigEntryNotReady("Could not read versions from charger/controller! - please enable debug logging to see more details!")
 
     hass.data[DOMAIN][config_entry.entry_id] = coordinator
 
@@ -249,7 +250,7 @@ class GoeChargerDataUpdateCoordinator(DataUpdateCoordinator):
 
         # config_entry only need for providing the '_device_info_dict'...
         self._config_entry = config_entry
-        self.is_charger_fw_version_60_0_or_higher = False
+        self.is_charger_fw_version_60_0_or_higher_and_no_cards_list_is_present = False
         super().__init__(hass, _LOGGER, name=DOMAIN, update_interval=SCAN_INTERVAL)
 
     async def get_new_client_session(self):
@@ -329,7 +330,8 @@ class GoeChargerDataUpdateCoordinator(DataUpdateCoordinator):
         return result
 
     async def read_versions(self):
-        await self.bridge.read_versions()
+        if not await self.bridge.read_versions():
+            return False
 
         # charger and controller have both FWV tag...
         if Tag.FWV.key in self.bridge._versions:
@@ -339,14 +341,17 @@ class GoeChargerDataUpdateCoordinator(DataUpdateCoordinator):
                 sw_version = sw_version[:sw_version.index('-')]
 
             if self.intg_type == INTG_TYPE.CHARGER.value:
-                if Version(sw_version) >= Version("60.0"):
-                    self.is_charger_fw_version_60_0_or_higher = True
+                # when we request the version info for the charger, then this request will/should also contain the
+                # key 'cards'. The cards array  has been removed in FW 60.0 - but currently in my 60.3 it's back
+                # again - so as long as this array is available, we can/should/will use it?!
+                if Version(sw_version) >= Version("60.0") and len(self.bridge._versions.get(Tag.CARDS.key, [])) == 0:
+                    self.is_charger_fw_version_60_0_or_higher_and_no_cards_list_is_present = True
         else:
             sw_version = "UNKNOWN"
 
         if self.mode == LAN:
             self._device_info_dict = {
-                # be carefully when adjusting the 'identifiers' -> since this will create probably new DeviceEntries
+                # be careful when adjusting the 'identifiers' -> since this will create probably new DeviceEntries
                 # and there exists also code which CLEAN all Devices that does not have 4 (four) identifier values!!
                 "identifiers": {(
                     DOMAIN,
@@ -361,7 +366,7 @@ class GoeChargerDataUpdateCoordinator(DataUpdateCoordinator):
             }
         else:
             self._device_info_dict = {
-                # be carefully when adjusting the 'identifiers' -> since this will create probably new DeviceEntries
+                # be careful when adjusting the 'identifiers' -> since this will create probably new DeviceEntries
                 # and there exists also code which CLEAN all Devices that does not have 4 (four) identifier values!!
                 "identifiers": {(
                     DOMAIN,
@@ -380,8 +385,8 @@ class GoeChargerDataUpdateCoordinator(DataUpdateCoordinator):
         if self.intg_type == INTG_TYPE.CHARGER.value:
             # fetching the available cards that are enabled
             idx = 1
-            # since FWV 60.0 there is no cards object any longer...
-            if self.is_charger_fw_version_60_0_or_higher:
+            if self.is_charger_fw_version_60_0_or_higher_and_no_cards_list_is_present:
+                # since FWV 60.0 there is no cards object any longer...
                 for a_card_number in range(0, 10):
                     a_key_id = f"c{a_card_number}i"
                     if self.bridge._versions.get(a_key_id, False):
@@ -402,8 +407,8 @@ class GoeChargerDataUpdateCoordinator(DataUpdateCoordinator):
             self.check_for_max_of_16a = self._config_entry.data.get(CONF_11KWLIMIT, False)
 
             self.limit_to16a = (self.check_for_max_of_16a
-                                or self.bridge._versions[Tag.VAR.key] == 11
-                                or self.data[Tag.ADI.key])
+                                or self.bridge._versions.get(Tag.VAR.key, -1) == 11
+                                or self.data.get(Tag.ADI.key, False))
 
             if (self.limit_to16a):
                 _LOGGER.info(f"LIMIT to 16A is active")
@@ -411,7 +416,8 @@ class GoeChargerDataUpdateCoordinator(DataUpdateCoordinator):
             # no additional controller stuff... but we need to init some variables
             self.check_for_max_of_16a = False
             self.limit_to16a = False
-            pass
+
+        return True
 
     async def check_for_16a_limit(self, hass, entry_id):
         _LOGGER.debug(f"check relevant entities for 16A limit... in 15sec")
