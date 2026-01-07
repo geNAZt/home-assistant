@@ -19,7 +19,7 @@
         minutes: 5 # Verhindert kurzes Triggern bei Taktung
   condition:
     - condition: template
-      value_template: "{{ (states('input_datetime.cooldown_start_time') | float) == 0 }}"
+      value_template: "{{ as_timestamp(states('input_datetime.cooldown_start_time')) == 0 }}"
   action:
     - service: input_number.set_value
       target:
