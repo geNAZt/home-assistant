@@ -7,5 +7,5 @@ turn_off_poe:
       target:
         entity_id:
           - switch.usw_lite_16_poe_port_6_poe
-          - switch.usw_lite_16_poe_port_8_poe
+          - switch.usw_lite_16_poe_port_7_poe
       data: {}
