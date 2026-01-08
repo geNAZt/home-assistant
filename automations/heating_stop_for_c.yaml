@@ -14,7 +14,7 @@
         # Wir checken, ob die Sonneneinstrahlung 0 ist
         {% set sonneneinstrahlung = states('sensor.barsinghausen_hohenb_sonneneinstrahlung') | float(0) %}
 
-        {{ heating > 0 or temp_rise > 0.1 or sonneneinstrahlung > 0 }}
+        {{ heating > 0 or temp_rise > 0.1 or sonneneinstrahlung > 50 }}
   action:
     - service: input_datetime.set_datetime
       target:
