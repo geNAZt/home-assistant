@@ -6,7 +6,10 @@
     entity_id:
     - lock.home
     to: unlocked
-  conditions: []
+  conditions:
+  - condition: time
+    after: "10:00:10"
+    before: "09:59:50"
   actions:
   - action: light.turn_on
     metadata: {}

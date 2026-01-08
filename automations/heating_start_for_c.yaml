@@ -17,7 +17,7 @@
         {{ heating == 0 and temp_rise <= 0 and sonneneinstrahlung <= 50 }}
       for:
         minutes: 5 # Verhindert kurzes Triggern bei Taktung
-  condition:
+  conditions:
     - condition: template
       value_template: "{{ as_timestamp(states('input_datetime.cooldown_start_time')) == 0 }}"
   action:
