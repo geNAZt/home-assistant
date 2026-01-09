@@ -35,5 +35,5 @@
       target:
         entity_id: input_datetime.cooldown_start_time
       data:
-        datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+        datetime: "{{ states.sensor.inside_temp_mean_now.last_changed.strftime('%Y-%m-%d %H:%M:%S') }}"
   mode: single

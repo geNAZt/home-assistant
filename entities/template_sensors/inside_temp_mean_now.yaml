@@ -24,5 +24,5 @@ sensor:
         {% set ns.vals = ns.vals + [v|float] %}
       {% endfor %}
       {% if ns.vals|length > 0 %}
-        {{ (ns.vals|sum / (ns.vals|length))|round(2) }}
+        {{ (ns.vals|sum / (ns.vals|length))|round(4) }}
       {% else %} unknown {% endif %}

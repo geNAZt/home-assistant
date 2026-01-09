@@ -16,9 +16,12 @@ sensor:
     {% set h_start = states('input_number.cooldown_start_h_wind') | float(0) %}
     {% set start_time = states('input_datetime.cooldown_start_time') %}
     {% set start_ts = as_timestamp(start_time) %}
-          
+    
+    {# Der Zeitstempel, wann die AKTUELL angezeigte Temperatur erreicht wurde #}
+    {% set last_changed_ts = as_timestamp(states.sensor.inside_temp_mean_now.last_changed) %}
+
     {% if t_start > 0 and start_ts > 100000 %}
-      {% set duration_h = (as_timestamp(now()) - start_ts) / 3600 %}
+      {% set duration_h = (last_changed_ts - start_ts) / 3600 %}
       {% set temp_drop = t_start - t_now %}
       {% set avg_delta_t = states('sensor.deltaT_24h') | float(0) %}
       
