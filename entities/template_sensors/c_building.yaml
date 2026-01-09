@@ -39,8 +39,3 @@ sensor:
         unknown
       {% endif %}
     {% endif %}
-  availability: >
-    {{ is_number(states('sensor.inside_temp_mean_now')) and 
-      is_number(states('input_number.cooldown_start_temp')) and 
-      is_number(states('input_number.cooldown_start_h_wind')) and 
-      is_number(states('input_datetime.cooldown_start_time')) }}
