@@ -39,7 +39,7 @@
     heating_block_enabled: "{{ is_state('input_boolean.heating_block_daytime', 'on') and preheat_enabled }}"
     
     # --- Preheat goal (room-specific) ---
-    max_total_offset_k: 2.0      # <= 2K above each room's base (includes PV + preheat)
+    max_total_offset_k: 5.0      # <= 5K above each room's base (includes PV + preheat)
     
     # ===================================================================
     # SECTION 2: COMPREHENSIVE ROOM DATA (Single Pass)
