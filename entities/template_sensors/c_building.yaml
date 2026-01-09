@@ -6,6 +6,9 @@ sensor:
 - name: "C Building"
   unique_id: c_building
   unit_of_measurement: "kWh/K"
+  triggers:
+  - trigger: time_pattern
+    minutes: /5
   state: >
     {% set invalid = ['unknown','unavailable','none','', None] %}
     {% set t_start = states('input_number.cooldown_start_temp') | float(0) %}
