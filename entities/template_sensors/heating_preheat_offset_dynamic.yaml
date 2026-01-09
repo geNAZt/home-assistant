@@ -1,24 +1,21 @@
 sensor:
-- name: "Heating Preheat Offset Dynamic"
+- name: "Heating Preheat Offset Dynamic Uncapped"
   unit_of_measurement: "K"
   state: >
-    {# 1. Parameter laden #}
     {% set h_wind = states('sensor.H_kW_per_K_effective') | float(0.08) %}
     {% set c_real = states('sensor.C_kWh_per_K_rolling') | float(7.5) %}
     {% set delta_t = states('sensor.deltaT_24h') | float(20) %}
-    
-    {# 2. Zeitraum berechnen (wie lange muss es halten?) #}
     {% set hours_to_bridge = 22 - 6 %}
-    
-    {% if hours_to_bridge > 0 %}
-      {# 3. Prognostizierter Energieverlust in kWh #}
-      {% set total_energy_loss = h_wind * delta_t * hours_to_bridge %}
-      
-      {# 4. Nötiger Temperatur-Hub: Kelvin = kWh / (kWh/K) #}
-      {% set needed_offset = (total_energy_loss / c_real) + 0.3 %}
-      
-      {# Limitierung auf vernünftige Werte (z.B. max 2K) #}
-      {{ [needed_offset, 2.5] | min | round(2) }}
+    {% set total_energy_loss = h_wind * delta_t * hours_to_bridge %}
+    {% set needed_offset = (total_energy_loss / c_real) + 0.3 %}
+    {{ needed_offset | round(2) }}
+- name: "Heating Preheat Offset Dynamic"
+  unit_of_measurement: "K"
+  state: >
+    {% set uncapped = states('sensor.heating_preheat_offset_dynamic_uncapped') | float(0) %}
+    {% set max_offset = states('input_number.heating_max_offset_k') | float(2.5) %}
+    {% if uncapped > max_offset %}
+      {{ max_offset }}
     {% else %}
-      0
+      {{ uncapped }}
     {% endif %}
