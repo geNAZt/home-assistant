@@ -1,0 +1,22 @@
+sensor:
+- name: "Internal Gains HRV"
+  unique_id: internal_gains_hrv
+  unit_of_measurement: 'W'
+  device_class: power
+  state: >
+    {# Wir holen das Minimum der letzten 30 Minuten #}
+    {% set baseline = states('sensor.hrv_baseline') | float(0) %}
+    
+    {# Plausibilitäts-Check #}
+    {# Wenn die Anlage läuft, liegt die Baseline typischerweise zwischen 30 und 100W #}
+    {% if 20 < baseline < 110 %}
+      {# 85% der Motorleistung wird zu Wärme im Haus #}
+      {{ (baseline * 0.85) | round(2) }}
+    {% elif baseline >= 110 %}
+      {# Falls das Register so extrem dauerhaft heizt, dass kein Minimum gefunden wird #}
+      {# nehmen wir einen konservativen Schätzwert für die Lüfter #}
+      {{ 45.0 }}
+    {% else %}
+      {# Anlage aus oder Standby #}
+      0.0
+    {% endif %}
