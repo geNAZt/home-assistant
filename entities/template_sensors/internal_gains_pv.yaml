@@ -4,35 +4,25 @@ sensor:
   unit_of_measurement: 'W'
   device_class: power
   state: >
-    {# Rohwerte laden #}
-    {% set pv_dc = states('sensor.pv_dc_power') | float(0) %}
+    {% set invalid = ['unknown','unavailable','none','', None] %}
     {% set ac_pwr = states('sensor.pv_ac_power') | float(0) %}
     {% set bat_pwr = states('sensor.pv_battery1_power') | float(0) %}
     
-    {# Definition SolarEdge: bat_pwr > 0 ist LADEN, bat_pwr < 0 ist ENTLADEN #}
-    
-    {# 1. Was geht in den Wechselrichter REIN? #}
-    {# PV Leistung + Batterie-Entladung (wenn negativ) #}
-    {% set energy_in = pv_dc + (bat_pwr | abs if bat_pwr < 0 else 0) %}
-    
-    {# 2. Was kommt aus dem Wechselrichter RAUS? #}
-    {# AC Leistung ins Haus + Batterie-Ladung (wenn positiv) #}
-    {% set energy_out = ac_pwr + (bat_pwr if bat_pwr > 0 else 0) %}
-    
-    {# 3. Die Differenz ist die Abwärme des WR #}
-    {% set wr_loss = energy_in - energy_out %}
+    {# 1. Die gesamte Leistung, die der Wechselrichter gerade verarbeitet (Durchsatz) #}
+    {# Wir nehmen den AC-Wert als Basis für den Durchsatz #}
+    {% set throughput = ac_pwr %}
 
-    {# 4. Batterie-Eigenverlust (Zellen/BMS im BYD Turm) #}
-    {# Wir nehmen ca. 3% Verlust der Batterie-Leistung als Wärme im Turm an #}
-    {% set bat_loss = (bat_pwr | abs) * 0.03 %}
-
-    {# Plausibilitäts-Check #}
-    {% if energy_in > 50 %}
-      {# Wenn die Anlage läuft, nehmen wir WR-Verlust + Batterie-Verlust #}
-      {# Wir limitieren den WR-Verlust auf max 10%, um Messfehler abzufangen #}
-      {% set final_loss = [wr_loss, (energy_in * 0.10)] | min %}
-      {{ ([10, (final_loss + bat_loss)] | max) | round(2) }}
+    {# 2. Wechselrichter-Verlust (Pauschal 2,5% vom Durchsatz + 15W Eigenverbrauch) #}
+    {# Das entspricht dem Wirkungsgrad von ca. 97,5% des SE10K #}
+    {% if throughput > 10 %}
+      {% set wr_loss = (throughput * 0.025) + 15 %}
     {% else %}
-      {# Standby nachts #}
-      {{ 5.0 }}
+      {% set wr_loss = 8 %}
     {% endif %}
+
+    {# 3. Batterie-Verlust (Wärme im BYD Turm bei chemischer Entladung/Ladung) #}
+    {# Hier rechnen wir mit 2% Verlustleistung im Batterieturm #}
+    {% set bat_loss = (bat_pwr | abs) * 0.02 %}
+
+    {# Gesamtsumme der internen Gewinne #}
+    {{ (wr_loss + bat_loss) | round(2) }}
