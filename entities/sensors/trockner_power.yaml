@@ -1,10 +1,9 @@
-sensor:
-- platform: derivative
-  name: "Trockner Power"
-  unique_id: trockner_power
-  source: sensor.waschetrockner_energieverbrauch
-  unit_time: h # Wir wollen kW (Energie pro Stunde)
-  unit: W      # Wir wandeln es direkt in Watt um
-  round: 1
-  # Ein kurzes Zeitfenster sorgt dafür, dass der Sensor schnell auf den Start reagiert
-  time_window: "00:05:00"
+platform: derivative
+name: "Trockner Power"
+unique_id: trockner_power
+source: sensor.waschetrockner_energieverbrauch
+unit_time: h # Wir wollen kW (Energie pro Stunde)
+unit: W      # Wir wandeln es direkt in Watt um
+round: 1
+# Ein kurzes Zeitfenster sorgt dafür, dass der Sensor schnell auf den Start reagiert
+time_window: "00:05:00"

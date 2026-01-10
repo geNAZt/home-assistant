@@ -1,0 +1,13 @@
+sensor:
+- name: "Internal Gains Heating Pump"
+  unique_id: internal_gains_heating_pump
+  unit_of_measurement: 'W'
+  device_class: power
+  state: >
+    {% set p = states('sensor.heating_pump_power') | float(0) %}
+    {# 40W Standby-Verlust des Speichers + 15% Kompressorwärme bei Betrieb #}
+    {% if p > 5 %}
+      {{ (40 + (p * 0.15)) | round(1) }}
+    {% else %}
+      40.0
+    {% endif %}
