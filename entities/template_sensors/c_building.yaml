@@ -30,7 +30,7 @@ sensor:
       {% set last_changed_ts = as_timestamp(states.sensor.inside_temp_mean_now.last_changed) %}
       {% set start_ts = as_timestamp(states('input_datetime.cooldown_start_time')) %}
       {% if h_start not in invalid and delta_t not in invalid and last_changed_ts not in invalid and start_ts not in invalid %}
-        {{ h_start * delta_t * (last_changed_ts - start_ts) / 3600 }}
+        {{ h_start * delta_t * ((last_changed_ts - start_ts) / 3600) }}
       {% else %}
         unknown
       {% endif %}
@@ -43,7 +43,7 @@ sensor:
       {% set last_changed_ts = as_timestamp(states.sensor.inside_temp_mean_now.last_changed) %}
       {% set start_ts = as_timestamp(states('input_datetime.cooldown_start_time')) %}
       {% if h_start not in invalid and delta_t not in invalid and t_start not in invalid and t_now not in invalid and last_changed_ts not in invalid and start_ts not in invalid %}
-        {{ h_start * delta_t * (last_changed_ts - start_ts) / 3600 / (t_start - t_now) }} 
+        {{ h_start * delta_t * ((last_changed_ts - start_ts) / 3600) / (t_start - t_now) }} 
       {% else %}
         unknown
       {% endif %}
