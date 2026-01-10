@@ -1,0 +1,23 @@
+sensor:
+- name: "Internal Gains PV"
+  unique_id: internal_gains_pv
+  unit_of_measurement: 'W'
+  device_class: power
+  state: >
+    {# Rohwerte laden #}
+    {% set pv_dc = states('sensor.pv_dc_power') | float(0) %}
+    {% set ac_pwr = states('sensor.pv_ac_power') | float(0) %}
+    {% set bat_pwr = states('sensor.pv_battery1_power') | float(0) %}
+    
+    {# Berechnung der Differenz #}
+    {# SolarEdge Logik: bat_pwr > 0 ist Laden, < 0 ist Entladen #}
+    {% set loss = pv_dc - ac_pwr - bat_pwr %}
+    
+    {# Plausibilitätscheck: Verlust kann nicht negativ sein #}
+    {# Und Standby-Verbrauch von ca. 15W addieren, wenn Anlage aktiv #}
+    {% if (pv_dc + (bat_pwr | abs)) > 10 %}
+      {{ [15, loss] | max | round(2) }}
+    {% else %}
+      {# Nacht-Modus / Standby #}
+      {{ 8 }}
+    {% endif %}
