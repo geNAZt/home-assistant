@@ -9,15 +9,30 @@ sensor:
     {% set ac_pwr = states('sensor.pv_ac_power') | float(0) %}
     {% set bat_pwr = states('sensor.pv_battery1_power') | float(0) %}
     
-    {# Berechnung der Differenz #}
-    {# SolarEdge Logik: bat_pwr > 0 ist Laden, < 0 ist Entladen #}
-    {% set loss = pv_dc - ac_pwr - bat_pwr %}
+    {# Definition SolarEdge: bat_pwr > 0 ist LADEN, bat_pwr < 0 ist ENTLADEN #}
     
-    {# Plausibilitätscheck: Verlust kann nicht negativ sein #}
-    {# Und Standby-Verbrauch von ca. 15W addieren, wenn Anlage aktiv #}
-    {% if (pv_dc + (bat_pwr | abs)) > 10 %}
-      {{ [15, loss] | max | round(2) }}
+    {# 1. Was geht in den Wechselrichter REIN? #}
+    {# PV Leistung + Batterie-Entladung (wenn negativ) #}
+    {% set energy_in = pv_dc + (bat_pwr | abs if bat_pwr < 0 else 0) %}
+    
+    {# 2. Was kommt aus dem Wechselrichter RAUS? #}
+    {# AC Leistung ins Haus + Batterie-Ladung (wenn positiv) #}
+    {% set energy_out = ac_pwr + (bat_pwr if bat_pwr > 0 else 0) %}
+    
+    {# 3. Die Differenz ist die Abwärme des WR #}
+    {% set wr_loss = energy_in - energy_out %}
+
+    {# 4. Batterie-Eigenverlust (Zellen/BMS im BYD Turm) #}
+    {# Wir nehmen ca. 3% Verlust der Batterie-Leistung als Wärme im Turm an #}
+    {% set bat_loss = (bat_pwr | abs) * 0.03 %}
+
+    {# Plausibilitäts-Check #}
+    {% if energy_in > 50 %}
+      {# Wenn die Anlage läuft, nehmen wir WR-Verlust + Batterie-Verlust #}
+      {# Wir limitieren den WR-Verlust auf max 10%, um Messfehler abzufangen #}
+      {% set final_loss = [wr_loss, (energy_in * 0.10)] | min %}
+      {{ ([10, (final_loss + bat_loss)] | max) | round(2) }}
     {% else %}
-      {# Nacht-Modus / Standby #}
-      {{ 8 }}
+      {# Standby nachts #}
+      {{ 5.0 }}
     {% endif %}
