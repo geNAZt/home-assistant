@@ -1,0 +1,11 @@
+platform: filter
+name: "HRV Baseline"
+entity_id: sensor.shellyplus2pm_485519a264d8_switch_1_power
+filters:
+  - filter: range
+    lower_bound: 5  # Ignoriert Standby/Rauschen
+  - filter: time_simple_moving_average
+    window_size: "00:10" # Glättet kurze Schwankungen
+  - filter: outlier
+    window_size: 10
+    radius: 50 # Filtert die massiven Heiz-Spitzen nach oben raus
