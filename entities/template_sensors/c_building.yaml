@@ -12,15 +12,23 @@ sensor:
   attributes:
     duration_h: >
       {{ (as_timestamp(states.sensor.inside_temp_mean_now.last_changed) - as_timestamp(states('input_datetime.cooldown_start_time'))) / 3600 }}
+    # Berechnung der solaren Gewinne in kW
+    solar_gains_kw: >
+      {% set irradiance = states('sensor.barsinghausen_hohenb_sonneneinstrahlung') | float(0) %}
+      {% set area = 16.5 %}
+      {% set g_value = 0.52 %}
+      {# 0.7 als Korrekturfaktor für Verschmutzung/Rahmen/Winkel #}
+      {{ (irradiance / 1000 * area * g_value * 0.7) | round(3) }}
+    # Netto-Wärmestrom in kW (Verlust minus Gewinne)
+    net_heat_flow_kw: >
+      {% set h_loss = (states('input_number.cooldown_start_h_wind') | float(0)) * (states('sensor.deltaT_24h') | float(0)) %}
+      {% set internal = 0.5 %}
+      {% set solar = state_attr('sensor.c_building', 'solar_gains_kw') | float(0) %}
+      {{ (h_loss - internal - solar) | round(3) }}
     temp_drop: >
-      {% set invalid = ['unknown','unavailable','none','', None] %}
       {% set t_start = states('input_number.cooldown_start_temp') | float(0) %}
       {% set t_now = states('sensor.inside_temp_mean_now') | float(0) %}
-      {% if t_start not in invalid and t_now not in invalid %}
-        {{ t_start - t_now }}
-      {% else %}
-        unknown
-      {% endif %}
+      {{ (t_start - t_now) | round(3) }}
     avg_delta_t: >
       {{ states('sensor.deltaT_24h') | float(0) }}
     energy_lost: >
@@ -62,10 +70,14 @@ sensor:
       {% set duration_h = (last_changed_ts - start_ts) / 3600 %}
       {% set temp_drop = t_start - t_now %}
       {% set avg_delta_t = states('sensor.deltaT_24h') | float(0) %}
+
+      {% set internal = 0.5 %}
+      {% set solar = state_attr('sensor.c_building', 'solar_gains_kw') | float(0) %}
+      {% set net_loss_kw = (h_start * avg_delta_t) - internal - solar %}
       
       {# Wir brauchen mindestens 3h Abkühlung und 0.2K Drop für ein sauberes Ergebnis #}
       {% if duration_h > 3 and temp_drop > 0.15 %}
-        {% set energy_lost = h_start * avg_delta_t * duration_h %}
+        {% set energy_lost = net_loss_kw * duration_h %}
         {{ (energy_lost / temp_drop) | round(2) }}
       {% else %}
         {% set prev = this.state %}
