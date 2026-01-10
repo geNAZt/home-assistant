@@ -13,13 +13,40 @@ sensor:
     duration_h: >
       {{ (as_timestamp(states.sensor.inside_temp_mean_now.last_changed) - as_timestamp(states('input_datetime.cooldown_start_time'))) / 3600 }}
     temp_drop: >
-      {{ states('input_number.cooldown_start_temp') - states('sensor.inside_temp_mean_now') | float(0) }}
+      {% set invalid = ['unknown','unavailable','none','', None] %}
+      {% set t_start = states('input_number.cooldown_start_temp') | float(0) %}
+      {% set t_now = states('sensor.inside_temp_mean_now') | float(0) %}
+      {% if t_start not in invalid and t_now not in invalid %}
+        {{ t_start - t_now }}
+      {% else %}
+        unknown
+      {% endif %}
     avg_delta_t: >
       {{ states('sensor.deltaT_24h') | float(0) }}
     energy_lost: >
-      {{ states('input_number.cooldown_start_h_wind') * states('sensor.deltaT_24h') * (as_timestamp(states.sensor.inside_temp_mean_now.last_changed) - as_timestamp(states('input_datetime.cooldown_start_time'))) / 3600 }}
+      {% set invalid = ['unknown','unavailable','none','', None] %}
+      {% set h_start = states('input_number.cooldown_start_h_wind') | float(0) %}
+      {% set delta_t = states('sensor.deltaT_24h') | float(0) %}
+      {% set last_changed_ts = as_timestamp(states.sensor.inside_temp_mean_now.last_changed) %}
+      {% set start_ts = as_timestamp(states('input_datetime.cooldown_start_time')) %}
+      {% if h_start not in invalid and delta_t not in invalid and last_changed_ts not in invalid and start_ts not in invalid %}
+        {{ h_start * delta_t * (last_changed_ts - start_ts) / 3600 }}
+      {% else %}
+        unknown
+      {% endif %}
     energy_lost_per_temp_drop: >
-      {{ states('input_number.cooldown_start_h_wind') * states('sensor.deltaT_24h') * (as_timestamp(states.sensor.inside_temp_mean_now.last_changed) - as_timestamp(states('input_datetime.cooldown_start_time'))) / 3600 / (states('input_number.cooldown_start_temp') - states('sensor.inside_temp_mean_now') | float(0)) }}
+      {% set invalid = ['unknown','unavailable','none','', None] %}
+      {% set h_start = states('input_number.cooldown_start_h_wind') | float(0) %}
+      {% set delta_t = states('sensor.deltaT_24h') | float(0) %}
+      {% set t_start = states('input_number.cooldown_start_temp') | float(0) %}
+      {% set t_now = states('sensor.inside_temp_mean_now') | float(0) %}
+      {% set last_changed_ts = as_timestamp(states.sensor.inside_temp_mean_now.last_changed) %}
+      {% set start_ts = as_timestamp(states('input_datetime.cooldown_start_time')) %}
+      {% if h_start not in invalid and delta_t not in invalid and t_start not in invalid and t_now not in invalid and last_changed_ts not in invalid and start_ts not in invalid %}
+        {{ h_start * delta_t * (last_changed_ts - start_ts) / 3600 / (t_start - t_now) }} 
+      {% else %}
+        unknown
+      {% endif %}
   state: >
     {% set invalid = ['unknown','unavailable','none','', None] %}
     {% set t_start = states('input_number.cooldown_start_temp') | float(0) %}
