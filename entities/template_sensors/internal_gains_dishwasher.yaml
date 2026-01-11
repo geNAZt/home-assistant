@@ -1,0 +1,13 @@
+sensor:
+- name: "Internal Gains Dishwasher"
+  unique_id: internal_gains_dishwasher
+  unit_of_measurement: 'W'
+  device_class: power
+  state: >
+    {% set p = states('sensor.kuche_geschirrspuler_power') | float(0) %}
+    {# 25% der Leistung bleiben als Wärme im Raum #}
+    {% if p > 5 %}
+      {{ (p * 0.25) | round(1) }}
+    {% else %}
+      0.0
+    {% endif %}

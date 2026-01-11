@@ -1,0 +1,7 @@
+name: Amount of persons at home
+min: 0
+max: 50
+step: 1
+initial: 2
+mode: slider
+icon: mdi:account-group

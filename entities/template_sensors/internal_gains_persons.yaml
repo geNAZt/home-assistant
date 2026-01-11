@@ -1,0 +1,8 @@
+sensor:
+- name: "Internal Gains Persons"
+  unique_id: internal_gains_persons
+  unit_of_measurement: 'W'
+  device_class: power
+  state: >
+    {% set persons = states('input_number.amount_of_persons_at_home') | float(0) %}
+    {{ persons * 90 }}
