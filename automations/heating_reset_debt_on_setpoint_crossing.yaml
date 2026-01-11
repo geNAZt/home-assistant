@@ -1,16 +1,14 @@
 - id: heating_reset_debt_on_setpoint_crossing
-  alias: "Heizung: Konto-Reset bei Erreichen des Sollwerts"
+  alias: "Heizung: Reset debt on setpoint crossing"
   description: >
-    Berechnet den mittleren Sollwert aller Räume. 
-    Wenn dieser der Ist-Temperatur entspricht und der Reset-Schalter aktiv ist,
-    wird das Energiekonto auf 0 gesetzt.
+    Berechnet den mittleren Sollwert aller Räume und nullt das Konto bei Übereinstimmung.
   mode: single
   
   trigger:
     - platform: state
       entity_id: sensor.inside_temp_mean_now
     - platform: time_pattern
-      minutes: "/1" # Zusätzlicher Check jede Minute
+      minutes: "/1"
   
   condition:
     - condition: state
@@ -18,48 +16,30 @@
       state: "on"
   
   action:
-    - list_entities:
-        # Wir suchen alle deine Basis-Sollwerte
-        domain: input_number
-        glob: "input_number.heating_base_*"
-      register: rooms
-  
     - variables:
-        # Berechnung des Mittelwerts der Sollwerte (Mean Setpoint)
-        # Wir filtern die Liste, holen die Zustände, wandeln sie in Floats und bilden den Schnitt
-        room_entities: >
-          {{ states.input_number 
-             | selectattr('entity_id', 'match', 'input_number.heating_base_.*') 
-             | map(attribute='entity_id') | list }}
-        
+        # Wir suchen alle Entitäten, die mit heating_base_ beginnen und berechnen den Schnitt
         mean_setpoint: >
-          {% set values = expand(room_entities) | map(attribute='state') | map('float') | list %}
-          {{ (values | sum / values | count) | round(2) if values | count > 0 else 0 }}
+          {% set rooms = states.input_number 
+            | selectattr('entity_id', 'search', '^input_number.heating_base_') 
+            | map(attribute='state') | map('float') | list %}
+          {{ (rooms | sum / rooms | count) | round(2) if rooms | count > 0 else 0 }}
         
         current_temp: "{{ states('sensor.inside_temp_mean_now') | float(0) }}"
         
-        # Toleranzbereich: Da exakte Übereinstimmung (z.B. 21.04 == 21.04) selten ist,
-        # nutzen wir einen Bereich von +/- 0.05 Grad
+        # Prüfung auf Übereinstimmung mit 0.05K Toleranz
         is_at_setpoint: "{{ (current_temp - mean_setpoint) | abs <= 0.05 }}"
   
     - if:
         - condition: template
           value_template: "{{ is_at_setpoint }}"
       then:
-        # 1. Das Konto auf 0 setzen
-        - service: python_script.set_state # Falls du das Script hast, sonst die folgende Zeile:
+        # 1. Das Konto mit dem Python-Script nullen
+        - service: python_script.set_state
           data:
             entity_id: sensor.heating_energy_debt_tracker
             state: 0
         
-        # Falls du kein python_script nutzt, hier die Alternative für das setzen eines Zustands:
-        # (Erfordert meistens ein kurzes Skript oder die Nutzung der API)
-        # Alternativ kannst du den debt_tracker auch als 'input_number' führen, dann:
-        # - service: input_number.set_value
-        #   target: { entity_id: input_number.heating_energy_debt_tracker }
-        #   data: { value: 0 }
-  
-        # 2. Den Hilfsschalter wieder ausschalten
+        # 2. Den Reset-Schalter wieder auf aus stellen
         - service: input_boolean.turn_off
           target:
             entity_id: input_boolean.debt_reset_on_setpoint_hit
@@ -67,4 +47,4 @@
         - service: notify.persistent_notification
           data:
             title: "Heizungskonto kalibriert"
-            message: "Das Konto wurde auf 0 Wh gesetzt, da der Sollwert ({{ mean_setpoint }}°C) erreicht wurde."
+            message: "Das Konto wurde auf 0 Wh gesetzt (Soll: {{ mean_setpoint }}°C / Ist: {{ current_temp }}°C)."
