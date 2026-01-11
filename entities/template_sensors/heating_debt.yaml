@@ -8,7 +8,7 @@ sensor:
     device_class: energy
     state: >
       {# 1. Aktuelle Werte holen (in Watt) #}
-      {% set demand = states('sensor.delta_k_compensation_power') | float(0) %}
+      {% set demand = states('sensor.heating_net_balance') | float(0) %}
       {% set supply = states('sensor.heating_power') | float(0) %}
       
       {# 2. Differenz bestimmen (Netto-Leistung) #}
