@@ -1,6 +1,6 @@
 platform: statistics
 name: "HRV Baseline"
-entity_id: sensor.shellyplus2pm_485519a264d8_switch_1_power
+entity_id: sensor.hrv_leistung
 state_characteristic: value_min
 max_age:
   minutes: 30  # Ein 30-Minuten-Fenster reicht völlig aus, um die Lücken im Takten zu finden
