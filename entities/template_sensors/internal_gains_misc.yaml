@@ -12,7 +12,7 @@ sensor:
     {% set dish_w = states('sensor.kuche_geschirrspuler_power') | float(0) %}
     {% set bwwp_w = states('sensor.heating_pump_power') | float(0) %}
     {% set ir_heating_w = states('sensor.heating_power') | float(0) %}
-    {% set hrv_w = states('sensor.hrv_power') | float(0) %}
+    {% set hrv_w = states('sensor.shellyplus2pm_485519a264d8_switch_1_power') | float(0) %}
     {% set pv_w = states('sensor.solar_grid_to_battery_w') | float(0) %}
     
     {# Alles was übrig bleibt, wird zu 100% als Wärme gewertet #}
