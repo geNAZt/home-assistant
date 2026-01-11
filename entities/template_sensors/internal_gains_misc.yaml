@@ -14,8 +14,10 @@ sensor:
     {% set ir_heating_w = states('sensor.heating_power') | float(0) %}
     {% set hrv_w = states('sensor.shellyplus2pm_485519a264d8_switch_1_power') | float(0) %}
     {% set pv_w = states('sensor.solar_grid_to_battery_w') | float(0) %}
-    
+    {% set outside_kitchen_w = states('sensor.kuche_aussen_power') | float(0) %}
+    {% set car_charging_w = states('sensor.goe_288025_nrg_11') | float(0) %}
+
     {# Alles was übrig bleibt, wird zu 100% als Wärme gewertet #}
-    {% set diffuse = total_load - dryer_w - washer_w - dish_w - bwwp_w - ir_heating_w - hrv_w - pv_w %}
+    {% set diffuse = total_load - dryer_w - washer_w - dish_w - bwwp_w - ir_heating_w - hrv_w - pv_w - outside_kitchen_w - car_charging_w %}
     
     {{ [0, diffuse] | max | round(1) }}
