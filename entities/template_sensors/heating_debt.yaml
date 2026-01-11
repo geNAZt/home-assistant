@@ -23,11 +23,17 @@ sensor:
       {# 5. Neuen Kontostand berechnen (Wh) #}
       {{ (previous_debt + (net_power * hours)) | round(2) }}
     attributes:
-      current_difference_w: "{{ (demand - supply) | round(0) }}"
+      current_difference_w: >
+        {% set demand = states('sensor.heating_net_balance') | float(0) %}
+        {% set supply = states('sensor.heating_power') | float(0) %}
+        {{ (demand - supply) | round(0) }}
       status: >
-        {% if (demand - supply) > 100 %}
+        {% set demand = states('sensor.heating_net_balance') | float(0) %}
+        {% set supply = states('sensor.heating_power') | float(0) %}
+        {% set difference = demand - supply %}
+        {% if difference > 100 %}
           Unterversorgt
-        {% elif (demand - supply) < -100 %}
+        {% elif difference < -100 %}
           Überheizt
         {% else %}
           Ausgeglichen
