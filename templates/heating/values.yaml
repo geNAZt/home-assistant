@@ -1,16 +1,24 @@
 - room: wohnzimmer
   securityTemperatureSensors: 2
+  phase: 2
 - room: buero_merja
   securityTemperatureSensors: 2
+  phase: 3
 - room: buero_fabian
+  phase: 3
 - room: flur
   temperatureSensors: 3
+  phase: 2
   securityTemperatureSensors: 2
 - room: kueche
+  phase: 1
   securityTemperatureSensors: 3
 - room: speisekammer
   securityTemperatureSensors: 2
+  phase: 2
 - room: schlafzimmer
   securityTemperatureSensors: 2
+  phase: 1
 - room: bad
   securitySameAsTemperature: true
+  phase: 1

@@ -1,5 +1,4 @@
-name: "Rated Flur (A)"
+name: "Rated flur (A)"
 min: 0
 max: 20
 step: 0.01
-initial: 10.8

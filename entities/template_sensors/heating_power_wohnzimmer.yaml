@@ -1,0 +1,16 @@
+sensor:
+- name: "Heating Power wohnzimmer"
+  unique_id: heating_power_wohnzimmer
+  unit_of_measurement: "W"
+  device_class: power
+  state: >
+    {% set climate_state = states('climate.climate_room_wohnzimmer') %}
+    {% if climate_state == 'off' %}
+      0
+    {% else %}
+      {% set voltage = states('sensor.pv_m1_ac_voltage_bn') | float(230) %}
+
+      {% set current = states('input_number.heater_wohnzimmer_rated_a') | float(0) %}
+      {{ current * voltage | round(0) }}
+    {% endif %}
+    

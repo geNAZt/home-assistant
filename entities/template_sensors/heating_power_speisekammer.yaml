@@ -1,0 +1,16 @@
+sensor:
+- name: "Heating Power speisekammer"
+  unique_id: heating_power_speisekammer
+  unit_of_measurement: "W"
+  device_class: power
+  state: >
+    {% set climate_state = states('climate.climate_room_speisekammer') %}
+    {% if climate_state == 'off' %}
+      0
+    {% else %}
+      {% set voltage = states('sensor.pv_m1_ac_voltage_bn') | float(230) %}
+
+      {% set current = states('input_number.heater_speisekammer_rated_a') | float(0) %}
+      {{ current * voltage | round(0) }}
+    {% endif %}
+    
