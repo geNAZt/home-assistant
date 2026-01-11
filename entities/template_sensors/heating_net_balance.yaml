@@ -1,41 +1,29 @@
-sensor:
 - name: "Heating Net Balance"
   unique_id: heating_net_balance
   unit_of_measurement: 'W'
   device_class: power
   state: >
-    {# 1. Gewinne abrufen (W) #}
-    {% set internal_gains = states('sensor.internal_gains_total') | float(0) %}
-    {% set solar_gains = states('sensor.solar_gains') | float(0) %}
-    {% set total_gains = internal_gains + solar_gains %}
-
-    {# 2. Verluste berechnen (W) #}
-    {# H_eff ist in kW/K, daher * 1000 für Watt #}
-    {% set h_eff_w_per_k = states('sensor.h_kw_per_k_effective') | float(0) * 1000 %}
+    {# GEWINNE (Positiv) #}
+    {% set internal = states('sensor.internal_gains_total') | float(0) %}
+    {% set solar = states('sensor.solar_gains') | float(0) %}
+    {% set heating = states('sensor.heating_power') | float(0) %}
+    
+    {# VERLUSTE (Negativ) #}
+    {% set h_eff = states('sensor.h_kw_per_k_effective') | float(0) * 1000 %}
     {% set delta_t = states('sensor.deltaT_24h') | float(0) %}
-    {% set total_losses = h_eff_w_per_k * delta_t %}
-    {# 3. Bilanz (Verlust - Gewinn) #}
-    {{ (total_losses - total_gains) | round(0) }}
-  attributes:
-    loss_w: >
-      {% set h_eff_w_per_k = states('sensor.h_kw_per_k_effective') | float(0) * 1000 %}
-      {% set delta_t = states('sensor.deltaT_24h') | float(0) %}
-      {% set total_losses = h_eff_w_per_k * delta_t %}
-      {{ (total_losses) | round(1) }}
-    gain_w: >
-      {% set internal_gains = states('sensor.internal_gains_total') | float(0) %}
-      {% set solar_gains = states('sensor.solar_gains') | float(0) %}
-      {% set total_gains = internal_gains + solar_gains %}
-      {{ (total_gains) | round(1) }}
-    h_eff_w_k: >
-      {% set h_eff_w_per_k = states('sensor.h_kw_per_k_effective') | float(0) * 1000 %}
-      {{ (h_eff_w_per_k) | round(2) }}
+    {% set losses = h_eff * delta_t %}
+
+    {# Bilanz: Alles was reinwärmt MINUS was rausgeht #}
+    {{ (internal + solar + heating - losses) | round(0) }}
+
 - name: "Delta K Compensation Power"
   unique_id: delta_k_compensation_power
   unit_of_measurement: 'W'
   device_class: power
   state: >
-    {# Dieser Sensor zeigt exakt an, wie viel Watt zugeführt werden müssen #}
-    {# um die Temperatur stabil zu halten (0K change) #}
-    {% set net = states('sensor.heating_net_balance') | float(0) %}
-    {{ [0, net] | max | round(0) }}
+    {# Zeigt an, wie viel Watt die Heizung leisten MUSS, damit die Bilanz >= 0 wird #}
+    {% set h_eff = states('sensor.h_kw_per_k_effective') | float(0) * 1000 %}
+    {% set losses = h_eff * (states('sensor.deltaT_24h') | float(0)) %}
+    {% set passive_gains = (states('sensor.internal_gains_total') | float(0)) + (states('sensor.solar_gains') | float(0)) %}
+    
+    {{ [0, (losses - passive_gains)] | max | round(0) }}
