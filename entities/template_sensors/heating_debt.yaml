@@ -1,0 +1,34 @@
+trigger:
+  - platform: time_pattern
+    seconds: "/30" # Aktualisierung alle 30 Sekunden für hohe Präzision
+sensor:
+  - name: "Heating Energy Debt Tracker"
+    unique_id: heating_energy_debt_tracker
+    unit_of_measurement: 'Wh'
+    device_class: energy
+    state: >
+      {# 1. Aktuelle Werte holen (in Watt) #}
+      {% set demand = states('sensor.delta_k_compensation_power') | float(0) %}
+      {% set supply = states('sensor.heating_power') | float(0) %}
+      
+      {# 2. Differenz bestimmen (Netto-Leistung) #}
+      {% set net_power = demand - supply %}
+      
+      {# 3. Zeitintervall berechnen (30 Sek = 30/3600 Stunden) #}
+      {% set hours = 30 / 3600 %}
+      
+      {# 4. Alten Wert auslesen #}
+      {% set previous_debt = states('sensor.heating_energy_debt_tracker') | float(0) %}
+      
+      {# 5. Neuen Kontostand berechnen (Wh) #}
+      {{ (previous_debt + (net_power * hours)) | round(2) }}
+    attributes:
+      current_difference_w: "{{ (demand - supply) | round(0) }}"
+      status: >
+        {% if (demand - supply) > 100 %}
+          Unterversorgt
+        {% elif (demand - supply) < -100 %}
+          Überheizt
+        {% else %}
+          Ausgeglichen
+        {% endif %}
