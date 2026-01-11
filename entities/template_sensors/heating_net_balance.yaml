@@ -1,3 +1,4 @@
+sensor:
 - name: "Heating Net Balance"
   unique_id: heating_net_balance
   unit_of_measurement: 'W'
