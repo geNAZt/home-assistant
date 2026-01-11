@@ -1,0 +1,22 @@
+sensor:
+- name: "Heating Power"
+  unique_id: heating_power
+  unit_of_measurement: "W"
+  device_class: power
+  state: >
+    {% set rooms = [
+      'wohnzimmer',
+      'kueche',
+      'flur',
+      'schlafzimmer',
+      'buero_merja',
+      'buero_fabian',
+      'speisekammer',
+      'bad'
+    ] %}
+
+    {% set ns = namespace(total_power=0) %}
+    {% for room in rooms %}
+      {% set ns.total_power = ns.total_power + states('sensor.heating_power_' + room) | float(0) %}
+    {% endfor %}
+    {{ ns.total_power | round(0) }}
