@@ -4,4 +4,4 @@ unique_id: heating_power
 source: sensor.heating_usage_total
 unit_time: h
 unit: W
-time_window: "00:00:30" # IR-Heater reagieren oft schnell, daher kurzes Fenster
+time_window: "00:00:05" # IR-Heater reagieren oft schnell, daher kurzes Fenster
