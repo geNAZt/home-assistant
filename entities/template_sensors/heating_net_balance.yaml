@@ -17,9 +17,19 @@ sensor:
     {# 3. Bilanz (Verlust - Gewinn) #}
     {{ (total_losses - total_gains) | round(0) }}
   attributes:
-    loss_w: "{{ (total_losses) | round(1) }}"
-    gain_w: "{{ (total_gains) | round(1) }}"
-    h_eff_w_k: "{{ (h_eff_w_per_k) | round(2) }}"
+    loss_w: >
+      {% set h_eff_w_per_k = states('sensor.h_kw_per_k_effective') | float(0) * 1000 %}
+      {% set delta_t = states('sensor.deltaT_24h') | float(0) %}
+      {% set total_losses = h_eff_w_per_k * delta_t %}
+      {{ (total_losses) | round(1) }}
+    gain_w: >
+      {% set internal_gains = states('sensor.internal_gains_total') | float(0) %}
+      {% set solar_gains = states('sensor.solar_gains') | float(0) %}
+      {% set total_gains = internal_gains + solar_gains %}
+      {{ (total_gains) | round(1) }}
+    h_eff_w_k: >
+      {% set h_eff_w_per_k = states('sensor.h_kw_per_k_effective') | float(0) * 1000 %}
+      {{ (h_eff_w_per_k) | round(2) }}
 - name: "Delta K Compensation Power"
   unique_id: delta_k_compensation_power
   unit_of_measurement: 'W'
