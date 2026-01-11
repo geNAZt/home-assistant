@@ -12,24 +12,12 @@ sensor:
   attributes:
     duration_h: >
       {{ (as_timestamp(states.sensor.inside_temp_mean_now.last_changed) - as_timestamp(states('input_datetime.cooldown_start_time'))) / 3600 }}
-    # Berechnung der solaren Gewinne in kW
-    solar_gains_kw: >
-      {% set invalid = ['unknown','unavailable','none','', None] %}
-      {% set irradiance = states('sensor.barsinghausen_hohenb_sonneneinstrahlung') | float(0) %}
-      {% set area = 16.5 %}
-      {% set g_value = 0.52 %}
-      {# 0.7 als Korrekturfaktor für Verschmutzung/Rahmen/Winkel #}
-      {% if irradiance not in invalid and area not in invalid and g_value not in invalid %}
-        {{ (irradiance / 1000 * area * g_value * 0.7) | round(3) }}
-      {% else %}
-        unknown
-      {% endif %}
     # Netto-Wärmestrom in kW (Verlust minus Gewinne)
     net_heat_flow_kw: >
       {% set invalid = ['unknown','unavailable','none','', None] %}
       {% set h_loss = (states('input_number.cooldown_start_h_wind') | float(0)) * (states('sensor.deltaT_24h') | float(0)) %}
-      {% set internal = 0.5 %}
-      {% set solar = state_attr('sensor.c_building', 'solar_gains_kw') | float(0) %}
+      {% set internal = states('sensor.internal_gains_total') | float(0) / 1000 %}
+      {% set solar = states('sensor.solar_gains') | float(0) / 1000 %}
       {% if h_loss not in invalid and internal not in invalid and solar not in invalid %}
         {{ (h_loss - internal - solar) | round(3) }}
       {% else %}
@@ -53,8 +41,8 @@ sensor:
       {% set last_changed_ts = as_timestamp(states.sensor.inside_temp_mean_now.last_changed) %}
       {% set start_ts = as_timestamp(states('input_datetime.cooldown_start_time')) %}
       {% if h_start not in invalid and delta_t not in invalid and last_changed_ts not in invalid and start_ts not in invalid %}
-        {% set internal = 0.5 %}
-        {% set solar = state_attr('sensor.c_building', 'solar_gains_kw') | float(0) %}
+        {% set internal = states('sensor.internal_gains_total') | float(0) / 1000 %}
+        {% set solar = states('sensor.solar_gains') | float(0) / 1000 %}
         {% set net_loss_kw = (h_start * delta_t) - internal - solar %}
         {% set energy_lost = net_loss_kw * ((last_changed_ts - start_ts) / 3600) %}
         {{ energy_lost | round(2) }}
@@ -70,8 +58,8 @@ sensor:
       {% set last_changed_ts = as_timestamp(states.sensor.inside_temp_mean_now.last_changed) %}
       {% set start_ts = as_timestamp(states('input_datetime.cooldown_start_time')) %}
       {% if h_start not in invalid and delta_t not in invalid and t_start not in invalid and t_now not in invalid and last_changed_ts not in invalid and start_ts not in invalid %}
-        {% set internal = 0.5 %}
-        {% set solar = state_attr('sensor.c_building', 'solar_gains_kw') | float(0) %}
+        {% set internal = states('sensor.internal_gains_total') | float(0) / 1000 %}
+        {% set solar = states('sensor.solar_gains') | float(0) / 1000 %}
         {% set net_loss_kw = (h_start * delta_t) - internal - solar %}
         {% set energy_lost = net_loss_kw * ((last_changed_ts - start_ts) / 3600) %}
         {{ energy_lost / (t_start - t_now) }} 
@@ -94,8 +82,8 @@ sensor:
       {% set temp_drop = t_start - t_now %}
       {% set avg_delta_t = states('sensor.deltaT_24h') | float(0) %}
 
-      {% set internal = 0.5 %}
-      {% set solar = state_attr('sensor.c_building', 'solar_gains_kw') | float(0) %}
+      {% set internal = states('sensor.internal_gains_total') | float(0) / 1000 %}
+      {% set solar = states('sensor.solar_gains') | float(0) / 1000 %}
       {% set net_loss_kw = (h_start * avg_delta_t) - internal - solar %}
       
       {# Wir brauchen mindestens 3h Abkühlung und 0.2K Drop für ein sauberes Ergebnis #}
