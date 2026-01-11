@@ -1,5 +1,5 @@
 sensor:
-- name: "Solarer Wärmegewinn Aktuell"
+- name: "Solar Gains"
   unique_id: solar_gains
   unit_of_measurement: 'W'
   device_class: power
