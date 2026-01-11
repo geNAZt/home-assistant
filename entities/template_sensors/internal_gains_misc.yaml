@@ -7,8 +7,8 @@ sensor:
     {% set total_load = states('sensor.solar_house_consumption_w') | float(0) %}
     
     {# Hier ziehen wir die Roh-Leistungswerte (W) der Geräte ab #}
-    {% set dryer_w = states('sensor.trockner_power') | float(0) %}
-    {% set washer_w = states('sensor.waschmaschine_power') | float(0) %}
+    {% set dryer_w = states('sensor.sensor.shellyplus2pm_485519a264d8_switch_0_power') | float(0) %}
+    {% set washer_w = states('sensor.sensor.shellyplus2pm_485519a264d8_switch_1_power') | float(0) %}
     {% set dish_w = states('sensor.kuche_geschirrspuler_power') | float(0) %}
     {% set bwwp_w = states('sensor.heating_pump_power') | float(0) %}
     {% set ir_heating_w = states('sensor.heating_power') | float(0) %}
