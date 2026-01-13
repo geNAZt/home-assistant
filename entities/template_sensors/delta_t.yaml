@@ -1,3 +1,4 @@
+sensor:
 - name: deltaT
   unit_of_measurement: "K"
   state: >
