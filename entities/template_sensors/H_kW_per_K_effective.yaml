@@ -24,5 +24,5 @@ sensor:
       {# GESAMT-H (Hülle + Wind + HRV) #}
       {{ (H_basis + H_wind_zuschlag + H_hrv) | round(4) }}
     availability: >
-      {{ states('sensor.H_kW_per_K_rolling') not in ['unknown','unavailable','none']
+      {{ states('input_number.h_kw_per_k') not in ['unknown','unavailable','none']
          and states('sensor.wind_speed_mean_24h') not in ['unknown','unavailable','none'] }}
