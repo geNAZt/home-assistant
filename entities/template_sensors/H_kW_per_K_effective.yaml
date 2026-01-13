@@ -3,7 +3,7 @@ sensor:
     unit_of_measurement: "kW/K"
     state: >
       {# 1. BASIS-TRANSMISSION (Hülle) #}
-      {% set H_basis = states('sensor.H_kW_per_K_rolling')|float(0.074) %}
+      {% set H_basis = states('input_number.h_kw_per_k')|float(0.074) %}
       
       {# 2. WIND-INFILTRATION (Sherman-Grimsrud Modell mit Abschirmfaktor) #}
       {% set v_kmh = states('sensor.wind_speed_mean_24h')|float(0) %}

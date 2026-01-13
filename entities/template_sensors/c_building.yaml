@@ -28,8 +28,6 @@ sensor:
       {% else %}
         unknown
       {% endif %}
-    avg_delta_t: >
-      {{ states('sensor.deltaT_24h') | float(0) }}
     energy_lost: >
       {% set invalid = ['unknown','unavailable','none','', None] %}
       {% set h_start = states('input_number.cooldown_start_h_wind') | float(0) %}
