@@ -87,22 +87,16 @@ sensor:
       {% set net_loss_kw = (h_start * avg_delta_t) - internal - solar %}
       
       {# Wir brauchen mindestens 3h Abkühlung und 0.2K Drop für ein sauberes Ergebnis #}
-      {% if duration_h > 3 and temp_drop > 0.15 %}
+      {% if duration_h > 3 and temp_drop > 0.15 and net_loss_kw > 0 %}
         {% set energy_lost = net_loss_kw * duration_h %}
-        {{ (energy_lost / temp_drop) | round(2) }}
+        {% set c_building = (energy_lost / temp_drop) | round(2) %}
+        {# Absicherung gegen physikalisch unmögliche Werte #}
+        {{ max(0, c_building) }}
       {% else %}
         {% set prev = this.state %}
-        {% if prev not in invalid %}
-          {{ prev }}
-        {% else %}
-          unknown
-        {% endif %}
+        {{ prev if prev not in invalid else 'unknown' }}
       {% endif %}
     {% else %}
       {% set prev = this.state %}
-      {% if prev not in invalid %}
-        {{ prev }}
-      {% else %}
-        unknown
-      {% endif %}
+      {{ prev if prev not in invalid else 'unknown' }}
     {% endif %}
