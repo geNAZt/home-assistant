@@ -3,11 +3,7 @@ triggers:
   minutes: /5
 sensor:
 - name: "C_kWh_per_K_rolling"
-  unit_of_measurement: "kWh/K"
-  state: >
-    {{ states('sensor.c_building') | float(10.2) }}
-- name: "C Building"
-  unique_id: c_building
+  unique_id: C_kWh_per_K_rolling
   unit_of_measurement: "kWh/K"
   attributes:
     duration_h: >
