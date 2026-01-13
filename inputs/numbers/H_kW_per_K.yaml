@@ -1,0 +1,7 @@
+name: "H kW/K"
+unit_of_measurement: "kW/K"
+min: 0
+max: 3.0
+step: 0.00001
+initial: 0.06465
+mode: slider
