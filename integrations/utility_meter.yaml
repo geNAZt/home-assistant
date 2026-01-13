@@ -130,9 +130,3 @@ utility_meter:
     source: sensor.solar_grid_to_battery_total
     name: Solar Grid To Battery Daily
     cycle: daily
-  temp_gain_day:
-    source: sensor.temp_gain_total
-    cycle: daily
-  stored_energy_day:
-    source: sensor.stored_energy_total
-    cycle: daily

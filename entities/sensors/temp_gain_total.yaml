@@ -1,6 +1,0 @@
-platform: integration
-name: temp_gain_total
-source: sensor.temp_rate_pos
-unit_time: h
-method: left
-round: 3

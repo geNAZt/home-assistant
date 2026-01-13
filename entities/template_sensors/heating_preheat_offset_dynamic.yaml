@@ -3,7 +3,7 @@ sensor:
   unit_of_measurement: "K"
   state: >
     {% set h_wind = states('sensor.H_kW_per_K_effective') | float(0.08) %}
-    {% set c_real = states('sensor.C_kWh_per_K_rolling') | float(7.5) %}
+    {% set c_real = states('input_number.building_heat_capacity') | float(7.5) %}
     {% set delta_t = states('sensor.deltaT_24h') | float(20) %}
     {% set hours_to_bridge = 22 - 6 %}
     {% set total_energy_loss = h_wind * delta_t * hours_to_bridge %}

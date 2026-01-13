@@ -4,7 +4,7 @@ sensor:
   unit_of_measurement: "€"
   state: >
     {# 1. Parameter & Effizienz #}
-    {% set C = states('sensor.C_kWh_per_K_rolling') | float(13.28) %}
+    {% set C = states('input_number.building_heat_capacity') | float(13.28) %}
     {% set H = states('sensor.H_kW_per_K_effective') | float(0.074) %}
     {% set COP = 1.0 %}
     {% set offset = states('sensor.heating_preheat_offset_dynamic') | float(0) %}
@@ -38,4 +38,4 @@ sensor:
     {% endif %}
   attributes:
     energy_stored_kwh: >
-      {{ (states('sensor.heating_preheat_offset_dynamic') | float(0) * states('sensor.C_kWh_per_K_rolling') | float(13.28)) | round(2) }}
+      {{ (states('sensor.heating_preheat_offset_dynamic') | float(0) * states('input_number.building_heat_capacity') | float(13.28)) | round(2) }}

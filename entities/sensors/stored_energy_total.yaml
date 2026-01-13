@@ -1,6 +1,0 @@
-platform: integration
-name: stored_energy_total
-source: sensor.net_power_pos
-unit_time: h
-method: left
-round: 3
