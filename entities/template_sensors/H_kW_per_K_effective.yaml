@@ -6,8 +6,7 @@ sensor:
       {% set H_basis = states('input_number.h_kw_per_k')|float(0.074) %}
       
       {# 2. WIND-INFILTRATION (Sherman-Grimsrud Modell mit Abschirmfaktor) #}
-      {% set v_kmh = states('sensor.wind_speed_mean_24h')|float(0) %}
-      {% set v_ms = v_kmh / 3.6 %}
+      {% set v_ms = states('sensor.wind_speed_ms')|float(0) %}
       {% set n50 = 0.95 %}
       {% set volumen = 388 %}
       {% set n_real = n50 * (v_ms / 10) %} 
@@ -25,4 +24,4 @@ sensor:
       {{ (H_basis + H_wind_zuschlag + H_hrv) | round(4) }}
     availability: >
       {{ states('input_number.h_kw_per_k') not in ['unknown','unavailable','none']
-         and states('sensor.wind_speed_mean_24h') not in ['unknown','unavailable','none'] }}
+         and states('sensor.wind_speed_now_kmh') not in ['unknown','unavailable','none'] }}
