@@ -24,4 +24,4 @@ sensor:
       {{ (H_basis + H_wind_zuschlag + H_hrv) | round(4) }}
     availability: >
       {{ states('input_number.h_kw_per_k') not in ['unknown','unavailable','none']
-         and states('sensor.wind_speed_now_kmh') not in ['unknown','unavailable','none'] }}
+         and states('sensor.wind_speed_ms') not in ['unknown','unavailable','none'] }}
