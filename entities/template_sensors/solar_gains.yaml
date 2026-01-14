@@ -1,4 +1,3 @@
-sensor:
 - name: "Solar Gains"
   unique_id: solar_gains
   unit_of_measurement: 'W'
@@ -12,39 +11,37 @@ sensor:
     {% if elevation <= 0 or radiation <= 0 %}
       0
     {% else %}
-      {# --- SÜD-FASSADE (180°) --- #}
+      {# --- SÜD-FASSADE (180°) --- [BLEIBT GLEICH] #}
       {% set shade_south = 1.0 if elevation < 35 else (0.1 if elevation > 65 else 0.4) %}
       {% set f_fabian = 1.60 if is_state('cover.rollade_buero_fabian', 'open') else 0.0 %}
       {% set f_wz_l = 2.715 if is_state('cover.rollade_wohnzimmer_links', 'open') else 0.0 %}
       {% set f_wz_r = 2.715 if is_state('cover.rollade_wohnzimmer_rechts', 'open') else 0.0 %}
-      {% set f_kueche_s = 3.22 if is_state('cover.rollade_kueche_links', 'open') else 0.0 %} {# Annahme Entity-Name #}
+      {% set f_kueche_s = 3.22 if is_state('cover.rollade_kueche_links', 'open') else 0.0 %}
       
       {% set total_south = f_fabian + ((f_wz_l + f_wz_r) * shade_south) + f_kueche_s %}
       {% set gain_south = (total_south * g * radiation) if (azimuth > 100 and azimuth < 260) else 0 %}
 
-      {# --- OST-FASSADE (90°) --- #}
+      {# --- OST-FASSADE (90°) --- [JETZT MIT SPEISEKAMMER] #}
       {% set shade_east = 1.0 if elevation < 20 else 0.2 %}
+      {# Hier war vorher Küche/Merja, jetzt Speisekammer laut deinem Tausch-Wunsch #}
+      {% set f_speise = 0.24 if is_state('cover.rollade_speisekammer', 'open') else 0.0 %}
+      
+      {% set total_east = f_speise * shade_east %}
+      {% set gain_east = (total_east * g * radiation) if (azimuth > 10 and azimuth < 170) else 0 %}
+
+      {# --- WEST-FASSADE (270°) --- [JETZT MIT KÜCHE RECHTS / MERJA] #}
+      {# Hier war vorher Speisekammer, jetzt Küche/Merja #}
       {% set f_kueche_o = 2.91 if is_state('cover.rollade_kueche_rechts', 'open') else 0.0 %}
       {% set f_merja = 3.22 if is_state('cover.rollade_buero_merja', 'open') else 0.0 %}
       
-      {% set total_east = (f_kueche_o * shade_east) + f_merja %}
-      {% set gain_east = (total_east * g * radiation) if (azimuth > 10 and azimuth < 170) else 0 %}
+      {% set total_west = f_kueche_o + f_merja %}
+      {% set gain_west = (total_west * g * radiation) if (azimuth > 190 and azimuth < 350) else 0 %}
 
-      {# --- WEST-FASSADE (270°) --- #}
-      {% set f_speise = 0.24 if is_state('cover.rollade_speisekammer', 'open') else 0.0 %}
-      {% set gain_west = (f_speise * g * radiation) if (azimuth > 190 and azimuth < 350) else 0 %}
-
-      {# --- NORD-FASSADE (0°/360°) --- #}
-      {# Norden hat 3 Fenster, wir prüfen die Rolladen einzeln #}
+      {# --- NORD-FASSADE (0°/360°) --- [BLEIBT GLEICH] #}
       {% set f_schlaf = 1.60 if is_state('cover.rollade_schlafzimmer', 'open') else 0.0 %}
       {% set f_bad = 0.91 if is_state('cover.rollade_bad', 'open') else 0.0 %}
-      {% set f_hwr = 0.24 if is_state('cover.rollade_hwr', 'open') else 0.0 %} {# Falls Entity existiert #}
-      
-      {# Im Norden rechnen wir mit 15% Diffusstrahlung der Globalstrahlung #}
+      {% set f_hwr = 0.24 if is_state('cover.rollade_hwr', 'open') else 0.0 %}
       {% set gain_north = (f_schlaf + f_bad + f_hwr) * g * radiation * 0.15 %}
-
-      {# Winkel-Gewichtung für die Direkteinstrahlung #}
-      {% set cos_factor = (90 - (azimuth - 180)|abs)/90 if (azimuth > 90 and azimuth < 270) else 0.5 %}
 
       {{ (gain_south + gain_east + gain_west + gain_north) | round(0) }}
     {% endif %}
