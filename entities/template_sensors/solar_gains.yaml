@@ -61,15 +61,16 @@ sensor:
     {% if (190 < azi < 350) and ele > 0 %}
       {{ (2.91 * 0.53 * rad * shade * (state_attr('cover.rollade_kueche_rechts', 'current_position') | float(100) / 100)) | round(0) }}
     {% else %} 0 {% endif %}
-- name: "Solar Gain Speisekammer W"
-  unique_id: solar_gain_speise_w
+# --- OST-FASSADE (Morgensonne) ---
+- name: "Solar Gain Speisekammer O"
+  unique_id: solar_gain_speise_o
   unit_of_measurement: 'W'
   device_class: power
   state: >
     {% set rad = states('sensor.barsinghausen_hohenb_sonneneinstrahlung') | float(0) %}
     {% set azi = state_attr('sun.sun', 'azimuth') | float(0) %}
     {% set ele = state_attr('sun.sun', 'elevation') | float(0) %}
-    {% if (190 < azi < 350) and ele > 0 %}
+    {% if (10 < azi < 170) and ele > 0 %}
       {{ (0.24 * 0.53 * rad * (state_attr('cover.rollade_speisekammer', 'current_position') | float(100) / 100)) | round(0) }}
     {% else %} 0 {% endif %}
 # --- NORD-FASSADE (Indirekte Strahlung / Diffusanteil) ---
