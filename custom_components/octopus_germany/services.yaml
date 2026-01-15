@@ -1,0 +1,56 @@
+set_device_preferences:
+  name: Set device preferences
+  description: Set charging preferences for an electric vehicle device using the new API
+  fields:
+    device_id:
+      name: Device ID
+      description: The device ID of the electric vehicle (get from device list)
+      required: true
+      example: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+      selector:
+        text:
+    target_percentage:
+      name: Target state of charge
+      description: Target state of charge (20-100% in 5% steps)
+      required: true
+      default: 80
+      example: 80
+      selector:
+        number:
+          min: 20
+          max: 100
+          step: 5
+    target_time:
+      name: Target time
+      description: Target time for charging (04:00-17:00)
+      required: true
+      default: "06:00"
+      example: "06:00"
+      selector:
+        time:
+
+get_smart_meter_readings:
+  name: Get Smart Meter Readings
+  description: Fetch smart meter readings for a specific date (historical data available)
+  fields:
+    account_number:
+      name: Account Number
+      description: The account number (usually starts with A-)
+      required: true
+      example: "A-66DF80AE"
+      selector:
+        text:
+    date:
+      name: Date
+      description: Date for readings (YYYY-MM-DD format, data available 2+ days ago)
+      required: true
+      example: "2025-10-08"
+      selector:
+        date:
+    property_id:
+      name: Property ID
+      description: Property ID (optional, will use first property if not specified)
+      required: false
+      example: "249906"
+      selector:
+        text:
