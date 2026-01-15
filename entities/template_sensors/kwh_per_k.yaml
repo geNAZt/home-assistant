@@ -1,7 +1,0 @@
-sensor: 
-- name: kWh_per_K
-  unit_of_measurement: "kWh"
-  device_class: "energy"
-  state_class: measurement
-  state: >
-    {{ states('sensor.heating_energy_24h') | float / states('sensor.deltaT_24h') | float }}
