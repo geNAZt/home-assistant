@@ -3,5 +3,5 @@ unit_of_measurement: "kWh/K"
 min: 0
 max: 100
 step: 0.01
-initial: 25.6
+initial: 8
 mode: slider
