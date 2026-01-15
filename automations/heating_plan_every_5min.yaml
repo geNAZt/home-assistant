@@ -137,7 +137,7 @@
         {% set is_heating = (st == 'heat') %}
 
         {# --- Safety band --- #}
-        {% set lower_safety_band_k = 1.5 %}
+        {% set lower_safety_band_k = 1.0 %}
         {% set sp_eff = effective_target %}
         {% set sp_now = (state_attr(climate_entity,'temperature')
                           if state_attr(climate_entity,'temperature') is number
