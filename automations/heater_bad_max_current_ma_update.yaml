@@ -14,7 +14,7 @@
   action:
     - variables:
         new_val: "{{ trigger.to_state.state | float(0) }}"
-        old_max: "{{ states('input_number.heater_bad_max_current_ma_record') | float(0) }}"
+        old_max: "{{ states('input_number.heater_bad_rated_a') | float(0) * 1000 }}"
     - choose:
         - conditions:
             - condition: template
@@ -22,6 +22,6 @@
           sequence:
             - service: input_number.set_value
               target:
-                entity_id: input_number.heater_bad_max_current_ma_record
+                entity_id: input_number.heater_bad_rated_a
               data:
-                value: "{{ new_val | round(0) }}"
+                value: "{{ new_val / 1000 | round(2) }}"

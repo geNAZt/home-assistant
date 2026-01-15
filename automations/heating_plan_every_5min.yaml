@@ -106,30 +106,8 @@
         {% elif states(sensor_l3) not in invalid_states %}
           {% set phase = 3 %}
         {% endif %}
-        
-        {# Get current consumption #}
-        {% set live_current_ma = 0 %}
-        {% if states(sensor_l1) not in invalid_states %}
-          {% set live_current_ma = states(sensor_l1) | float(0) %}
-        {% elif states(sensor_l2) not in invalid_states %}
-          {% set live_current_ma = states(sensor_l2) | float(0) %}
-        {% elif states(sensor_l3) not in invalid_states %}
-          {% set live_current_ma = states(sensor_l3) | float(0) %}
-        {% endif %}
-        {% if live_current_ma > 0 %}
-          {% set live_current_a = live_current_ma / 1000 %}
-        {% else %}
-          {% set live_current_a = 0 %}
-        {% endif %}
-        {% set sql_current_a = states('sensor.heater_' ~ room ~ '_max_current_a') | float(0) %}
-        {% set rated_current_a = states('input_number.heater_' ~ room ~ '_rated_a') | float(0) %}
-        {% if live_current_a > 0 %}
-          {% set amps = live_current_a %}
-        {% elif sql_current_a > 0 %}
-          {% set amps = sql_current_a %}
-        {% else %}
-          {% set amps = rated_current_a %}
-        {% endif %}
+
+        {% set amps = states('input_number.heater_' ~ room ~ '_rated_a') | float(0) %}
         
         {# Determine if heating is needed #}
         {# --- is_heating (robust) --- #}
