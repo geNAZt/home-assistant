@@ -6,7 +6,7 @@
     - trigger: numeric_state
       entity_id:
         - sensor.security_temperature_[[ room ]]_max
-      above: 26
+      above: 24.5
   conditions: []
   actions:
     - action: climate.set_hvac_mode
