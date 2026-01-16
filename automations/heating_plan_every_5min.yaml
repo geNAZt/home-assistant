@@ -159,7 +159,7 @@
         {# --- Security temperature check: force off if security temp > 26°C --- #}
         {% set security_sensor = 'sensor.security_temperature_' ~ room ~ '_max' %}
         {% set security_temp = states(security_sensor) | float(0) %}
-        {% if security_temp > 24.5 %}
+        {% if security_temp > 23.5 %}
           {% set needs_heating = false %}
         {% endif %}
 
