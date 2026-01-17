@@ -1,4 +1,4 @@
-name: "Current Heating Pump"
+name: "Current Water Cycling Pump"
 state_address: "0/1/3"
 type: current
 sync_state: expire 1
