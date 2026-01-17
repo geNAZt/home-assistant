@@ -1,4 +1,5 @@
 - platform: group
+  name: "Heating Bad"
   entities:
   - switch.heating_bad_floor
   - switch.towel_dryer
