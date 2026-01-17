@@ -1,0 +1,6 @@
+name: "Current Heating Pump"
+state_address: "0/1/3"
+type: current
+sync_state: expire 1
+always_callback: true
+state_class: measurement
