@@ -52,7 +52,7 @@ async def __get_prices(call: ServiceCall) -> ServiceResponse:
 
     tibber_prices: dict[str, Any] = {}
 
-    for tibber_home in tibber_connection.get_homes(only_active=True):
+    for tibber_home in tibber_connection.get_homes(only_active=False):
         home_nickname = tibber_home.name
 
         price_data = [
