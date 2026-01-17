@@ -3,6 +3,7 @@ sensor:
   unique_id: heating_power_bad
   unit_of_measurement: "W"
   device_class: power
+  state_class: measurement
   state: >
     {% set climate_state = states('climate.climate_room_bad') %}
     {% if climate_state == 'off' %}
