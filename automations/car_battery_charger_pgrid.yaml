@@ -4,31 +4,22 @@
   mode: restart
   trigger:
     - platform: time_pattern
-      seconds: "/2"
+      seconds: "/5" # The charger forgets after 5 seconds
   condition:
-  - condition: template
-    value_template: "{{ states('binary_sensor.goe_288025_car_0') == 'on' }}"
+  - condition: and
+    conditions:
+    - condition: template
+      value_template: "{{ states('binary_sensor.goe_288025_car_0') == 'on' }}"
+    - condition: template 
+      value_template: "{{ states('sensor.filtered_exported_power_w') | float(0) > 1600 }}"
   variables:
     # Current state
     exported_power: "{{ states('sensor.filtered_exported_power_w') | float(0) }}"
-    charger_usage: "{{ states('sensor.goe_288025_nrg_11') | float(0) }}"
     
     # Calculate pgrid value
     pgrid_value: >-
-      {% set exp = exported_power | float(0) %}
-      {% set usage = charger_usage | float(0) %}
-      {% set threshold = 1600 %}
-      
-      {% if exp > threshold %}
-        {# Exported power above 1.6kW - set pgrid to exported_power * -1 #}
-        {{ exp * -1 }}
-      {% elif usage == 0 %}
-        {# Charger is off and exported power below threshold - set pgrid to 0 #}
-        0
-      {% else %}
-        {# Exported power below threshold and charger is on - force stop #}
-        10500
-      {% endif %}
+      {% set exp = exported_power | float(0) %}    
+      {{ exp * -1 }}
   action:
     - service: goecharger_api2.set_pv_data
       data:
