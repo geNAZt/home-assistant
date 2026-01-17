@@ -19,4 +19,13 @@ sensor:
     {% for room in rooms %}
       {% set ns.total_power = ns.total_power + states('sensor.heating_power_' + room) | float(0) %}
     {% endfor %}
+
+    {% set additionals = [
+      'towel_dryer_leistung'
+    ] %}
+
+    {% for add in additionals %}
+      {% set ns.total_power = ns.total_power + states('sensor.' + add) | float(0) %}
+    {% endfor %}
+
     {{ ns.total_power | round(0) }}
