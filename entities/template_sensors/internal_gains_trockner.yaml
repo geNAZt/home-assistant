@@ -15,3 +15,5 @@ sensor:
     {% else %}
       0.0
     {% endif %}
+  attributes: 
+    consumes: {{ states('sensor.shellyplus2pm_485519a264d8_switch_0_power') | float(0) }}

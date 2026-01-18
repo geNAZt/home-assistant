@@ -11,3 +11,5 @@ sensor:
     {% else %}
       40.0
     {% endif %}
+  attributes: 
+    consumes: {{ states('sensor.water_heating_pump_power') | float(0) }}
