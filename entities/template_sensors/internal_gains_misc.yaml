@@ -23,3 +23,10 @@ sensor:
     {% set diffuse = total_load - gain_consumes - ir_heating_w - outside_kitchen_w - car_charging_w %}
     
     {{ [0, diffuse] | max | round(1) }}
+  attributes:
+    substract_entities: >
+      {% set gain_consumes = states.sensor 
+              | selectattr('entity_id', 'search', '^sensor.internal_gains_') | expand 
+              | selectattr('attributes.consumes', 'defined') | map(attribute='entity_id') 
+              | list %}
+      {{ gain_consumes }}
