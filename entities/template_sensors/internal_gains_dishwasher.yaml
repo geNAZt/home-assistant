@@ -12,4 +12,5 @@ sensor:
       0.0
     {% endif %}
   attributes: 
-    consumes: {{ states('sensor.kuche_geschirrspuler_power') | float(0) }}
+    consumes: >
+      {{ states('sensor.kuche_geschirrspuler_power') | float(0) }}

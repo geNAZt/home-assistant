@@ -21,4 +21,5 @@ sensor:
       0.0
     {% endif %}
   attributes: 
-    consumes: {{ states('sensor.hrv_leistung') | float(0) }}
+    consumes: >
+      {{ states('sensor.hrv_leistung') | float(0) }}
