@@ -24,9 +24,13 @@ sensor:
     
     {{ [0, diffuse] | max | round(1) }}
   attributes:
-    substract_entities: >
+    bill: >
       {% set gain_consumes = states.sensor 
               | selectattr('entity_id', 'search', '^sensor.internal_gains_') | expand 
-              | selectattr('attributes.consumes', 'defined') | map(attribute='entity_id') 
+              | selectattr('attributes.consumes', 'defined') 
               | list %}
-      {{ gain_consumes }}
+      {{ states('sensor.solar_house_consumption_w') }}
+
+      {% for gain in gain_consumes %}
+        - {{ gain.entity_id }}: {{ gain.attributes.consumes }}
+      {% endfor %}
