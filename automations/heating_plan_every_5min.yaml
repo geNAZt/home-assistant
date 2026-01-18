@@ -35,7 +35,7 @@
     
     # Heating blocking: When enabled, only allow heating during preheat window (00:00-06:00)
     # Turn this switch ON to block heating outside preheat window
-    preheat_enabled: "{{ is_state('binary_sensor.preheat_erlaubt_demand_weighted', 'on') }}"
+    preheat_enabled: false
     heating_block_enabled: "{{ is_state('input_boolean.heating_block_daytime', 'on') and preheat_enabled }}"
     
     # --- Preheat goal (room-specific) ---
