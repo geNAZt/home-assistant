@@ -6,6 +6,6 @@ sensor:
   state_class: measurement
   state: >
     {% set current = states('sensor.current_water_heating_pump') | float(0) / 1000 %}
-    {% set voltage = states('sensor.pv_m1_ac_voltage_cn') | float(230) }
+    {% set voltage = states('sensor.pv_m1_ac_voltage_cn') | float(230) %}
     {{ current * voltage | round(2) }}
     
