@@ -17,20 +17,25 @@ sensor:
 
     {# Sachen sie ausserhalb des Hauses ihre Wärme verlieren #}
     {% set outside_kitchen_w = states('sensor.kuche_aussen_power') | float(0) %}
-    {% set car_charging_w = states('sensor.goe_288025_nrg_11') | float(0) %}
 
     {# Alles was übrig bleibt, wird zu 100% als Wärme gewertet #}
-    {% set diffuse = total_load - gain_consumes - ir_heating_w - outside_kitchen_w - car_charging_w %}
+    {% set diffuse = total_load - gain_consumes - ir_heating_w - outside_kitchen_w %}
     
     {{ [0, diffuse] | max | round(1) }}
   attributes:
     bill: >
-      {% set gain_consumes = states.sensor 
-              | selectattr('entity_id', 'search', '^sensor.internal_gains_') | expand 
+      {% set total = states('sensor.solar_house_consumption_w') | float(0) %}
+      {% set gains = states.sensor 
+              | selectattr('entity_id', 'search', '^sensor.internal_gains_') 
               | selectattr('attributes.consumes', 'defined') 
               | list %}
-      {{ states('sensor.solar_house_consumption_w') }}
-
-      {% for gain in gain_consumes %}
-        - {{ gain.entity_id }}: {{ gain.attributes.consumes }}
+        
+      Total House: {{ total }} W
+      ---
+      {% for gain in gains %}
+      {{ gain.name }}: -{{ gain.attributes.consumes }} W
       {% endfor %}
+      IR-Heating: -{{ states('sensor.heating_power') | float(0) }} W
+      Küche-Außen: -{{ states('sensor.kuche_aussen_power') | float(0) }} W
+      ---
+      Result Misc: {{ [0, total - (gains | map(attribute='attributes.consumes') | map('float') | sum) - (states('sensor.heating_power')|float) - (states('sensor.kuche_aussen_power')|float)] | max | round(1) }} W
