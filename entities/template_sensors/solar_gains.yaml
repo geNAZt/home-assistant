@@ -1,98 +1,110 @@
 sensor:
-# --- SÜD-FASSADE ---
-- name: "Solar Gain Büro Fabian S"
-  unique_id: solar_gain_fabian_s
-  unit_of_measurement: 'W'
-  device_class: power
-  state: >
-    {% set rad = states('sensor.barsinghausen_hohenb_sonneneinstrahlung') | float(0) %}
-    {% set azi = state_attr('sun.sun', 'azimuth') | float(0) %}
-    {% set ele = state_attr('sun.sun', 'elevation') | float(0) %}
-    {% if (100 < azi < 260) and ele > 0 %}
-      {{ (1.60 * 0.53 * rad * (state_attr('cover.rollade_buero_fabian', 'current_position') | float(100) / 100)) | round(0) }}
-    {% else %} 0 {% endif %}
-- name: "Solar Gain Wohnzimmer S"
-  unique_id: solar_gain_wz_s
-  unit_of_measurement: 'W'
-  device_class: power
-  state: >
-    {% set rad = states('sensor.barsinghausen_hohenb_sonneneinstrahlung') | float(0) %}
-    {% set azi = state_attr('sun.sun', 'azimuth') | float(0) %}
-    {% set ele = state_attr('sun.sun', 'elevation') | float(0) %}
-    {# Vordach 2.5m: Voller Schatten ab 38°, Teilschatten darunter #}
-    {% set shade = 0.1 if ele > 38 else (1.0 if ele < 15 else 0.4) %}
-    {% if (100 < azi < 260) and ele > 0 %}
-      {% set pos = (state_attr('cover.rollade_wohnzimmer_links', 'current_position') | float(100) + state_attr('cover.rollade_wohnzimmer_rechts', 'current_position') | float(100)) / 200 %}
-      {{ (5.43 * 0.53 * rad * shade * pos) | round(0) }}
-    {% else %} 0 {% endif %}
-- name: "Solar Gain Küche S"
-  unique_id: solar_gain_kueche_s
-  unit_of_measurement: 'W'
-  device_class: power
-  state: >
-    {% set rad = states('sensor.barsinghausen_hohenb_sonneneinstrahlung') | float(0) %}
-    {% set azi = state_attr('sun.sun', 'azimuth') | float(0) %}
-    {% set ele = state_attr('sun.sun', 'elevation') | float(0) %}
-    {% if (100 < azi < 260) and ele > 0 %}
-      {{ (3.22 * 0.53 * rad * (state_attr('cover.rollade_kueche_links', 'current_position') | float(100) / 100)) | round(0) }}
-    {% else %} 0 {% endif %}
-# --- WEST-FASSADE ---
-- name: "Solar Gain Büro Merja W"
-  unique_id: solar_gain_merja_w
-  unit_of_measurement: 'W'
-  device_class: power
-  state: >
-    {% set rad = states('sensor.barsinghausen_hohenb_sonneneinstrahlung') | float(0) %}
-    {% set azi = state_attr('sun.sun', 'azimuth') | float(0) %}
-    {% set ele = state_attr('sun.sun', 'elevation') | float(0) %}
-    {% if (190 < azi < 350) and ele > 0 %}
-      {{ (3.22 * 0.53 * rad * (state_attr('cover.rollade_buero_merja', 'current_position') | float(100) / 100)) | round(0) }}
-    {% else %} 0 {% endif %}
-- name: "Solar Gain Küche W"
-  unique_id: solar_gain_kueche_w
-  unit_of_measurement: 'W'
-  device_class: power
-  state: >
-    {% set rad = states('sensor.barsinghausen_hohenb_sonneneinstrahlung') | float(0) %}
-    {% set azi = state_attr('sun.sun', 'azimuth') | float(0) %}
-    {% set ele = state_attr('sun.sun', 'elevation') | float(0) %}
-    {# Vordach 4m: Voller Schatten ab 26° Elevation #}
-    {% set shade = 0.05 if ele > 26 else 0.7 %}
-    {% if (190 < azi < 350) and ele > 0 %}
-      {{ (2.91 * 0.53 * rad * shade * (state_attr('cover.rollade_kueche_rechts', 'current_position') | float(100) / 100)) | round(0) }}
-    {% else %} 0 {% endif %}
-# --- OST-FASSADE (Morgensonne) ---
-- name: "Solar Gain Speisekammer O"
-  unique_id: solar_gain_speise_o
-  unit_of_measurement: 'W'
-  device_class: power
-  state: >
-    {% set rad = states('sensor.barsinghausen_hohenb_sonneneinstrahlung') | float(0) %}
-    {% set azi = state_attr('sun.sun', 'azimuth') | float(0) %}
-    {% set ele = state_attr('sun.sun', 'elevation') | float(0) %}
-    {% if (10 < azi < 170) and ele > 0 %}
-      {{ (0.24 * 0.53 * rad * (state_attr('cover.rollade_speisekammer', 'current_position') | float(100) / 100)) | round(0) }}
-    {% else %} 0 {% endif %}
-# --- NORD-FASSADE (Indirekte Strahlung / Diffusanteil) ---
-- name: "Solar Gain Nordseite"
-  unique_id: solar_gain_north_total
-  unit_of_measurement: 'W'
-  device_class: power
-  state: >
-    {% set rad = states('sensor.barsinghausen_hohenb_sonneneinstrahlung') | float(0) %}
-    {# Nordfenster erhalten ca. 15% der Globalstrahlung als Diffuslicht #}
-    {% set f_total = 1.60 + 0.91 + 0.24 %}
-    {{ (f_total * 0.53 * rad * 0.15) | round(0) }}
-# --- SUMMEN-SENSOR ---
-- name: "Solar Gains"
-  unique_id: solar_gains
-  unit_of_measurement: 'W'
-  device_class: power
-  state: >
-    {{ (states('sensor.solar_gain_fabian_s') | float(0) +
-        states('sensor.solar_gain_wz_s') | float(0) +
-        states('sensor.solar_gain_kueche_s') | float(0) +
-        states('sensor.solar_gain_merja_w') | float(0) +
-        states('sensor.solar_gain_kueche_w') | float(0) +
-        states('sensor.solar_gain_speise_w') | float(0) +
-        states('sensor.solar_gain_nordseite') | float(0)) | round(0) }}
+  # --- SÜD-FASSADE (Ausrichtung 180°) ---
+  - name: "Solar Gain Büro Fabian S"
+    unique_id: solar_gain_fabian_s
+    unit_of_measurement: 'W'
+    device_class: power
+    state: >
+      {% set rad = states('sensor.barsinghausen_hohenb_sonneneinstrahlung') | float(0) %}
+      {% set azi = state_attr('sun.sun', 'azimuth') | float(0) %}
+      {% set ele = state_attr('sun.sun', 'elevation') | float(0) %}
+      {% set cos_factor = ((azi - 180) | multiply(0.01745) | cos) | abs %}
+      {% if (90 < azi < 270) and ele > 0 %}
+        {{ (1.60 * 0.53 * rad * cos_factor * (state_attr('cover.rollade_buero_fabian', 'current_position') | float(100) / 100)) | round(0) }}
+      {% else %} 0 {% endif %}
+
+  - name: "Solar Gain Wohnzimmer S"
+    unique_id: solar_gain_wz_s
+    unit_of_measurement: 'W'
+    device_class: power
+    state: >
+      {% set rad = states('sensor.barsinghausen_hohenb_sonneneinstrahlung') | float(0) %}
+      {% set azi = state_attr('sun.sun', 'azimuth') | float(0) %}
+      {% set ele = state_attr('sun.sun', 'elevation') | float(0) %}
+      {% set cos_factor = ((azi - 180) | multiply(0.01745) | cos) | abs %}
+      {# Vordach 2.5m: Voller Schatten ab 38°, Teilschatten darunter #}
+      {% set shade = 0.1 if ele > 38 else (1.0 if ele < 15 else 0.4) %}
+      {% if (90 < azi < 270) and ele > 0 %}
+        {% set pos = (state_attr('cover.rollade_wohnzimmer_links', 'current_position') | float(100) + state_attr('cover.rollade_wohnzimmer_rechts', 'current_position') | float(100)) / 200 %}
+        {{ (5.43 * 0.53 * rad * cos_factor * shade * pos) | round(0) }}
+      {% else %} 0 {% endif %}
+
+  - name: "Solar Gain Küche S"
+    unique_id: solar_gain_kueche_s
+    unit_of_measurement: 'W'
+    device_class: power
+    state: >
+      {% set rad = states('sensor.barsinghausen_hohenb_sonneneinstrahlung') | float(0) %}
+      {% set azi = state_attr('sun.sun', 'azimuth') | float(0) %}
+      {% set ele = state_attr('sun.sun', 'elevation') | float(0) %}
+      {% set cos_factor = ((azi - 180) | multiply(0.01745) | cos) | abs %}
+      {% if (90 < azi < 270) and ele > 0 %}
+        {{ (3.22 * 0.53 * rad * cos_factor * (state_attr('cover.rollade_kueche_links', 'current_position') | float(100) / 100)) | round(0) }}
+      {% else %} 0 {% endif %}
+
+  # --- WEST-FASSADE (Ausrichtung 270°) ---
+  - name: "Solar Gain Büro Merja W"
+    unique_id: solar_gain_merja_w
+    unit_of_measurement: 'W'
+    device_class: power
+    state: >
+      {% set rad = states('sensor.barsinghausen_hohenb_sonneneinstrahlung') | float(0) %}
+      {% set azi = state_attr('sun.sun', 'azimuth') | float(0) %}
+      {% set ele = state_attr('sun.sun', 'elevation') | float(0) %}
+      {% set cos_factor = ((azi - 270) | multiply(0.01745) | cos) | abs %}
+      {% if (180 < azi < 355) and ele > 0 %}
+        {{ (3.22 * 0.53 * rad * cos_factor * (state_attr('cover.rollade_buero_merja', 'current_position') | float(100) / 100)) | round(0) }}
+      {% else %} 0 {% endif %}
+
+  - name: "Solar Gain Küche W"
+    unique_id: solar_gain_kueche_w
+    unit_of_measurement: 'W'
+    device_class: power
+    state: >
+      {% set rad = states('sensor.barsinghausen_hohenb_sonneneinstrahlung') | float(0) %}
+      {% set azi = state_attr('sun.sun', 'azimuth') | float(0) %}
+      {% set ele = state_attr('sun.sun', 'elevation') | float(0) %}
+      {% set cos_factor = ((azi - 270) | multiply(0.01745) | cos) | abs %}
+      {# Vordach 4m: Voller Schatten ab 26° Elevation #}
+      {% set shade = 0.05 if ele > 26 else 0.7 %}
+      {% if (180 < azi < 355) and ele > 0 %}
+        {{ (2.91 * 0.53 * rad * cos_factor * shade * (state_attr('cover.rollade_kueche_rechts', 'current_position') | float(100) / 100)) | round(0) }}
+      {% else %} 0 {% endif %}
+
+  # --- OST-FASSADE (Ausrichtung 90°) ---
+  - name: "Solar Gain Speisekammer O"
+    unique_id: solar_gain_speise_o
+    unit_of_measurement: 'W'
+    device_class: power
+    state: >
+      {% set rad = states('sensor.barsinghausen_hohenb_sonneneinstrahlung') | float(0) %}
+      {% set azi = state_attr('sun.sun', 'azimuth') | float(0) %}
+      {% set ele = state_attr('sun.sun', 'elevation') | float(0) %}
+      {% set cos_factor = ((azi - 90) | multiply(0.01745) | cos) | abs %}
+      {% if (5 < azi < 175) and ele > 0 %}
+        {{ (0.24 * 0.53 * rad * cos_factor * (state_attr('cover.rollade_speisekammer', 'current_position') | float(100) / 100)) | round(0) }}
+      {% else %} 0 {% endif %}
+
+  # --- NORD-FASSADE ---
+  - name: "Solar Gain Nordseite"
+    unique_id: solar_gain_north_total
+    unit_of_measurement: 'W'
+    device_class: power
+    state: >
+      {% set rad = states('sensor.barsinghausen_hohenb_sonneneinstrahlung') | float(0) %}
+      {% set f_total = 1.60 + 0.91 + 0.24 %}
+      {{ (f_total * 0.53 * rad * 0.15) | round(0) }}
+
+  # --- SUMMEN-SENSOR (Korrigiert) ---
+  - name: "Solar Gains"
+    unique_id: solar_gains
+    unit_of_measurement: 'W'
+    device_class: power
+    state: >
+      {{ (states('sensor.solar_gain_fabian_s') | float(0) +
+          states('sensor.solar_gain_wz_s') | float(0) +
+          states('sensor.solar_gain_kueche_s') | float(0) +
+          states('sensor.solar_gain_merja_w') | float(0) +
+          states('sensor.solar_gain_kueche_w') | float(0) +
+          states('sensor.solar_gain_speise_o') | float(0) +
+          states('sensor.solar_gain_nordseite') | float(0)) | round(0) }}
