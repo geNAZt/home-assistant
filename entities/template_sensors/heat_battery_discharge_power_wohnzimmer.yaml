@@ -1,3 +1,6 @@
+triggers:
+- trigger: time_pattern
+  seconds: "/5"
 sensor:
 - name: "Heat Battery Discharge Power wohnzimmer"
   unit_of_measurement: "W"
