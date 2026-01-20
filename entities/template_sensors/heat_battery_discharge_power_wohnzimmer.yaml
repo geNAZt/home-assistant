@@ -15,7 +15,7 @@ sensor:
     {% set t_boden = states('sensor.security_temperature_wohnzimmer_max') | float(0) %}
     {% set t_luft = states('sensor.temperature_wohnzimmer_mean') | float(0) %}
     {% set area = 16.22 %}
-    {% set ubergang_koeff = 8 %} {# W/(m²K) #}
+    {% set ubergang_koeff = 4.5 %} {# W/(m²K) #}
 
     {# 2. Prüfung: Heizung aus und Cooldown vorbei? #}
     {% if not h_an and minutes_since_off > 10 %}
