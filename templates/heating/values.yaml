@@ -1,24 +1,40 @@
 - room: wohnzimmer
   securityTemperatureSensors: 2
   phase: 2
+  areas:
+    floor: 16.22
 - room: buero_merja
   securityTemperatureSensors: 2
   phase: 3
+  areas:
+    floor: 18.92
 - room: buero_fabian
   phase: 3
+  areas:
+    floor: 8.98
 - room: flur
   temperatureSensors: 3
   phase: 2
   securityTemperatureSensors: 2
+  areas:
+    floor: 26.06 # 1,55 * 3.28 + 1,55 * 8,64 = 18,46m² (HWR: 2*3,80 = 7,60m²)
 - room: kueche
   phase: 1
   securityTemperatureSensors: 3
+  areas:
+    floor: 26.52
 - room: speisekammer
   securityTemperatureSensors: 2
   phase: 2
+  areas:
+    floor: 6.92
 - room: schlafzimmer
   securityTemperatureSensors: 2
   phase: 1
+  areas:
+    floor: 12.42
 - room: bad
   securitySameAsTemperature: true
   phase: 1
+  areas:
+    floor: 6.62
