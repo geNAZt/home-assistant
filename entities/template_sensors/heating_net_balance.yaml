@@ -29,4 +29,4 @@ sensor:
     {% set losses = h_eff * (states('sensor.deltaT') | float(0)) %}
     {% set passive_gains = (states('sensor.internal_gains_total') | float(0)) + (states('sensor.solar_gains') | float(0)) + (states('sensor.heat_battery_total_discharge') | float(0)) %}
     
-    {{ [0, (losses - passive_gains)] | max | round(0) }}
+    {{ (losses - passive_gains) | round(0) }}
