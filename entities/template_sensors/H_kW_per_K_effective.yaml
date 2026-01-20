@@ -11,9 +11,6 @@ sensor:
       {% set v_ms = states('sensor.wind_speed_ms')|float(0) %}
       {% set n50 = 0.9 %}
       {% set volumen = 336.25 %}
-      {# Wir berechnen den Wind-Einfluss basierend auf der Druckdifferenz-Logik #}
-      {# n_inf = n50 * e (Abschirmfaktor). Bei 14km/h war e ca. 0.075 #}
-      {# Faktor 0.02 entspricht einem mäßig abgeschirmten Gebäude #}
       {% set n_wind = n50 * (v_ms * 0.02) %}
       {% set H_wind_zuschlag = (volumen * n_wind * 0.34) / 1000 %}
 
