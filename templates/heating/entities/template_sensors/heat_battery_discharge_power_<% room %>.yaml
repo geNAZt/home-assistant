@@ -1,0 +1,29 @@
+sensor:
+- name: "Heat Battery Discharge Power [[room]]"
+  unit_of_measurement: "W"
+  device_class: power
+  state_class: measurement
+  state: >
+    {# 1. Variablen definieren #}
+    {% set h_an = is_state('switch.heating_[[room]]', 'on') %}
+    {% set last_changed = states.switch.heating_[[room]].last_changed %}
+    {% set minutes_since_off = (now() - last_changed).total_seconds() / 60 %}
+          
+    {% set t_boden = states('sensor.security_temperature_[[room]]_max') | float(0) %}
+    {% set t_luft = states('sensor.temperature_[[room]]_mean') | float(0) %}
+    {% set area = [[ areas.floor ]] %}
+    {% set ubergang_koeff = 8 %} {# W/(m²K) #}
+
+    {# 2. Prüfung: Heizung aus und Cooldown vorbei? #}
+    {% if not h_an and minutes_since_off > 10 %}
+      {% set delta_t = t_boden - t_luft %}
+      {# Nur positive Leistung (Entladen) berechnen #}
+      {{ [0, (delta_t * area * ubergang_koeff)] | max | round(0) }}
+    {% else %}
+      {% set prev = this.state %}
+      {% if prev not in ['unknown', 'unavailable', 'none', None, ''] %}
+        {{ prev }}
+      {% else %}
+        0
+      {% endif %}
+    {% endif %}
