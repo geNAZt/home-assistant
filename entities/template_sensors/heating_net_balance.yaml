@@ -3,6 +3,7 @@ sensor:
   unique_id: heating_net_balance
   unit_of_measurement: 'W'
   device_class: power
+  state_class: measurement
   state: >
     {# GEWINNE (Positiv) #}
     {% set internal = states('sensor.internal_gains_total') | float(0) %}
@@ -21,10 +22,11 @@ sensor:
   unique_id: delta_k_compensation_power
   unit_of_measurement: 'W'
   device_class: power
+  state_class: measurement
   state: >
     {# Zeigt an, wie viel Watt die Heizung leisten MUSS, damit die Bilanz >= 0 wird #}
     {% set h_eff = states('sensor.h_kw_per_k_effective') | float(0) * 1000 %}
     {% set losses = h_eff * (states('sensor.deltaT') | float(0)) %}
-    {% set passive_gains = (states('sensor.internal_gains_total') | float(0)) + (states('sensor.solar_gains') | float(0)) %}
+    {% set passive_gains = (states('sensor.internal_gains_total') | float(0)) + (states('sensor.solar_gains') | float(0)) + (states('sensor.heat_battery_total_discharge') | float(0)) %}
     
     {{ [0, (losses - passive_gains)] | max | round(0) }}
