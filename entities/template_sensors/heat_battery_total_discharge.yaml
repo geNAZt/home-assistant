@@ -1,0 +1,11 @@
+sensor:
+- name: "Heat Battery Total Discharge"
+  unit_of_measurement: "W"
+  device_class: power
+  state_class: measurement
+  state: >
+    {% set temp = states.sensor 
+      | selectattr('entity_id', 'search', '^sensor.heat_battery_discharge') | expand 
+      | selectattr('state', 'defined') | map(attribute='state') 
+      | map('float') | list | sum %}
+    {{ temp | round(2) }}
