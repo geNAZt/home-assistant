@@ -13,6 +13,12 @@
     hysteresis_k: 0.05
     stop_margin_k: 0.1   # früher ausmachen, um Overshoot zu reduzieren
     
+    # --- SOAK CHARGING (Laminat-Schutz) ---
+    # Verhindert Hitzestau unter dem Belag. Erzwingt Pausen, damit Wärme
+    # in den Estrich ziehen kann (Pulsing).
+    soak_delta_stop: 3.0   # STOPP, wenn Boden > 3.0K wärmer als Luft
+    soak_delta_start: 2.0  # START erlaubt, wenn Delta < 2.0K gesunken ist
+
     # PV and preheat parameters
     pv_forecast_w: "{{ states('sensor.filtered_exported_power_w') | float(0) }}"
     pv_thr_w: "{{ states('input_number.pv_excess_threshold_w') | float(0) }}"
@@ -48,6 +54,11 @@
     room_data: >-
       {% set rooms = rooms_json | from_json(default=[]) %}
       {% set hyst = hysteresis_k | float(0.05) %}
+      
+      {# Soak Parameters import #}
+      {% set d_stop = soak_delta_stop | float(3.0) %}
+      {% set d_start = soak_delta_start | float(2.0) %}
+
       {% set invalid_states = ['unknown', 'unavailable', 'None', ''] %}
       {% set ns = namespace(rooms = {}) %}
       
@@ -61,18 +72,14 @@
         {% set current_temp = state_attr(climate_entity, 'current_temperature') %}
         {% set current_setpoint = state_attr(climate_entity, 'temperature') %}
         
-        {# Get base temperature from helper, or use current setpoint if helper doesn't exist #}
-        {# This prevents offset accumulation by always using the original base temperature #}
+        {# Get base temperature from helper #}
         {% set base_helper = 'input_number.heating_base_' ~ room %}
         {% set stored_base = states(base_helper) | float(0) %}
         {% if stored_base > 0 %}
-          {# Use stored base temperature (original, before any offsets) #}
           {% set base_target = stored_base %}
         {% elif current_setpoint is number %}
-          {# No stored base yet, use current setpoint as base (will be stored when offset is first applied) #}
           {% set base_target = current_setpoint | float %}
         {% else %}
-          {# Fallback default #}
           {% set base_target = 22.0 %}
         {% endif %}
         
@@ -120,23 +127,17 @@
         {% set sp_now = (state_attr(climate_entity,'temperature')
                           if state_attr(climate_entity,'temperature') is number
                           else sp_eff) | float(sp_eff) %}
-        {# start condition for safety: at/below setpoint - lower_band #}
+        
         {% set must_heat_start = current <= (sp_now - lower_safety_band_k) %}
 
-        {# --- Start/Stop thresholds depending on preheat mode --- #}
-        {# "setpoint" = the currently applied thermostat setpoint (includes offsets) #}
+        {# --- Start/Stop thresholds --- #}
         {% if preheat_enabled %}
-          {# preheat ON: stop at sp +0.1, start at sp -0.2 #}
           {% set stop_th  = sp_now + 0.1 %}
           {% set start_th = sp_now - 0.2 %}
         {% else %}
-          {# preheat OFF: allow down to sp -0.5, heat up to sp +0.2 #}
           {% set stop_th  = sp_now + 0.2 %}
           {% set start_th = sp_now - 0.5 %}
         {% endif %}
-
-        {# --- Safety stop threshold: setpoint - lower_band + stop_margin --- #}
-        {% set safety_stop_th = (sp_now - lower_safety_band_k + (stop_margin_k | float(0.1))) %}
 
         {# --- Cooldown check --- #}
         {% set cd_ent = 'input_datetime.heating_cooldown_until_' ~ room %}
@@ -145,21 +146,39 @@
         {% set nowts = as_timestamp(now()) %}
         {% set cooldown_ok = (cd_ts == 0) or (nowts >= cd_ts) %}
 
-        {# --- Decision
-             - If OFF: may start on (normal start) OR (safety start), both respect cooldown
-             - If ON and we're currently in safety range: only continue up to safety_stop_th
-             - If ON and not in safety range: use normal stop_th
-        --- #}
-        {% if is_heating %}
-          {% set needs_heating = (current < stop_th) %}
-        {% else %}
-          {% set needs_heating = cooldown_ok and ((current < start_th) or must_heat_start) %}
+        {# --- SOAK CHARGING CHECK (Floor vs Air) --- #}
+        {% set security_sensor = 'sensor.security_temperature_' ~ room ~ '_max' %}
+        {% set floor_temp = states(security_sensor) | float(0) %}
+        
+        {% set delta_ok = true %}
+        {# Nur prüfen, wenn Bodensensor existiert (>0) und Preheat/PV aktiv (hohe Last) #}
+        {# oder auch im Normalbetrieb? Hier immer aktiv für Laminatschutz #}
+        {% if floor_temp > 0 %}
+            {% set delta = floor_temp - current %}
+            {% if is_heating %}
+                {# Wenn wir heizen: Stoppen wenn Delta zu groß (Hitzestau) #}
+                {% if delta > d_stop %}
+                    {% set delta_ok = false %}
+                {% endif %}
+            {% else %}
+                {# Wenn wir aus sind: Nur starten wenn Delta abgebaut (Sicherheit) #}
+                {% if delta > d_start %}
+                    {% set delta_ok = false %}
+                {% endif %}
+            {% endif %}
         {% endif %}
 
-        {# --- Security temperature check: force off if security temp > 26°C --- #}
-        {% set security_sensor = 'sensor.security_temperature_' ~ room ~ '_max' %}
-        {% set security_temp = states(security_sensor) | float(0) %}
-        {% if security_temp > 23.5 %}
+        {# --- Decision Logic --- #}
+        {% if is_heating %}
+          {# Bleibe an, solange Temp < Stop UND Delta nicht zu hoch #}
+          {% set needs_heating = (current < stop_th) and delta_ok %}
+        {% else %}
+          {# Gehe an, wenn (Kalt ODER Safety) UND Cooldown OK UND Delta OK #}
+          {% set needs_heating = cooldown_ok and ((current < start_th) or must_heat_start) and delta_ok %}
+        {% endif %}
+
+        {# --- Absolute Security temperature check (> 25 limit) --- #}
+        {% if floor_temp > 25 %}
           {% set needs_heating = false %}
         {% endif %}
 
@@ -177,7 +196,8 @@
             'phase': phase,
             'amps': amps,
             'needs_heating': needs_heating,
-            'must_heat': must_heat_start
+            'must_heat': must_heat_start,
+            'delta_ok': delta_ok
           })
         }) %}
       {% endfor %}
@@ -563,4 +583,3 @@
                     data:
                       date: "{{ (now() + timedelta(minutes=cooldown_minutes)).strftime('%Y-%m-%d') }}"
                       time: "{{ (now() + timedelta(minutes=cooldown_minutes)).strftime('%H:%M:%S') }}"
-
