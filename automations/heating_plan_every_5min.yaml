@@ -16,8 +16,8 @@
     # --- SOAK CHARGING (Laminat-Schutz) ---
     # Verhindert Hitzestau unter dem Belag. Erzwingt Pausen, damit Wärme
     # in den Estrich ziehen kann (Pulsing).
-    soak_delta_stop: 3.0   # STOPP, wenn Boden > 3.0K wärmer als Luft
-    soak_delta_start: 2.0  # START erlaubt, wenn Delta < 2.0K gesunken ist
+    soak_delta_stop: 4.0   # STOPP, wenn Boden > 3.0K wärmer als Luft
+    soak_delta_start: 3.0 # START erlaubt, wenn Delta < 2.0K gesunken ist
 
     # PV and preheat parameters
     pv_forecast_w: "{{ states('sensor.filtered_exported_power_w') | float(0) }}"
