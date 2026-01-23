@@ -1,7 +1,10 @@
-platform: filter
-name: filtered_exported_power_w
+platform: statistics
+name: "filtered_exported_power_w"
 entity_id: sensor.solar_exported_power_w
-filters:
-  - filter: time_simple_moving_average
-    window_size: "00:05"
-    precision: 3
+state_characteristic: mean
+max_age:
+  minutes: 5
+# Wir setzen sampling_size auf 100, um Puffer für 
+# leichte Schwankungen im Intervall zu haben (60 Werte = 5 Min)
+sampling_size: 100
+precision: 3
