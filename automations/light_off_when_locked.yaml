@@ -8,7 +8,7 @@
     to: locked
   conditions:
   - condition: time
-    after: "22:00:10"
+    after: "10:00:10"
     before: "21:59:50"
   actions:
   - action: light.turn_off

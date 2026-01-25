@@ -9,7 +9,7 @@
   conditions:
   - condition: time
     after: "10:00:10"
-    before: "09:59:50"
+    before: "21:59:50"
   actions:
   - action: light.turn_on
     metadata: {}
