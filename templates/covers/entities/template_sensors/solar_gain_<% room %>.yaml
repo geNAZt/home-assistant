@@ -1,0 +1,53 @@
+sensor:
+- name: "Solar Gain [[ room | capitalize ]]"
+  unique_id: solar_gain_[[ room ]]
+  unit_of_measurement: 'W'
+  device_class: power
+  state_class: measurement
+  state: >
+    {% set rad = states('sensor.barsinghausen_hohenb_sonneneinstrahlung') | float(0) %}
+    {% set ele = state_attr('sun.sun', 'elevation') | float(0) %}
+    {% set azi = state_attr('sun.sun', 'azimuth') | float(0) %}
+    {% set ns = namespace(total=0) %}
+
+    [[% for window in windows %]]
+    [[% set w_area_g = window.area.height * window.area.width * window.g %]]
+    [[% set azi_map = {'south': 180, 'east': 90, 'west': 270, 'north': 0} %]]
+    [[% set target_azi = azi_map[window.direction] %]]
+
+    [[% set s_factor = 0.15 %]]
+    [[% if window.shading %]]
+      [[% for shade in window.shading %]]
+        [[% if shade.factor %]] [[% set s_factor = shade.factor %]] [[% endif %]]
+      [[% endfor %]]
+    [[% endif %]]
+      
+    {# --- Berechnung Fenster [[ loop.index ]] --- #}
+    {% if ele > 0 and ((azi - [[ target_azi ]] + 180) % 360 - 180) | abs < 90 %}
+      {% set pos = (state_attr('[[ window.cover ]]', 'current_position') | float(100) / 100) %}
+      {% set cos_factor = ((azi - [[ target_azi ]]) | deg2rad | cos) | abs %}
+      
+      {% set direct_factor = 1.0 %}
+      [[% if window.shading %]]
+      [[% for shade in window.shading %]]
+        [[% if shade.direction == 'bottom' %]]
+          {% if ele < [[ (shade.height / shade.distance) | atan | rad2deg | round(2) ]] %}
+            {% set direct_factor = 0.0 %}
+          {% endif %}
+        [[% elif shade.direction == 'top' %]]
+          {% set shadow_h = [[ shade.height ]] - ([[ shade.distance ]] * (ele | deg2rad | tan)) %}
+          {% set sun_h = [0, [shadow_h, [[ window.position.bottom + window.area.height ]]]|min - [[ window.position.bottom ]]]|max %}
+          {% set direct_factor = [direct_factor, sun_h / [[ window.area.height ]]] | min %}
+        [[% endif %]]
+      [[% endfor %]]
+      [[% endif %]]
+
+      {% set sun_part = [pos, direct_factor]|min %}
+      {% set shade_part = [0, pos - direct_factor]|max %}
+      
+      {% set sun_factor = sun_part + (shade_part * [[ s_factor ]]) %}
+      {% set ns.total = ns.total + ([[ w_area_g ]] * rad * cos_factor * sun_factor) %}
+    {% endif %}
+
+    [[% endfor %]]
+    {{ ns.total | round(0) }}

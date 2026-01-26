@@ -1,0 +1,29 @@
+sensor:
+- name: "Solar Gain Bad"
+  unique_id: solar_gain_bad
+  unit_of_measurement: 'W'
+  device_class: power
+  state_class: measurement
+  state: >
+    {% set rad = states('sensor.barsinghausen_hohenb_sonneneinstrahlung') | float(0) %}
+    {% set ele = state_attr('sun.sun', 'elevation') | float(0) %}
+    {% set azi = state_attr('sun.sun', 'azimuth') | float(0) %}
+    {% set ns = namespace(total=0) %}
+
+
+      
+    {# --- Berechnung Fenster 1 --- #}
+    {% if ele > 0 and ((azi - 0 + 180) % 360 - 180) | abs < 90 %}
+      {% set pos = (state_attr('cover.rollade_bad', 'current_position') | float(100) / 100) %}
+      {% set cos_factor = ((azi - 0) | deg2rad | cos) | abs %}
+      
+      {% set direct_factor = 1.0 %}
+
+      {% set sun_part = [pos, direct_factor]|min %}
+      {% set shade_part = [0, pos - direct_factor]|max %}
+      
+      {% set sun_factor = sun_part + (shade_part * 0.15) %}
+      {% set ns.total = ns.total + (0.482406 * rad * cos_factor * sun_factor) %}
+    {% endif %}
+
+    {{ ns.total | round(0) }}
