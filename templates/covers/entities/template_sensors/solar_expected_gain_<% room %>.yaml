@@ -11,11 +11,10 @@ sensor:
     {% set ns = namespace(total=0) %}
 
     [[% for window in windows %]]
-    [[% set w_area_g = window.area.height * window.area.width * window.g %]]
+    [[% set w_area_g = (window.area.height * window.area.width * window.g) | round(4) %]]
     [[% set azi_map = {'south': 180, 'east': 90, 'west': 270, 'north': 0} %]]
     [[% set target_azi = azi_map[window.direction] %]]
     
-    {# --- Generator-Ebene: Ermittle den spezifischen Faktor für diesen Raum --- #}
     [[% set s_factor = 0.15 %]]
     [[% if window.shading %]]
       [[% for shade in window.shading %]]
@@ -23,33 +22,33 @@ sensor:
       [[% endfor %]]
     [[% endif %]]
       
-    {# --- HA-Ebene: Berechnung Fenster [[ loop.index ]] --- #}
     {% if ele > 0 and ((azi - [[ target_azi ]] + 180) % 360 - 180) | abs < 90 %}
       {% set pos = 1.0 %}
-      {% set cos_factor = ((azi - [[ target_azi ]]) | deg2rad | cos) | abs %}
+      
+      {# Manuelle Umrechnung von Grad in Bogenmaß: Grad * (Pi / 180) #}
+      {% set cos_factor = ((azi - [[ target_azi ]]) * 0.0174532925) | cos | abs %}
       
       {% set direct_factor = 1.0 %}
       [[% if window.shading %]]
       [[% for shade in window.shading %]]
         [[% if shade.direction == 'bottom' %]]
-          {# Geometrischer Check: Ist die Sonne hinter dem Hindernis? #}
           {% if ele < [[ (shade.height / shade.distance) | atan | rad2deg | round(2) ]] %}
             {% set direct_factor = 0.0 %}
           {% endif %}
         [[% elif shade.direction == 'top' %]]
-          {# Vordach-Logik #}
-          {% set shadow_h = [[ shade.height ]] - ([[ shade.distance ]] * (ele | deg2rad | tan)) %}
-          {% set sun_h = [0, [shadow_h, [[ window.position.bottom + window.area.height ]]]|min - [[ window.position.bottom ]]]|max %}
+          {# Hier nutzen wir ebenfalls die manuelle Umrechnung und den tan-Filter #}
+          {% set shadow_h = [[ shade.height ]] - ([[ shade.distance ]] * ((ele * 0.0174532925) | tan)) %}
+          {% set win_top = [[ window.position.bottom + window.area.height ]] %}
+          {% set win_bottom = [[ window.position.bottom ]] %}
+          {% set sun_h = [0, [shadow_h, win_top]|min - win_bottom]|max %}
           {% set direct_factor = [direct_factor, sun_h / [[ window.area.height ]]] | min %}
         [[% endif %]]
       [[% endfor %]]
       [[% endif %]]
 
-      {# Aufteilung der Energie #}
       {% set sun_part = [pos, direct_factor]|min %}
       {% set shade_part = [0, pos - direct_factor]|max %}
       
-      {# Finale Summe mit dem dynamischen Faktor [[ s_factor ]] #}
       {% set sun_factor = sun_part + (shade_part * [[ s_factor ]]) %}
       {% set ns.total = ns.total + ([[ w_area_g ]] * rad * cos_factor * sun_factor) %}
     {% endif %}

@@ -12,10 +12,11 @@ sensor:
 
 
       
-    {# --- Berechnung Fenster 1 --- #}
     {% if ele > 0 and ((azi - 0 + 180) % 360 - 180) | abs < 90 %}
       {% set pos = (state_attr('cover.rollade_schlafzimmer', 'current_position') | float(100) / 100) %}
-      {% set cos_factor = ((azi - 0) | deg2rad | cos) | abs %}
+      
+      {# Manuelle Umrechnung: Grad * 0.0174532925 #}
+      {% set cos_factor = ((azi - 0) * 0.0174532925) | cos | abs %}
       
       {% set direct_factor = 1.0 %}
           {% if ele < 60.75 %}

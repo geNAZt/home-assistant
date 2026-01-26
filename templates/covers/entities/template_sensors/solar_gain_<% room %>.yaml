@@ -11,7 +11,7 @@ sensor:
     {% set ns = namespace(total=0) %}
 
     [[% for window in windows %]]
-    [[% set w_area_g = window.area.height * window.area.width * window.g %]]
+    [[% set w_area_g = (window.area.height * window.area.width * window.g) | round(4) %]]
     [[% set azi_map = {'south': 180, 'east': 90, 'west': 270, 'north': 0} %]]
     [[% set target_azi = azi_map[window.direction] %]]
 
@@ -22,10 +22,11 @@ sensor:
       [[% endfor %]]
     [[% endif %]]
       
-    {# --- Berechnung Fenster [[ loop.index ]] --- #}
     {% if ele > 0 and ((azi - [[ target_azi ]] + 180) % 360 - 180) | abs < 90 %}
       {% set pos = (state_attr('[[ window.cover ]]', 'current_position') | float(100) / 100) %}
-      {% set cos_factor = ((azi - [[ target_azi ]]) | deg2rad | cos) | abs %}
+      
+      {# Manuelle Umrechnung: Grad * 0.0174532925 #}
+      {% set cos_factor = ((azi - [[ target_azi ]]) * 0.0174532925) | cos | abs %}
       
       {% set direct_factor = 1.0 %}
       [[% if window.shading %]]
@@ -35,8 +36,10 @@ sensor:
             {% set direct_factor = 0.0 %}
           {% endif %}
         [[% elif shade.direction == 'top' %]]
-          {% set shadow_h = [[ shade.height ]] - ([[ shade.distance ]] * (ele | deg2rad | tan)) %}
-          {% set sun_h = [0, [shadow_h, [[ window.position.bottom + window.area.height ]]]|min - [[ window.position.bottom ]]]|max %}
+          {% set shadow_h = [[ shade.height ]] - ([[ shade.distance ]] * ((ele * 0.0174532925) | tan)) %}
+          {% set win_top = [[ window.position.bottom + window.area.height ]] %}
+          {% set win_bottom = [[ window.position.bottom ]] %}
+          {% set sun_h = [0, [shadow_h, win_top]|min - win_bottom]|max %}
           {% set direct_factor = [direct_factor, sun_h / [[ window.area.height ]]] | min %}
         [[% endif %]]
       [[% endfor %]]

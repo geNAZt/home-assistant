@@ -12,10 +12,11 @@ sensor:
 
 
       
-    {# --- Berechnung Fenster 1 --- #}
     {% if ele > 0 and ((azi - 180 + 180) % 360 - 180) | abs < 90 %}
       {% set pos = (state_attr('cover.rollade_buero_fabian', 'current_position') | float(100) / 100) %}
-      {% set cos_factor = ((azi - 180) | deg2rad | cos) | abs %}
+      
+      {# Manuelle Umrechnung: Grad * 0.0174532925 #}
+      {% set cos_factor = ((azi - 180) * 0.0174532925) | cos | abs %}
       
       {% set direct_factor = 1.0 %}
           {% if ele < 49.24 %}
@@ -26,7 +27,7 @@ sensor:
       {% set shade_part = [0, pos - direct_factor]|max %}
       
       {% set sun_factor = sun_part + (shade_part * 0.15) %}
-      {% set ns.total = ns.total + (0.8480000000000001 * rad * cos_factor * sun_factor) %}
+      {% set ns.total = ns.total + (0.848 * rad * cos_factor * sun_factor) %}
     {% endif %}
 
     {{ ns.total | round(0) }}

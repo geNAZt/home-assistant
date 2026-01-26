@@ -11,57 +11,55 @@ sensor:
     {% set ns = namespace(total=0) %}
 
     
-    {# --- Generator-Ebene: Ermittle den spezifischen Faktor für diesen Raum --- #}
       
-    {# --- HA-Ebene: Berechnung Fenster 1 --- #}
     {% if ele > 0 and ((azi - 180 + 180) % 360 - 180) | abs < 90 %}
       {% set pos = 1.0 %}
-      {% set cos_factor = ((azi - 180) | deg2rad | cos) | abs %}
+      
+      {# Manuelle Umrechnung von Grad in Bogenmaß: Grad * (Pi / 180) #}
+      {% set cos_factor = ((azi - 180) * 0.0174532925) | cos | abs %}
       
       {% set direct_factor = 1.0 %}
-          {# Geometrischer Check: Ist die Sonne hinter dem Hindernis? #}
           {% if ele < 34.78 %}
             {% set direct_factor = 0.0 %}
           {% endif %}
-          {# Vordach-Logik #}
-          {% set shadow_h = 2.9 - (3.0 * (ele | deg2rad | tan)) %}
-          {% set sun_h = [0, [shadow_h, 1.98]|min - 0.0]|max %}
+          {# Hier nutzen wir ebenfalls die manuelle Umrechnung und den tan-Filter #}
+          {% set shadow_h = 2.9 - (3.0 * ((ele * 0.0174532925) | tan)) %}
+          {% set win_top = 1.98 %}
+          {% set win_bottom = 0.0 %}
+          {% set sun_h = [0, [shadow_h, win_top]|min - win_bottom]|max %}
           {% set direct_factor = [direct_factor, sun_h / 1.98] | min %}
 
-      {# Aufteilung der Energie #}
       {% set sun_part = [pos, direct_factor]|min %}
       {% set shade_part = [0, pos - direct_factor]|max %}
       
-      {# Finale Summe mit dem dynamischen Faktor 0.15 #}
       {% set sun_factor = sun_part + (shade_part * 0.15) %}
-      {% set ns.total = ns.total + (1.46916 * rad * cos_factor * sun_factor) %}
+      {% set ns.total = ns.total + (1.4692 * rad * cos_factor * sun_factor) %}
     {% endif %}
 
     
-    {# --- Generator-Ebene: Ermittle den spezifischen Faktor für diesen Raum --- #}
       
-    {# --- HA-Ebene: Berechnung Fenster 2 --- #}
     {% if ele > 0 and ((azi - 180 + 180) % 360 - 180) | abs < 90 %}
       {% set pos = 1.0 %}
-      {% set cos_factor = ((azi - 180) | deg2rad | cos) | abs %}
+      
+      {# Manuelle Umrechnung von Grad in Bogenmaß: Grad * (Pi / 180) #}
+      {% set cos_factor = ((azi - 180) * 0.0174532925) | cos | abs %}
       
       {% set direct_factor = 1.0 %}
-          {# Geometrischer Check: Ist die Sonne hinter dem Hindernis? #}
           {% if ele < 33.69 %}
             {% set direct_factor = 0.0 %}
           {% endif %}
-          {# Vordach-Logik #}
-          {% set shadow_h = 2.9 - (3.5 * (ele | deg2rad | tan)) %}
-          {% set sun_h = [0, [shadow_h, 1.98]|min - 0.0]|max %}
+          {# Hier nutzen wir ebenfalls die manuelle Umrechnung und den tan-Filter #}
+          {% set shadow_h = 2.9 - (3.5 * ((ele * 0.0174532925) | tan)) %}
+          {% set win_top = 1.98 %}
+          {% set win_bottom = 0.0 %}
+          {% set sun_h = [0, [shadow_h, win_top]|min - win_bottom]|max %}
           {% set direct_factor = [direct_factor, sun_h / 1.98] | min %}
 
-      {# Aufteilung der Energie #}
       {% set sun_part = [pos, direct_factor]|min %}
       {% set shade_part = [0, pos - direct_factor]|max %}
       
-      {# Finale Summe mit dem dynamischen Faktor 0.15 #}
       {% set sun_factor = sun_part + (shade_part * 0.15) %}
-      {% set ns.total = ns.total + (1.46916 * rad * cos_factor * sun_factor) %}
+      {% set ns.total = ns.total + (1.4692 * rad * cos_factor * sun_factor) %}
     {% endif %}
 
     {{ ns.total | round(0) }}
