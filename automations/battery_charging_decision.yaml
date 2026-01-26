@@ -10,7 +10,7 @@
     current_hour: "{{ now().hour }}"
     is_charge_window: >-
       {% set hour = current_hour | int(0) %}
-      {{ hour >= 0 and hour < 6 }}
+      {{ hour >= 0 and hour <= 6 }}
     
     battery_charge_enabled: "{{ is_state('binary_sensor.preheat_erlaubt_demand_weighted', 'on') }}"
 
