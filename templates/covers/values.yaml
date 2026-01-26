@@ -1,0 +1,150 @@
+- room: buero_fabian
+  windows:
+  - position:
+      bottom: 0.0
+    area: 
+      height: 2.0
+      width: 0.8
+    direction: south
+    g: 0.53
+    u: 0.7
+    cover: cover.rollade_buero_fabian
+    shading:
+    - name: Nachbarhaus
+      distance: 7.5
+      height: 8.7
+      direction: bottom
+- room: wohnzimmer
+  windows:
+  - position:
+      bottom: 0.0
+    area: 
+      height: 1.98
+      width: 1.4
+    direction: south
+    g: 0.53
+    u: 0.7
+    shading: 
+    - name: Nachbarhaus
+      distance: 7.2
+      height: 5.0
+      direction: bottom
+    - name: Vordach
+      distance: 3.0
+      height: 2.9
+      direction: top
+    cover: cover.rollade_wohnzimmer_links
+  - position:
+      bottom: 0.0
+    area: 
+      height: 1.98
+      width: 1.4
+    direction: south
+    g: 0.53
+    u: 0.7
+    shading: 
+    - name: Nachbarhaus
+      distance: 7.5
+      height: 5.0
+      direction: bottom
+    - name: Vordach
+      distance: 3.5
+      height: 2.9
+      direction: top
+    cover: cover.rollade_wohnzimmer_rechts
+- room: kueche
+  windows:
+  - position:
+      bottom: 0.0
+    area: 
+      height: 1.94
+      width: 1.5
+    direction: east
+    g: 0.53
+    u: 0.7
+    cover: cover.rollade_kueche_links
+    shading:
+    - name: Vordach
+      distance: 4.5
+      height: 2.9
+      direction: top
+  - position: 
+      bottom: 0.0
+    area: 
+      height: 2.09
+      width: 1.54
+    direction: south
+    g: 0.53
+    u: 0.7
+    cover: cover.rollade_kueche_rechts
+    shading:
+    - name: Nachbarhaus
+      distance: 4.2
+      height: 5.0
+      direction: bottom
+- room: speisekammer
+  windows:
+  - position:
+      bottom: 1.35
+    area: 
+      height: 0.75
+      width: 0.32
+    direction: west
+    g: 0.53
+    u: 0.7
+    cover: cover.rollade_speisekammer
+- room: hwr
+  windows:
+  - position:
+      bottom: 1.35
+    area: 
+      height: 0.75
+      width: 0.32
+    direction: north
+    g: 0.53
+    u: 0.7
+    cover: cover.rollade_hwr
+- room: bad
+  windows:
+  - position:
+      bottom: 1.35
+    area: 
+      height: 1.11
+      width: 0.82
+    direction: north
+    g: 0.53
+    u: 0.7
+    cover: cover.rollade_bad
+- room: schlafzimmer
+  windows:
+  - position:
+      bottom: 0.0
+    area: 
+      height: 2.0
+      width: 0.77
+    direction: north
+    g: 0.53
+    u: 0.7
+    cover: cover.rollade_schlafzimmer
+    shading:
+    - name: Nachbarhaus
+      distance: 4.2
+      height: 7.5
+      direction: bottom
+- room: buero_merja
+  windows:
+  - position:
+      bottom: 0.0
+    area: 
+      height: 2.09
+      width: 1.54
+    direction: east
+    g: 0.53
+    u: 0.7
+    cover: cover.rollade_buero_merja
+    shading:
+    - name: Bäume
+      distance: 10
+      height: 15
+      factor: 0.5
+      direction: bottom

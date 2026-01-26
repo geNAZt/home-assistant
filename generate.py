@@ -1,14 +1,10 @@
 #!/usr/bin/env python3
 """
 Template generator script for Home Assistant configuration.
-
-This script processes template files in the templates/ directory:
-- Reads values.yaml from each subfolder
-- Uses Jinja2 templating engine to template filenames and content
-- Generates output files with templated values
 """
 
 import os
+import math  # Neu: math modul importieren
 from pathlib import Path
 from typing import Dict, List, Any
 
@@ -24,6 +20,42 @@ except ImportError:
     print("Error: pyyaml package is required. Install it with: pip install pyyaml")
     exit(1)
 
+# ... (load_values bleibt gleich)
+
+def create_jinja_env() -> Environment:
+    """Create Jinja2 environment with custom delimiters and math functions."""
+    env = Environment(
+        loader=BaseLoader(),
+        variable_start_string='[[',
+        variable_end_string=']]',
+        block_start_string='[[%',
+        block_end_string='%]]',
+        comment_start_string='[[#',
+        comment_end_string='#]]',
+        trim_blocks=True,
+        lstrip_blocks=True
+    )
+    
+    # Registriere die mathematischen Funktionen für die Generator-Ebene
+    # Damit kannst du sie sowohl als Filter (x | atan) als auch als Funktion atan(x) nutzen
+    env.filters.update({
+        'atan': math.atan,
+        'tan': math.tan,
+        'cos': math.cos,
+        'sin': math.sin,
+        'rad2deg': math.degrees,
+        'deg2rad': math.radians,
+    })
+    
+    # Falls du sie lieber als globale Funktionen statt Filter nutzt:
+    env.globals.update({
+        'atan': math.atan,
+        'tan': math.tan,
+        'rad2deg': math.degrees,
+        'deg2rad': math.radians,
+    })
+    
+    return env
 
 def load_values(values_path: Path) -> List[Dict]:
     """Load values.yaml and return as list of dictionaries.
@@ -37,24 +69,6 @@ def load_values(values_path: Path) -> List[Dict]:
         return []
     
     return data
-
-
-def create_jinja_env() -> Environment:
-    """Create Jinja2 environment with custom delimiters to avoid conflicts with Home Assistant templates.
-    
-    Uses [[ and ]] for variables and [[% and %]] for blocks to avoid conflicts with Home Assistant's {{ and {% syntax.
-    """
-    return Environment(
-        loader=BaseLoader(),
-        variable_start_string='[[',
-        variable_end_string=']]',
-        block_start_string='[[%',
-        block_end_string='%]]',
-        comment_start_string='[[#',
-        comment_end_string='#]]',
-        trim_blocks=True,
-        lstrip_blocks=True
-    )
 
 
 def template_content(content: str, context: Dict[str, Any]) -> str:
