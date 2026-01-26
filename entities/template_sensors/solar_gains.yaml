@@ -1,3 +1,6 @@
+trigger:
+- platform: time_pattern
+  seconds: "/5"
 sensor:
   # --- SUMMEN-SENSOR (Korrigiert) ---
   - name: "Solar Gains"
@@ -6,4 +9,8 @@ sensor:
     device_class: power
     state_class: measurement
     state: >
-      0
+      {% set gains = states.sensor 
+              | selectattr('entity_id', 'search', '^sensor.solar_gain_[A-Za-z]+$') 
+              | map(attribute='state') | map('float')
+              | sum %}
+      {{ gains | round(0) }}
