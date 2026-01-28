@@ -89,7 +89,7 @@
     area: 
       height: 0.75
       width: 0.32
-    direction: west
+    direction: east
     g: 0.53
     u: 0.7
     cover: cover.rollade_speisekammer
@@ -138,7 +138,7 @@
     area: 
       height: 2.09
       width: 1.54
-    direction: east
+    direction: west
     g: 0.53
     u: 0.7
     cover: cover.rollade_buero_merja

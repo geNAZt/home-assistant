@@ -12,11 +12,11 @@ sensor:
 
 
       
-    {% if ele > 0 and ((azi - 270 + 180) % 360 - 180) | abs < 90 %}
+    {% if ele > 0 and ((azi - 90 + 180) % 360 - 180) | abs < 90 %}
       {% set pos = (state_attr('cover.rollade_speisekammer', 'current_position') | float(100) / 100) %}
       
       {# Manuelle Umrechnung: Grad * 0.0174532925 #}
-      {% set cos_factor = ((azi - 270) * 0.0174532925) | cos | abs %}
+      {% set cos_factor = ((azi - 90) * 0.0174532925) | cos | abs %}
       
       {% set direct_factor = 1.0 %}
 
