@@ -57,7 +57,8 @@ sensor:
         'sensor.heating_usage_buero_merja',
         'sensor.heating_usage_buero_fabian',
         'sensor.heating_usage_speisekammer',
-        'sensor.heating_usage_bad'
+        'sensor.heating_usage_bad',
+        'sensor.towel_dryer_energie'
       ] %}
       {{ src | select('in', src) | list
          | reject('equalto', none) | list
