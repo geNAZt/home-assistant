@@ -26,7 +26,8 @@ query: >
         OR sm.statistic_id IN (
           'sensor.water_heating_pump_usage',
           'sensor.water_cycling_pump_usage',
-          'sensor.shellyplus2pm_485519a264d8_switch_1_energy'
+          'sensor.shellyplus2pm_485519a264d8_switch_1_energy',
+          'sensor.towel_dryer_energie'
         )
       )
       AND sm.statistic_id NOT LIKE '%total%'
