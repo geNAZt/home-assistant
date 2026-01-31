@@ -1,0 +1,7 @@
+sensor:
+  - name: "Power Price NT Tibber"
+    unique_id: power_price_nt_tibber
+    unit_of_measurement: "€/kWh"
+    device_class: monetary
+    state: >
+      {{ states('input_number.tibber_price_dw_00_06') | float(0) }}

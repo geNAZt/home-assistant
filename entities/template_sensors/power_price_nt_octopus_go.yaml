@@ -1,0 +1,7 @@
+sensor:
+  - name: "Power Price NT Octopus Go"
+    unique_id: power_price_nt_octopus_go
+    unit_of_measurement: "€/kWh"
+    device_class: monetary
+    state: >
+      0.185

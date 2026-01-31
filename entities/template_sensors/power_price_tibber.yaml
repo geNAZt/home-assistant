@@ -1,0 +1,7 @@
+sensor:
+  - name: "Power Price Tibber"
+    unique_id: power_price_tibber
+    unit_of_measurement: "€/kWh"
+    device_class: monetary
+    state: >
+      {{ states('sensor.backerstrasse_3b_strompreis') | float(0) }}

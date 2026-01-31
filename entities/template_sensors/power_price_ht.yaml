@@ -1,0 +1,11 @@
+sensor:
+  - name: "Power Price HT"
+    unique_id: power_price_ht
+    unit_of_measurement: "€/kWh"
+    device_class: monetary
+    state: >
+      {% if states('input_select.power_provider') == 'Octopus Go' %}
+        {{ states('sensor.power_price_ht_octopus_go') | float(0) }}
+      {% elif states('input_select.power_provider') == 'Tibber' %}
+        {{ states('sensor.power_price_ht_tibber') | float(0) }}
+      {% endif %}

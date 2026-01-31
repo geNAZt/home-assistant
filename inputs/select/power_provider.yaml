@@ -1,0 +1,5 @@
+name: Power Provider
+options:
+  - Octopus Go
+  - Tibber
+initial: Tibber

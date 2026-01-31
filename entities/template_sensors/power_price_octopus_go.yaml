@@ -1,0 +1,15 @@
+trigger:
+  - platform: time_pattern
+    minutes: "/15" # Based on day ahead market timer
+sensor:
+  - name: "Power Price Octopus Go"
+    unique_id: power_price_octopus_go
+    unit_of_measurement: "€/kWh"
+    device_class: monetary
+    state: >
+      {% set hour = now().hour %}
+      {% if hour < 6 %}
+        0.185
+      {% else %}
+        0.285
+      {% endif %}
