@@ -1,6 +1,0 @@
-platform: integration
-source: sensor.solaredge_solar_energie
-name: solar_pv_generation
-method: left
-max_sub_interval:
-  seconds: 30
