@@ -10,6 +10,7 @@ recorder:
       - sensor.pv_m1_ac_pf*
       - sensor.pv_m1_ac_voltage_*
       - sensor.goe_288025_nrg_*
+      - sensor.suthi_*
     entities:
       - automation.car_battery_charger_pgrid_update
       - sensor.pv_m1_ac_power_a
