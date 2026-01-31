@@ -10,7 +10,7 @@ sensor:
     state_class: measurement
     state: >
       {% set gains = states.sensor 
-              | selectattr('entity_id', 'search', '^sensor.solar_gain_[A-Za-z]+$') 
+              | selectattr('entity_id', 'search', '^sensor.solar_gain_[A-Za-z_]+$') 
               | map(attribute='state') | map('float')
               | sum %}
       {{ gains | round(0) }}
