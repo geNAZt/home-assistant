@@ -10,8 +10,8 @@ sensor:
     {% set offset = states('sensor.heating_preheat_offset_dynamic') | float(0) %}
     
     {# 2. Preise (Euro/kWh) #}
-    {% set p_low = states('input_number.tibber_price_dw_00_06') | float(0.20) %}
-    {% set p_high = states('input_number.tibber_price_dw_06_24') | float(0.35) %}
+    {% set p_low = states('sensor.power_price_nt') | float(0.20) %}
+    {% set p_high = states('sensor.power_price_ht') | float(0.35) %}
     
     {# 3. Zeitraum der Überbrückung (z.B. 14h von 08:00 bis 22:00) #}
     {% set dt = 22 - 6 %}
