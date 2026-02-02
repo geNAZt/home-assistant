@@ -29,7 +29,7 @@ sensor:
         {% set i_l2 = (states('sensor.goe_288025_nrg_8') | float(0)) / (states('sensor.pv_ac_voltage_bn') | float(230)) %}
         {% set i_l3 = (states('sensor.goe_288025_nrg_9') | float(0)) / (states('sensor.pv_ac_voltage_cn') | float(230)) %}
 
-        {% set P_loss_total = (i_l1**2 * R_per_phase) + (i_l2**2 * R_per_phase) + (i_l3**2 * R_per_phase) %}
+        {% set P_loss_total = (i_l1**2 * R_per_phase) + (i_l2**2 * R_per_phase) + (i_l3**2 * R_per_phase) + p %}
         {{ P_loss_total | round(1) }}
       {% else %}
         0.0
