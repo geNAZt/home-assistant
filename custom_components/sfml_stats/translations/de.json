@@ -1,0 +1,274 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "SFML Stats - Willkommen",
+        "description": "Willkommen bei SFML Stats!\n\nDiese Integration erfasst deine Solarproduktion, Batterie, Netzbezug und berechnet Kosten.\n\nKlicke WEITER um deine Sensoren zu konfigurieren.",
+        "data": {},
+        "data_description": {}
+      },
+      "sensors": {
+        "title": "Sensor-Konfiguration",
+        "description": "Konfiguriere alle Sensor-Zuordnungen. Lasse leer wenn nicht verfügbar.\n\n**Benötigte Einheiten:**\n- Leistung: Watt (W)\n- Energie: kWh (mit täglichem Reset)\n- SOC: Prozent (0-100)\n- Preis: ct/kWh",
+        "data": {
+          "sensor_solar_power": "PV-Leistung (W)",
+          "sensor_solar_to_house": "Solar → Haus (W)",
+          "sensor_solar_to_battery": "Solar → Batterie (W)",
+          "sensor_solar_yield_daily": "Solarertrag heute (kWh)",
+          "sensor_grid_to_house": "Netz → Haus (W)",
+          "sensor_grid_to_battery": "Netz → Batterie (W)",
+          "sensor_house_to_grid": "Einspeisung (W)",
+          "sensor_grid_import_daily": "Netzbezug heute (kWh)",
+          "sensor_grid_import_yearly": "Netzbezug Jahr (kWh)",
+          "sensor_smartmeter_import": "Smartmeter Bezug (W)",
+          "sensor_smartmeter_export": "Smartmeter Einspeisung (W)",
+          "sensor_battery_soc": "Batterie SOC (%)",
+          "sensor_battery_power": "Batterie-Leistung (W)",
+          "sensor_battery_to_house": "Batterie → Haus (W)",
+          "sensor_battery_to_grid": "Batterie → Netz (W)",
+          "sensor_battery_charge_solar_daily": "Solar-Ladung heute (kWh)",
+          "sensor_battery_charge_grid_daily": "Netz-Ladung heute (kWh)",
+          "sensor_home_consumption": "Hausverbrauch (W)",
+          "sensor_price_total": "Strompreis aktuell (ct/kWh)",
+          "weather_entity": "Wetter-Entity"
+        },
+        "data_description": {
+          "sensor_solar_power": "Gesamte PV-Leistung in Watt (W). Aktueller Wert vom Wechselrichter.",
+          "sensor_solar_to_house": "Solar-Direktverbrauch in Watt (W). Leistung die direkt ins Haus fließt.",
+          "sensor_solar_to_battery": "Solar-Batterieladung in Watt (W). Leistung die in die Batterie lädt.",
+          "sensor_solar_yield_daily": "Tagesertrag in kWh. Nutze utility_meter mit täglichem Reset.",
+          "sensor_grid_to_house": "Netzbezug Haus in Watt (W). Strom der vom Netz bezogen wird.",
+          "sensor_grid_to_battery": "Netzbezug Batterie in Watt (W). Netzstrom für Batterieladung.",
+          "sensor_house_to_grid": "Netz-Einspeisung in Watt (W). Überschuss der ins Netz fließt.",
+          "sensor_grid_import_daily": "Tages-Netzbezug in kWh. Nutze utility_meter mit täglichem Reset.",
+          "sensor_grid_import_yearly": "Jahres-Netzbezug in kWh. Gesamt-Bezug im Kalenderjahr.",
+          "sensor_smartmeter_import": "Smartmeter Bezug in Watt (W). Aktueller Bezug vom Zähler.",
+          "sensor_smartmeter_export": "Smartmeter Export in Watt (W). Aktuelle Einspeisung am Zähler.",
+          "sensor_battery_soc": "Ladestand in Prozent (0-100%). State of Charge der Batterie.",
+          "sensor_battery_power": "Batterie-Leistung in Watt (W). Positiv=Laden, Negativ=Entladen.",
+          "sensor_battery_to_house": "Batterie-Entladung in Watt (W). Leistung die ans Haus geht.",
+          "sensor_battery_to_grid": "Batterie-Einspeisung in Watt (W). Leistung die ins Netz geht.",
+          "sensor_battery_charge_solar_daily": "Solar-Ladung heute in kWh. Nutze utility_meter mit täglichem Reset.",
+          "sensor_battery_charge_grid_daily": "Netz-Ladung heute in kWh. Nutze utility_meter mit täglichem Reset.",
+          "sensor_home_consumption": "Gesamter Hausverbrauch in Watt (W). Alle Verbraucher zusammen.",
+          "sensor_price_total": "Aktueller Strompreis in ct/kWh. Von Tibber, aWATTar, etc.",
+          "weather_entity": "Home Assistant Wetter-Integration (weather.xxx)."
+        }
+      },
+      "helpers": {
+        "title": "Fehlende kWh-Sensoren",
+        "description": "**{missing_count}** tägliche kWh-Sensor(en) fehlen:\n\n**{missing_sensors}**\n\nDiese können aus deinen Watt-Sensoren erstellt werden.\n\n**So geht's:**\n1. Gehe zu Einstellungen → Geräte & Dienste → Helfer\n2. Erstelle einen \"Riemann-Summen-Integral\" Sensor (W → kWh)\n3. Erstelle einen \"Verbrauchszähler\" mit täglichem Reset\n\nOder füge folgendes zu configuration.yaml hinzu:\n\n```yaml\n{yaml_config}\n```",
+        "data": {
+          "show_yaml": "Ich habe die YAML-Konfiguration kopiert"
+        },
+        "data_description": {
+          "show_yaml": "Bestätige um fortzufahren. Du kannst die Sensoren auch später erstellen."
+        }
+      },
+      "settings": {
+        "title": "Einstellungen",
+        "description": "Automatische Reports und Abrechnung konfigurieren.",
+        "data": {
+          "auto_generate": "Automatische Report-Generierung",
+          "theme": "Farbschema",
+          "billing_start_month": "Abrechnungs-Startmonat",
+          "billing_start_day": "Abrechnungs-Starttag",
+          "billing_fixed_price": "Fallback-Strompreis (ct/kWh)",
+          "feed_in_tariff": "Einspeisevergütung (ct/kWh)"
+        },
+        "data_description": {
+          "auto_generate": "Wöchentliche und monatliche Reports automatisch erstellen",
+          "theme": "Dark oder Light Theme für Charts",
+          "billing_start_month": "Monat in dem dein Abrechnungsjahr beginnt",
+          "billing_start_day": "Tag an dem dein Abrechnungsjahr beginnt",
+          "billing_fixed_price": "Wird verwendet wenn Grid Price Monitor keinen Preis liefert",
+          "feed_in_tariff": "EEG-Vergütung in Cent pro kWh"
+        }
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "SFML Stats ist bereits konfiguriert.",
+      "raspberry_pi_not_supported": "Installation auf Raspberry Pi wird nicht unterstützt. Die Integration verwendet matplotlib für Chart-Generierung, was auf Raspberry Pi zu Performance-Problemen führt. Bitte verwende ein leistungsstärkeres System.",
+      "proxmox_not_recommended": "Installation auf Proxmox VE Host erkannt. Home Assistant sollte in einer VM oder LXC-Container laufen, nicht direkt auf dem Proxmox-Host."
+    },
+    "error": {
+      "cannot_connect": "Verbindung fehlgeschlagen",
+      "unknown": "Unbekannter Fehler"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "SFML Stats Optionen",
+        "description": "Wähle eine Kategorie zum Konfigurieren.",
+        "data": {
+          "menu_choice": "Kategorie"
+        },
+        "menu_options": {
+          "sensors": "Sensoren",
+          "consumers": "Verbraucher (WP, Heizstab, Wallbox)",
+          "settings": "Einstellungen",
+          "advanced": "Erweitert"
+        }
+      },
+      "sensors": {
+        "title": "Alle Sensoren",
+        "description": "Alle Sensor-Zuordnungen konfigurieren.\n\n**Benötigte Einheiten:**\n- Leistung: Watt (W)\n- Energie: kWh (mit täglichem Reset)\n- SOC: Prozent (0-100)\n- Preis: ct/kWh",
+        "data": {
+          "sensor_solar_power": "PV-Leistung (W)",
+          "sensor_solar_to_house": "Solar → Haus (W)",
+          "sensor_solar_to_battery": "Solar → Batterie (W)",
+          "sensor_solar_yield_daily": "Solarertrag heute (kWh)",
+          "sensor_grid_to_house": "Netz → Haus (W)",
+          "sensor_grid_to_battery": "Netz → Batterie (W)",
+          "sensor_house_to_grid": "Einspeisung (W)",
+          "sensor_grid_import_daily": "Netzbezug heute (kWh)",
+          "sensor_grid_import_yearly": "Netzbezug Jahr (kWh)",
+          "sensor_smartmeter_import": "Smartmeter Bezug (W)",
+          "sensor_smartmeter_export": "Smartmeter Einspeisung (W)",
+          "sensor_battery_soc": "Batterie SOC (%)",
+          "sensor_battery_power": "Batterie-Leistung (W)",
+          "sensor_battery_to_house": "Batterie → Haus (W)",
+          "sensor_battery_to_grid": "Batterie → Netz (W)",
+          "sensor_battery_charge_solar_daily": "Solar-Ladung heute (kWh)",
+          "sensor_battery_charge_grid_daily": "Netz-Ladung heute (kWh)",
+          "sensor_home_consumption": "Hausverbrauch (W)",
+          "sensor_price_total": "Strompreis aktuell (ct/kWh)",
+          "weather_entity": "Wetter-Entity"
+        },
+        "data_description": {
+          "sensor_solar_power": "Gesamte PV-Leistung in Watt (W). Aktueller Wert vom Wechselrichter.",
+          "sensor_solar_to_house": "Solar-Direktverbrauch in Watt (W). Leistung die direkt ins Haus fließt.",
+          "sensor_solar_to_battery": "Solar-Batterieladung in Watt (W). Leistung die in die Batterie lädt.",
+          "sensor_solar_yield_daily": "Tagesertrag in kWh. Nutze utility_meter mit täglichem Reset.",
+          "sensor_grid_to_house": "Netzbezug Haus in Watt (W). Strom der vom Netz bezogen wird.",
+          "sensor_grid_to_battery": "Netzbezug Batterie in Watt (W). Netzstrom für Batterieladung.",
+          "sensor_house_to_grid": "Netz-Einspeisung in Watt (W). Überschuss der ins Netz fließt.",
+          "sensor_grid_import_daily": "Tages-Netzbezug in kWh. Nutze utility_meter mit täglichem Reset.",
+          "sensor_grid_import_yearly": "Jahres-Netzbezug in kWh. Gesamt-Bezug im Kalenderjahr.",
+          "sensor_smartmeter_import": "Smartmeter Bezug in Watt (W). Aktueller Bezug vom Zähler.",
+          "sensor_smartmeter_export": "Smartmeter Export in Watt (W). Aktuelle Einspeisung am Zähler.",
+          "sensor_battery_soc": "Ladestand in Prozent (0-100%). State of Charge der Batterie.",
+          "sensor_battery_power": "Batterie-Leistung in Watt (W). Positiv=Laden, Negativ=Entladen.",
+          "sensor_battery_to_house": "Batterie-Entladung in Watt (W). Leistung die ans Haus geht.",
+          "sensor_battery_to_grid": "Batterie-Einspeisung in Watt (W). Leistung die ins Netz geht.",
+          "sensor_battery_charge_solar_daily": "Solar-Ladung heute in kWh. Nutze utility_meter mit täglichem Reset.",
+          "sensor_battery_charge_grid_daily": "Netz-Ladung heute in kWh. Nutze utility_meter mit täglichem Reset.",
+          "sensor_home_consumption": "Gesamter Hausverbrauch in Watt (W). Alle Verbraucher zusammen.",
+          "sensor_price_total": "Aktueller Strompreis in ct/kWh. Von Tibber, aWATTar, etc.",
+          "weather_entity": "Home Assistant Wetter-Integration (weather.xxx)."
+        }
+      },
+      "consumers": {
+        "title": "Verbraucher-Sensoren (Optional)",
+        "description": "Konfiguriere Sensoren für zusätzliche Verbraucher.\n\nDiese sind OPTIONAL - nur konfigurieren wenn du diese Geräte hast.\n\n**Benötigte Einheiten:**\n- Leistung: Watt (W)\n- Energie: kWh (mit täglichem Reset)\n- COP: Dezimalzahl (z.B. 3.5)\n- Status: Text (charging/idle)",
+        "data": {
+          "sensor_heatpump_power": "Wärmepumpe Leistung (W)",
+          "sensor_heatpump_daily": "Wärmepumpe heute (kWh)",
+          "sensor_heatpump_cop": "Wärmepumpe COP",
+          "sensor_heatingrod_power": "Heizstab Leistung (W)",
+          "sensor_heatingrod_daily": "Heizstab heute (kWh)",
+          "sensor_wallbox_power": "Wallbox Leistung (W)",
+          "sensor_wallbox_daily": "Wallbox heute (kWh)",
+          "sensor_wallbox_state": "Wallbox Status"
+        },
+        "data_description": {
+          "sensor_heatpump_power": "Aktuelle WP-Leistung in Watt (W). Live-Verbrauch der Wärmepumpe.",
+          "sensor_heatpump_daily": "WP-Tagesverbrauch in kWh. Nutze utility_meter mit täglichem Reset.",
+          "sensor_heatpump_cop": "COP-Sensor als Dezimalzahl (z.B. 3.5). Fallback: 3.5 wenn leer.",
+          "sensor_heatingrod_power": "Aktuelle Heizstab-Leistung in Watt (W). Live-Verbrauch.",
+          "sensor_heatingrod_daily": "Heizstab-Tagesverbrauch in kWh. Nutze utility_meter mit täglichem Reset.",
+          "sensor_wallbox_power": "Aktuelle Ladeleistung in Watt (W). Live-Leistung der Wallbox.",
+          "sensor_wallbox_daily": "Wallbox-Tagesverbrauch in kWh. Nutze utility_meter mit täglichem Reset.",
+          "sensor_wallbox_state": "Status-Sensor mit Text: 'charging' = lädt, 'idle' = bereit."
+        }
+      },
+      "settings": {
+        "title": "Einstellungen",
+        "description": "Reports, Theme und Abrechnung konfigurieren.",
+        "data": {
+          "auto_generate": "Automatische Generierung",
+          "generate_weekly": "Wöchentliche Reports",
+          "generate_monthly": "Monatliche Reports",
+          "theme": "Farbschema",
+          "billing_start_month": "Abrechnungs-Startmonat",
+          "billing_start_day": "Abrechnungs-Starttag",
+          "billing_fixed_price": "Fallback-Strompreis (ct/kWh)",
+          "feed_in_tariff": "Einspeisevergütung (ct/kWh)"
+        },
+        "data_description": {
+          "auto_generate": "Reports automatisch nach Zeitplan generieren",
+          "generate_weekly": "Jeden Sonntag einen Wochenbericht erstellen",
+          "generate_monthly": "Am 1. jeden Monats einen Monatsbericht erstellen",
+          "theme": "Dark oder Light Theme für die Charts",
+          "billing_start_month": "Monat in dem dein Abrechnungsjahr beginnt",
+          "billing_start_day": "Tag an dem dein Abrechnungsjahr beginnt",
+          "billing_fixed_price": "Wird verwendet wenn Grid Price Monitor keinen Preis liefert",
+          "feed_in_tariff": "EEG-Vergütung in Cent pro kWh"
+        }
+      },
+      "advanced": {
+        "title": "Erweiterte Optionen",
+        "description": "Zusätzliche Konfigurationsoptionen.",
+        "data": {
+          "menu_choice": "Option"
+        },
+        "menu_options": {
+          "panels": "PV-Panels",
+          "panel_group_names": "Panel-Gruppen Namen",
+          "forecast_comparison": "Prognose-Vergleich"
+        }
+      },
+      "panels": {
+        "title": "PV-Panel Sensoren",
+        "description": "Konfiguriere bis zu 4 individuelle PV-Panels/Strings.\n\n**Benötigte Einheit:** Watt (W)",
+        "data": {
+          "panel1_name": "Panel 1 Name",
+          "sensor_panel1_power": "Panel 1 Leistung (W)",
+          "panel2_name": "Panel 2 Name",
+          "sensor_panel2_power": "Panel 2 Leistung (W)",
+          "panel3_name": "Panel 3 Name",
+          "sensor_panel3_power": "Panel 3 Leistung (W)",
+          "panel4_name": "Panel 4 Name",
+          "sensor_panel4_power": "Panel 4 Leistung (W)"
+        },
+        "data_description": {
+          "panel1_name": "Anzeigename für Panel/String 1 (z.B. 'Süd', 'Ost').",
+          "sensor_panel1_power": "Live-Leistung in Watt (W). Aktueller Wert vom Wechselrichter.",
+          "panel2_name": "Anzeigename für Panel/String 2.",
+          "sensor_panel2_power": "Live-Leistung in Watt (W). Aktueller Wert vom Wechselrichter.",
+          "panel3_name": "Anzeigename für Panel/String 3.",
+          "sensor_panel3_power": "Live-Leistung in Watt (W). Aktueller Wert vom Wechselrichter.",
+          "panel4_name": "Anzeigename für Panel/String 4.",
+          "sensor_panel4_power": "Live-Leistung in Watt (W). Aktueller Wert vom Wechselrichter."
+        }
+      },
+      "panel_group_names": {
+        "title": "Panel-Gruppen Namen",
+        "description": "Format: OriginalName=NeuerName (kommagetrennt)\n\nBeispiel: {example}",
+        "data": {
+          "panel_group_names_input": "Namens-Mapping"
+        },
+        "data_description": {
+          "panel_group_names_input": "Umbenennung von Panel-Gruppen. Format: Alt=Neu,Alt2=Neu2"
+        }
+      },
+      "forecast_comparison": {
+        "title": "Prognose-Vergleich",
+        "description": "Konfiguriere bis zu 2 externe Prognose-Entitäten für den 7-Tage-Vergleichsgraph.\n\n**Benötigte Einheit:** kWh (Tagesprognose)",
+        "data": {
+          "forecast_entity_1": "Prognose 1 (Entity ID)",
+          "forecast_entity_1_name": "Name für Prognose 1",
+          "forecast_entity_2": "Prognose 2 (Entity ID)",
+          "forecast_entity_2_name": "Name für Prognose 2"
+        },
+        "data_description": {
+          "forecast_entity_1": "Sensor mit Tagesprognose in kWh (z.B. sensor.solcast_forecast_today).",
+          "forecast_entity_1_name": "Anzeigename im Chart (z.B. 'Solcast').",
+          "forecast_entity_2": "Sensor mit Tagesprognose in kWh (z.B. sensor.forecast_solar_energy_today).",
+          "forecast_entity_2_name": "Anzeigename im Chart (z.B. 'Forecast.Solar')."
+        }
+      }
+    }
+  }
+}

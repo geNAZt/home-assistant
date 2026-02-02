@@ -1,0 +1,16 @@
+{
+  "version": "1.1",
+  "weights": {
+    "open_meteo": 0.5,
+    "wwo": 0.5
+  },
+  "learning_metadata": {
+    "last_updated": null,
+    "last_learning_date": null,
+    "last_mae": {},
+    "comparison_hours": 0,
+    "smoothing_factor_used": 0.3,
+    "smoothing_factor_default": 0.3,
+    "accelerated_learning": false
+  }
+}

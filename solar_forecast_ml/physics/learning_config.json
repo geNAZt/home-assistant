@@ -1,0 +1,35 @@
+{
+  "version": "3.0",
+  "updated_at": "2026-02-02T11:58:44.281986",
+  "physics_defaults": {
+    "albedo": 0.2,
+    "system_efficiency": 0.9,
+    "learned_efficiency_factor": 1.0
+  },
+  "group_calibration": {},
+  "metadata": {
+    "rolling_window_days": 21,
+    "min_samples": 1,
+    "total_groups": 0,
+    "total_bucket_factors": 0,
+    "weather_buckets": [
+      "clear",
+      "clear_low_sun",
+      "fair",
+      "fair_low_sun",
+      "cloudy",
+      "cloudy_low_sun",
+      "overcast",
+      "rainy",
+      "rainy_low_sun",
+      "snowy",
+      "snowing",
+      "snowing_low_sun",
+      "fog",
+      "fog_low_sun",
+      "frost",
+      "frost_low_sun"
+    ],
+    "frost_migration_completed": true
+  }
+}

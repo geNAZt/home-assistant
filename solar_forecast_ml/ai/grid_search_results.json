@@ -1,0 +1,10 @@
+{
+  "success": false,
+  "best_params": null,
+  "best_accuracy": null,
+  "all_results": [],
+  "duration_seconds": null,
+  "error_message": null,
+  "hardware_info": null,
+  "timestamp": null
+}

@@ -1,0 +1,95 @@
+{
+  "version": "1.1",
+  "weights": {
+    "clear": {
+      "open_meteo": 0.15,
+      "wttr_in": 0.1,
+      "ecmwf_layers": 0.15,
+      "bright_sky": 0.35,
+      "pirate_weather": 0.25
+    },
+    "cirrus": {
+      "open_meteo": 0.1,
+      "wttr_in": 0.1,
+      "ecmwf_layers": 0.3,
+      "bright_sky": 0.3,
+      "pirate_weather": 0.2
+    },
+    "fair": {
+      "open_meteo": 0.15,
+      "wttr_in": 0.1,
+      "ecmwf_layers": 0.15,
+      "bright_sky": 0.35,
+      "pirate_weather": 0.25
+    },
+    "mixed": {
+      "open_meteo": 0.15,
+      "wttr_in": 0.1,
+      "ecmwf_layers": 0.15,
+      "bright_sky": 0.3,
+      "pirate_weather": 0.3
+    },
+    "stratus": {
+      "open_meteo": 0.2,
+      "wttr_in": 0.2,
+      "ecmwf_layers": 0.35,
+      "bright_sky": 0.25,
+      "pirate_weather": 0.0
+    },
+    "overcast": {
+      "open_meteo": 0.1,
+      "wttr_in": 0.1,
+      "ecmwf_layers": 0.1,
+      "bright_sky": 0.4,
+      "pirate_weather": 0.3
+    },
+    "snow": {
+      "open_meteo": 0.2,
+      "wttr_in": 0.2,
+      "ecmwf_layers": 0.2,
+      "bright_sky": 0.2,
+      "pirate_weather": 0.2
+    },
+    "fog": {
+      "open_meteo": 0.1,
+      "wttr_in": 0.05,
+      "ecmwf_layers": 0.05,
+      "bright_sky": 0.5,
+      "pirate_weather": 0.3
+    },
+    "fog_light": {
+      "open_meteo": 0.15,
+      "wttr_in": 0.1,
+      "ecmwf_layers": 0.1,
+      "bright_sky": 0.4,
+      "pirate_weather": 0.25
+    }
+  },
+  "metadata": {
+    "last_updated": null,
+    "experts": [
+      "open_meteo",
+      "wttr_in",
+      "ecmwf_layers",
+      "bright_sky",
+      "pirate_weather"
+    ],
+    "cloud_types": [
+      "clear",
+      "cirrus",
+      "fair",
+      "mixed",
+      "stratus",
+      "overcast",
+      "snow",
+      "fog",
+      "fog_light"
+    ]
+  },
+  "snow_prediction_stats": {
+    "total_predictions": 0,
+    "correct_predictions": 0,
+    "accuracy": 0.0,
+    "last_updated": null
+  }
+}

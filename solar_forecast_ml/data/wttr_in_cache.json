@@ -1,0 +1,235 @@
+{
+  "version": "1.0",
+  "metadata": {
+    "fetched_at": "2026-02-02T11:58:47.850563",
+    "source": "wttr.in",
+    "latitude": 52.36948782131487,
+    "longitude": 9.750484228134157,
+    "cache_max_age_hours": 6,
+    "retention_days": 730
+  },
+  "forecast": {
+    "2026-02-02": {
+      "0": {
+        "cloud_cover": 100.0,
+        "temperature": -2.0,
+        "humidity": 92.0,
+        "wind_speed": 4.444444444444445,
+        "precipitation": 0.0,
+        "pressure": 1011.0,
+        "source": "wttr.in-wwo"
+      },
+      "3": {
+        "cloud_cover": 100.0,
+        "temperature": -3.0,
+        "humidity": 89.0,
+        "wind_speed": 5.0,
+        "precipitation": 0.0,
+        "pressure": 1010.0,
+        "source": "wttr.in-wwo"
+      },
+      "6": {
+        "cloud_cover": 91.0,
+        "temperature": -4.0,
+        "humidity": 85.0,
+        "wind_speed": 5.0,
+        "precipitation": 0.0,
+        "pressure": 1009.0,
+        "source": "wttr.in-wwo"
+      },
+      "9": {
+        "cloud_cover": 48.0,
+        "temperature": -5.0,
+        "humidity": 84.0,
+        "wind_speed": 5.555555555555555,
+        "precipitation": 0.0,
+        "pressure": 1009.0,
+        "source": "wttr.in-wwo"
+      },
+      "12": {
+        "cloud_cover": 61.0,
+        "temperature": -4.0,
+        "humidity": 82.0,
+        "wind_speed": 6.111111111111111,
+        "precipitation": 0.0,
+        "pressure": 1009.0,
+        "source": "wttr.in-wwo"
+      },
+      "15": {
+        "cloud_cover": 86.0,
+        "temperature": -4.0,
+        "humidity": 83.0,
+        "wind_speed": 6.388888888888888,
+        "precipitation": 0.0,
+        "pressure": 1008.0,
+        "source": "wttr.in-wwo"
+      },
+      "18": {
+        "cloud_cover": 38.0,
+        "temperature": -5.0,
+        "humidity": 82.0,
+        "wind_speed": 6.666666666666666,
+        "precipitation": 0.0,
+        "pressure": 1008.0,
+        "source": "wttr.in-wwo"
+      },
+      "21": {
+        "cloud_cover": 14.0,
+        "temperature": -6.0,
+        "humidity": 78.0,
+        "wind_speed": 6.666666666666666,
+        "precipitation": 0.0,
+        "pressure": 1009.0,
+        "source": "wttr.in-wwo"
+      }
+    },
+    "2026-02-03": {
+      "0": {
+        "cloud_cover": 21.0,
+        "temperature": -7.0,
+        "humidity": 77.0,
+        "wind_speed": 6.388888888888888,
+        "precipitation": 0.0,
+        "pressure": 1009.0,
+        "source": "wttr.in-wwo"
+      },
+      "3": {
+        "cloud_cover": 22.0,
+        "temperature": -7.0,
+        "humidity": 77.0,
+        "wind_speed": 6.944444444444445,
+        "precipitation": 0.0,
+        "pressure": 1008.0,
+        "source": "wttr.in-wwo"
+      },
+      "6": {
+        "cloud_cover": 36.0,
+        "temperature": -8.0,
+        "humidity": 82.0,
+        "wind_speed": 7.222222222222222,
+        "precipitation": 0.0,
+        "pressure": 1007.0,
+        "source": "wttr.in-wwo"
+      },
+      "9": {
+        "cloud_cover": 75.0,
+        "temperature": -8.0,
+        "humidity": 83.0,
+        "wind_speed": 7.777777777777778,
+        "precipitation": 0.0,
+        "pressure": 1007.0,
+        "source": "wttr.in-wwo"
+      },
+      "12": {
+        "cloud_cover": 76.0,
+        "temperature": -5.0,
+        "humidity": 81.0,
+        "wind_speed": 6.944444444444445,
+        "precipitation": 0.0,
+        "pressure": 1009.0,
+        "source": "wttr.in-wwo"
+      },
+      "15": {
+        "cloud_cover": 89.0,
+        "temperature": -3.0,
+        "humidity": 81.0,
+        "wind_speed": 7.5,
+        "precipitation": 0.0,
+        "pressure": 1007.0,
+        "source": "wttr.in-wwo"
+      },
+      "18": {
+        "cloud_cover": 100.0,
+        "temperature": -3.0,
+        "humidity": 87.0,
+        "wind_speed": 7.222222222222222,
+        "precipitation": 0.4,
+        "pressure": 1007.0,
+        "source": "wttr.in-wwo"
+      },
+      "21": {
+        "cloud_cover": 100.0,
+        "temperature": -4.0,
+        "humidity": 94.0,
+        "wind_speed": 6.666666666666666,
+        "precipitation": 0.6,
+        "pressure": 1007.0,
+        "source": "wttr.in-wwo"
+      }
+    },
+    "2026-02-04": {
+      "0": {
+        "cloud_cover": 100.0,
+        "temperature": -3.0,
+        "humidity": 96.0,
+        "wind_speed": 5.555555555555555,
+        "precipitation": 0.7,
+        "pressure": 1007.0,
+        "source": "wttr.in-wwo"
+      },
+      "3": {
+        "cloud_cover": 96.0,
+        "temperature": -2.0,
+        "humidity": 94.0,
+        "wind_speed": 4.722222222222222,
+        "precipitation": 0.0,
+        "pressure": 1006.0,
+        "source": "wttr.in-wwo"
+      },
+      "6": {
+        "cloud_cover": 89.0,
+        "temperature": -4.0,
+        "humidity": 95.0,
+        "wind_speed": 3.611111111111111,
+        "precipitation": 0.0,
+        "pressure": 1006.0,
+        "source": "wttr.in-wwo"
+      },
+      "9": {
+        "cloud_cover": 27.0,
+        "temperature": -4.0,
+        "humidity": 94.0,
+        "wind_speed": 3.611111111111111,
+        "precipitation": 0.0,
+        "pressure": 1007.0,
+        "source": "wttr.in-wwo"
+      },
+      "12": {
+        "cloud_cover": 13.0,
+        "temperature": 0.0,
+        "humidity": 94.0,
+        "wind_speed": 3.333333333333333,
+        "precipitation": 0.0,
+        "pressure": 1007.0,
+        "source": "wttr.in-wwo"
+      },
+      "15": {
+        "cloud_cover": 42.0,
+        "temperature": 1.0,
+        "humidity": 96.0,
+        "wind_speed": 3.611111111111111,
+        "precipitation": 0.0,
+        "pressure": 1005.0,
+        "source": "wttr.in-wwo"
+      },
+      "18": {
+        "cloud_cover": 41.0,
+        "temperature": -1.0,
+        "humidity": 93.0,
+        "wind_speed": 4.444444444444445,
+        "precipitation": 0.0,
+        "pressure": 1006.0,
+        "source": "wttr.in-wwo"
+      },
+      "21": {
+        "cloud_cover": 30.0,
+        "temperature": -2.0,
+        "humidity": 91.0,
+        "wind_speed": 5.0,
+        "precipitation": 0.0,
+        "pressure": 1005.0,
+        "source": "wttr.in-wwo"
+      }
+    }
+  }
+}

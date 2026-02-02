@@ -1,0 +1,16 @@
+{
+  "version": "1.2",
+  "metadata": {
+    "created_at": null,
+    "last_updated": null,
+    "frost_detection_version": "correlation_enhanced"
+  },
+  "hourly_data": {},
+  "snow_tracking": {
+    "last_snow_event": null,
+    "estimated_depth_mm": 0.0,
+    "panels_covered_since": null,
+    "melt_started_at": null,
+    "above_threshold_since": null
+  }
+}
