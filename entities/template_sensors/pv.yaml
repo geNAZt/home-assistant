@@ -47,6 +47,7 @@ sensor:
 - name: "Solar Panel Production W"
   unique_id: solar_panel_production_w
   unit_of_measurement: 'W'
+  device_class: power
   icon: mdi:solar-power
   state: >  
     {% if ((states('sensor.pv_dc_power') | float(0)) + (states('sensor.pv_battery1_power') | float(0)) <= 0) %}
@@ -59,6 +60,7 @@ sensor:
 - name: "Solar Panel To House W"
   unique_id: solar_panel_to_house_w
   unit_of_measurement: 'W'
+  device_class: power
   icon: mdi:solar-power
   state: > 
     {% if ((states('sensor.pv_battery1_power') | float(0)) >= 0) and ((states('sensor.pv_m1_ac_power') | float(0)) > 0) %}
@@ -78,6 +80,7 @@ sensor:
 - name: "Solar Grid To House W"
   unique_id: solar_grid_to_house_w
   unit_of_measurement: 'W'
+  device_class: power
   icon: mdi:transmission-tower-export
   state: > 
     {% if ((states('sensor.pv_m1_ac_power') | float(0)) <= 0) %}
@@ -88,6 +91,7 @@ sensor:
 - name: "Solar Panel To Grid W"
   unique_id: solar_panel_to_grid_w
   unit_of_measurement: 'W'
+  device_class: power
   icon: mdi:solar-power
   state: >  
     {% if ((states('sensor.pv_m1_ac_power') | float(0)) > 0) %}
@@ -98,6 +102,7 @@ sensor:
 - name: "Solar Battery To House W"
   unique_id: solar_battery_to_house_w
   unit_of_measurement: 'W'
+  device_class: power
   icon: mdi:battery-negative
   state: >   
     {% if ((states('sensor.pv_battery1_power') | float(0)) < 0) %}
@@ -108,6 +113,7 @@ sensor:
 - name: "Solar Panel To Battery W"
   unique_id: solar_panel_to_battery_w
   unit_of_measurement: 'W'
+  device_class: power
   icon: mdi:solar-power
   state: >
     {% set ac_charging = states('sensor.solar_grid_to_battery_w') | float(0) %}
@@ -147,16 +153,19 @@ sensor:
   unique_id: solar_battery_in_w
   unit_of_measurement: 'W'
   icon: mdi:battery-positive
+  device_class: power
   state: >           
     {{(states('sensor.solar_grid_to_battery_w') | float(0)) + (states('sensor.solar_panel_to_battery_w') | float(0))}}  
 - name: "Solar House Consumption W"
   unique_id: solar_house_consumption_w
   unit_of_measurement: 'W'
+  device_class: power
   icon: mdi:home
   state: >             
     {{(states('sensor.solar_panel_to_house_w') | float(0)) + (states('sensor.solar_battery_to_house_w') | float(0)) + (states('sensor.solar_grid_to_house_w') | float(0))}}  
 - name: "Solar Imported Power W"
   unique_id: solar_imported_power_w
+  device_class: power
   unit_of_measurement: 'W'
   icon: mdi:transmission-tower-export
   state: >          
@@ -167,6 +176,7 @@ sensor:
     {% endif %}       
 - name: "Solar Exported Power W"
   unique_id: solar_exported_power_w
+  device_class: power
   unit_of_measurement: 'W'
   icon: mdi:transmission-tower-import
   state: >            
