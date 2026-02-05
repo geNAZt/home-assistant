@@ -1,3 +1,9 @@
+logger:  
+  default: info
+  logs:
+    homeassistant.components.rest_command: debug
+    homeassistant.components.rest.data: debug
+
 homeassistant:
   # Load packages
   packages: !include_dir_named integrations
