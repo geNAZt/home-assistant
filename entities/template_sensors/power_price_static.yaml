@@ -2,8 +2,8 @@ trigger:
   - platform: time_pattern
     minutes: "/15" # Based on day ahead market timer
 sensor:
-  - name: "Power Price Octopus Go"
-    unique_id: power_price_octopus_go
+  - name: "Power Price Static"
+    unique_id: power_price_static
     unit_of_measurement: "€/kWh"
     device_class: monetary
     state: >
