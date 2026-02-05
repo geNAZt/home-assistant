@@ -5,5 +5,18 @@ headers:
   Authorization: "{{ token }}"
 payload: >
   {
-    "query": "mutation { createElectricityMeterReadings(input: { accountNumber: \"{{ account_number }}\", readingDate: \"{{ utcnow().strftime('%Y-%m-%dT%H:%M:%SZ') }}\", meterId: \"{{ meter_id }}\", readings: { value: \"{{ reading }}\", registerObisCode: \"{{ obis_code }}\" } }) { numberOfReadingsCreated } }"
+    "query": "mutation CreateElectricityMeterReadings($input: ReadingsInput!) { createElectricityMeterReadings(input: $input) { readingDate numberOfReadingsCreated } }",
+    "variables": {
+      "input": {
+        "accountNumber": "{{ account_number }}",
+        "readingDate": "{{ now().strftime('%Y-%m-%d') }}",
+        "meterId": "{{ meter_id }}",
+        "readings": [
+          {
+            "value": "{{ reading }}",
+            "registerObisCode": "{{ obis_code }}"
+          }
+        ]
+      }
+    }
   }
