@@ -13,21 +13,11 @@
     },
     "forecast_tomorrow": {
       "date": "2026-02-06",
-      "prediction_kwh": 6.87,
+      "prediction_kwh": 0.75,
       "locked": false,
       "locked_at": null,
       "source": "Physics",
       "updates": [
-        {
-          "prediction_kwh": 6.87,
-          "updated_at": "2026-02-05T22:03:08.794654+01:00",
-          "source": "Physics"
-        },
-        {
-          "prediction_kwh": 6.87,
-          "updated_at": "2026-02-05T22:03:18.811915+01:00",
-          "source": "Physics"
-        },
         {
           "prediction_kwh": 6.87,
           "updated_at": "2026-02-05T22:33:19.242072+01:00",
@@ -67,26 +57,26 @@
           "prediction_kwh": 6.87,
           "updated_at": "2026-02-05T23:14:48.052554+01:00",
           "source": "Physics"
+        },
+        {
+          "prediction_kwh": 0.75,
+          "updated_at": "2026-02-05T23:42:22.462401+01:00",
+          "source": "Physics"
+        },
+        {
+          "prediction_kwh": 0.75,
+          "updated_at": "2026-02-05T23:42:32.295925+01:00",
+          "source": "Physics"
         }
       ]
     },
     "forecast_day_after_tomorrow": {
       "date": "2026-02-07",
-      "prediction_kwh": 7.69,
+      "prediction_kwh": 0.84,
       "locked": false,
       "next_update": null,
       "source": "Physics",
       "updates": [
-        {
-          "prediction_kwh": 7.69,
-          "updated_at": "2026-02-05T22:03:08.808721+01:00",
-          "source": "Physics"
-        },
-        {
-          "prediction_kwh": 7.69,
-          "updated_at": "2026-02-05T22:03:18.818223+01:00",
-          "source": "Physics"
-        },
         {
           "prediction_kwh": 7.69,
           "updated_at": "2026-02-05T22:33:19.245880+01:00",
@@ -125,6 +115,16 @@
         {
           "prediction_kwh": 7.69,
           "updated_at": "2026-02-05T23:14:48.056469+01:00",
+          "source": "Physics"
+        },
+        {
+          "prediction_kwh": 0.84,
+          "updated_at": "2026-02-05T23:42:22.479465+01:00",
+          "source": "Physics"
+        },
+        {
+          "prediction_kwh": 0.84,
+          "updated_at": "2026-02-05T23:42:32.303347+01:00",
           "source": "Physics"
         }
       ]

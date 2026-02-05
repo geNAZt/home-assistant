@@ -48,12 +48,14 @@
     },
     "2026-02-05": {
       "sfml_forecast_kwh": 6.3,
-      "timestamp": "2026-02-05T08:00:00.320353",
-      "actual_kwh": null
+      "timestamp": "2026-02-05T23:50:00.248013",
+      "actual_kwh": 0.247,
+      "sfml_error_kwh": 6.05,
+      "sfml_accuracy_percent": 0
     }
   },
   "metadata": {
-    "last_updated": "2026-02-05T08:00:00.320383",
+    "last_updated": "2026-02-05T23:50:00.248044",
     "retention_days": 30
   }
 }
