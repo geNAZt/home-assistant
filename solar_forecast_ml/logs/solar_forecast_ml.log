@@ -15847,3 +15847,395 @@ Author: Zara-Toorox | Live long and prosper!
 2026-02-05 22:43:22 - custom_components.solar_forecast_ml.data.data_weather_pipeline_manager - INFO - Pipeline: Bootstrap corrected forecast - executing now...
 2026-02-05 22:43:22 - custom_components.solar_forecast_ml.data.data_weather_pipeline_manager - DEBUG - Pipeline: Forecast staleness check OK - latest forecast 48.3h ahead
 2026-02-05 22:43:22 - custom_components.solar_forecast_ml.data.data_weather_pipeline_manager - INFO - Pipeline: weather_forecast_corrected.json exists and is current - SKIP BOOTSTRAP
+2026-02-05 22:44:35 - custom_components.solar_forecast_ml - INFO - File logging enabled (non-blocking): /config/solar_forecast_ml/logs/solar_forecast_ml.log
+2026-02-05 22:44:35 - custom_components.solar_forecast_ml.core.core_dependency_handler - INFO - Checking dependencies...
+2026-02-05 22:44:35 - custom_components.solar_forecast_ml.core.core_dependency_handler - DEBUG - [OK] numpy is functional (Version: 2.3.2)
+2026-02-05 22:44:35 - custom_components.solar_forecast_ml.core.core_dependency_handler - DEBUG - [OK] aiofiles is functional
+2026-02-05 22:44:35 - custom_components.solar_forecast_ml.core.core_dependency_handler - INFO - [OK] All dependencies are present
+2026-02-05 22:44:35 - custom_components.solar_forecast_ml.services.service_notification - DEBUG - NotificationService instance created
+2026-02-05 22:44:35 - custom_components.solar_forecast_ml.services.service_notification - INFO - [OK] NotificationService successfully initialized
+2026-02-05 22:44:35 - custom_components.solar_forecast_ml.services.service_notification - INFO - [OK] NotificationService created successfully
+2026-02-05 22:44:35 - custom_components.solar_forecast_ml - DEBUG - NotificationService created and stored in hass.data
+2026-02-05 22:44:35 - custom_components.solar_forecast_ml - DEBUG - V13.1 Migration: No 'Default' panel group found - data already clean
+2026-02-05 22:44:35 - custom_components.solar_forecast_ml - DEBUG - Already installed (flag exists in .storage)
+2026-02-05 22:44:35 - custom_components.solar_forecast_ml.data.data_startup_initializer - INFO - ============================================================
+2026-02-05 22:44:35 - custom_components.solar_forecast_ml.data.data_startup_initializer - INFO - STARTUP INITIALIZER - Creating critical pre-async files
+2026-02-05 22:44:35 - custom_components.solar_forecast_ml.data.data_startup_initializer - INFO - ============================================================
+2026-02-05 22:44:35 - custom_components.solar_forecast_ml.data.data_startup_initializer - DEBUG - Created/verified 8 directories
+2026-02-05 22:44:35 - custom_components.solar_forecast_ml.data.data_startup_initializer - INFO - Directory structure ready
+2026-02-05 22:44:35 - custom_components.solar_forecast_ml.data.data_startup_initializer - INFO - open_meteo_cache.json ready
+2026-02-05 22:44:35 - custom_components.solar_forecast_ml.data.data_startup_initializer - INFO - astronomy_cache.json ready
+2026-02-05 22:44:35 - custom_components.solar_forecast_ml.data.data_startup_initializer - INFO - weather_forecast_corrected.json ready
+2026-02-05 22:44:35 - custom_components.solar_forecast_ml.data.data_startup_initializer - INFO - daily_forecasts.json ready
+2026-02-05 22:44:35 - custom_components.solar_forecast_ml.data.data_startup_initializer - INFO - ============================================================
+2026-02-05 22:44:35 - custom_components.solar_forecast_ml.data.data_startup_initializer - INFO - STARTUP INITIALIZER complete - 4 critical files ready
+2026-02-05 22:44:35 - custom_components.solar_forecast_ml.data.data_startup_initializer - INFO - ============================================================
+2026-02-05 22:44:35 - custom_components.solar_forecast_ml.core.core_coordinator_init_helpers - INFO - Panel groups configured: 1 groups, total 12.87 kWp
+2026-02-05 22:44:35 - custom_components.solar_forecast_ml.core.core_coordinator_init_helpers - INFO - Inverter clipping enabled: max 10.00 kW (forecasts capped, clipped hours excluded from training)
+2026-02-05 22:44:35 - custom_components.solar_forecast_ml.data.data_manager - INFO - DataManager Facade initialized with specialized handlers
+2026-02-05 22:44:35 - custom_components.solar_forecast_ml.sensors.sensor_data_collector - DEBUG - SensorDataCollector initialized with centralized sensor mapping.
+2026-02-05 22:44:35 - custom_components.solar_forecast_ml.production.production_history - INFO - ProductionCalculator initialized (Recorder-free mode)
+2026-02-05 22:44:35 - custom_components.solar_forecast_ml.production.production_tracker - INFO - ProductionTimeCalculator (Live Tracking) initialized with LOCAL time and persistence
+2026-02-05 22:44:35 - custom_components.solar_forecast_ml.forecast.forecast_orchestrator - INFO - ForecastOrchestrator initialized with 1 panel groups.
+2026-02-05 22:44:35 - custom_components.solar_forecast_ml.production.production_adaptive_forecast - DEBUG - AdaptiveForecastEngine initialized
+2026-02-05 22:44:35 - custom_components.solar_forecast_ml.production.production_scheduled_tasks - DEBUG - ScheduledTasksManager initialized
+2026-02-05 22:44:35 - custom_components.solar_forecast_ml.services.service_error_handler - INFO - ErrorHandlingService initialized.
+2026-02-05 22:44:35 - custom_components.solar_forecast_ml.coordinator - DEBUG - SolarForecastMLCoordinator initialized
+2026-02-05 22:44:35 - custom_components.solar_forecast_ml.data.data_manager - INFO - DataManager: Running schema validation (creates missing files)...
+2026-02-05 22:44:35 - custom_components.solar_forecast_ml.data.data_schema_validator - INFO - === JSON Schema Validation Starting ===
+2026-02-05 22:44:35 - custom_components.solar_forecast_ml.data.data_schema_validator - INFO - SCHEMA: learned_weights.json missing (AI will train when ready)
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.data.data_schema_validator - INFO - === Schema Validation Summary ===
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.data.data_schema_validator - INFO -   learned_weights.json missing (AI will train when ready)
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.data.data_schema_validator - INFO - === JSON Schema Validation Complete ===
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.data.data_manager - INFO - JSON schema validation completed successfully ✓
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.data.data_manager - INFO - DataManager: All 7 required files present ✓
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.data.data_manager - INFO - DataManager initialized successfully
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.data.data_manager - DEBUG - DataManager async initialization complete (template-based, no action needed)
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.coordinator - INFO - ShareBackupManager initialized - learning data protection enabled
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.coordinator - DEBUG - Daily backup sync scheduled for 4:00 AM
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.ai.ai_predictor - INFO - AIPredictor initialized: 1 groups, 12.87 kWp total
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.ai.ai_dni_tracker - INFO - DniTracker initialized
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.ai.ai_seasonal - INFO - SeasonalAdjuster initialized
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.ai.ai_dni_tracker - INFO - DNI tracker loaded
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.ai.ai_seasonal - INFO - Seasonal factors loaded
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.ai.ai_feature_engineering - INFO - FeatureEngineer initialized: 20 features (normalized)
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.ai.ai_tiny_lstm - INFO - TinyLSTM initialized: input=20, hidden=32, seq=24, outputs=1, attention=True
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.ai.ai_tiny_ridge - INFO - TinyRidge initialized: input=20, seq=24, flat_size=480, outputs=1
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.ai.ai_predictor - INFO - Models initialized: 20 features, 1 outputs, 1 groups, attention=True
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.ai.ai_predictor - INFO - No weights found - model untrained (1 outputs)
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.physics.physics_calibrator - INFO - PhysicsCalibrator initialized
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.physics.physics_calibrator - DEBUG - Loaded calibration config: 0 groups, 0 bucket factors
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.physics.physics_calibrator - DEBUG - Frost migration already completed (version >= 3.0)
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.physics.physics_calibrator - INFO - PhysicsCalibrator: No existing calibration data found
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.coordinator - INFO - PhysicsCalibrator initialized for self-learning corrections
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.astronomy.astronomy_cache - INFO - AstronomyCache: Panel groups configured (1 groups)
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.coordinator - INFO - AstronomyCache: Panel groups set (1 groups)
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.astronomy.astronomy_cache - INFO - Astronomy Cache initialized: lat=52.36948782131487, lon=9.750484228134157, tz=Europe/Berlin, elev=0m
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.data.data_weather_pipeline_manager - INFO - Weather Data Pipeline Manager initialized - 5-Source Expert Blending (V12.3)
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.astronomy.astronomy_cache_manager - DEBUG - Astronomy cache loaded into memory: 38 days
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.data.data_weather_pipeline_manager - INFO - Setting up Weather Data Pipeline Manager (5-Source Expert Blending)...
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.data.data_open_meteo_client - INFO - OpenMeteoClient initialized (lat=52.3695, lon=9.7505) with persistent cache
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.forecast.forecast_weather - INFO - WeatherService initialized - Open-Meteo (lat=52.3695, lon=9.7505)
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.data.data_weather_pipeline_manager - INFO - Weather Service initialized (lat=52.3695, lon=9.7505)
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.data.data_weather_precision - INFO - WeatherPrecisionTracker initialized with sensors: ['temp', 'solar_radiation_wm2', 'humidity', 'wind', 'rain', 'pressure']
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.data.data_weather_expert_blender - INFO - PirateWeatherExpert disabled - no API key configured. Get free key at https://pirate-weather.apiable.io/
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.data.data_weather_expert_blender - INFO - WeatherExpertBlender initialized with 5 experts (4 active): open_meteo, wttr_in, ecmwf_layers, bright_sky
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.data.data_weather_expert_blender - INFO - Loaded expert weights from weather_expert_weights.json (last updated: 2026-02-04T23:30:00.499378)
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.data.data_weather_expert_blender - DEBUG - wttr.in: Restored memory cache from file (age: 4.1h, valid for 1.9h more)
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.data.data_weather_expert_blender - DEBUG - WttrInExpert: Loaded 6 days from file cache
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.data.data_weather_expert_blender - DEBUG - Bright Sky: Restored memory cache from file (age: 1.0h, valid for 2.0h more, 48 visibility entries)
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.data.data_weather_expert_blender - DEBUG - Bright Sky: Loaded 7 days from file cache
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.data.data_weather_expert_blender - INFO - WeatherExpertLearner initialized (solar_radiation_sensor=configured)
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.data.data_visibility_learner - INFO - VisibilityLearner initialized (solar_radiation_sensor=configured)
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.data.data_visibility_learner - DEBUG - VisibilityLearner: No saved weights, using defaults
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.data.data_weather_expert_blender - DEBUG - VisibilityLearner connected to WeatherExpertBlender
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.data.data_weather_expert_blender - DEBUG - VisibilityLearner connected to WeatherExpertLearner
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.data.data_weather_pipeline_manager - INFO - VisibilityLearner initialized (active=True)
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.data.data_weather_pipeline_manager - INFO - Weather Expert Blender initialized with 4 active experts (Open-Meteo, wttr.in, ECMWF Layers, Bright Sky/DWD, Pirate Weather: disabled)
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.data.data_open_meteo_client - INFO - OpenMeteoClient initialized (lat=52.3695, lon=9.7505) with persistent cache
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.data.data_weather_corrector - INFO - WeatherForecastCorrector initialized (lat=52.3695, lon=9.7505) with ExpertBlender
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.data.data_open_meteo_client - INFO - Loaded Open-Meteo cache: 144 hours
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.data.data_open_meteo_client - INFO - Open-Meteo file cache loaded successfully
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.data.data_weather_corrector - INFO - Loaded Open-Meteo cache: 144 hours, 6 days
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.data.data_weather_pipeline_manager - INFO - Weather Corrector initialized with Expert Blender - weather_forecast_corrected.json is SINGLE SOURCE OF TRUTH
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.data.data_weather_pipeline_manager - INFO - Weather Data Pipeline Manager setup complete (V12.3)
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.data.data_weather_pipeline_manager - INFO - Starting Weather Data Pipeline...
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.data.data_weather_pipeline_manager - INFO - Pipeline: Startup Open-Meteo refresh scheduled (1min delay)
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.data.data_weather_pipeline_manager - INFO - Pipeline: Bootstrap corrected forecast scheduled (5min delay)
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.data.data_weather_pipeline_manager - INFO - Pipeline: Bootstrap integration cache scheduled (6min delay)
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.data.data_weather_pipeline_manager - INFO - Scheduled: Open-Meteo update (3x daily: 06:00, 12:00, 18:00)
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.data.data_weather_pipeline_manager - INFO - Scheduled: Startup Open-Meteo refresh (1min delay after HA boot)
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.data.data_weather_pipeline_manager - INFO - Scheduled: Hourly weather tracking (every hour at :00)
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.data.data_weather_pipeline_manager - INFO - Scheduled: Daily astronomy cache update (06:00 LOCAL)
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.data.data_weather_pipeline_manager - INFO - Scheduled: Pre-midnight data refresh (00:10 LOCAL - fallback before 00:15)
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.data.data_weather_pipeline_manager - INFO - Scheduled: Daily corrected forecast (00:15 LOCAL - before morning routine at 00:25)
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.data.data_weather_pipeline_manager - INFO - Weather Data Pipeline started successfully (7 scheduled listeners)
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.coordinator - INFO - Weather Data Pipeline started successfully
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.data.data_state_handler - DEBUG - Loaded expected daily production from daily_forecasts.json: 6.30 kWh (source: physics)
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.coordinator - INFO - [SENSOR_INIT] HA still starting - scheduling sensor initialization for after startup
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.production.production_scheduled_tasks - INFO - Scheduled tasks registered:
+  Fixed: 00:25 (first forecast), 00:00 (reset), XX:05 (hourly), 23:30 (EOD)
+  Adaptive: 12:30 (mode: OFF)
+  Dynamic: Scheduled at 00:30 based on sunrise
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.production.production_scheduled_tasks - DEBUG - All dynamic task times already passed for today
+2026-02-05 22:44:36 - custom_components.solar_forecast_ml.coordinator - INFO - Solar Forecast Coordinator ready (AI-Ready, 12.87 kWp)
+2026-02-05 22:44:37 - custom_components.solar_forecast_ml.sensor - INFO - Setting up sensors: Diagnostic Mode=Enabled, Hourly Sensor=Disabled
+2026-02-05 22:44:37 - custom_components.solar_forecast_ml.sensors.sensor_system_status - INFO - System Status Sensor initialized
+2026-02-05 22:44:37 - custom_components.solar_forecast_ml.sensor - INFO - Diagnostic mode enabled - Adding 6 advanced diagnostic sensors.
+2026-02-05 22:44:37 - custom_components.solar_forecast_ml.sensor - INFO - Shadow Detection enabled - Adding 3 shadow detection sensors
+2026-02-05 22:44:37 - custom_components.solar_forecast_ml.forecast.forecast_orchestrator - INFO - Initializing forecast strategies...
+2026-02-05 22:44:37 - custom_components.solar_forecast_ml.forecast.forecast_strategy_base.rule_based - DEBUG - Strategy 'rule_based' initialized.
+2026-02-05 22:44:37 - custom_components.solar_forecast_ml.forecast.forecast_rule_based_strategy - INFO - Physics+ML Strategy: 1 panel groups configured
+2026-02-05 22:44:37 - custom_components.solar_forecast_ml.forecast.forecast_rule_based_strategy - INFO - Physics+ML Strategy: Local AI available
+2026-02-05 22:44:37 - custom_components.solar_forecast_ml.forecast.forecast_orchestrator - INFO - Forecast strategy initialized with 1 panel groups (physics)
+2026-02-05 22:44:37 - custom_components.solar_forecast_ml.forecast.forecast_rule_based_strategy - DEBUG - PhysicsCalibrator stored, will connect when PanelGroupCalculator is created
+2026-02-05 22:44:37 - custom_components.solar_forecast_ml.coordinator - INFO - PhysicsCalibrator passed to RuleBasedStrategy - self-learning physics corrections enabled
+2026-02-05 22:44:37 - custom_components.solar_forecast_ml.forecast.forecast_rule_based_strategy - DEBUG - WeatherActualTracker connected for SNOWY bucket detection
+2026-02-05 22:44:37 - custom_components.solar_forecast_ml.coordinator - INFO - WeatherActualTracker passed to RuleBasedStrategy - SNOWY bucket detection in forecasts enabled
+2026-02-05 22:44:37 - custom_components.solar_forecast_ml.data.data_share_backup - DEBUG - Learning data is fresh - local and /share/ are in sync
+2026-02-05 22:44:37 - custom_components.solar_forecast_ml.sensor - INFO - Successfully added 27 total sensors.
+2026-02-05 22:44:37 - custom_components.solar_forecast_ml.core.core_coordinator_update_helpers - DEBUG - Learning data is fresh - no restore needed
+2026-02-05 22:44:37 - custom_components.solar_forecast_ml.sensors.sensor_base - DEBUG - PeakProductionHourSensor: Loaded best hour = 12:00
+2026-02-05 22:44:37 - custom_components.solar_forecast_ml.sensors.sensor_base - DEBUG - NextHourSensor: Found prediction for 2026-02-05 23:00 = 0.0 kWh
+2026-02-05 22:44:37 - custom_components.solar_forecast_ml.forecast.forecast_weather - DEBUG - No current hour data, using defaults
+2026-02-05 22:44:37 - custom_components.solar_forecast_ml.forecast.forecast_weather - INFO - ✓ Forecast using weather_forecast_corrected.json: 144 hours across 6 days (2026-02-05, 2026-02-06, 2026-02-07)
+2026-02-05 22:44:37 - custom_components.solar_forecast_ml.sensors.sensor_data_collector - DEBUG - Sensor 'sensor.barsinghausen_hohenb_temperatur' is unavailable or has an invalid state: Not found
+2026-02-05 22:44:37 - custom_components.solar_forecast_ml.sensors.sensor_data_collector - DEBUG - Sensor 'sensor.barsinghausen_hohenb_relative_luftfeuchtigkeit' is unavailable or has an invalid state: Not found
+2026-02-05 22:44:37 - custom_components.solar_forecast_ml.sensors.sensor_data_collector - DEBUG - Sensor 'sensor.barsinghausen_hohenb_windgeschwindigkeit' is unavailable or has an invalid state: Not found
+2026-02-05 22:44:37 - custom_components.solar_forecast_ml.sensors.sensor_data_collector - DEBUG - Sensor 'sensor.barsinghausen_hohenb_niederschlag' is unavailable or has an invalid state: Not found
+2026-02-05 22:44:37 - custom_components.solar_forecast_ml.sensors.sensor_data_collector - DEBUG - Sensor 'sensor.barsinghausen_hohenb_druck' is unavailable or has an invalid state: Not found
+2026-02-05 22:44:37 - custom_components.solar_forecast_ml.sensors.sensor_data_collector - DEBUG - Sensor 'sensor.barsinghausen_hohenb_sonneneinstrahlung' is unavailable or has an invalid state: Not found
+2026-02-05 22:44:37 - custom_components.solar_forecast_ml.sensors.sensor_data_collector - DEBUG - Collected external sensor data: {'temperature': None, 'humidity': None, 'wind_speed': None, 'rain': None, 'pressure': None, 'solar_radiation': None, 'lux': None}
+2026-02-05 22:44:37 - custom_components.solar_forecast_ml.forecast.forecast_orchestrator - DEBUG - Creating forecast (AI + Physics)...
+2026-02-05 22:44:37 - custom_components.solar_forecast_ml.forecast.forecast_orchestrator - DEBUG - Lag-Feature 'production_yesterday' = 0.00 kWh
+2026-02-05 22:44:37 - custom_components.solar_forecast_ml.forecast.forecast_rule_based_strategy - DEBUG - Physics engine initialized
+2026-02-05 22:44:37 - custom_components.solar_forecast_ml.physics.panel_group_calculator - INFO - Panel groups updated: 1 groups, total 12.87 kWp
+2026-02-05 22:44:37 - custom_components.solar_forecast_ml.physics.panel_group_calculator - DEBUG - PanelGroupCalculator initialized with 1 groups, total 12.87 kWp, albedo=0.20, sys_eff=0.90
+2026-02-05 22:44:37 - custom_components.solar_forecast_ml.forecast.forecast_rule_based_strategy - INFO - PanelGroupCalculator initialized: 1 groups, 12.87 kWp
+2026-02-05 22:44:37 - custom_components.solar_forecast_ml.physics.panel_group_calculator - INFO - PhysicsCalibrator attached to PanelGroupCalculator
+2026-02-05 22:44:37 - custom_components.solar_forecast_ml.forecast.forecast_rule_based_strategy - INFO - PhysicsCalibrator connected to PanelGroupCalculator for self-learning
+2026-02-05 22:44:37 - custom_components.solar_forecast_ml.data.data_open_meteo_client - INFO - OpenMeteoClient initialized (lat=52.3695, lon=9.7505) with persistent cache
+2026-02-05 22:44:37 - custom_components.solar_forecast_ml.data.data_weather_corrector - INFO - WeatherForecastCorrector initialized (lat=52.3695, lon=9.7505)
+2026-02-05 22:44:38 - custom_components.solar_forecast_ml.forecast.forecast_orchestrator - INFO - Forecast complete: Today=0.00 kWh, Tomorrow=6.87 kWh, Day After=7.69 kWh, Method=physics
+2026-02-05 22:44:38 - custom_components.solar_forecast_ml.core.core_coordinator_update_helpers - DEBUG - Forecast data from orchestrator: today=0.0 kWh, tomorrow=6.87 kWh, day_after=7.69 kWh, method=physics, hourly_entries=144
+2026-02-05 22:44:38 - custom_components.solar_forecast_ml.production.production_history - DEBUG - Peak time calculation: Using stored hourly production data
+2026-02-05 22:44:38 - custom_components.solar_forecast_ml.data.data_forecast_handler - INFO - ✓ Tomorrow forecast saved: 2026-02-06 = 6.87 kWh
+2026-02-05 22:44:38 - custom_components.solar_forecast_ml.data.data_forecast_handler - INFO - ✓ Day after tomorrow forecast saved: 2026-02-07 = 7.69 kWh
+2026-02-05 22:44:38 - custom_components.solar_forecast_ml.data.data_forecast_handler - DEBUG - Multi-day hourly forecast saved: today=4.42, tomorrow=6.87, day_after=7.69 kWh
+2026-02-05 22:44:38 - custom_components.solar_forecast_ml.coordinator - DEBUG - Finished fetching solar_forecast_ml data in 0.532 seconds (success: True)
+2026-02-05 22:44:38 - custom_components.solar_forecast_ml.sensors.sensor_system_status - DEBUG - Status updated: event=initialization, status=success, state=ok
+2026-02-05 22:44:38 - custom_components.solar_forecast_ml.sensors.sensor_system_status - INFO - System Status Sensor successfully added to Home Assistant
+2026-02-05 22:44:38 - custom_components.solar_forecast_ml.sensors.sensor_base - DEBUG - PeakProductionHourSensor: Loaded best hour = 12:00
+2026-02-05 22:44:38 - custom_components.solar_forecast_ml.sensors.sensor_base - DEBUG - NextHourSensor: Found prediction for 2026-02-05 23:00 = 0.0 kWh
+2026-02-05 22:44:38 - custom_components.solar_forecast_ml.astronomy.astronomy_cache - INFO - Astronomy Cache initialized: lat=52.36948782131487, lon=9.750484228134157, tz=Europe/Berlin, elev=0m
+2026-02-05 22:44:38 - custom_components.solar_forecast_ml.astronomy.astronomy_cache - INFO - AstronomyCache: Panel groups configured (1 groups)
+2026-02-05 22:44:38 - custom_components.solar_forecast_ml.services.service_astronomy - INFO - AstronomyCache: Panel groups configured (1 groups)
+2026-02-05 22:44:38 - custom_components.solar_forecast_ml.services.service_astronomy - INFO - Astronomy services initialized: lat=52.36948782131487, lon=9.750484228134157, tz=Europe/Berlin, elev=0m
+2026-02-05 22:44:38 - custom_components.solar_forecast_ml.services.service_astronomy - INFO - Astronomy cache already exists, skipping auto-build
+2026-02-05 22:44:38 - custom_components.solar_forecast_ml.services.service_astronomy - INFO - Max peaks already in cache, skipping auto-extraction
+2026-02-05 22:44:38 - custom_components.solar_forecast_ml.astronomy.astronomy_cache_manager - DEBUG - Astronomy cache loaded into memory: 38 days
+2026-02-05 22:44:38 - custom_components.solar_forecast_ml.services.service_astronomy - INFO - ✅ Astronomy cache loaded into memory for fast access
+2026-02-05 22:44:38 - custom_components.solar_forecast_ml.services.service_registry - DEBUG - Registered 18 services
+2026-02-05 22:44:38 - custom_components.solar_forecast_ml.services.service_notification - DEBUG - Notification 'notify_startup' disabled by option
+2026-02-05 22:44:38 - custom_components.solar_forecast_ml - DEBUG - Startup notification triggered
+2026-02-05 22:44:38 - custom_components.solar_forecast_ml.services.service_extra_features - DEBUG - Extra feature 'esc_easy_sensor_creation' is up-to-date (v6.2.0)
+2026-02-05 22:44:38 - custom_components.solar_forecast_ml.services.service_extra_features - DEBUG - Extra feature 'grid_price_monitor' is up-to-date (v6.0.0)
+2026-02-05 22:44:38 - custom_components.solar_forecast_ml.services.service_extra_features - DEBUG - Extra feature 'ml_weather' is up-to-date (v6.2.0)
+2026-02-05 22:44:38 - custom_components.solar_forecast_ml.services.service_extra_features - DEBUG - Extra feature 'sfml_stats' is up-to-date (v8.0.0)
+2026-02-05 22:44:38 - custom_components.solar_forecast_ml.services.service_extra_features - DEBUG - Extra feature 'sfml_stats_lite' is up-to-date (v6.2.0)
+2026-02-05 22:44:38 - custom_components.solar_forecast_ml - INFO - ======================================================================
+Solar Forecast ML "Sarpeidon" - Setup Complete!
+Mode: Hybrid-KI (Full Features)
+"The future is not set in stone, but with data we illuminate the path."
+Author: Zara-Toorox | Live long and prosper!
+======================================================================
+2026-02-05 22:44:41 - custom_components.solar_forecast_ml - DEBUG - First data refresh deferred: `async_config_entry_first_refresh` called when config entry state is ConfigEntryState.LOADED, but should only be called in state ConfigEntryState.SETUP_IN_PROGRESS - using cached data
+2026-02-05 22:44:47 - custom_components.solar_forecast_ml.forecast.forecast_orchestrator - INFO - Initializing forecast strategies...
+2026-02-05 22:44:47 - custom_components.solar_forecast_ml.forecast.forecast_strategy_base.rule_based - DEBUG - Strategy 'rule_based' initialized.
+2026-02-05 22:44:47 - custom_components.solar_forecast_ml.forecast.forecast_rule_based_strategy - INFO - Physics+ML Strategy: 1 panel groups configured
+2026-02-05 22:44:47 - custom_components.solar_forecast_ml.forecast.forecast_rule_based_strategy - INFO - Physics+ML Strategy: Local AI available
+2026-02-05 22:44:47 - custom_components.solar_forecast_ml.forecast.forecast_orchestrator - INFO - Forecast strategy initialized with 1 panel groups (physics)
+2026-02-05 22:44:47 - custom_components.solar_forecast_ml.forecast.forecast_rule_based_strategy - DEBUG - PhysicsCalibrator stored, will connect when PanelGroupCalculator is created
+2026-02-05 22:44:47 - custom_components.solar_forecast_ml.coordinator - INFO - PhysicsCalibrator passed to RuleBasedStrategy - self-learning physics corrections enabled
+2026-02-05 22:44:47 - custom_components.solar_forecast_ml.forecast.forecast_rule_based_strategy - DEBUG - WeatherActualTracker connected for SNOWY bucket detection
+2026-02-05 22:44:47 - custom_components.solar_forecast_ml.coordinator - INFO - WeatherActualTracker passed to RuleBasedStrategy - SNOWY bucket detection in forecasts enabled
+2026-02-05 22:44:47 - custom_components.solar_forecast_ml.data.data_share_backup - DEBUG - Learning data is fresh - local and /share/ are in sync
+2026-02-05 22:44:47 - custom_components.solar_forecast_ml.core.core_coordinator_update_helpers - DEBUG - Learning data is fresh - no restore needed
+2026-02-05 22:44:47 - custom_components.solar_forecast_ml.forecast.forecast_weather - DEBUG - No current hour data, using defaults
+2026-02-05 22:44:47 - custom_components.solar_forecast_ml.forecast.forecast_weather - INFO - ✓ Forecast using weather_forecast_corrected.json: 144 hours across 6 days (2026-02-05, 2026-02-06, 2026-02-07)
+2026-02-05 22:44:47 - custom_components.solar_forecast_ml.sensors.sensor_data_collector - DEBUG - Collected external sensor data: {'temperature': -2.0, 'humidity': 96.0, 'wind_speed': 9.3, 'rain': 0.0, 'pressure': 992.2, 'solar_radiation': 0.0, 'lux': None}
+2026-02-05 22:44:47 - custom_components.solar_forecast_ml.forecast.forecast_orchestrator - DEBUG - Creating forecast (AI + Physics)...
+2026-02-05 22:44:47 - custom_components.solar_forecast_ml.forecast.forecast_orchestrator - DEBUG - Lag-Feature 'production_yesterday' = 0.00 kWh
+2026-02-05 22:44:47 - custom_components.solar_forecast_ml.forecast.forecast_rule_based_strategy - DEBUG - Physics engine initialized
+2026-02-05 22:44:47 - custom_components.solar_forecast_ml.physics.panel_group_calculator - INFO - Panel groups updated: 1 groups, total 12.87 kWp
+2026-02-05 22:44:47 - custom_components.solar_forecast_ml.physics.panel_group_calculator - DEBUG - PanelGroupCalculator initialized with 1 groups, total 12.87 kWp, albedo=0.20, sys_eff=0.90
+2026-02-05 22:44:47 - custom_components.solar_forecast_ml.forecast.forecast_rule_based_strategy - INFO - PanelGroupCalculator initialized: 1 groups, 12.87 kWp
+2026-02-05 22:44:47 - custom_components.solar_forecast_ml.physics.panel_group_calculator - INFO - PhysicsCalibrator attached to PanelGroupCalculator
+2026-02-05 22:44:47 - custom_components.solar_forecast_ml.forecast.forecast_rule_based_strategy - INFO - PhysicsCalibrator connected to PanelGroupCalculator for self-learning
+2026-02-05 22:44:47 - custom_components.solar_forecast_ml.data.data_open_meteo_client - INFO - OpenMeteoClient initialized (lat=52.3695, lon=9.7505) with persistent cache
+2026-02-05 22:44:47 - custom_components.solar_forecast_ml.data.data_weather_corrector - INFO - WeatherForecastCorrector initialized (lat=52.3695, lon=9.7505)
+2026-02-05 22:44:47 - custom_components.solar_forecast_ml.forecast.forecast_orchestrator - INFO - Forecast complete: Today=0.00 kWh, Tomorrow=6.87 kWh, Day After=7.69 kWh, Method=physics
+2026-02-05 22:44:47 - custom_components.solar_forecast_ml.core.core_coordinator_update_helpers - DEBUG - Forecast data from orchestrator: today=0.0 kWh, tomorrow=6.87 kWh, day_after=7.69 kWh, method=physics, hourly_entries=144
+2026-02-05 22:44:47 - custom_components.solar_forecast_ml.production.production_history - DEBUG - Peak time calculation: Using stored hourly production data
+2026-02-05 22:44:48 - custom_components.solar_forecast_ml.data.data_forecast_handler - INFO - ✓ Tomorrow forecast saved: 2026-02-06 = 6.87 kWh
+2026-02-05 22:44:48 - custom_components.solar_forecast_ml.data.data_forecast_handler - INFO - ✓ Day after tomorrow forecast saved: 2026-02-07 = 7.69 kWh
+2026-02-05 22:44:48 - custom_components.solar_forecast_ml.data.data_forecast_handler - DEBUG - Multi-day hourly forecast saved: today=4.42, tomorrow=6.87, day_after=7.69 kWh
+2026-02-05 22:44:48 - custom_components.solar_forecast_ml.coordinator - DEBUG - Finished fetching solar_forecast_ml data in 0.065 seconds (success: True)
+2026-02-05 22:44:48 - custom_components.solar_forecast_ml.sensors.sensor_base - DEBUG - NextHourSensor: Found prediction for 2026-02-05 23:00 = 0.0 kWh
+2026-02-05 22:44:48 - custom_components.solar_forecast_ml.sensors.sensor_base - DEBUG - PeakProductionHourSensor: Loaded best hour = 12:00
+2026-02-05 22:45:36 - custom_components.solar_forecast_ml.data.data_weather_pipeline_manager - INFO - Pipeline: Fetching weather data from Open-Meteo...
+2026-02-05 22:45:36 - custom_components.solar_forecast_ml.forecast.forecast_weather - INFO - Force update - fetching from Open-Meteo API...
+2026-02-05 22:45:36 - custom_components.solar_forecast_ml.data.data_open_meteo_client - DEBUG - Loaded 6 existing days from cache
+2026-02-05 22:45:36 - custom_components.solar_forecast_ml.data.data_open_meteo_client - INFO - Saved Open-Meteo cache: 72 hours, 6 days (in-memory cache also updated)
+2026-02-05 22:45:36 - custom_components.solar_forecast_ml.data.data_open_meteo_client - INFO - Fetched 72 hours from Open-Meteo (GHI range: 0 - 207 W/m²)
+2026-02-05 22:45:36 - custom_components.solar_forecast_ml.data.data_open_meteo_client - DEBUG - Loaded 6 existing days from cache
+2026-02-05 22:45:36 - custom_components.solar_forecast_ml.data.data_open_meteo_client - INFO - Saved Open-Meteo cache: 72 hours, 6 days (in-memory cache also updated)
+2026-02-05 22:45:36 - custom_components.solar_forecast_ml.forecast.forecast_weather - INFO - Force update successful: 72 hours
+2026-02-05 22:45:36 - custom_components.solar_forecast_ml.data.data_weather_pipeline_manager - INFO - Pipeline: Open-Meteo startup refresh SUCCESS
+2026-02-05 22:45:36 - custom_components.solar_forecast_ml.data.data_weather_pipeline_manager - DEBUG - Pipeline: Open-Meteo cache is current (72 hours cached)
+2026-02-05 22:45:36 - custom_components.solar_forecast_ml.data.data_weather_pipeline_manager - DEBUG - Pipeline: wttr.in cache updated
+2026-02-05 22:45:36 - custom_components.solar_forecast_ml.data.data_weather_pipeline_manager - DEBUG - Pipeline: Bright Sky cache updated
+2026-02-05 22:45:36 - custom_components.solar_forecast_ml.data.data_weather_pipeline_manager - INFO - Pipeline: Expert weather sources (force=False): wttr.in: OK, Bright Sky: OK, Pirate Weather: disabled (no API key)
+2026-02-05 22:45:36 - custom_components.solar_forecast_ml.coordinator - INFO - [SENSOR_INIT] Home Assistant fully started - beginning sensor initialization
+2026-02-05 22:45:38 - custom_components.solar_forecast_ml.data.data_panel_group_sensor_reader - DEBUG - Loaded panel group sensor state: 1 groups
+2026-02-05 22:45:38 - custom_components.solar_forecast_ml.coordinator - INFO - Panel groups configuration: 1 groups
+2026-02-05 22:45:38 - custom_components.solar_forecast_ml.coordinator - DEBUG -   Group 0: name=Gruppe 1, energy_sensor=sensor.solar_panel_production_daily
+2026-02-05 22:45:38 - custom_components.solar_forecast_ml.coordinator - INFO - Panel group sensor reader initialized: 1 energy sensors validated
+2026-02-05 22:45:38 - custom_components.solar_forecast_ml.coordinator - INFO - Panel group sensor validation scheduled (background task)
+2026-02-05 22:45:38 - custom_components.solar_forecast_ml.production.production_tracker - INFO - [PRODUCTION_TRACKER] start_tracking called with power_entity=sensor.solar_panel_production_w
+2026-02-05 22:45:38 - custom_components.solar_forecast_ml.production.production_tracker - INFO - [PRODUCTION_TRACKER] Power entity found: sensor.solar_panel_production_w = 0
+2026-02-05 22:45:38 - custom_components.solar_forecast_ml.production.production_tracker - INFO - Loaded production time state from production_time_state.json: accumulated=4.50h, active=False, start_time=None
+2026-02-05 22:45:38 - custom_components.solar_forecast_ml.production.production_tracker - INFO - [OK] Restored production time state: accumulated=4.50h, active=False
+2026-02-05 22:45:38 - custom_components.solar_forecast_ml.data.data_forecast_handler - DEBUG - Production time updated: active=False, duration=16215s
+2026-02-05 22:45:38 - custom_components.solar_forecast_ml.production.production_tracker - INFO - [OK] Synced production time to daily_forecasts.json: duration=16215s (04:30:15)
+2026-02-05 22:45:38 - custom_components.solar_forecast_ml.production.production_tracker - INFO - [PRODUCTION_TRACKER] State listener registered for sensor.solar_panel_production_w
+2026-02-05 22:45:38 - custom_components.solar_forecast_ml.production.production_tracker - INFO - [PRODUCTION_TRACKER] State loaded - checking sensor. Current state: 0
+2026-02-05 22:45:38 - custom_components.solar_forecast_ml.production.production_tracker - INFO - Production time tracking started for sensor.solar_panel_production_w
+2026-02-05 22:45:38 - custom_components.solar_forecast_ml.coordinator - INFO - [SENSOR_INIT] Delayed sensor initialization completed
+2026-02-05 22:49:36 - custom_components.solar_forecast_ml.data.data_weather_pipeline_manager - INFO - Pipeline: Bootstrap corrected forecast - executing now...
+2026-02-05 22:49:36 - custom_components.solar_forecast_ml.data.data_weather_pipeline_manager - DEBUG - Pipeline: Forecast staleness check OK - latest forecast 48.2h ahead
+2026-02-05 22:49:36 - custom_components.solar_forecast_ml.data.data_weather_pipeline_manager - INFO - Pipeline: weather_forecast_corrected.json exists and is current - SKIP BOOTSTRAP
+2026-02-05 22:50:36 - custom_components.solar_forecast_ml.data.data_weather_pipeline_manager - INFO - Pipeline: Bootstrap integration cache - executing now...
+2026-02-05 22:50:36 - custom_components.solar_forecast_ml.data.data_weather_corrector - DEBUG - Integration cache already exists - skip bootstrap
+2026-02-05 22:50:36 - custom_components.solar_forecast_ml.data.data_weather_pipeline_manager - INFO - Pipeline: Integration cache bootstrap SUCCESS - ML Weather integration can now use weather_integration_ml.json
+2026-02-05 23:00:00 - custom_components.solar_forecast_ml.data.data_weather_pipeline_manager - DEBUG - Pipeline: Hourly weather tracking triggered
+2026-02-05 23:14:48 - custom_components.solar_forecast_ml.forecast.forecast_orchestrator - INFO - Initializing forecast strategies...
+2026-02-05 23:14:48 - custom_components.solar_forecast_ml.forecast.forecast_strategy_base.rule_based - DEBUG - Strategy 'rule_based' initialized.
+2026-02-05 23:14:48 - custom_components.solar_forecast_ml.forecast.forecast_rule_based_strategy - INFO - Physics+ML Strategy: 1 panel groups configured
+2026-02-05 23:14:48 - custom_components.solar_forecast_ml.forecast.forecast_rule_based_strategy - INFO - Physics+ML Strategy: Local AI available
+2026-02-05 23:14:48 - custom_components.solar_forecast_ml.forecast.forecast_orchestrator - INFO - Forecast strategy initialized with 1 panel groups (physics)
+2026-02-05 23:14:48 - custom_components.solar_forecast_ml.forecast.forecast_rule_based_strategy - DEBUG - PhysicsCalibrator stored, will connect when PanelGroupCalculator is created
+2026-02-05 23:14:48 - custom_components.solar_forecast_ml.coordinator - INFO - PhysicsCalibrator passed to RuleBasedStrategy - self-learning physics corrections enabled
+2026-02-05 23:14:48 - custom_components.solar_forecast_ml.forecast.forecast_rule_based_strategy - DEBUG - WeatherActualTracker connected for SNOWY bucket detection
+2026-02-05 23:14:48 - custom_components.solar_forecast_ml.coordinator - INFO - WeatherActualTracker passed to RuleBasedStrategy - SNOWY bucket detection in forecasts enabled
+2026-02-05 23:14:48 - custom_components.solar_forecast_ml.data.data_share_backup - DEBUG - Learning data is fresh - local and /share/ are in sync
+2026-02-05 23:14:48 - custom_components.solar_forecast_ml.core.core_coordinator_update_helpers - DEBUG - Learning data is fresh - no restore needed
+2026-02-05 23:14:48 - custom_components.solar_forecast_ml.forecast.forecast_weather - INFO - ✓ Forecast using weather_forecast_corrected.json: 144 hours across 6 days (2026-02-05, 2026-02-06, 2026-02-07)
+2026-02-05 23:14:48 - custom_components.solar_forecast_ml.sensors.sensor_data_collector - DEBUG - Collected external sensor data: {'temperature': -2.0, 'humidity': 98.2, 'wind_speed': 9.3, 'rain': 0.0, 'pressure': 992.1, 'solar_radiation': 0.0, 'lux': None}
+2026-02-05 23:14:48 - custom_components.solar_forecast_ml.forecast.forecast_orchestrator - DEBUG - Creating forecast (AI + Physics)...
+2026-02-05 23:14:48 - custom_components.solar_forecast_ml.forecast.forecast_orchestrator - DEBUG - Lag-Feature 'production_yesterday' = 0.00 kWh
+2026-02-05 23:14:48 - custom_components.solar_forecast_ml.forecast.forecast_rule_based_strategy - DEBUG - Physics engine initialized
+2026-02-05 23:14:48 - custom_components.solar_forecast_ml.physics.panel_group_calculator - INFO - Panel groups updated: 1 groups, total 12.87 kWp
+2026-02-05 23:14:48 - custom_components.solar_forecast_ml.physics.panel_group_calculator - DEBUG - PanelGroupCalculator initialized with 1 groups, total 12.87 kWp, albedo=0.20, sys_eff=0.90
+2026-02-05 23:14:48 - custom_components.solar_forecast_ml.forecast.forecast_rule_based_strategy - INFO - PanelGroupCalculator initialized: 1 groups, 12.87 kWp
+2026-02-05 23:14:48 - custom_components.solar_forecast_ml.physics.panel_group_calculator - INFO - PhysicsCalibrator attached to PanelGroupCalculator
+2026-02-05 23:14:48 - custom_components.solar_forecast_ml.forecast.forecast_rule_based_strategy - INFO - PhysicsCalibrator connected to PanelGroupCalculator for self-learning
+2026-02-05 23:14:48 - custom_components.solar_forecast_ml.data.data_open_meteo_client - INFO - OpenMeteoClient initialized (lat=52.3695, lon=9.7505) with persistent cache
+2026-02-05 23:14:48 - custom_components.solar_forecast_ml.data.data_weather_corrector - INFO - WeatherForecastCorrector initialized (lat=52.3695, lon=9.7505)
+2026-02-05 23:14:48 - custom_components.solar_forecast_ml.forecast.forecast_orchestrator - INFO - Forecast complete: Today=0.00 kWh, Tomorrow=6.87 kWh, Day After=7.69 kWh, Method=physics
+2026-02-05 23:14:48 - custom_components.solar_forecast_ml.core.core_coordinator_update_helpers - DEBUG - Forecast data from orchestrator: today=0.0 kWh, tomorrow=6.87 kWh, day_after=7.69 kWh, method=physics, hourly_entries=144
+2026-02-05 23:14:48 - custom_components.solar_forecast_ml.production.production_history - DEBUG - Peak time calculation: Using stored hourly production data
+2026-02-05 23:14:48 - custom_components.solar_forecast_ml.data.data_forecast_handler - INFO - ✓ Tomorrow forecast saved: 2026-02-06 = 6.87 kWh
+2026-02-05 23:14:48 - custom_components.solar_forecast_ml.data.data_forecast_handler - INFO - ✓ Day after tomorrow forecast saved: 2026-02-07 = 7.69 kWh
+2026-02-05 23:14:48 - custom_components.solar_forecast_ml.data.data_forecast_handler - DEBUG - Multi-day hourly forecast saved: today=4.42, tomorrow=6.87, day_after=7.69 kWh
+2026-02-05 23:14:48 - custom_components.solar_forecast_ml.coordinator - DEBUG - Finished fetching solar_forecast_ml data in 0.037 seconds (success: True)
+2026-02-05 23:14:48 - custom_components.solar_forecast_ml.sensors.sensor_base - DEBUG - PeakProductionHourSensor: Loaded best hour = 12:00
+2026-02-05 23:14:48 - custom_components.solar_forecast_ml.sensors.sensor_base - DEBUG - NextHourSensor: No upcoming predictions found for 2026-02-05
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.data.data_forecast_handler - INFO - ✓ Actual best hour saved: Hour 12 with 0.08 kWh
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.data.data_forecast_handler - INFO - [OK] Today finalized: Yield=0.25 kWh, Consumption=47.15 kWh, Production=4h 30m, Accuracy=3.9%, Excluded=0/9 hours
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.data.data_forecast_handler - INFO - [OK] Statistics calculated: 7d avg=0.76 kWh, 30d avg=0.76 kWh
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.data.data_daily_summaries - INFO - Frost analysis for 2026-02-05: 5 hours affected (heavy: 0, light: 5)
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.data.data_daily_summaries - INFO - Created daily summary for 2026-02-05
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.data.data_forecast_handler - INFO - Moved to history: 2026-02-05 - Forecast=6.30 kWh, Actual=0.25 kWh, Accuracy=3.9%
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.sensors.sensor_base - DEBUG - PeakProductionHourSensor: Loaded best hour = 12:00
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.sensors.sensor_base - DEBUG - NextHourSensor: No upcoming predictions found for 2026-02-05
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.data.data_forecast_handler - INFO - Statistics calculated: 7d avg=0.63 kWh, 30d avg=0.63 kWh
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.production.production_scheduled_tasks - INFO - Calculating weather precision for 2026-02-04
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.data.data_weather_precision - INFO - Calculating correction factors for 2026-02-04
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.data.data_weather_precision - INFO - Loaded actual weather for 24 hours
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.data.data_weather_precision - INFO - Loaded RAW Open-Meteo forecast for 24 hours
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.data.data_weather_precision - INFO - Compared 24 hours successfully
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.data.data_weather_precision - DEBUG - Loaded weather precision data: 1 days tracked
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.data.data_weather_precision - INFO - Updated rolling averages: 2 days (clear=0, cloudy=1), solar_rad: daily=1.000, clear=1.000, cloudy=1.000
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.data.data_weather_precision - DEBUG - Saved weather precision data to /config/solar_forecast_ml/stats/weather_precision_daily.json
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.data.data_weather_precision - INFO - ✓ Correction factors calculated for 2026-02-04: 24 hours, factors: {'temperature': 0.037, 'pressure': -1.092, 'solar_radiation_wm2': 0.598, 'clouds': 0.718, 'humidity': 1.03, 'wind': 0.698, 'rain': 0.004}
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.production.production_scheduled_tasks - INFO - Weather precision calculated for 2026-02-04
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.data.data_open_meteo_client - INFO - OpenMeteoClient initialized (lat=52.3695, lon=9.7505) with persistent cache
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.data.data_weather_corrector - INFO - WeatherForecastCorrector initialized (lat=52.3695, lon=9.7505)
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.data.data_weather_corrector - DEBUG - Updating RB correction for 2026-02-05
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.data.data_weather_corrector - INFO - RB Correction: factor=0.350 - RBS overpredicted by 65.0%. Cumulative over 3 days: actual=2.31 kWh, predicted=44.74 kWh
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.data.data_weather_corrector - DEBUG - Rolling 5-day accuracy factor: 0.350 (from 3 days)
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.data.data_weather_corrector - INFO - Blending factors: rolling=0.350, cumulative=0.350 → blended=0.350
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.data.data_weather_corrector - INFO - Updated RB correction: factor=0.350, confidence=0.4, samples=3
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.ai.ai_predictor - INFO - AI training started: 1 outputs
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.ai.ai_predictor - INFO - Prepared 14 training samples from 2 days, 1 outputs
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.ai.ai_predictor - INFO - Training Ridge with 14 samples...
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.ai.ai_tiny_ridge - INFO - TinyRidge training started: 14 samples
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.ai.ai_tiny_ridge - DEBUG - Alpha 0.001: LOO-CV MSE = 0.001052
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.ai.ai_tiny_ridge - DEBUG - Alpha 0.01: LOO-CV MSE = 0.001052
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.ai.ai_tiny_ridge - DEBUG - Alpha 0.1: LOO-CV MSE = 0.001052
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.ai.ai_tiny_ridge - DEBUG - Alpha 1.0: LOO-CV MSE = 0.001057
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.ai.ai_tiny_ridge - DEBUG - Alpha 10.0: LOO-CV MSE = 0.001099
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.ai.ai_tiny_ridge - DEBUG - Alpha 100.0: LOO-CV MSE = 0.001403
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.ai.ai_tiny_ridge - DEBUG - Alpha 1000.0: LOO-CV MSE = 0.002083
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.ai.ai_tiny_ridge - INFO - Selected alpha = 0.001 (LOO-CV MSE = 0.001052)
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.ai.ai_tiny_ridge - INFO - TinyRidge trained: alpha=0.0010, R²=1.000, RMSE=0.0000, samples=14, outputs=1
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.ai.ai_predictor - INFO - Ridge trained: R²=1.000, alpha=0.0010
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.ai.ai_predictor - INFO - Active model: Ridge (14 samples, bootstrap phase)
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.ai.ai_predictor - INFO - Weights saved
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.ai.ai_seasonal - DEBUG - Seasonal factors saved
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.ai.ai_predictor - DEBUG - Updated seasonal factors for 1 months
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.ai.ai_dni_tracker - DEBUG - DNI tracker saved
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.ai.ai_predictor - INFO - Training complete: active=ridge, R²=1.000, RMSE=0.000kWh, samples=14, outputs=1
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.production.production_scheduled_tasks - INFO - AI model trained: R²=1.000, RMSE=0.000kWh, samples=14, features=20, outputs=1, attention=ON
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.coordinator - INFO - Coordinator notified of AI Training completion at 2026-02-05 23:30:00.474814+01:00. Accuracy: 0.9999999999072218
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.sensors.sensor_system_status - DEBUG - Status updated: event=ai_training, status=success, state=warning
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.production.production_scheduled_tasks - DEBUG - Panel group efficiency: Integrated into AI multi-output training
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.sensors.sensor_base - DEBUG - PeakProductionHourSensor: Loaded best hour = 12:00
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.sensors.sensor_base - DEBUG - NextHourSensor: No upcoming predictions found for 2026-02-05
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.production.production_scheduled_tasks - DEBUG - Loaded actual weather for 24 hours for physics calibration bucket classification
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.production.production_scheduled_tasks - DEBUG - Loaded sun elevation for 24 hours for LOW_SUN bucket detection
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.production.production_scheduled_tasks - DEBUG - Hour 8: Using ACTUAL cloud cover 100% from sensors
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.production.production_scheduled_tasks - DEBUG - Hour 8: Frost detected - frost_detected=light_frost, frost_score=7
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.production.production_scheduled_tasks - DEBUG - Hour 9: Using ACTUAL cloud cover 100% from sensors
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.production.production_scheduled_tasks - DEBUG - Hour 9: Frost detected - frost_detected=light_frost, frost_score=7
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.production.production_scheduled_tasks - DEBUG - Hour 10: Using ACTUAL cloud cover 90% from sensors
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.production.production_scheduled_tasks - DEBUG - Hour 10: Frost detected - frost_detected=light_frost, frost_score=6
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.production.production_scheduled_tasks - DEBUG - Hour 11: Using ACTUAL cloud cover 79% from sensors
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.production.production_scheduled_tasks - DEBUG - Hour 11: Frost detected - frost_detected=light_frost, frost_score=6
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.production.production_scheduled_tasks - DEBUG - Hour 12: Using ACTUAL cloud cover 72% from sensors
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.production.production_scheduled_tasks - DEBUG - Hour 12: Frost detected - frost_detected=light_frost, frost_score=5
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.production.production_scheduled_tasks - DEBUG - Hour 13: Using ACTUAL cloud cover 60% from sensors
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.production.production_scheduled_tasks - DEBUG - Hour 14: Using ACTUAL cloud cover 41% from sensors
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.production.production_scheduled_tasks - DEBUG - Hour 15: Using ACTUAL cloud cover 16% from sensors
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.production.production_scheduled_tasks - DEBUG - Hour 16: Using ACTUAL cloud cover 0% from sensors
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.physics.physics_calibrator - DEBUG - Skipping outlier: Gruppe 1 hour 10, ratio=0.00 (physics=0.892, actual=0.003)
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.physics.physics_calibrator - DEBUG - Skipping outlier: Gruppe 1 hour 11, ratio=0.04 (physics=1.390, actual=0.058)
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.physics.physics_calibrator - DEBUG - Skipping outlier: Gruppe 1 hour 12, ratio=0.05 (physics=1.627, actual=0.082)
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.physics.physics_calibrator - DEBUG - Skipping outlier: Gruppe 1 hour 13, ratio=0.05 (physics=1.435, actual=0.072)
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.physics.physics_calibrator - DEBUG - Calibration factor for Gruppe 1: global=0.109, hourly=1 hours, buckets=[fair=0.11(1)], confidence=0.32
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.physics.physics_calibrator - DEBUG - Saved calibration config with 1 bucket factors
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.physics.physics_calibrator - INFO - ✓ Physics calibration complete for 2026-02-05: 1 groups, 1 samples, avg correction factor = 0.11
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.production.production_scheduled_tasks - INFO - ✓ Physics calibration complete: 1 groups, 1 samples, avg factor=0.11
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.production.production_scheduled_tasks - INFO -   Gruppe 1: factor=0.11, confidence=32%, hourly_factors=1
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.data.data_share_backup - DEBUG - Synced 7 files to /share/, 0 errors
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.data.data_weather_expert_blender - DEBUG - Expert open_meteo cache: 0 dates, today=False
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.data.data_weather_expert_blender - DEBUG - Expert wttr_in cache: 6 dates, today=True
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.data.data_weather_expert_blender - DEBUG - Expert ecmwf_layers cache: 0 dates, today=False
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.data.data_weather_expert_blender - DEBUG - Hour 0: Skipping - cloud_cover from forecast_fallback (no real learning)
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.data.data_weather_expert_blender - DEBUG - Hour 1: Skipping - cloud_cover from forecast_fallback (no real learning)
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.data.data_weather_expert_blender - DEBUG - Hour 2: Skipping - cloud_cover from forecast_fallback (no real learning)
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.data.data_weather_expert_blender - DEBUG - Hour 3: Skipping - cloud_cover from forecast_fallback (no real learning)
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.data.data_weather_expert_blender - DEBUG - Hour 4: Skipping - cloud_cover from forecast_fallback (no real learning)
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.data.data_weather_expert_blender - DEBUG - Hour 5: Skipping - cloud_cover from forecast_fallback (no real learning)
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.data.data_weather_expert_blender - DEBUG - Hour 6: Skipping - cloud_cover from forecast_fallback (no real learning)
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.data.data_weather_expert_blender - DEBUG - Hour 7: Skipping - cloud_cover from forecast_fallback (no real learning)
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.data.data_share_backup - INFO - Learning data synced to /share/ for backup protection
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.data.data_weather_expert_blender - DEBUG - OpenMeteoExpert: Loaded 6 days from file cache
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.data.data_weather_expert_blender - DEBUG - ECMWFLayerExpert: Loaded 6 days from file cache
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.data.data_weather_expert_blender - DEBUG - Pirate Weather: Loaded 0 days from file cache
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.data.data_weather_expert_blender - DEBUG - Hour 17: Skipping - cloud_cover from forecast_fallback (no real learning)
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.data.data_weather_expert_blender - DEBUG - Hour 18: Skipping - cloud_cover from forecast_fallback (no real learning)
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.data.data_weather_expert_blender - DEBUG - Hour 19: Skipping - cloud_cover from forecast_fallback (no real learning)
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.data.data_weather_expert_blender - DEBUG - Hour 20: Skipping - cloud_cover from forecast_fallback (no real learning)
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.data.data_weather_expert_blender - DEBUG - Hour 21: Skipping - cloud_cover from forecast_fallback (no real learning)
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.data.data_weather_expert_blender - DEBUG - Hour 22: Skipping - cloud_cover from forecast_fallback (no real learning)
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.data.data_weather_expert_blender - DEBUG - Hour 23: Skipping - cloud_cover from forecast_fallback (no real learning)
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.data.data_weather_expert_blender - DEBUG - Saved expert weights to weather_expert_weights.json
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.data.data_weather_expert_blender - INFO - Expert learning for 2026-02-05: 9 hours compared (skipped 0 night hours, skipped 15 forecast_fallback hours), MAE: open_meteo=38.0, wttr_in=38.0, ecmwf_layers=31.0, bright_sky=38.0
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.data.data_visibility_learner - INFO - VisibilityLearner for 2026-02-05: 2 fog hours, 0 fog_light hours. Accuracy: BrightSky=0.0%, PirateWeather=0.0%
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.data.data_weather_expert_blender - INFO - Visibility learning for 2026-02-05: 2 fog hours, 0 fog_light hours. Accuracy: BrightSky=0.0%, PirateWeather=0.0%
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.production.production_scheduled_tasks - INFO - Weather expert learning SUCCESS for 2026-02-05: MAE by expert: open_meteo=38.0, wttr_in=38.0, ecmwf_layers=31.0, bright_sky=38.0, Weights updated for 1 cloud types
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.data.data_weather_expert_blender - DEBUG - No snow predictions to learn from on 2026-02-05
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.production.production_scheduled_tasks - INFO - End-of-day workflow completed (12/12 steps, 0.3s)
+2026-02-05 23:30:00 - custom_components.solar_forecast_ml.sensors.sensor_system_status - DEBUG - Status updated: event=end_of_day_workflow, status=success, state=warning

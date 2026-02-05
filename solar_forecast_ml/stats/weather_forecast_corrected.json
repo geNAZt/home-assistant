@@ -2502,9 +2502,10 @@
     "precision_sample_days": 1,
     "rb_overall_correction": {
       "factor": 0.35,
-      "confidence": 0.3,
-      "sample_days": 2,
-      "last_updated": "2026-02-04T23:30:00.465389+01:00",
+      "confidence": 0.4,
+      "sample_days": 3,
+      "rolling_factor": 0.35,
+      "last_updated": "2026-02-05T23:30:00.326701+01:00",
       "note": "Installation-specific correction factor"
     },
     "self_healing": {

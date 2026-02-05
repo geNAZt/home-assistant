@@ -1,5 +1,27 @@
 {
   "version": "1.0",
-  "updated_at": null,
-  "history": []
+  "updated_at": "2026-02-05T23:30:00.505404",
+  "history": [
+    {
+      "date": "2026-02-05",
+      "groups": {
+        "Gruppe 1": {
+          "avg_ratio": 0.109,
+          "sample_count": 1,
+          "hourly": {
+            "14": 0.109
+          },
+          "buckets": {
+            "fair": {
+              "avg_ratio": 0.109,
+              "sample_count": 1,
+              "hourly": {
+                "14": 0.109
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
 }

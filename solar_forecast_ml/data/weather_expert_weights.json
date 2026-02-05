@@ -30,11 +30,10 @@
       "pirate_weather": 0.3
     },
     "stratus": {
-      "open_meteo": 0.20392985475051695,
-      "wttr_in": 0.24052198459107907,
-      "ecmwf_layers": 0.32587511745547326,
-      "bright_sky": 0.22967304320293078,
-      "pirate_weather": 0.0
+      "open_meteo": 0.22028003882538139,
+      "wttr_in": 0.23857610374566243,
+      "ecmwf_layers": 0.30799222437736795,
+      "bright_sky": 0.2331516330515883
     },
     "overcast": {
       "open_meteo": 0.1,
@@ -66,7 +65,7 @@
     }
   },
   "metadata": {
-    "last_updated": "2026-02-04T23:30:00.499378",
+    "last_updated": "2026-02-05T23:30:00.517455",
     "experts": [
       "open_meteo",
       "wttr_in",
@@ -85,11 +84,5 @@
       "fog",
       "fog_light"
     ]
-  },
-  "snow_prediction_stats": {
-    "total_predictions": 0,
-    "correct_predictions": 0,
-    "accuracy": 0.0,
-    "last_updated": null
   }
 }

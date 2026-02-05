@@ -1,17 +1,37 @@
 {
   "version": "3.0",
-  "updated_at": "2026-02-02T11:58:44.281986",
+  "updated_at": "2026-02-05T23:30:00.501214",
   "physics_defaults": {
     "albedo": 0.2,
     "system_efficiency": 0.9,
-    "learned_efficiency_factor": 1.0
+    "learned_efficiency_factor": 0.109
   },
-  "group_calibration": {},
+  "group_calibration": {
+    "Gruppe 1": {
+      "global_factor": 0.109,
+      "hourly_factors": {
+        "14": 0.109
+      },
+      "bucket_factors": {
+        "fair": {
+          "global_factor": 0.109,
+          "hourly_factors": {
+            "14": 0.109
+          },
+          "sample_count": 1,
+          "confidence": 0.321
+        }
+      },
+      "sample_count": 1,
+      "confidence": 0.321,
+      "last_updated": "2026-02-05T23:30:00.501135"
+    }
+  },
   "metadata": {
     "rolling_window_days": 21,
     "min_samples": 1,
-    "total_groups": 0,
-    "total_bucket_factors": 0,
+    "total_groups": 1,
+    "total_bucket_factors": 1,
     "weather_buckets": [
       "clear",
       "clear_low_sun",
@@ -29,7 +49,6 @@
       "fog_low_sun",
       "frost",
       "frost_low_sun"
-    ],
-    "frost_migration_completed": true
+    ]
   }
 }
