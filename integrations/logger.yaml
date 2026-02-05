@@ -1,5 +1,2 @@
 logger:  
   default: info
-  logs:
-    homeassistant.components.rest_command: debug
-    homeassistant.components.rest.data: debug
