@@ -1,0 +1,59 @@
+{
+  "days": {
+    "2026-01-27": {
+      "actual_kwh": 0.993,
+      "sfml_forecast_kwh": null,
+      "timestamp": "2026-02-02T15:49:56.169556"
+    },
+    "2026-02-02": {
+      "timestamp": "2026-02-02T23:50:00.297909",
+      "actual_kwh": 0.577,
+      "sfml_forecast_kwh": 14.65,
+      "sfml_error_kwh": 14.07,
+      "sfml_accuracy_percent": 0
+    },
+    "2026-02-03": {
+      "sfml_forecast_kwh": 22.25,
+      "timestamp": "2026-02-03T23:50:00.193465",
+      "actual_kwh": 1.08,
+      "sfml_error_kwh": 21.17,
+      "sfml_accuracy_percent": 0
+    },
+    "2026-02-04": {
+      "sfml_forecast_kwh": 10.77,
+      "timestamp": "2026-02-04T23:50:00.337556",
+      "actual_kwh": 0.607,
+      "sfml_error_kwh": 10.16,
+      "sfml_accuracy_percent": 0
+    },
+    "2026-01-29": {
+      "actual_kwh": 0.402,
+      "sfml_forecast_kwh": null,
+      "timestamp": "2026-02-04T09:57:46.036410"
+    },
+    "2026-01-30": {
+      "actual_kwh": 0.067,
+      "sfml_forecast_kwh": null,
+      "timestamp": "2026-02-04T23:36:39.771467"
+    },
+    "2026-01-31": {
+      "actual_kwh": 0.038,
+      "sfml_forecast_kwh": null,
+      "timestamp": "2026-02-04T23:36:39.771475"
+    },
+    "2026-02-01": {
+      "actual_kwh": 0.223,
+      "sfml_forecast_kwh": null,
+      "timestamp": "2026-02-04T23:36:39.771480"
+    },
+    "2026-02-05": {
+      "sfml_forecast_kwh": 6.3,
+      "timestamp": "2026-02-05T08:00:00.320353",
+      "actual_kwh": null
+    }
+  },
+  "metadata": {
+    "last_updated": "2026-02-05T08:00:00.320383",
+    "retention_days": 30
+  }
+}

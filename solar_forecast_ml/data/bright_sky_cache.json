@@ -2,7 +2,7 @@
   "version": "1.1",
   "source": "bright_sky",
   "metadata": {
-    "last_updated": "2026-02-02T11:58:47.966596",
+    "last_updated": "2026-02-05T18:00:20.478991",
     "latitude": 52.36948782131487,
     "longitude": 9.750484228134157,
     "retention_days": 730
@@ -54,258 +54,552 @@
         "visibility_m": 16600.0
       },
       "11": {
-        "cloud_cover": 87.0,
-        "visibility_m": 7000.0
+        "cloud_cover": 100.0,
+        "visibility_m": 16100.0
       },
       "12": {
-        "cloud_cover": 96.0,
-        "visibility_m": 7200.0
+        "cloud_cover": 75.0,
+        "visibility_m": 19800.0
       },
       "13": {
-        "cloud_cover": 93.0,
-        "visibility_m": 8900.0
+        "cloud_cover": 63.0,
+        "visibility_m": 15500.0
       },
       "14": {
-        "cloud_cover": 89.0,
-        "visibility_m": 9000.0
+        "cloud_cover": 100.0,
+        "visibility_m": 16600.0
       },
       "15": {
-        "cloud_cover": 87.0,
-        "visibility_m": 7600.0
+        "cloud_cover": 88.0,
+        "visibility_m": 7200.0
       },
       "16": {
-        "cloud_cover": 83.0,
-        "visibility_m": 5100.0
+        "cloud_cover": 82.0,
+        "visibility_m": 6200.0
       },
       "17": {
-        "cloud_cover": 77.0,
-        "visibility_m": 4300.0
-      },
-      "18": {
         "cloud_cover": 76.0,
         "visibility_m": 4100.0
       },
+      "18": {
+        "cloud_cover": 77.0,
+        "visibility_m": 4200.0
+      },
       "19": {
-        "cloud_cover": 80.0,
-        "visibility_m": 4700.0
+        "cloud_cover": 79.0,
+        "visibility_m": 4400.0
       },
       "20": {
-        "cloud_cover": 76.0,
-        "visibility_m": 4900.0
+        "cloud_cover": 78.0,
+        "visibility_m": 4600.0
       },
       "21": {
-        "cloud_cover": 78.0,
-        "visibility_m": 5600.0
+        "cloud_cover": 81.0,
+        "visibility_m": 5500.0
       },
       "22": {
-        "cloud_cover": 83.0,
-        "visibility_m": 6300.0
+        "cloud_cover": 81.0,
+        "visibility_m": 6400.0
       },
       "23": {
-        "cloud_cover": 78.0,
-        "visibility_m": 6800.0
+        "cloud_cover": 80.0,
+        "visibility_m": 6300.0
       }
     },
     "2026-02-03": {
       "0": {
-        "cloud_cover": 83.0,
-        "visibility_m": 5500.0
+        "cloud_cover": 100.0,
+        "visibility_m": 11700.0
       },
       "1": {
-        "cloud_cover": 85.0,
-        "visibility_m": 5500.0
+        "cloud_cover": 100.0,
+        "visibility_m": 11500.0
       },
       "2": {
-        "cloud_cover": 84.0,
-        "visibility_m": 5200.0
+        "cloud_cover": 88.0,
+        "visibility_m": 12800.0
       },
       "3": {
-        "cloud_cover": 85.0,
-        "visibility_m": 6400.0
+        "cloud_cover": 100.0,
+        "visibility_m": 13200.0
       },
       "4": {
-        "cloud_cover": 83.0,
-        "visibility_m": 5400.0
+        "cloud_cover": 100.0,
+        "visibility_m": 13800.0
       },
       "5": {
-        "cloud_cover": 85.0,
-        "visibility_m": 5800.0
+        "cloud_cover": 100.0,
+        "visibility_m": 16000.0
       },
       "6": {
-        "cloud_cover": 86.0,
-        "visibility_m": 5200.0
+        "cloud_cover": 88.0,
+        "visibility_m": 17700.0
       },
       "7": {
-        "cloud_cover": 86.0,
-        "visibility_m": 5100.0
+        "cloud_cover": 100.0,
+        "visibility_m": 19900.0
       },
       "8": {
-        "cloud_cover": 90.0,
-        "visibility_m": 5200.0
+        "cloud_cover": 100.0,
+        "visibility_m": 18500.0
       },
       "9": {
-        "cloud_cover": 87.0,
-        "visibility_m": 5900.0
+        "cloud_cover": 100.0,
+        "visibility_m": 17300.0
       },
       "10": {
-        "cloud_cover": 89.0,
-        "visibility_m": 8300.0
+        "cloud_cover": 100.0,
+        "visibility_m": 17200.0
       },
       "11": {
-        "cloud_cover": 87.0,
-        "visibility_m": 7800.0
+        "cloud_cover": 100.0,
+        "visibility_m": 16500.0
       },
       "12": {
-        "cloud_cover": 89.0,
-        "visibility_m": 6000.0
+        "cloud_cover": 100.0,
+        "visibility_m": 17000.0
       },
       "13": {
-        "cloud_cover": 91.0,
-        "visibility_m": 5200.0
+        "cloud_cover": 100.0,
+        "visibility_m": 19400.0
       },
       "14": {
-        "cloud_cover": 92.0,
-        "visibility_m": 5400.0
+        "cloud_cover": 100.0,
+        "visibility_m": 19700.0
       },
       "15": {
-        "cloud_cover": 94.0,
-        "visibility_m": 6600.0
+        "cloud_cover": 100.0,
+        "visibility_m": 19100.0
       },
       "16": {
-        "cloud_cover": 96.0,
-        "visibility_m": 5200.0
+        "cloud_cover": 88.0,
+        "visibility_m": 4300.0
       },
       "17": {
-        "cloud_cover": 99.0,
-        "visibility_m": 3000.0
+        "cloud_cover": 89.0,
+        "visibility_m": 4000.0
       },
       "18": {
-        "cloud_cover": 100.0,
-        "visibility_m": 2300.0
+        "cloud_cover": 95.0,
+        "visibility_m": 3600.0
       },
       "19": {
-        "cloud_cover": 100.0,
-        "visibility_m": 1800.0
+        "cloud_cover": 97.0,
+        "visibility_m": 3600.0
       },
       "20": {
-        "cloud_cover": 100.0,
-        "visibility_m": 2000.0
+        "cloud_cover": 99.0,
+        "visibility_m": 3800.0
       },
       "21": {
         "cloud_cover": 100.0,
-        "visibility_m": 2000.0
+        "visibility_m": 4100.0
       },
       "22": {
         "cloud_cover": 100.0,
-        "visibility_m": 2100.0
+        "visibility_m": 4100.0
       },
       "23": {
         "cloud_cover": 100.0,
-        "visibility_m": 3200.0
+        "visibility_m": 4500.0
       }
     },
     "2026-02-04": {
       "0": {
         "cloud_cover": 100.0,
-        "visibility_m": 2600.0
+        "visibility_m": 3900.0
       },
       "1": {
         "cloud_cover": 100.0,
-        "visibility_m": 1400.0
+        "visibility_m": 6600.0
       },
       "2": {
         "cloud_cover": 100.0,
-        "visibility_m": 1100.0
+        "visibility_m": 7600.0
       },
       "3": {
         "cloud_cover": 100.0,
-        "visibility_m": 1100.0
+        "visibility_m": 9500.0
       },
       "4": {
-        "cloud_cover": 100.0,
-        "visibility_m": 1000.0
+        "cloud_cover": 88.0,
+        "visibility_m": 8200.0
       },
       "5": {
         "cloud_cover": 100.0,
-        "visibility_m": 1100.0
+        "visibility_m": 10400.0
       },
       "6": {
         "cloud_cover": 100.0,
-        "visibility_m": 1300.0
+        "visibility_m": 10900.0
       },
       "7": {
-        "cloud_cover": 97.0,
-        "visibility_m": 1400.0
+        "cloud_cover": 100.0,
+        "visibility_m": 9000.0
       },
       "8": {
-        "cloud_cover": 94.0,
-        "visibility_m": 1400.0
+        "cloud_cover": 100.0,
+        "visibility_m": 7200.0
       },
       "9": {
-        "cloud_cover": 88.0,
-        "visibility_m": 2000.0
+        "cloud_cover": 100.0,
+        "visibility_m": 6600.0
       },
       "10": {
-        "cloud_cover": 85.0,
-        "visibility_m": 2400.0
+        "cloud_cover": 100.0,
+        "visibility_m": 6800.0
       },
       "11": {
-        "cloud_cover": 81.0,
-        "visibility_m": 3200.0
+        "cloud_cover": 100.0,
+        "visibility_m": 5900.0
       },
       "12": {
-        "cloud_cover": 79.0,
-        "visibility_m": 5500.0
+        "cloud_cover": 100.0,
+        "visibility_m": 7300.0
       },
       "13": {
-        "cloud_cover": 77.0,
-        "visibility_m": 4900.0
+        "cloud_cover": 100.0,
+        "visibility_m": 7000.0
       },
       "14": {
-        "cloud_cover": 77.0,
-        "visibility_m": 3700.0
+        "cloud_cover": 100.0,
+        "visibility_m": 6200.0
       },
       "15": {
-        "cloud_cover": 73.0,
-        "visibility_m": 3000.0
+        "cloud_cover": 100.0,
+        "visibility_m": 6300.0
       },
       "16": {
-        "cloud_cover": 72.0,
-        "visibility_m": 3300.0
+        "cloud_cover": 100.0,
+        "visibility_m": 5200.0
       },
       "17": {
-        "cloud_cover": 74.0,
-        "visibility_m": 2500.0
+        "cloud_cover": 100.0,
+        "visibility_m": 5000.0
       },
       "18": {
-        "cloud_cover": 77.0,
-        "visibility_m": 2000.0
+        "cloud_cover": 100.0,
+        "visibility_m": 4300.0
       },
       "19": {
-        "cloud_cover": 82.0,
-        "visibility_m": 2000.0
+        "cloud_cover": 100.0,
+        "visibility_m": 2900.0
       },
       "20": {
-        "cloud_cover": 89.0,
-        "visibility_m": 1800.0
+        "cloud_cover": 100.0,
+        "visibility_m": 3300.0
       },
       "21": {
-        "cloud_cover": 97.0,
-        "visibility_m": 1300.0
+        "cloud_cover": 100.0,
+        "visibility_m": 3900.0
       },
       "22": {
-        "cloud_cover": 99.0,
-        "visibility_m": 1400.0
+        "cloud_cover": 92.0,
+        "visibility_m": 3000.0
       },
       "23": {
-        "cloud_cover": 99.0,
-        "visibility_m": 1300.0
+        "cloud_cover": 97.0,
+        "visibility_m": 2600.0
       }
     },
     "2026-02-05": {
       "0": {
         "cloud_cover": 100.0,
+        "visibility_m": 7300.0
+      },
+      "1": {
+        "cloud_cover": 100.0,
+        "visibility_m": 8000.0
+      },
+      "2": {
+        "cloud_cover": 100.0,
+        "visibility_m": 5200.0
+      },
+      "3": {
+        "cloud_cover": 100.0,
+        "visibility_m": 5700.0
+      },
+      "4": {
+        "cloud_cover": 100.0,
+        "visibility_m": 3300.0
+      },
+      "5": {
+        "cloud_cover": 100.0,
+        "visibility_m": 3200.0
+      },
+      "6": {
+        "cloud_cover": 88.0,
+        "visibility_m": 3800.0
+      },
+      "7": {
+        "cloud_cover": 100.0,
+        "visibility_m": 6200.0
+      },
+      "8": {
+        "cloud_cover": 100.0,
+        "visibility_m": 4400.0
+      },
+      "9": {
+        "cloud_cover": 100.0,
+        "visibility_m": 4000.0
+      },
+      "10": {
+        "cloud_cover": 100.0,
+        "visibility_m": 4700.0
+      },
+      "11": {
+        "cloud_cover": 100.0,
+        "visibility_m": 5100.0
+      },
+      "12": {
+        "cloud_cover": 100.0,
+        "visibility_m": 5400.0
+      },
+      "13": {
+        "cloud_cover": 100.0,
+        "visibility_m": 6400.0
+      },
+      "14": {
+        "cloud_cover": 100.0,
+        "visibility_m": 4900.0
+      },
+      "15": {
+        "cloud_cover": 100.0,
+        "visibility_m": 3000.0
+      },
+      "16": {
+        "cloud_cover": 100.0,
+        "visibility_m": 3800.0
+      },
+      "17": {
+        "cloud_cover": 100.0,
+        "visibility_m": 4400.0
+      },
+      "18": {
+        "cloud_cover": 100.0,
+        "visibility_m": 3600.0
+      },
+      "19": {
+        "cloud_cover": 100.0,
+        "visibility_m": 3800.0
+      },
+      "20": {
+        "cloud_cover": 99.0,
+        "visibility_m": 3800.0
+      },
+      "21": {
+        "cloud_cover": 100.0,
+        "visibility_m": 4400.0
+      },
+      "22": {
+        "cloud_cover": 100.0,
+        "visibility_m": 3900.0
+      },
+      "23": {
+        "cloud_cover": 100.0,
+        "visibility_m": 3700.0
+      }
+    },
+    "2026-02-06": {
+      "0": {
+        "cloud_cover": 98.0,
+        "visibility_m": 3400.0
+      },
+      "1": {
+        "cloud_cover": 99.0,
+        "visibility_m": 3400.0
+      },
+      "2": {
+        "cloud_cover": 99.0,
+        "visibility_m": 3200.0
+      },
+      "3": {
+        "cloud_cover": 99.0,
+        "visibility_m": 4100.0
+      },
+      "4": {
+        "cloud_cover": 99.0,
+        "visibility_m": 4200.0
+      },
+      "5": {
+        "cloud_cover": 100.0,
+        "visibility_m": 4300.0
+      },
+      "6": {
+        "cloud_cover": 100.0,
+        "visibility_m": 3300.0
+      },
+      "7": {
+        "cloud_cover": 100.0,
+        "visibility_m": 3000.0
+      },
+      "8": {
+        "cloud_cover": 100.0,
+        "visibility_m": 4100.0
+      },
+      "9": {
+        "cloud_cover": 100.0,
+        "visibility_m": 4100.0
+      },
+      "10": {
+        "cloud_cover": 100.0,
+        "visibility_m": 4700.0
+      },
+      "11": {
+        "cloud_cover": 100.0,
+        "visibility_m": 4800.0
+      },
+      "12": {
+        "cloud_cover": 100.0,
+        "visibility_m": 4000.0
+      },
+      "13": {
+        "cloud_cover": 100.0,
+        "visibility_m": 5000.0
+      },
+      "14": {
+        "cloud_cover": 100.0,
+        "visibility_m": 5400.0
+      },
+      "15": {
+        "cloud_cover": 100.0,
+        "visibility_m": 5000.0
+      },
+      "16": {
+        "cloud_cover": 100.0,
+        "visibility_m": 3900.0
+      },
+      "17": {
+        "cloud_cover": 100.0,
+        "visibility_m": 4200.0
+      },
+      "18": {
+        "cloud_cover": 100.0,
+        "visibility_m": 2800.0
+      },
+      "19": {
+        "cloud_cover": 100.0,
+        "visibility_m": 2500.0
+      },
+      "20": {
+        "cloud_cover": 100.0,
+        "visibility_m": 2400.0
+      },
+      "21": {
+        "cloud_cover": 100.0,
+        "visibility_m": 2200.0
+      },
+      "22": {
+        "cloud_cover": 100.0,
+        "visibility_m": 2900.0
+      },
+      "23": {
+        "cloud_cover": 100.0,
+        "visibility_m": 2900.0
+      }
+    },
+    "2026-02-07": {
+      "0": {
+        "cloud_cover": 100.0,
+        "visibility_m": 2400.0
+      },
+      "1": {
+        "cloud_cover": 100.0,
+        "visibility_m": 2200.0
+      },
+      "2": {
+        "cloud_cover": 100.0,
         "visibility_m": 1300.0
+      },
+      "3": {
+        "cloud_cover": 100.0,
+        "visibility_m": 1900.0
+      },
+      "4": {
+        "cloud_cover": 100.0,
+        "visibility_m": 1200.0
+      },
+      "5": {
+        "cloud_cover": 100.0,
+        "visibility_m": 1500.0
+      },
+      "6": {
+        "cloud_cover": 100.0,
+        "visibility_m": 2100.0
+      },
+      "7": {
+        "cloud_cover": 100.0,
+        "visibility_m": 3200.0
+      },
+      "8": {
+        "cloud_cover": 100.0,
+        "visibility_m": 2400.0
+      },
+      "9": {
+        "cloud_cover": 100.0,
+        "visibility_m": 1700.0
+      },
+      "10": {
+        "cloud_cover": 100.0,
+        "visibility_m": 1500.0
+      },
+      "11": {
+        "cloud_cover": 100.0,
+        "visibility_m": 1700.0
+      },
+      "12": {
+        "cloud_cover": 100.0,
+        "visibility_m": 2000.0
+      },
+      "13": {
+        "cloud_cover": 100.0,
+        "visibility_m": 2100.0
+      },
+      "14": {
+        "cloud_cover": 100.0,
+        "visibility_m": 2500.0
+      },
+      "15": {
+        "cloud_cover": 100.0,
+        "visibility_m": 2100.0
+      },
+      "16": {
+        "cloud_cover": 100.0,
+        "visibility_m": 2400.0
+      },
+      "17": {
+        "cloud_cover": 100.0,
+        "visibility_m": 2400.0
+      },
+      "18": {
+        "cloud_cover": 100.0,
+        "visibility_m": 2100.0
+      },
+      "19": {
+        "cloud_cover": 100.0,
+        "visibility_m": 1600.0
+      },
+      "20": {
+        "cloud_cover": 100.0,
+        "visibility_m": 1400.0
+      },
+      "21": {
+        "cloud_cover": 100.0,
+        "visibility_m": 1400.0
+      },
+      "22": {
+        "cloud_cover": 100.0,
+        "visibility_m": 1200.0
+      },
+      "23": {
+        "cloud_cover": 100.0,
+        "visibility_m": 1000.0
+      }
+    },
+    "2026-02-08": {
+      "0": {
+        "cloud_cover": 100.0,
+        "visibility_m": 800.0
       }
     }
   }

@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "expected_daily_production": null,
-  "last_set_date": null,
-  "last_updated": null
+  "expected_daily_production": 6.3,
+  "last_set_date": "2026-02-05",
+  "last_updated": "2026-02-05T07:30:00.547426+01:00"
 }

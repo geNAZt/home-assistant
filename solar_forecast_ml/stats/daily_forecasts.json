@@ -1,110 +1,130 @@
 {
   "version": "3.0.0",
   "today": {
-    "date": "2026-02-02",
+    "date": "2026-02-05",
     "forecast_day": {
-      "prediction_kwh": 14.65,
-      "prediction_kwh_raw": null,
+      "prediction_kwh": 6.3,
+      "prediction_kwh_raw": 6.3,
       "safeguard_applied": false,
       "safeguard_reduction_kwh": 0.0,
       "locked": true,
-      "locked_at": "2026-02-02T11:58:48.170275+01:00",
-      "source": "fallback_open_meteo_startup_recovery"
+      "locked_at": "2026-02-05T07:30:01.620727+01:00",
+      "source": "physics"
     },
     "forecast_tomorrow": {
-      "date": "2026-02-03",
-      "prediction_kwh": 19.11,
-      "locked": true,
-      "locked_at": "2026-02-02T12:15:49.436679+01:00",
+      "date": "2026-02-06",
+      "prediction_kwh": 6.87,
+      "locked": false,
+      "locked_at": null,
       "source": "Physics",
       "updates": [
         {
-          "prediction_kwh": 30.67,
-          "updated_at": "2026-02-02T11:58:48.192930+01:00",
+          "prediction_kwh": 7.77,
+          "updated_at": "2026-02-05T16:01:16.117035+01:00",
           "source": "Physics"
         },
         {
-          "prediction_kwh": 30.67,
-          "updated_at": "2026-02-02T11:58:58.053666+01:00",
+          "prediction_kwh": 7.77,
+          "updated_at": "2026-02-05T16:31:16.112271+01:00",
           "source": "Physics"
         },
         {
-          "prediction_kwh": 19.11,
-          "updated_at": "2026-02-02T12:03:00.211549+01:00",
+          "prediction_kwh": 7.77,
+          "updated_at": "2026-02-05T17:01:16.108507+01:00",
           "source": "Physics"
         },
         {
-          "prediction_kwh": 19.11,
-          "updated_at": "2026-02-02T12:03:00.471127+01:00",
+          "prediction_kwh": 7.77,
+          "updated_at": "2026-02-05T17:31:16.114645+01:00",
           "source": "Physics"
         },
         {
-          "prediction_kwh": 19.11,
-          "updated_at": "2026-02-02T12:03:10.199142+01:00",
+          "prediction_kwh": 6.87,
+          "updated_at": "2026-02-05T18:01:16.109766+01:00",
           "source": "Physics"
         },
         {
-          "prediction_kwh": 19.11,
-          "updated_at": "2026-02-02T12:03:10.212560+01:00",
+          "prediction_kwh": 6.87,
+          "updated_at": "2026-02-05T18:31:16.105030+01:00",
           "source": "Physics"
         },
         {
-          "prediction_kwh": 19.11,
-          "updated_at": "2026-02-02T12:15:39.410535+01:00",
+          "prediction_kwh": 6.87,
+          "updated_at": "2026-02-05T18:40:47.278049+01:00",
           "source": "Physics"
         },
         {
-          "prediction_kwh": 19.11,
-          "updated_at": "2026-02-02T12:15:39.417007+01:00",
+          "prediction_kwh": 6.87,
+          "updated_at": "2026-02-05T18:40:57.302718+01:00",
           "source": "Physics"
         },
         {
-          "prediction_kwh": 19.11,
-          "updated_at": "2026-02-02T12:15:49.428494+01:00",
+          "prediction_kwh": 6.87,
+          "updated_at": "2026-02-05T19:10:57.220054+01:00",
           "source": "Physics"
         },
         {
-          "prediction_kwh": 19.11,
-          "updated_at": "2026-02-02T12:15:49.436679+01:00",
+          "prediction_kwh": 6.87,
+          "updated_at": "2026-02-05T19:40:57.232029+01:00",
           "source": "Physics"
         }
       ]
     },
     "forecast_day_after_tomorrow": {
-      "date": "2026-02-04",
-      "prediction_kwh": 30.86,
+      "date": "2026-02-07",
+      "prediction_kwh": 7.69,
       "locked": false,
       "next_update": null,
       "source": "Physics",
       "updates": [
         {
-          "prediction_kwh": 30.67,
-          "updated_at": "2026-02-02T11:58:48.195761+01:00",
+          "prediction_kwh": 7.69,
+          "updated_at": "2026-02-05T18:01:16.115463+01:00",
           "source": "Physics"
         },
         {
-          "prediction_kwh": 30.67,
-          "updated_at": "2026-02-02T11:58:58.056063+01:00",
+          "prediction_kwh": 7.69,
+          "updated_at": "2026-02-05T18:01:16.118361+01:00",
           "source": "Physics"
         },
         {
-          "prediction_kwh": 30.86,
-          "updated_at": "2026-02-02T12:03:00.232080+01:00",
+          "prediction_kwh": 7.69,
+          "updated_at": "2026-02-05T18:31:16.108825+01:00",
           "source": "Physics"
         },
         {
-          "prediction_kwh": 30.86,
-          "updated_at": "2026-02-02T12:03:10.209137+01:00",
+          "prediction_kwh": 7.69,
+          "updated_at": "2026-02-05T18:31:16.112449+01:00",
           "source": "Physics"
         },
         {
-          "prediction_kwh": 30.86,
-          "updated_at": "2026-02-02T12:15:39.414516+01:00",
+          "prediction_kwh": 7.69,
+          "updated_at": "2026-02-05T18:40:47.284470+01:00",
           "source": "Physics"
         },
         {
-          "prediction_kwh": 30.86,
-          "updated_at": "2026-02-02T12:15:49.432924+01:00",
+          "prediction_kwh": 7.69,
+          "updated_at": "2026-02-05T18:40:47.287504+01:00",
+          "source": "Physics"
+        },
+        {
+          "prediction_kwh": 7.69,
+          "updated_at": "2026-02-05T18:40:57.307671+01:00",
+          "source": "Physics"
+        },
+        {
+          "prediction_kwh": 7.69,
+          "updated_at": "2026-02-05T18:40:57.311525+01:00",
+          "source": "Physics"
+        },
+        {
+          "prediction_kwh": 7.69,
+          "updated_at": "2026-02-05T19:10:57.223702+01:00",
+          "source": "Physics"
+        },
+        {
+          "prediction_kwh": 7.69,
+          "updated_at": "2026-02-05T19:40:57.238211+01:00",
           "source": "Physics"
         }
       ]
@@ -128,16 +148,16 @@
       "source": null
     },
     "production_time": {
-      "active": true,
-      "duration_seconds": 1239,
-      "start_time": "2026-02-02T12:15:41.408511+01:00",
+      "active": false,
+      "duration_seconds": 16215,
+      "start_time": null,
       "end_time": null,
-      "last_power_above_10w": "2026-02-02T12:19:28.244588+01:00",
+      "last_power_above_10w": null,
       "zero_power_since": null
     },
     "peak_today": {
-      "power_w": 132.51,
-      "at": "2026-02-02T12:18:22.122482+01:00"
+      "power_w": 123.58,
+      "at": "2026-02-05T11:56:50.829085+01:00"
     },
     "yield_today": {
       "kwh": null,
@@ -161,48 +181,100 @@
   },
   "statistics": {
     "all_time_peak": {
-      "power_w": 132.51,
-      "date": "2026-02-02",
-      "at": "2026-02-02T12:18:22.122482+01:00"
+      "power_w": 546.8,
+      "date": "2026-02-03",
+      "at": "2026-02-03T11:43:53.274635+01:00"
     },
     "current_week": {
-      "period": null,
-      "date_range": null,
-      "yield_kwh": 0.0,
-      "consumption_kwh": 0.0,
-      "days": 0,
-      "updated_at": null
+      "period": "2026-W06",
+      "date_range": "2026-02-02/2026-02-08",
+      "yield_kwh": 2.27,
+      "consumption_kwh": 201.6,
+      "days": 3,
+      "updated_at": "2026-02-04T23:30:00.450782+01:00"
     },
     "current_month": {
-      "period": null,
-      "yield_kwh": 0.0,
-      "consumption_kwh": 0.0,
+      "period": "2026-02",
+      "yield_kwh": 2.27,
+      "consumption_kwh": 201.6,
       "avg_autarky": 0.0,
-      "days": 0,
-      "updated_at": null
+      "days": 3,
+      "updated_at": "2026-02-04T23:30:00.450782+01:00"
     },
     "last_7_days": {
-      "avg_yield_kwh": 0.0,
-      "avg_accuracy": 0.0,
-      "total_yield_kwh": 0.0,
-      "calculated_at": null
+      "avg_yield_kwh": 0.76,
+      "avg_accuracy": 4.8,
+      "total_yield_kwh": 2.27,
+      "calculated_at": "2026-02-04T23:30:00.450782+01:00"
     },
     "last_30_days": {
-      "avg_yield_kwh": 0.0,
-      "avg_accuracy": 0.0,
-      "total_yield_kwh": 0.0,
-      "calculated_at": null
+      "avg_yield_kwh": 0.76,
+      "avg_accuracy": 4.8,
+      "total_yield_kwh": 2.27,
+      "calculated_at": "2026-02-04T23:30:00.450782+01:00"
     },
     "last_365_days": {
-      "avg_yield_kwh": 0.0,
-      "total_yield_kwh": 0.0,
-      "calculated_at": null
+      "avg_yield_kwh": 0.76,
+      "total_yield_kwh": 2.27,
+      "calculated_at": "2026-02-04T23:30:00.450782+01:00"
     }
   },
-  "history": [],
+  "history": [
+    {
+      "date": "2026-02-04",
+      "predicted_kwh": 10.77,
+      "actual_kwh": 0.61,
+      "accuracy": 5.6,
+      "consumption_kwh": 63.31,
+      "autarky": 0.0,
+      "production_hours": "6h 7m",
+      "peak_power_w": 243.87,
+      "peak_at": "13:16:02",
+      "forecast_source": "physics",
+      "finalized_at": "2026-02-04T23:30:00.408158+01:00",
+      "excluded_hours": {
+        "count": 0,
+        "total": 9,
+        "ratio": 0.0,
+        "reasons": null
+      }
+    },
+    {
+      "date": "2026-02-03",
+      "predicted_kwh": 22.25,
+      "actual_kwh": 1.08,
+      "accuracy": 4.9,
+      "consumption_kwh": 50.48,
+      "autarky": 0.0,
+      "production_hours": "5h 54m",
+      "peak_power_w": 546.8,
+      "peak_at": "11:43:53",
+      "forecast_source": "physics",
+      "finalized_at": "2026-02-03T23:30:00.241889+01:00",
+      "excluded_hours": {
+        "count": 0,
+        "total": 24,
+        "ratio": 0.0,
+        "reasons": null
+      }
+    },
+    {
+      "date": "2026-02-02",
+      "predicted_kwh": 14.65,
+      "actual_kwh": 0.58,
+      "accuracy": 3.9,
+      "consumption_kwh": 87.81,
+      "autarky": 0.0,
+      "production_hours": "4h 9m",
+      "peak_power_w": 362.3,
+      "peak_at": "13:01:48",
+      "forecast_source": "fallback_open_meteo_startup_recovery",
+      "finalized_at": "2026-02-02T23:30:00.095014+01:00"
+    }
+  ],
   "metadata": {
     "retention_days": 730,
-    "history_entries": 0,
+    "history_entries": 3,
     "last_update": null
   }
 }
