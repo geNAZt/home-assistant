@@ -8,4 +8,6 @@ sensor:
         {{ states('sensor.power_price_nt_octopus_go') | float(0) }}
       {% elif states('input_select.power_provider') == 'Tibber' %}
         {{ states('sensor.power_price_nt_tibber') | float(0) }}
+      {% elif states('input_select.power_provider') == 'Static' %}
+        {{ states('sensor.power_price_nt_static') | float(0) }}
       {% endif %}

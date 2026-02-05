@@ -1,0 +1,7 @@
+sensor:
+  - name: "Power Price HT Static"
+    unique_id: power_price_ht_static
+    unit_of_measurement: "€/kWh"
+    device_class: monetary
+    state: >
+      {{ states('sensor.octopus_a_ee9b6cf5_electricity_price') | float(0) }}
