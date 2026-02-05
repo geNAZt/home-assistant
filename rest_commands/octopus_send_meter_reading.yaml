@@ -1,0 +1,9 @@
+url: "https://api.oeg-kraken.energy/v1/graphql/"
+method: post
+content_type: "application/json"
+headers:
+  Authorization: "{{ token }}"
+payload: >
+  {
+    "query": "mutation { createElectricityMeterReadings(input: { accountNumber: \"{{ account_number }}\", readingDate: \"{{ now().isoformat() }}\", meterId: \"{{ meter_id }}\", readings: { value: \"{{ reading }}\", registerObisCode: \"{{ obis_code }}\" } }) { numberOfReadingsCreated } }"
+  }
