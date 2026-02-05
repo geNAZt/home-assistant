@@ -1,7 +1,7 @@
 {
   "version": 1,
   "created": "2026-02-02T14:48:56.098796+00:00",
-  "last_updated": "2026-02-05T18:57:28.564039+00:00",
+  "last_updated": "2026-02-05T20:44:26.397139+00:00",
   "days": {
     "2026-02-02": {
       "date": "2026-02-02",
@@ -72,20 +72,20 @@
       "solar_to_house_kwh": 0.2510332083333334,
       "solar_to_battery_kwh": 0.0029249999999999983,
       "battery_to_house_kwh": 0.0,
-      "grid_to_house_kwh": 45.131470833333346,
-      "consumption_kwh": 45.046372375,
+      "grid_to_house_kwh": 46.445804166666676,
+      "consumption_kwh": 46.36070570833333,
       "solar_yield_sensor_kwh": 0.247,
-      "autarky_percent": 0.5572773013630122,
+      "autarky_percent": 0.5414784018013994,
       "self_consumption_percent": 100,
-      "avg_soc": 10.004237288135593,
+      "avg_soc": 10.003891050583658,
       "min_soc": 9.0,
       "max_soc": 11.0,
-      "soc_readings_count": 236,
-      "soc_readings_sum": 2361.0,
+      "soc_readings_count": 257,
+      "soc_readings_sum": 2571.0,
       "peak_battery_power_w": 0.0,
       "peak_consumption_w": 6912.79,
-      "data_points_count": 243,
-      "last_updated": "2026-02-05T18:57:28.564039+00:00"
+      "data_points_count": 265,
+      "last_updated": "2026-02-05T20:44:26.397139+00:00"
     }
   }
 }
