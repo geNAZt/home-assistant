@@ -1,0 +1,22 @@
+sensor:
+- name: "Base Humidity Inside"
+  unique_id: base_humidity_inside
+  unit_of_measurement: "%"
+  state: >
+    {# Innentemperatur festlegen oder von Sensor nehmen #}
+    {% set t_in = states('sensor.inside_temp_mean_now') | float %} 
+    {% set t_out = states('sensor.outside_temperature') | float %}
+    {% set rh_out = states('sensor.barsinghausen_hohenb_relative_luftfeuchtigkeit') | float %}
+
+    {# Sättigungsdampfdruck berechnen (Magnus-Formel) #}
+    {% set es_out = 6.112 * e ** ((17.62 * t_out) / (243.12 + t_out)) %}
+    {% set es_in = 6.112 * e ** ((17.62 * t_in) / (243.12 + t_in)) %}
+
+    {# Tatsächlicher Dampfdruck außen #}
+    {% set e_actual = es_out * (rh_out / 100) %}
+
+    {# Berechnung der relativen Feuchte nach Erwärmung #}
+    {# (Korrekturfaktor für Volumenänderung durch Temperatur) #}
+    {% set rh_theoretical = (e_actual * (t_out + 273.15) / (t_in + 273.15) / es_in) * 100 %}
+
+    {{ rh_theoretical | round(1) }}
