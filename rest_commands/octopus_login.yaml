@@ -1,8 +1,7 @@
-octopus_login:
-  url: "https://api.oeg-kraken.energy/v1/graphql/"
-  method: post
-  content_type: "application/json"
-  payload: >
-    {
-      "query": "mutation { obtainKrakenToken(input: { email: \"{{ email }}\", password: \"{{ password }}\" }) { token } }"
-    }
+url: "https://api.oeg-kraken.energy/v1/graphql/"
+method: post
+content_type: "application/json"
+payload: >
+  {
+    "query": "mutation { obtainKrakenToken(input: { email: \"{{ email }}\", password: \"{{ password }}\" }) { token } }"
+  }
