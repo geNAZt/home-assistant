@@ -20,16 +20,6 @@
       "updates": [
         {
           "prediction_kwh": 6.87,
-          "updated_at": "2026-02-05T20:29:41.079870+01:00",
-          "source": "Physics"
-        },
-        {
-          "prediction_kwh": 6.87,
-          "updated_at": "2026-02-05T20:59:41.070294+01:00",
-          "source": "Physics"
-        },
-        {
-          "prediction_kwh": 6.87,
           "updated_at": "2026-02-05T21:29:41.071816+01:00",
           "source": "Physics"
         },
@@ -67,6 +57,16 @@
           "prediction_kwh": 6.87,
           "updated_at": "2026-02-05T22:33:19.242072+01:00",
           "source": "Physics"
+        },
+        {
+          "prediction_kwh": 6.87,
+          "updated_at": "2026-02-05T22:35:34.418843+01:00",
+          "source": "Physics"
+        },
+        {
+          "prediction_kwh": 6.87,
+          "updated_at": "2026-02-05T22:35:43.793337+01:00",
+          "source": "Physics"
         }
       ]
     },
@@ -77,16 +77,6 @@
       "next_update": null,
       "source": "Physics",
       "updates": [
-        {
-          "prediction_kwh": 7.69,
-          "updated_at": "2026-02-05T20:29:41.083427+01:00",
-          "source": "Physics"
-        },
-        {
-          "prediction_kwh": 7.69,
-          "updated_at": "2026-02-05T20:59:41.073718+01:00",
-          "source": "Physics"
-        },
         {
           "prediction_kwh": 7.69,
           "updated_at": "2026-02-05T21:29:41.075530+01:00",
@@ -125,6 +115,16 @@
         {
           "prediction_kwh": 7.69,
           "updated_at": "2026-02-05T22:33:19.245880+01:00",
+          "source": "Physics"
+        },
+        {
+          "prediction_kwh": 7.69,
+          "updated_at": "2026-02-05T22:35:34.450733+01:00",
+          "source": "Physics"
+        },
+        {
+          "prediction_kwh": 7.69,
+          "updated_at": "2026-02-05T22:35:43.800671+01:00",
           "source": "Physics"
         }
       ]
