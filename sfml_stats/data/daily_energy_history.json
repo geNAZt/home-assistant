@@ -65,7 +65,7 @@
       "grid_export_kwh": null,
       "price_ct_kwh": null,
       "solar_to_house_kwh": 0,
-      "timestamp": "2026-02-05T21:46:29.272066",
+      "timestamp": "2026-02-05T21:48:55.757768",
       "battery_to_house_kwh": 0.0,
       "home_consumption_kwh": 46.36070570833333,
       "autarky_percent": 0.5414784018013994,
@@ -77,5 +77,5 @@
       "price_mode": "dynamic"
     }
   },
-  "last_updated": "2026-02-05T21:46:29.285938"
+  "last_updated": "2026-02-05T21:48:55.772054"
 }
