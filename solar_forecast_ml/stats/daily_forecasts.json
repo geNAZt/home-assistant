@@ -20,16 +20,6 @@
       "updates": [
         {
           "prediction_kwh": 6.87,
-          "updated_at": "2026-02-05T22:35:43.793337+01:00",
-          "source": "Physics"
-        },
-        {
-          "prediction_kwh": 6.87,
-          "updated_at": "2026-02-05T22:38:24.295411+01:00",
-          "source": "Physics"
-        },
-        {
-          "prediction_kwh": 6.87,
           "updated_at": "2026-02-05T22:38:34.240733+01:00",
           "source": "Physics"
         },
@@ -67,6 +57,16 @@
           "prediction_kwh": 0.75,
           "updated_at": "2026-02-05T23:53:46.655591+01:00",
           "source": "Physics"
+        },
+        {
+          "prediction_kwh": 0.75,
+          "updated_at": "2026-02-05T23:56:30.053870+01:00",
+          "source": "Physics"
+        },
+        {
+          "prediction_kwh": 0.75,
+          "updated_at": "2026-02-05T23:56:39.987615+01:00",
+          "source": "Physics"
         }
       ]
     },
@@ -77,16 +77,6 @@
       "next_update": null,
       "source": "Physics",
       "updates": [
-        {
-          "prediction_kwh": 7.69,
-          "updated_at": "2026-02-05T22:35:43.800671+01:00",
-          "source": "Physics"
-        },
-        {
-          "prediction_kwh": 7.69,
-          "updated_at": "2026-02-05T22:38:24.499721+01:00",
-          "source": "Physics"
-        },
         {
           "prediction_kwh": 7.69,
           "updated_at": "2026-02-05T22:38:34.247087+01:00",
@@ -126,6 +116,16 @@
           "prediction_kwh": 0.84,
           "updated_at": "2026-02-05T23:53:46.661729+01:00",
           "source": "Physics"
+        },
+        {
+          "prediction_kwh": 0.84,
+          "updated_at": "2026-02-05T23:56:30.072770+01:00",
+          "source": "Physics"
+        },
+        {
+          "prediction_kwh": 0.84,
+          "updated_at": "2026-02-05T23:56:39.994830+01:00",
+          "source": "Physics"
         }
       ]
     },
@@ -149,7 +149,7 @@
     },
     "production_time": {
       "active": false,
-      "duration_seconds": 16215,
+      "duration_seconds": 0,
       "start_time": null,
       "end_time": null,
       "last_power_above_10w": null,
