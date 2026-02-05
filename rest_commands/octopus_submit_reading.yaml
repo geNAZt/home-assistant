@@ -1,8 +1,7 @@
 octopus_login:
   url: "https://api.oeg-kraken.energy/v1/graphql/"
   method: POST
-  headers:
-    Content-Type: "application/json"
+  content_type: "application/json"
   payload: >
     {
       "query": "mutation { obtainKrakenToken(input: { email: \"{{ email }}\", password: \"{{ password }}\" }) { token } }"
@@ -10,9 +9,7 @@ octopus_login:
 octopus_submit_reading:
   url: "https://api.oeg-kraken.energy/v1/graphql/"
   method: POST
-  headers:
-    Authorization: !secret octopus_api_key
-    Content-Type: "application/json"
+  content_type: "application/json"
   payload: >
     {
       "query": "mutation { createElectricityMeterReadings(input: { accountNumber: \"{{ account_number }}\", readingDate: \"{{ now().isoformat() }}\", meterId: \"{{ meter_id }}\", readings: { value: \"{{ reading }}\", registerObisCode: \"{{ obis_code }}\" } }) { clientMutationId } }"
