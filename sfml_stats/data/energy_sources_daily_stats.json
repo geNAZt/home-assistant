@@ -1,7 +1,7 @@
 {
   "version": 1,
   "created": "2026-02-02T14:48:56.098796+00:00",
-  "last_updated": "2026-02-05T20:44:26.397139+00:00",
+  "last_updated": "2026-02-05T20:46:29.250354+00:00",
   "days": {
     "2026-02-02": {
       "date": "2026-02-02",
@@ -84,8 +84,8 @@
       "soc_readings_sum": 2571.0,
       "peak_battery_power_w": 0.0,
       "peak_consumption_w": 6912.79,
-      "data_points_count": 265,
-      "last_updated": "2026-02-05T20:44:26.397139+00:00"
+      "data_points_count": 266,
+      "last_updated": "2026-02-05T20:46:29.250354+00:00"
     }
   }
 }

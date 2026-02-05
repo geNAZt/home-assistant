@@ -2,7 +2,7 @@
   "version": "1.1",
   "source": "bright_sky",
   "metadata": {
-    "last_updated": "2026-02-05T18:00:20.478991",
+    "last_updated": "2026-02-05T21:46:33.071685",
     "latitude": 52.36948782131487,
     "longitude": 9.750484228134157,
     "retention_days": 730
@@ -373,117 +373,117 @@
       },
       "17": {
         "cloud_cover": 100.0,
-        "visibility_m": 4400.0
+        "visibility_m": 2900.0
       },
       "18": {
         "cloud_cover": 100.0,
-        "visibility_m": 3600.0
+        "visibility_m": 2400.0
       },
       "19": {
         "cloud_cover": 100.0,
-        "visibility_m": 3800.0
+        "visibility_m": 2200.0
       },
       "20": {
-        "cloud_cover": 99.0,
-        "visibility_m": 3800.0
+        "cloud_cover": 100.0,
+        "visibility_m": 1400.0
       },
       "21": {
-        "cloud_cover": 100.0,
-        "visibility_m": 4400.0
+        "cloud_cover": 97.0,
+        "visibility_m": 4300.0
       },
       "22": {
-        "cloud_cover": 100.0,
-        "visibility_m": 3900.0
+        "cloud_cover": 97.0,
+        "visibility_m": 2800.0
       },
       "23": {
-        "cloud_cover": 100.0,
-        "visibility_m": 3700.0
+        "cloud_cover": 97.0,
+        "visibility_m": 2900.0
       }
     },
     "2026-02-06": {
       "0": {
+        "cloud_cover": 97.0,
+        "visibility_m": 2800.0
+      },
+      "1": {
         "cloud_cover": 98.0,
         "visibility_m": 3400.0
       },
-      "1": {
-        "cloud_cover": 99.0,
-        "visibility_m": 3400.0
-      },
       "2": {
-        "cloud_cover": 99.0,
-        "visibility_m": 3200.0
+        "cloud_cover": 98.0,
+        "visibility_m": 3500.0
       },
       "3": {
-        "cloud_cover": 99.0,
-        "visibility_m": 4100.0
+        "cloud_cover": 97.0,
+        "visibility_m": 3200.0
       },
       "4": {
-        "cloud_cover": 99.0,
-        "visibility_m": 4200.0
+        "cloud_cover": 98.0,
+        "visibility_m": 3600.0
       },
       "5": {
-        "cloud_cover": 100.0,
-        "visibility_m": 4300.0
+        "cloud_cover": 99.0,
+        "visibility_m": 4100.0
       },
       "6": {
         "cloud_cover": 100.0,
-        "visibility_m": 3300.0
+        "visibility_m": 4000.0
       },
       "7": {
         "cloud_cover": 100.0,
-        "visibility_m": 3000.0
+        "visibility_m": 3800.0
       },
       "8": {
         "cloud_cover": 100.0,
-        "visibility_m": 4100.0
+        "visibility_m": 3600.0
       },
       "9": {
         "cloud_cover": 100.0,
-        "visibility_m": 4100.0
+        "visibility_m": 3600.0
       },
       "10": {
         "cloud_cover": 100.0,
-        "visibility_m": 4700.0
+        "visibility_m": 5000.0
       },
       "11": {
         "cloud_cover": 100.0,
-        "visibility_m": 4800.0
+        "visibility_m": 5100.0
       },
       "12": {
         "cloud_cover": 100.0,
-        "visibility_m": 4000.0
+        "visibility_m": 4200.0
       },
       "13": {
         "cloud_cover": 100.0,
-        "visibility_m": 5000.0
+        "visibility_m": 4700.0
       },
       "14": {
         "cloud_cover": 100.0,
-        "visibility_m": 5400.0
+        "visibility_m": 5300.0
       },
       "15": {
         "cloud_cover": 100.0,
-        "visibility_m": 5000.0
+        "visibility_m": 5200.0
       },
       "16": {
         "cloud_cover": 100.0,
-        "visibility_m": 3900.0
+        "visibility_m": 5100.0
       },
       "17": {
         "cloud_cover": 100.0,
-        "visibility_m": 4200.0
+        "visibility_m": 4700.0
       },
       "18": {
         "cloud_cover": 100.0,
-        "visibility_m": 2800.0
+        "visibility_m": 3300.0
       },
       "19": {
         "cloud_cover": 100.0,
-        "visibility_m": 2500.0
+        "visibility_m": 3000.0
       },
       "20": {
         "cloud_cover": 100.0,
-        "visibility_m": 2400.0
+        "visibility_m": 3800.0
       },
       "21": {
         "cloud_cover": 100.0,
