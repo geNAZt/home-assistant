@@ -1,6 +1,6 @@
 sensor:
   - name: "Power Price HT Static"
-    unique_id: power_price_ht_static
+    unique_id: power_price_nt_static
     unit_of_measurement: "€/kWh"
     device_class: monetary
     state: >
