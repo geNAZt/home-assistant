@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "updated_at": "2026-02-06T23:55:01.395367+01:00",
+  "updated_at": "2026-02-06T23:57:10.466380+01:00",
   "days": {
     "2026-02-06": {
       "date": "2026-02-06",
@@ -734,7 +734,7 @@
           "panel_groups": [
             {
               "name": "Gruppe 1",
-              "power_kwh": 0.8604,
+              "power_kwh": 0.8605,
               "contribution_percent": 100.0,
               "poa_wm2": 34.1,
               "aoi_deg": 59.9,
@@ -742,7 +742,7 @@
             }
           ],
           "panel_group_predictions": {
-            "Gruppe 1": 0.8604
+            "Gruppe 1": 0.8605
           }
         },
         {

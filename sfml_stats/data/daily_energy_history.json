@@ -78,13 +78,13 @@
     },
     "2026-02-06": {
       "solar_yield_kwh": 2.455,
-      "grid_import_kwh": 39.49,
+      "grid_import_kwh": 39.502,
       "battery_charge_solar_kwh": 0.002,
       "battery_charge_grid_kwh": 0.285,
-      "grid_export_kwh": 0,
-      "price_ct_kwh": 0.252042,
+      "grid_export_kwh": null,
+      "price_ct_kwh": null,
       "solar_to_house_kwh": 2.4530000000000003,
-      "timestamp": "2026-02-06T23:55:00.446428",
+      "timestamp": "2026-02-06T23:56:58.599484",
       "battery_to_house_kwh": 0.0,
       "home_consumption_kwh": 41.16310074999998,
       "autarky_percent": 5.882281394135907,
@@ -96,5 +96,5 @@
       "price_mode": "dynamic"
     }
   },
-  "last_updated": "2026-02-06T23:55:00.462037"
+  "last_updated": "2026-02-06T23:56:58.612197"
 }

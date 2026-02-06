@@ -16,18 +16,8 @@
       "prediction_kwh": 21.49,
       "locked": false,
       "locked_at": null,
-      "source": "TinyLSTM",
+      "source": "Physics",
       "updates": [
-        {
-          "prediction_kwh": 0.84,
-          "updated_at": "2026-02-06T19:25:00.285623+01:00",
-          "source": "Physics"
-        },
-        {
-          "prediction_kwh": 0.84,
-          "updated_at": "2026-02-06T19:55:00.294039+01:00",
-          "source": "Physics"
-        },
         {
           "prediction_kwh": 0.84,
           "updated_at": "2026-02-06T20:25:00.281545+01:00",
@@ -67,6 +57,16 @@
           "prediction_kwh": 21.49,
           "updated_at": "2026-02-06T23:55:01.389037+01:00",
           "source": "TinyLSTM"
+        },
+        {
+          "prediction_kwh": 21.49,
+          "updated_at": "2026-02-06T23:57:00.460875+01:00",
+          "source": "Physics"
+        },
+        {
+          "prediction_kwh": 21.49,
+          "updated_at": "2026-02-06T23:57:10.456484+01:00",
+          "source": "Physics"
         }
       ]
     },
@@ -75,18 +75,8 @@
       "prediction_kwh": 22.27,
       "locked": false,
       "next_update": null,
-      "source": "TinyLSTM",
+      "source": "Physics",
       "updates": [
-        {
-          "prediction_kwh": 0.89,
-          "updated_at": "2026-02-06T19:25:00.292342+01:00",
-          "source": "Physics"
-        },
-        {
-          "prediction_kwh": 0.89,
-          "updated_at": "2026-02-06T19:55:00.297865+01:00",
-          "source": "Physics"
-        },
         {
           "prediction_kwh": 0.89,
           "updated_at": "2026-02-06T20:25:00.285894+01:00",
@@ -126,6 +116,16 @@
           "prediction_kwh": 22.27,
           "updated_at": "2026-02-06T23:55:01.393365+01:00",
           "source": "TinyLSTM"
+        },
+        {
+          "prediction_kwh": 22.27,
+          "updated_at": "2026-02-06T23:57:00.490503+01:00",
+          "source": "Physics"
+        },
+        {
+          "prediction_kwh": 22.27,
+          "updated_at": "2026-02-06T23:57:10.464383+01:00",
+          "source": "Physics"
         }
       ]
     },
@@ -151,8 +151,8 @@
       "active": false,
       "duration_seconds": 25290,
       "start_time": null,
-      "end_time": "2026-02-06T16:56:00.159666+01:00",
-      "last_power_above_10w": "2026-02-06T16:50:42.441343+01:00",
+      "end_time": null,
+      "last_power_above_10w": null,
       "zero_power_since": null
     },
     "peak_today": {
