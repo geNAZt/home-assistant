@@ -1,19 +1,20 @@
-alias: "Täglicher Zählerstand an Octopus (Final)"
-description: "Sendet den Zählerstand im exakten Octopus-Format"
-trigger:
-  - platform: time
-    at: "23:45:00"
-action:
-  - action: rest_command.octopus_login
-    data:
-      email: !secret octopus_email
-      password: !secret octopus_password
-    response_variable: octopus_token
-  - action: rest_command.octopus_send_meter_reading
-    data:
-      token: "{{ octopus_token.content.data.obtainKrakenToken.token }}"
-      account_number: !secret octopus_account_number
-      meter_id: !secret octopus_meter_id
-      obis_code: "1-65:1.8.0"
-      reading: "{{ states('sensor.pv_m1_imported_kwh') | float(0) - 2762 | round(0) | string }}"
-mode: single
+- alias: "Täglicher Zählerstand an Octopus"
+  id: submit_meter_reading
+  description: "Sendet den Zählerstand im exakten Octopus-Format"
+  trigger:
+    - platform: time
+      at: "23:45:00"
+  action:
+    - action: rest_command.octopus_login
+      data:
+        email: !secret octopus_email
+        password: !secret octopus_password
+      response_variable: octopus_token
+    - action: rest_command.octopus_send_meter_reading
+      data:
+        token: "{{ octopus_token.content.data.obtainKrakenToken.token }}"
+        account_number: !secret octopus_account_number
+        meter_id: !secret octopus_meter_id
+        obis_code: "1-65:1.8.0"
+        reading: "{{ states('sensor.pv_m1_imported_kwh') | float(0) - 2762 | round(0) | string }}"
+  mode: single
