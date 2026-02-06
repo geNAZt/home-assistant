@@ -52,10 +52,17 @@
       "actual_kwh": 0.247,
       "sfml_error_kwh": 6.05,
       "sfml_accuracy_percent": 0
+    },
+    "2026-02-06": {
+      "sfml_forecast_kwh": 0.82,
+      "timestamp": "2026-02-06T23:50:00.301843",
+      "actual_kwh": 2.455,
+      "sfml_error_kwh": 1.64,
+      "sfml_accuracy_percent": 33.4
     }
   },
   "metadata": {
-    "last_updated": "2026-02-06T00:47:26.488478",
+    "last_updated": "2026-02-06T23:50:00.301902",
     "retention_days": 30
   }
 }

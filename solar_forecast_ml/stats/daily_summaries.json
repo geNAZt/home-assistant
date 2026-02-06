@@ -1,7 +1,150 @@
 {
   "version": "2.0",
-  "last_updated": "2026-02-05T23:30:00.276849+01:00",
+  "last_updated": "2026-02-06T23:30:00.558886+01:00",
   "summaries": [
+    {
+      "date": "2026-02-06",
+      "day_of_week": 4,
+      "day_of_year": 37,
+      "month": 2,
+      "season": "winter",
+      "week_of_year": 6,
+      "overall": {
+        "predicted_total_kwh": 0.82,
+        "actual_total_kwh": 2.46,
+        "accuracy_percent": 299.4,
+        "error_kwh": 1.64,
+        "error_percent": 199.4,
+        "production_hours": 8,
+        "peak_power_w": null,
+        "peak_hour": 12,
+        "peak_kwh": 0.181
+      },
+      "hourly_stats": {
+        "total_hours_predicted": 24,
+        "hours_with_actual_data": 9,
+        "best_hour": {
+          "hour": 10,
+          "accuracy_percent": 90.9
+        },
+        "worst_hour": {
+          "hour": 9,
+          "accuracy_percent": 4.7,
+          "error_kwh": -0.041
+        },
+        "mean_hourly_accuracy": 15.1,
+        "std_hourly_accuracy": 31.3
+      },
+      "time_windows": {
+        "morning_7_10": {
+          "predicted_kwh": 0.15,
+          "actual_kwh": 0.09,
+          "accuracy": 61.3,
+          "stable": false,
+          "hours_count": 4
+        },
+        "midday_11_14": {
+          "predicted_kwh": 0.61,
+          "actual_kwh": 1.95,
+          "accuracy": 321.1,
+          "stable": true,
+          "hours_count": 4
+        },
+        "afternoon_15_17": {
+          "predicted_kwh": 0.06,
+          "actual_kwh": 0.42,
+          "accuracy": 651.6,
+          "stable": true,
+          "hours_count": 3
+        }
+      },
+      "weather_analysis": {
+        "forecast_accuracy": 85.0,
+        "avg_temperature_diff": 0,
+        "avg_cloud_cover_diff": 0,
+        "conditions": {
+          "forecast_dominant": "partly-cloudy",
+          "actual_dominant": "cloudy"
+        },
+        "forecast_unreliable_hours": []
+      },
+      "patterns": [],
+      "ml_metrics": {
+        "model_performance": {
+          "mae": 0.195,
+          "rmse": 0.266,
+          "mape": 13.6,
+          "r2_score": 0.87
+        },
+        "feature_importance": {},
+        "prediction_drift": {}
+      },
+      "recommendations": [],
+      "shadow_analysis": {
+        "date": "2026-02-06",
+        "total_hours_analyzed": 9,
+        "shadow_hours_count": 9,
+        "shadow_hours": [
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16
+        ],
+        "shadow_breakdown": {
+          "none": 0,
+          "light": 0,
+          "moderate": 0,
+          "heavy": 9
+        },
+        "peak_shadow_hour": 8,
+        "peak_shadow_percent": 100.0,
+        "cumulative_loss_kwh": 31.573,
+        "cumulative_theoretical_kwh": 34.028,
+        "daily_loss_percent": 92.8,
+        "root_causes": {
+          "possible_obstruction": 5,
+          "weather_clouds": 2
+        },
+        "dominant_cause": "possible_obstruction",
+        "interpretation": "Significant shadowing detected (9h affected, 93% loss) "
+      },
+      "frost_analysis": {
+        "hours_analyzed": 24,
+        "frost_detected": true,
+        "total_affected_hours": 2,
+        "heavy_frost_hours": 0,
+        "light_frost_hours": 2,
+        "affected_hours": [
+          {
+            "hour": 8,
+            "frost_type": "light_frost",
+            "frost_score": 6,
+            "confidence": 0.6,
+            "temperature_c": -0.5,
+            "solar_radiation_wm2": 0.0
+          },
+          {
+            "hour": 9,
+            "frost_type": "light_frost",
+            "frost_score": 6,
+            "confidence": 0.6,
+            "temperature_c": -0.5,
+            "solar_radiation_wm2": 3.0
+          }
+        ],
+        "hours_list_heavy": [],
+        "hours_list_light": [
+          8,
+          9
+        ]
+      },
+      "comparison": {}
+    },
     {
       "date": "2026-02-05",
       "day_of_week": 3,
