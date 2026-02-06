@@ -9,7 +9,7 @@ action:
       email: !secret octopus_email
       password: !secret octopus_password
     response_variable: octopus_token
-  - action: rest_command.octopus_submit_reading
+  - action: rest_command.octopus_send_meter_reading
     data:
       token: "{{ octopus_token.content.data.obtainKrakenToken.token }}"
       account_number: !secret octopus_account_number
