@@ -20,16 +20,6 @@
       "updates": [
         {
           "prediction_kwh": 17.8,
-          "updated_at": "2026-02-08T12:15:07.091709+01:00",
-          "source": "Physics"
-        },
-        {
-          "prediction_kwh": 17.8,
-          "updated_at": "2026-02-08T12:15:07.100904+01:00",
-          "source": "Physics"
-        },
-        {
-          "prediction_kwh": 17.8,
           "updated_at": "2026-02-08T12:45:07.090411+01:00",
           "source": "Physics"
         },
@@ -67,6 +57,16 @@
           "prediction_kwh": 17.8,
           "updated_at": "2026-02-08T15:01:14.927074+01:00",
           "source": "Physics"
+        },
+        {
+          "prediction_kwh": 17.8,
+          "updated_at": "2026-02-08T15:11:01.044262+01:00",
+          "source": "Physics"
+        },
+        {
+          "prediction_kwh": 17.8,
+          "updated_at": "2026-02-08T15:11:10.957312+01:00",
+          "source": "Physics"
         }
       ]
     },
@@ -77,16 +77,6 @@
       "next_update": null,
       "source": "Physics",
       "updates": [
-        {
-          "prediction_kwh": 35.99,
-          "updated_at": "2026-02-08T11:15:07.118396+01:00",
-          "source": "Physics"
-        },
-        {
-          "prediction_kwh": 35.99,
-          "updated_at": "2026-02-08T11:45:07.105287+01:00",
-          "source": "Physics"
-        },
         {
           "prediction_kwh": 43.43,
           "updated_at": "2026-02-08T12:15:07.097082+01:00",
@@ -126,6 +116,16 @@
           "prediction_kwh": 43.43,
           "updated_at": "2026-02-08T15:01:14.931455+01:00",
           "source": "Physics"
+        },
+        {
+          "prediction_kwh": 43.43,
+          "updated_at": "2026-02-08T15:11:01.055022+01:00",
+          "source": "Physics"
+        },
+        {
+          "prediction_kwh": 43.43,
+          "updated_at": "2026-02-08T15:11:10.964987+01:00",
+          "source": "Physics"
         }
       ]
     },
@@ -149,10 +149,10 @@
     },
     "production_time": {
       "active": true,
-      "duration_seconds": 24182,
+      "duration_seconds": 25622,
       "start_time": "2026-02-08T08:27:28.088903+01:00",
       "end_time": null,
-      "last_power_above_10w": "2026-02-08T15:10:30.180327+01:00",
+      "last_power_above_10w": "2026-02-08T15:34:29.219853+01:00",
       "zero_power_since": null
     },
     "peak_today": {

@@ -1,8 +1,8 @@
 {
   "version": 2,
   "created": "2026-02-02T14:48:56.096405+00:00",
-  "last_updated": "2026-02-08T14:05:49.158253+00:00",
-  "points_count": 1734,
+  "last_updated": "2026-02-08T14:30:58.399282+00:00",
+  "points_count": 1739,
   "data_points": [
     {
       "timestamp": "2026-02-02T14:48:56.112220+00:00",
@@ -17342,6 +17342,56 @@
       "battery_to_house": 0.0,
       "grid_to_house": 775.4,
       "home_consumption": 1350.2,
+      "battery_soc": 11.0
+    },
+    {
+      "timestamp": "2026-02-08T14:10:58.241009+00:00",
+      "solar_power": null,
+      "solar_to_house": null,
+      "solar_to_battery": null,
+      "battery_to_house": null,
+      "grid_to_house": null,
+      "home_consumption": null,
+      "battery_soc": null
+    },
+    {
+      "timestamp": "2026-02-08T14:15:58.368765+00:00",
+      "solar_power": 547.3,
+      "solar_to_house": 539.1,
+      "solar_to_battery": 0.0,
+      "battery_to_house": 0.0,
+      "grid_to_house": 480.5,
+      "home_consumption": 1019.6,
+      "battery_soc": 11.0
+    },
+    {
+      "timestamp": "2026-02-08T14:20:58.379801+00:00",
+      "solar_power": 462.2,
+      "solar_to_house": 455.2,
+      "solar_to_battery": 0.0,
+      "battery_to_house": 0.0,
+      "grid_to_house": 533.3,
+      "home_consumption": 988.5,
+      "battery_soc": 11.0
+    },
+    {
+      "timestamp": "2026-02-08T14:25:58.389040+00:00",
+      "solar_power": 449.3,
+      "solar_to_house": 442.5,
+      "solar_to_battery": 0.0,
+      "battery_to_house": 0.0,
+      "grid_to_house": 701.3,
+      "home_consumption": 1143.8,
+      "battery_soc": 11.0
+    },
+    {
+      "timestamp": "2026-02-08T14:30:58.399282+00:00",
+      "solar_power": 507.1,
+      "solar_to_house": 499.5,
+      "solar_to_battery": 0.0,
+      "battery_to_house": 0.0,
+      "grid_to_house": 708.7,
+      "home_consumption": 1208.2,
       "battery_soc": 11.0
     }
   ]
