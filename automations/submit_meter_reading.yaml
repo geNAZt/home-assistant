@@ -16,5 +16,5 @@
         account_number: !secret octopus_account_number
         meter_id: !secret octopus_meter_id
         obis_code: "1-65:1.8.0"
-        reading: "{{ states('sensor.pv_m1_imported_kwh') | float(0) - 2762 | round(0) | string }}"
+        reading: "{{ (states('sensor.pv_m1_imported_kwh') | float(0) - 2762) | round(0) | string }}"
   mode: single
