@@ -126,10 +126,36 @@
       },
       "comparison_hours": 9,
       "learned_at": "2026-02-06T23:30:00.821562"
+    },
+    "2026-02-07": {
+      "mae_by_expert": {
+        "open_meteo": 31.4,
+        "wttr_in": 33.29,
+        "ecmwf_layers": 19.83,
+        "bright_sky": 33.29
+      },
+      "mae_by_cloud_type": {
+        "stratus": {
+          "open_meteo": 31.4,
+          "wttr_in": 33.29,
+          "ecmwf_layers": 19.83,
+          "bright_sky": 33.29
+        }
+      },
+      "weights_updated": {
+        "stratus": {
+          "open_meteo": 0.2099,
+          "wttr_in": 0.2317,
+          "ecmwf_layers": 0.3344,
+          "bright_sky": 0.2241
+        }
+      },
+      "comparison_hours": 9,
+      "learned_at": "2026-02-07T23:30:00.656275"
     }
   },
   "metadata": {
-    "last_learning_run": "2026-02-06T23:30:00.821567",
-    "total_learning_days": 3
+    "last_learning_run": "2026-02-07T23:30:00.656281",
+    "total_learning_days": 4
   }
 }
