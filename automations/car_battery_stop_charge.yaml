@@ -1,0 +1,16 @@
+- id: car_battery_stop_charge
+  alias: Car Battery Stop Charge
+  description: "Stop charge when car battery is full"
+  mode: single
+  triggers:
+    - trigger: numeric_state
+      entity_id:
+        - sensor.hexe_car_evinfo_battery_stateofcharge
+      above: 85
+  conditions: []
+  actions:
+    - action: select.select_option
+      data:
+        option: "1"
+      target:
+        entity_id: select.goe_288025_frc
