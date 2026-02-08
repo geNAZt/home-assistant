@@ -12,6 +12,8 @@
       value_template: "{{ states('binary_sensor.goe_288025_car_0') == 'on' }}"
     - condition: template 
       value_template: "{{ states('sensor.filtered_exported_power_w') | float(0) > 1600 }}"
+    - condition: template
+      value_template: "{{ states('sensor.hexe_car_evinfo_battery_stateofcharge') | float(0) < 85 }}"
   variables:
     # Current state
     exported_power: "{{ states('sensor.filtered_exported_power_w') | float(0) }}"
@@ -21,6 +23,11 @@
       {% set exp = exported_power | float(0) %}    
       {{ exp * -1 }}
   action:
+    - action: select.select_option
+      data:
+        option: "0"
+      target:
+        entity_id: select.goe_288025_frc
     - service: goecharger_api2.set_pv_data
       data:
         pgrid: "{{ pgrid_value }}"

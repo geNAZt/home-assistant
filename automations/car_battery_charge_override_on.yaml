@@ -1,0 +1,17 @@
+- id: car_battery_charge_override_on
+  alias: Car Battery Charge Override On
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - input_boolean.car_charge_override
+    to:
+    - 'on'
+  conditions: []
+  actions:
+  - action: select.select_option
+    data:
+      option: "2"
+    target:
+      entity_id: select.goe_288025_frc
+  mode: single
