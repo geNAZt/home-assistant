@@ -1,6 +1,6 @@
 {
   "version": "12.4.0",
-  "last_updated": "2026-02-08T13:05:00.135044+01:00",
+  "last_updated": "2026-02-08T15:05:00.493892+01:00",
   "best_hour_today": "13:00",
   "predictions": [
     {
@@ -19368,11 +19368,11 @@
       "ml_contribution_percent": 0,
       "model_version": "1.0",
       "confidence": 75.0,
-      "actual_kwh": null,
-      "actual_measured_at": null,
-      "accuracy_percent": null,
-      "error_kwh": null,
-      "error_percent": null,
+      "actual_kwh": 0.976,
+      "actual_measured_at": "2026-02-08T14:05:00.492841+01:00",
+      "accuracy_percent": 29.1,
+      "error_kwh": -2.377,
+      "error_percent": -70.9,
       "weather_forecast": {
         "temperature": 1.3,
         "solar_radiation_wm2": 81.1,
@@ -19405,15 +19405,27 @@
         "fog_type": null,
         "source": "met.no (corrected)"
       },
-      "weather_actual": null,
+      "weather_actual": {
+        "temperature_c": 1.1,
+        "cloud_cover_percent": 52.9,
+        "humidity_percent": 100.0,
+        "wind_speed_ms": 5.5,
+        "precipitation_mm": 0.0,
+        "pressure_hpa": 1011.8,
+        "solar_radiation_wm2": 69.0,
+        "lux": null,
+        "frost_detected": null,
+        "frost_score": 0,
+        "frost_confidence": 0.0
+      },
       "sensor_actual": {
-        "temperature_c": null,
-        "humidity_percent": null,
-        "solar_radiation_wm2": null,
-        "rain_mm": null,
+        "temperature_c": 1.4,
+        "humidity_percent": 98.0,
+        "lux": null,
+        "rain_mm": 0.0,
         "uv_index": null,
-        "wind_speed_ms": null,
-        "current_yield_kwh": null
+        "wind_speed_ms": 5.5,
+        "current_yield_kwh": 4.293
       },
       "astronomy": {
         "sunrise": "2026-02-08T07:55:00+01:00",
@@ -19426,15 +19438,18 @@
         "theoretical_max_kwh": 5.9169,
         "hours_since_solar_noon": 0.92,
         "day_progress_ratio": 0.588,
-        "hours_after_sunrise": 5.58,
-        "hours_before_sunset": 3.92
+        "hours_after_sunrise": 5.17,
+        "hours_before_sunset": 4.33
       },
       "error_analysis": null,
-      "historical_context": null,
+      "historical_context": {
+        "yesterday_same_hour": 0.0,
+        "same_hour_avg_7days": 0.0
+      },
       "production_metrics": {
-        "peak_power_today_kwh": null,
-        "production_hours_today": null,
-        "cumulative_today_kwh": null
+        "peak_power_today_kwh": 1.131,
+        "production_hours_today": 6,
+        "cumulative_today_kwh": 4.293
       },
       "panel_group_predictions": {
         "Gruppe 1": 3.3529
@@ -19448,20 +19463,95 @@
         "fog_detected": false,
         "fog_type": null,
         "exclude_from_learning": false,
-        "has_sensor_data": false,
-        "sensor_data_complete": false,
+        "has_sensor_data": true,
+        "sensor_data_complete": true,
         "weather_forecast_updated": false,
         "manual_override": false,
         "inverter_clipped": false,
         "mppt_throttled": false,
         "mppt_throttle_reason": null,
-        "has_panel_group_predictions": true
+        "has_panel_group_predictions": true,
+        "has_panel_group_actuals": true
       },
       "quality": {
         "prediction_confidence": "medium",
         "weather_forecast_age_hours": 0,
         "sensor_data_quality": "unknown",
         "data_completeness_percent": 100.0
+      },
+      "panel_group_actuals": {
+        "Gruppe 1": 0.976
+      },
+      "panel_group_accuracy": {
+        "Gruppe 1": {
+          "prediction_kwh": 3.3529,
+          "actual_kwh": 0.976,
+          "error_kwh": -2.3769,
+          "error_percent": -70.9,
+          "accuracy_percent": 29.1
+        }
+      },
+      "shadow_detection": {
+        "method": "ensemble",
+        "ensemble_mode": "full",
+        "shadow_type": "heavy",
+        "shadow_percent": 83.5,
+        "confidence": 0.73,
+        "root_cause": "clearer_than_forecast",
+        "fusion_mode": "cloud_based",
+        "efficiency_ratio": 0.165,
+        "loss_kwh": 4.941,
+        "theoretical_max_kwh": 5.9169,
+        "interpretation": "Heavy shadowing (84% loss) - cause unclear, monitor system",
+        "methods": {
+          "theory_ratio": {
+            "method": "theory_ratio",
+            "shadow_type": "heavy",
+            "shadow_percent": 83.5,
+            "confidence": 0.75,
+            "efficiency_ratio": 0.165,
+            "loss_kwh": 4.941,
+            "loss_percent": 83.5,
+            "interpretation": "Heavy shadowing or system issue",
+            "possible_causes": [
+              "Dense clouds",
+              "Major obstruction",
+              "Rain",
+              "Snow on panels",
+              "System fault"
+            ],
+            "theoretical_max_kwh": 5.9169,
+            "actual_kwh": 0.976
+          },
+          "sensor_fusion": {
+            "method": "sensor_fusion",
+            "mode": "cloud_based",
+            "shadow_type": "better_than_forecast",
+            "shadow_percent": 83.5,
+            "confidence": 0.7,
+            "interpretation": "Production better than cloud forecast suggests",
+            "root_cause": "clearer_than_forecast",
+            "possible_causes": [],
+            "cloud_analysis": {
+              "cloud_cover_percent": 64.9,
+              "expected_kwh": 0.61,
+              "actual_kwh": 0.976,
+              "deviation_percent": 59.9
+            }
+          }
+        },
+        "weights": {
+          "theory": 0.6,
+          "sensor_fusion": 0.4
+        }
+      },
+      "performance_loss": {
+        "shadow_percent": 83.5,
+        "shadow_type": "heavy",
+        "loss_kwh": 4.941,
+        "efficiency_ratio": 0.165,
+        "root_cause": "clearer_than_forecast",
+        "confidence": 0.73
       }
     },
     {
@@ -19481,11 +19571,11 @@
       "ml_contribution_percent": 0,
       "model_version": "1.0",
       "confidence": 75.0,
-      "actual_kwh": null,
-      "actual_measured_at": null,
-      "accuracy_percent": null,
-      "error_kwh": null,
-      "error_percent": null,
+      "actual_kwh": 0.9329999999999998,
+      "actual_measured_at": "2026-02-08T15:05:00.493273+01:00",
+      "accuracy_percent": 72.7,
+      "error_kwh": 0.2,
+      "error_percent": 27.3,
       "weather_forecast": {
         "temperature": 1.4,
         "solar_radiation_wm2": 55.3,
@@ -19518,15 +19608,27 @@
         "fog_type": null,
         "source": "met.no (corrected)"
       },
-      "weather_actual": null,
+      "weather_actual": {
+        "temperature_c": 1.4,
+        "cloud_cover_percent": 34.7,
+        "humidity_percent": 97.9,
+        "wind_speed_ms": 5.5,
+        "precipitation_mm": 0.0,
+        "pressure_hpa": 1011.7,
+        "solar_radiation_wm2": 75.0,
+        "lux": null,
+        "frost_detected": null,
+        "frost_score": 0,
+        "frost_confidence": 0.0
+      },
       "sensor_actual": {
-        "temperature_c": null,
-        "humidity_percent": null,
-        "solar_radiation_wm2": null,
-        "rain_mm": null,
+        "temperature_c": 1.3,
+        "humidity_percent": 98.0,
+        "lux": null,
+        "rain_mm": 0.0,
         "uv_index": null,
-        "wind_speed_ms": null,
-        "current_yield_kwh": null
+        "wind_speed_ms": 5.5,
+        "current_yield_kwh": 5.226
       },
       "astronomy": {
         "sunrise": "2026-02-08T07:55:00+01:00",
@@ -19539,15 +19641,18 @@
         "theoretical_max_kwh": 4.8398,
         "hours_since_solar_noon": 1.92,
         "day_progress_ratio": 0.693,
-        "hours_after_sunrise": 6.58,
-        "hours_before_sunset": 2.92
+        "hours_after_sunrise": 6.17,
+        "hours_before_sunset": 3.33
       },
       "error_analysis": null,
-      "historical_context": null,
+      "historical_context": {
+        "yesterday_same_hour": 0.0,
+        "same_hour_avg_7days": 0.0
+      },
       "production_metrics": {
-        "peak_power_today_kwh": null,
-        "production_hours_today": null,
-        "cumulative_today_kwh": null
+        "peak_power_today_kwh": 1.131,
+        "production_hours_today": 7,
+        "cumulative_today_kwh": 5.226
       },
       "panel_group_predictions": {
         "Gruppe 1": 0.7328
@@ -19561,20 +19666,95 @@
         "fog_detected": false,
         "fog_type": null,
         "exclude_from_learning": false,
-        "has_sensor_data": false,
-        "sensor_data_complete": false,
+        "has_sensor_data": true,
+        "sensor_data_complete": true,
         "weather_forecast_updated": false,
         "manual_override": false,
         "inverter_clipped": false,
         "mppt_throttled": false,
         "mppt_throttle_reason": null,
-        "has_panel_group_predictions": true
+        "has_panel_group_predictions": true,
+        "has_panel_group_actuals": true
       },
       "quality": {
         "prediction_confidence": "medium",
         "weather_forecast_age_hours": 0,
         "sensor_data_quality": "unknown",
         "data_completeness_percent": 100.0
+      },
+      "panel_group_actuals": {
+        "Gruppe 1": 0.933
+      },
+      "panel_group_accuracy": {
+        "Gruppe 1": {
+          "prediction_kwh": 0.7328,
+          "actual_kwh": 0.933,
+          "error_kwh": 0.2002,
+          "error_percent": 27.3,
+          "accuracy_percent": 72.7
+        }
+      },
+      "shadow_detection": {
+        "method": "ensemble",
+        "ensemble_mode": "full",
+        "shadow_type": "heavy",
+        "shadow_percent": 80.7,
+        "confidence": 0.73,
+        "root_cause": "clearer_than_forecast",
+        "fusion_mode": "cloud_based",
+        "efficiency_ratio": 0.193,
+        "loss_kwh": 3.907,
+        "theoretical_max_kwh": 4.8398,
+        "interpretation": "Heavy shadowing (81% loss) - cause unclear, monitor system",
+        "methods": {
+          "theory_ratio": {
+            "method": "theory_ratio",
+            "shadow_type": "heavy",
+            "shadow_percent": 80.7,
+            "confidence": 0.75,
+            "efficiency_ratio": 0.193,
+            "loss_kwh": 3.907,
+            "loss_percent": 80.7,
+            "interpretation": "Heavy shadowing or system issue",
+            "possible_causes": [
+              "Dense clouds",
+              "Major obstruction",
+              "Rain",
+              "Snow on panels",
+              "System fault"
+            ],
+            "theoretical_max_kwh": 4.8398,
+            "actual_kwh": 0.9329999999999998
+          },
+          "sensor_fusion": {
+            "method": "sensor_fusion",
+            "mode": "cloud_based",
+            "shadow_type": "better_than_forecast",
+            "shadow_percent": 80.7,
+            "confidence": 0.7,
+            "interpretation": "Production better than cloud forecast suggests",
+            "root_cause": "clearer_than_forecast",
+            "possible_causes": [],
+            "cloud_analysis": {
+              "cloud_cover_percent": 65.0,
+              "expected_kwh": 0.498,
+              "actual_kwh": 0.9329999999999998,
+              "deviation_percent": 87.5
+            }
+          }
+        },
+        "weights": {
+          "theory": 0.6,
+          "sensor_fusion": 0.4
+        }
+      },
+      "performance_loss": {
+        "shadow_percent": 80.7,
+        "shadow_type": "heavy",
+        "loss_kwh": 3.907,
+        "efficiency_ratio": 0.193,
+        "root_cause": "clearer_than_forecast",
+        "confidence": 0.73
       }
     },
     {

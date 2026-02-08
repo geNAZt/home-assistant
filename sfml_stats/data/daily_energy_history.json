@@ -115,24 +115,24 @@
       "price_mode": "dynamic"
     },
     "2026-02-08": {
-      "solar_yield_kwh": 0.512,
-      "grid_import_kwh": 12.822,
-      "battery_charge_solar_kwh": 0.003,
-      "battery_charge_grid_kwh": 0.28,
+      "solar_yield_kwh": 3.725,
+      "grid_import_kwh": 39.045,
+      "battery_charge_solar_kwh": 0.055,
+      "battery_charge_grid_kwh": 0.283,
       "grid_export_kwh": null,
       "price_ct_kwh": null,
-      "solar_to_house_kwh": 0.509,
-      "timestamp": "2026-02-08T10:14:53.097117",
+      "solar_to_house_kwh": 3.67,
+      "timestamp": "2026-02-08T13:30:48.962655",
       "battery_to_house_kwh": 0.0,
-      "home_consumption_kwh": 12.723910158333338,
-      "autarky_percent": 4.172341626070857,
+      "home_consumption_kwh": 41.35904615833335,
+      "autarky_percent": 8.858424795325691,
       "self_consumption_percent": 100,
-      "avg_soc": 10.016260162601625,
+      "avg_soc": 10.166666666666666,
       "min_soc": 8.0,
       "max_soc": 11.0,
       "peak_battery_power_w": 0.0,
       "price_mode": "dynamic"
     }
   },
-  "last_updated": "2026-02-08T10:14:53.113015"
+  "last_updated": "2026-02-08T13:30:48.987992"
 }
