@@ -9,18 +9,16 @@
       "pirate_weather": 0.25
     },
     "cirrus": {
-      "open_meteo": 0.1,
-      "wttr_in": 0.1,
-      "ecmwf_layers": 0.3,
-      "bright_sky": 0.3,
-      "pirate_weather": 0.2
+      "open_meteo": 0.16558712220517982,
+      "wttr_in": 0.17715734703198335,
+      "ecmwf_layers": 0.380557297446546,
+      "bright_sky": 0.2766982333162909
     },
     "fair": {
-      "open_meteo": 0.13839368125750057,
-      "wttr_in": 0.11224615125401136,
-      "ecmwf_layers": 0.5059171834975903,
-      "bright_sky": 0.24344298399089784,
-      "pirate_weather": 0.25
+      "open_meteo": 0.19958099714747055,
+      "wttr_in": 0.1961155665168205,
+      "ecmwf_layers": 0.3784601135048891,
+      "bright_sky": 0.22584332283081987
     },
     "mixed": {
       "open_meteo": 0.15,
@@ -30,10 +28,10 @@
       "pirate_weather": 0.3
     },
     "stratus": {
-      "open_meteo": 0.20986936728137878,
-      "wttr_in": 0.2316754003184629,
-      "ecmwf_layers": 0.3343740910533992,
-      "bright_sky": 0.22408114134675908
+      "open_meteo": 0.21689512600472086,
+      "wttr_in": 0.22196228338093846,
+      "ecmwf_layers": 0.34235251398677125,
+      "bright_sky": 0.21879007662756939
     },
     "overcast": {
       "open_meteo": 0.1,
@@ -65,7 +63,7 @@
     }
   },
   "metadata": {
-    "last_updated": "2026-02-07T23:30:00.650513",
+    "last_updated": "2026-02-10T23:30:05.663488",
     "experts": [
       "open_meteo",
       "wttr_in",

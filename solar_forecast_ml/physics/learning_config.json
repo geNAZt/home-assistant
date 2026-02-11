@@ -1,42 +1,63 @@
 {
   "version": "3.0",
-  "updated_at": "2026-02-07T23:30:00.636853",
+  "updated_at": "2026-02-10T23:30:05.640460",
   "physics_defaults": {
     "albedo": 0.2,
     "system_efficiency": 0.9,
-    "learned_efficiency_factor": 0.6311
+    "learned_efficiency_factor": 1.3275
   },
   "group_calibration": {
     "Gruppe 1": {
-      "global_factor": 0.6311,
+      "global_factor": 1.3275,
       "hourly_factors": {
-        "14": 0.7753,
-        "10": 0.9098,
-        "11": 1.0648,
-        "12": 1.4933,
-        "13": 2.1218,
-        "15": 3.3802,
-        "16": 3.2028,
-        "8": 0.3162,
-        "9": 0.5407
+        "14": 1.6603,
+        "10": 0.8666,
+        "11": 1.1639,
+        "12": 2.0895,
+        "13": 2.6814,
+        "15": 4.941,
+        "16": 4.7424,
+        "8": 0.3537,
+        "9": 4.6303
       },
       "bucket_factors": {
-        "clear_low_sun": {
-          "global_factor": 6.3873,
+        "clear": {
+          "global_factor": 2.9872,
           "hourly_factors": {
-            "15": 6.5957,
-            "16": 6.1789
-          },
-          "sample_count": 1,
-          "confidence": 0.321
-        },
-        "fair": {
-          "global_factor": 2.6207,
-          "hourly_factors": {
-            "14": 2.6207
+            "13": 1.9948,
+            "14": 4.0685,
+            "11": 0.2479,
+            "12": 0.1259
           },
           "sample_count": 2,
           "confidence": 0.143
+        },
+        "clear_low_sun": {
+          "global_factor": 5.412,
+          "hourly_factors": {
+            "15": 5.5334,
+            "16": 5.2907
+          },
+          "sample_count": 4,
+          "confidence": 0.286
+        },
+        "fair": {
+          "global_factor": 1.4409,
+          "hourly_factors": {
+            "14": 0.9241,
+            "11": 4.1123,
+            "12": 4.6269
+          },
+          "sample_count": 4,
+          "confidence": 0.286
+        },
+        "cloudy": {
+          "global_factor": 0.2911,
+          "hourly_factors": {
+            "13": 0.2911
+          },
+          "sample_count": 1,
+          "confidence": 0.321
         },
         "overcast": {
           "global_factor": 0.4285,
@@ -48,16 +69,16 @@
           "confidence": 0.321
         },
         "fog": {
-          "global_factor": 1.3774,
+          "global_factor": 0.5629,
           "hourly_factors": {
-            "10": 0.9098,
-            "11": 1.0648,
-            "12": 1.4933,
+            "10": 0.8666,
+            "11": 1.3256,
+            "12": 2.0494,
             "13": 2.1218,
             "14": 0.2814
           },
-          "sample_count": 2,
-          "confidence": 0.175
+          "sample_count": 5,
+          "confidence": 0.774
         },
         "fog_low_sun": {
           "global_factor": 0.1958,
@@ -67,18 +88,34 @@
           },
           "sample_count": 1,
           "confidence": 0.321
+        },
+        "frost": {
+          "global_factor": 0.449,
+          "hourly_factors": {
+            "8": 0.449
+          },
+          "sample_count": 2,
+          "confidence": 0.629
+        },
+        "frost_low_sun": {
+          "global_factor": 4.6303,
+          "hourly_factors": {
+            "9": 4.6303
+          },
+          "sample_count": 3,
+          "confidence": 0.652
         }
       },
-      "sample_count": 3,
-      "confidence": 0.214,
-      "last_updated": "2026-02-07T23:30:00.636719"
+      "sample_count": 6,
+      "confidence": 0.429,
+      "last_updated": "2026-02-10T23:30:05.640334"
     }
   },
   "metadata": {
     "rolling_window_days": 21,
     "min_samples": 1,
     "total_groups": 1,
-    "total_bucket_factors": 5,
+    "total_bucket_factors": 9,
     "weather_buckets": [
       "clear",
       "clear_low_sun",

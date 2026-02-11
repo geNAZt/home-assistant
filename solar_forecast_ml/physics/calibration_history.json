@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "updated_at": "2026-02-07T23:30:00.640111",
+  "updated_at": "2026-02-10T23:30:05.645301",
   "history": [
     {
       "date": "2026-02-05",
@@ -111,6 +111,193 @@
               "hourly": {
                 "15": 0.1648,
                 "16": 0.2267
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "date": "2026-02-08",
+      "groups": {
+        "Gruppe 1": {
+          "avg_ratio": 1.0098,
+          "sample_count": 9,
+          "hourly": {
+            "8": 0.4216,
+            "9": 4.59,
+            "10": 0.7999,
+            "11": 0.7031,
+            "12": 0.4275,
+            "13": 0.2911,
+            "14": 1.2732,
+            "15": 0.2231,
+            "16": 0.3583
+          },
+          "buckets": {
+            "clear_low_sun": {
+              "avg_ratio": 0.2907,
+              "sample_count": 2,
+              "hourly": {
+                "15": 0.2231,
+                "16": 0.3583
+              }
+            },
+            "fair": {
+              "avg_ratio": 1.2732,
+              "sample_count": 1,
+              "hourly": {
+                "14": 1.2732
+              }
+            },
+            "cloudy": {
+              "avg_ratio": 0.2911,
+              "sample_count": 1,
+              "hourly": {
+                "13": 0.2911
+              }
+            },
+            "fog": {
+              "avg_ratio": 0.6435,
+              "sample_count": 3,
+              "hourly": {
+                "10": 0.7999,
+                "11": 0.7031,
+                "12": 0.4275
+              }
+            },
+            "frost": {
+              "avg_ratio": 0.4216,
+              "sample_count": 1,
+              "hourly": {
+                "8": 0.4216
+              }
+            },
+            "frost_low_sun": {
+              "avg_ratio": 4.59,
+              "sample_count": 1,
+              "hourly": {
+                "9": 4.59
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "date": "2026-02-09",
+      "groups": {
+        "Gruppe 1": {
+          "avg_ratio": 4.7125,
+          "sample_count": 9,
+          "hourly": {
+            "8": 0.4764,
+            "9": 4.8687,
+            "10": 0.9071,
+            "11": 4.1123,
+            "12": 4.6269,
+            "13": 3.6481,
+            "14": 7.75,
+            "15": 8.8093,
+            "16": 7.2136
+          },
+          "buckets": {
+            "clear": {
+              "avg_ratio": 5.699,
+              "sample_count": 2,
+              "hourly": {
+                "13": 3.6481,
+                "14": 7.75
+              }
+            },
+            "clear_low_sun": {
+              "avg_ratio": 8.0115,
+              "sample_count": 2,
+              "hourly": {
+                "15": 8.8093,
+                "16": 7.2136
+              }
+            },
+            "fair": {
+              "avg_ratio": 4.3696,
+              "sample_count": 2,
+              "hourly": {
+                "11": 4.1123,
+                "12": 4.6269
+              }
+            },
+            "fog": {
+              "avg_ratio": 0.9071,
+              "sample_count": 1,
+              "hourly": {
+                "10": 0.9071
+              }
+            },
+            "frost": {
+              "avg_ratio": 0.4764,
+              "sample_count": 1,
+              "hourly": {
+                "8": 0.4764
+              }
+            },
+            "frost_low_sun": {
+              "avg_ratio": 4.8687,
+              "sample_count": 1,
+              "hourly": {
+                "9": 4.8687
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "date": "2026-02-10",
+      "groups": {
+        "Gruppe 1": {
+          "avg_ratio": 1.5314,
+          "sample_count": 8,
+          "hourly": {
+            "9": 4.6217,
+            "10": 0.708,
+            "11": 0.2479,
+            "12": 0.1259,
+            "13": 0.3414,
+            "14": 0.3869,
+            "15": 2.2361,
+            "16": 3.5833
+          },
+          "buckets": {
+            "clear": {
+              "avg_ratio": 0.2755,
+              "sample_count": 4,
+              "hourly": {
+                "11": 0.2479,
+                "12": 0.1259,
+                "13": 0.3414,
+                "14": 0.3869
+              }
+            },
+            "clear_low_sun": {
+              "avg_ratio": 2.9097,
+              "sample_count": 2,
+              "hourly": {
+                "15": 2.2361,
+                "16": 3.5833
+              }
+            },
+            "fog": {
+              "avg_ratio": 0.708,
+              "sample_count": 1,
+              "hourly": {
+                "10": 0.708
+              }
+            },
+            "frost_low_sun": {
+              "avg_ratio": 4.6217,
+              "sample_count": 1,
+              "hourly": {
+                "9": 4.6217
               }
             }
           }
