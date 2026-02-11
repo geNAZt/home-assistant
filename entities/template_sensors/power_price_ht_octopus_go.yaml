@@ -4,4 +4,4 @@ sensor:
     unit_of_measurement: "€/kWh"
     device_class: monetary
     state: >
-      0.285
+      0.2820
