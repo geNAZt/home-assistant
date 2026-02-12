@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "last_updated": "2026-02-11T09:38:14.575511",
+  "last_updated": "2026-02-12T06:00:00.385563+01:00",
   "location": {
     "latitude": 52.36948782131487,
     "longitude": 9.750484228134157,
@@ -8,473 +8,18 @@
     "timezone": "Europe/Berlin"
   },
   "pv_system": {
-    "installed_capacity_kwp": 12.87,
-    "max_peak_record_kwh": 3.405,
-    "max_peak_date": "2026-02-10",
-    "max_peak_hour": 11,
-    "max_peak_conditions": {
-      "sun_elevation_deg": 21.88,
-      "cloud_cover_percent": null,
-      "temperature_c": null,
-      "solar_radiation_wm2": 182.0
-    },
-    "hourly_max_peaks": {
-      "0": {
-        "kwh": 0.0,
-        "date": null,
-        "conditions": {}
-      },
-      "1": {
-        "kwh": 0.0,
-        "date": null,
-        "conditions": {}
-      },
-      "2": {
-        "kwh": 0.0,
-        "date": null,
-        "conditions": {}
-      },
-      "3": {
-        "kwh": 0.0,
-        "date": null,
-        "conditions": {}
-      },
-      "4": {
-        "kwh": 0.0,
-        "date": null,
-        "conditions": {}
-      },
-      "5": {
-        "kwh": 0.0,
-        "date": null,
-        "conditions": {}
-      },
-      "6": {
-        "kwh": 0.0,
-        "date": null,
-        "conditions": {}
-      },
-      "7": {
-        "kwh": 0.0,
-        "date": null,
-        "conditions": {}
-      },
-      "8": {
-        "kwh": 0.658,
-        "date": "2026-02-10",
-        "conditions": {
-          "sun_elevation_deg": 5.07,
-          "cloud_cover_percent": null,
-          "temperature_c": null,
-          "solar_radiation_wm2": 22.1
-        }
-      },
-      "9": {
-        "kwh": 1.399,
-        "date": "2026-02-10",
-        "conditions": {
-          "sun_elevation_deg": 12.31,
-          "cloud_cover_percent": null,
-          "temperature_c": null,
-          "solar_radiation_wm2": 83.5
-        }
-      },
-      "10": {
-        "kwh": 1.638,
-        "date": "2026-02-10",
-        "conditions": {
-          "sun_elevation_deg": 18.07,
-          "cloud_cover_percent": null,
-          "temperature_c": null,
-          "solar_radiation_wm2": 141.5
-        }
-      },
-      "11": {
-        "kwh": 3.405,
-        "date": "2026-02-10",
-        "conditions": {
-          "sun_elevation_deg": 21.88,
-          "cloud_cover_percent": null,
-          "temperature_c": null,
-          "solar_radiation_wm2": 182.0
-        }
-      },
-      "12": {
-        "kwh": 3.032,
-        "date": "2026-02-09",
-        "conditions": {
-          "sun_elevation_deg": 23.04,
-          "cloud_cover_percent": null,
-          "temperature_c": null,
-          "solar_radiation_wm2": 110.6
-        }
-      },
-      "13": {
-        "kwh": 2.036,
-        "date": "2026-02-09",
-        "conditions": {
-          "sun_elevation_deg": 22.02,
-          "cloud_cover_percent": null,
-          "temperature_c": null,
-          "solar_radiation_wm2": 94.9
-        }
-      },
-      "14": {
-        "kwh": 1.767,
-        "date": "2026-02-09",
-        "conditions": {
-          "sun_elevation_deg": 18.62,
-          "cloud_cover_percent": null,
-          "temperature_c": null,
-          "solar_radiation_wm2": 42.2
-        }
-      },
-      "15": {
-        "kwh": 1.095,
-        "date": "2026-02-09",
-        "conditions": {
-          "sun_elevation_deg": 13.2,
-          "cloud_cover_percent": null,
-          "temperature_c": null,
-          "solar_radiation_wm2": 21.8
-        }
-      },
-      "16": {
-        "kwh": 0.233,
-        "date": "2026-02-09",
-        "conditions": {
-          "sun_elevation_deg": 6.22,
-          "cloud_cover_percent": null,
-          "temperature_c": null,
-          "solar_radiation_wm2": 5.6
-        }
-      },
-      "17": {
-        "kwh": 0.0,
-        "date": null,
-        "conditions": {}
-      },
-      "18": {
-        "kwh": 0.0,
-        "date": null,
-        "conditions": {}
-      },
-      "19": {
-        "kwh": 0.0,
-        "date": null,
-        "conditions": {}
-      },
-      "20": {
-        "kwh": 0.0,
-        "date": null,
-        "conditions": {}
-      },
-      "21": {
-        "kwh": 0.0,
-        "date": null,
-        "conditions": {}
-      },
-      "22": {
-        "kwh": 0.0,
-        "date": null,
-        "conditions": {}
-      },
-      "23": {
-        "kwh": 0.0,
-        "date": null,
-        "conditions": {}
-      }
-    }
+    "installed_capacity_kwp": 12.87
   },
   "cache_info": {
     "total_days": 38,
     "days_back": 30,
     "days_ahead": 7,
-    "date_range_start": "2026-01-12",
-    "date_range_end": "2026-02-18",
+    "date_range_start": "2026-01-13",
+    "date_range_end": "2026-02-19",
     "success_count": 38,
     "error_count": 0
   },
   "days": {
-    "2026-01-12": {
-      "sunrise_local": "2026-01-12T08:30:00+01:00",
-      "sunset_local": "2026-01-12T16:35:00+01:00",
-      "solar_noon_local": "2026-01-12T12:30:00+01:00",
-      "production_window_start": "2026-01-12T08:00:00+01:00",
-      "production_window_end": "2026-01-12T17:05:00+01:00",
-      "daylight_hours": 8.08,
-      "hourly": {
-        "0": {
-          "elevation_deg": -59.31,
-          "azimuth_deg": 0.4,
-          "clear_sky_solar_radiation_wm2": 0.0,
-          "theoretical_max_pv_kwh": 0.0,
-          "hours_since_solar_noon": -12.0,
-          "day_progress_ratio": 0.0
-        },
-        "1": {
-          "elevation_deg": -57.14,
-          "azimuth_deg": 26.71,
-          "clear_sky_solar_radiation_wm2": 0.0,
-          "theoretical_max_pv_kwh": 0.0,
-          "hours_since_solar_noon": -11.0,
-          "day_progress_ratio": 0.0
-        },
-        "2": {
-          "elevation_deg": -51.51,
-          "azimuth_deg": 48.71,
-          "clear_sky_solar_radiation_wm2": 0.0,
-          "theoretical_max_pv_kwh": 0.0,
-          "hours_since_solar_noon": -10.0,
-          "day_progress_ratio": 0.0
-        },
-        "3": {
-          "elevation_deg": -43.8,
-          "azimuth_deg": 66.03,
-          "clear_sky_solar_radiation_wm2": 0.0,
-          "theoretical_max_pv_kwh": 0.0,
-          "hours_since_solar_noon": -9.0,
-          "day_progress_ratio": 0.0
-        },
-        "4": {
-          "elevation_deg": -35.04,
-          "azimuth_deg": 80.12,
-          "clear_sky_solar_radiation_wm2": 0.0,
-          "theoretical_max_pv_kwh": 0.0,
-          "hours_since_solar_noon": -8.0,
-          "day_progress_ratio": 0.0
-        },
-        "5": {
-          "elevation_deg": -25.92,
-          "azimuth_deg": 92.37,
-          "clear_sky_solar_radiation_wm2": 0.0,
-          "theoretical_max_pv_kwh": 0.0,
-          "hours_since_solar_noon": -7.0,
-          "day_progress_ratio": 0.0
-        },
-        "6": {
-          "elevation_deg": -16.86,
-          "azimuth_deg": 103.76,
-          "clear_sky_solar_radiation_wm2": 0.0,
-          "theoretical_max_pv_kwh": 0.0,
-          "hours_since_solar_noon": -6.0,
-          "day_progress_ratio": 0.0
-        },
-        "7": {
-          "elevation_deg": -8.23,
-          "azimuth_deg": 114.98,
-          "clear_sky_solar_radiation_wm2": 0.0,
-          "theoretical_max_pv_kwh": 0.0,
-          "hours_since_solar_noon": -5.0,
-          "day_progress_ratio": 0.0
-        },
-        "8": {
-          "elevation_deg": -0.37,
-          "azimuth_deg": 126.53,
-          "clear_sky_solar_radiation_wm2": 0.0,
-          "theoretical_max_pv_kwh": 0.0,
-          "hours_since_solar_noon": -4.0,
-          "day_progress_ratio": 0.0
-        },
-        "9": {
-          "elevation_deg": 6.37,
-          "azimuth_deg": 138.75,
-          "clear_sky_solar_radiation_wm2": 34.6,
-          "theoretical_max_pv_kwh": 1.5181,
-          "hours_since_solar_noon": -3.0,
-          "day_progress_ratio": 0.124,
-          "theoretical_max_per_group": [
-            {
-              "name": "Gruppe 1",
-              "power_kwp": 12.865,
-              "azimuth_deg": 180.0,
-              "tilt_deg": 28.0,
-              "theoretical_kwh": 1.5181,
-              "poa_wm2": 124.22,
-              "aoi_deg": 63.3
-            }
-          ]
-        },
-        "10": {
-          "elevation_deg": 11.59,
-          "azimuth_deg": 151.84,
-          "clear_sky_solar_radiation_wm2": 99.9,
-          "theoretical_max_pv_kwh": 3.1972,
-          "hours_since_solar_noon": -2.0,
-          "day_progress_ratio": 0.247,
-          "theoretical_max_per_group": [
-            {
-              "name": "Gruppe 1",
-              "power_kwp": 12.865,
-              "azimuth_deg": 180.0,
-              "tilt_deg": 28.0,
-              "theoretical_kwh": 3.1972,
-              "poa_wm2": 261.6,
-              "aoi_deg": 54.4
-            }
-          ]
-        },
-        "11": {
-          "elevation_deg": 14.9,
-          "azimuth_deg": 165.75,
-          "clear_sky_solar_radiation_wm2": 149.4,
-          "theoretical_max_pv_kwh": 4.3038,
-          "hours_since_solar_noon": -1.0,
-          "day_progress_ratio": 0.371,
-          "theoretical_max_per_group": [
-            {
-              "name": "Gruppe 1",
-              "power_kwp": 12.865,
-              "azimuth_deg": 180.0,
-              "tilt_deg": 28.0,
-              "theoretical_kwh": 4.3038,
-              "poa_wm2": 352.15,
-              "aoi_deg": 48.2
-            }
-          ]
-        },
-        "12": {
-          "elevation_deg": 16.04,
-          "azimuth_deg": 180.16,
-          "clear_sky_solar_radiation_wm2": 167.2,
-          "theoretical_max_pv_kwh": 4.6823,
-          "hours_since_solar_noon": 0.0,
-          "day_progress_ratio": 0.495,
-          "theoretical_max_per_group": [
-            {
-              "name": "Gruppe 1",
-              "power_kwp": 12.865,
-              "azimuth_deg": 180.0,
-              "tilt_deg": 28.0,
-              "theoretical_kwh": 4.6823,
-              "poa_wm2": 383.11,
-              "aoi_deg": 46.0
-            }
-          ]
-        },
-        "13": {
-          "elevation_deg": 14.87,
-          "azimuth_deg": 194.58,
-          "clear_sky_solar_radiation_wm2": 148.8,
-          "theoretical_max_pv_kwh": 4.2901,
-          "hours_since_solar_noon": 1.0,
-          "day_progress_ratio": 0.619,
-          "theoretical_max_per_group": [
-            {
-              "name": "Gruppe 1",
-              "power_kwp": 12.865,
-              "azimuth_deg": 180.0,
-              "tilt_deg": 28.0,
-              "theoretical_kwh": 4.2901,
-              "poa_wm2": 351.02,
-              "aoi_deg": 48.3
-            }
-          ]
-        },
-        "14": {
-          "elevation_deg": 11.51,
-          "azimuth_deg": 208.48,
-          "clear_sky_solar_radiation_wm2": 98.8,
-          "theoretical_max_pv_kwh": 3.1716,
-          "hours_since_solar_noon": 2.0,
-          "day_progress_ratio": 0.742,
-          "theoretical_max_per_group": [
-            {
-              "name": "Gruppe 1",
-              "power_kwp": 12.865,
-              "azimuth_deg": 180.0,
-              "tilt_deg": 28.0,
-              "theoretical_kwh": 3.1716,
-              "poa_wm2": 259.51,
-              "aoi_deg": 54.5
-            }
-          ]
-        },
-        "15": {
-          "elevation_deg": 6.27,
-          "azimuth_deg": 221.55,
-          "clear_sky_solar_radiation_wm2": 33.6,
-          "theoretical_max_pv_kwh": 1.486,
-          "hours_since_solar_noon": 3.0,
-          "day_progress_ratio": 0.866,
-          "theoretical_max_per_group": [
-            {
-              "name": "Gruppe 1",
-              "power_kwp": 12.865,
-              "azimuth_deg": 180.0,
-              "tilt_deg": 28.0,
-              "theoretical_kwh": 1.486,
-              "poa_wm2": 121.59,
-              "aoi_deg": 63.5
-            }
-          ]
-        },
-        "16": {
-          "elevation_deg": -0.49,
-          "azimuth_deg": 233.77,
-          "clear_sky_solar_radiation_wm2": 0.0,
-          "theoretical_max_pv_kwh": 0.0,
-          "hours_since_solar_noon": 4.0,
-          "day_progress_ratio": 0.99
-        },
-        "17": {
-          "elevation_deg": -8.37,
-          "azimuth_deg": 245.32,
-          "clear_sky_solar_radiation_wm2": 0.0,
-          "theoretical_max_pv_kwh": 0.0,
-          "hours_since_solar_noon": 5.0,
-          "day_progress_ratio": 1.0
-        },
-        "18": {
-          "elevation_deg": -17.0,
-          "azimuth_deg": 256.55,
-          "clear_sky_solar_radiation_wm2": 0.0,
-          "theoretical_max_pv_kwh": 0.0,
-          "hours_since_solar_noon": 6.0,
-          "day_progress_ratio": 1.0
-        },
-        "19": {
-          "elevation_deg": -26.05,
-          "azimuth_deg": 267.97,
-          "clear_sky_solar_radiation_wm2": 0.0,
-          "theoretical_max_pv_kwh": 0.0,
-          "hours_since_solar_noon": 7.0,
-          "day_progress_ratio": 1.0
-        },
-        "20": {
-          "elevation_deg": -35.16,
-          "azimuth_deg": 280.27,
-          "clear_sky_solar_radiation_wm2": 0.0,
-          "theoretical_max_pv_kwh": 0.0,
-          "hours_since_solar_noon": 8.0,
-          "day_progress_ratio": 1.0
-        },
-        "21": {
-          "elevation_deg": -43.89,
-          "azimuth_deg": 294.43,
-          "clear_sky_solar_radiation_wm2": 0.0,
-          "theoretical_max_pv_kwh": 0.0,
-          "hours_since_solar_noon": 9.0,
-          "day_progress_ratio": 1.0
-        },
-        "22": {
-          "elevation_deg": -51.55,
-          "azimuth_deg": 311.84,
-          "clear_sky_solar_radiation_wm2": 0.0,
-          "theoretical_max_pv_kwh": 0.0,
-          "hours_since_solar_noon": 10.0,
-          "day_progress_ratio": 1.0
-        },
-        "23": {
-          "elevation_deg": -57.08,
-          "azimuth_deg": 333.93,
-          "clear_sky_solar_radiation_wm2": 0.0,
-          "theoretical_max_pv_kwh": 0.0,
-          "hours_since_solar_noon": 11.0,
-          "day_progress_ratio": 1.0
-        }
-      }
-    },
     "2026-01-13": {
       "sunrise_local": "2026-01-13T08:30:00+01:00",
       "sunset_local": "2026-01-13T16:35:00+01:00",
@@ -11589,187 +11134,318 @@
           "day_progress_ratio": 1.0
         }
       }
-    }
-  },
-  "metadata": {
-    "pv_system": {
-      "max_peak_record_kwh": 3.405,
-      "max_peak_date": "2026-02-10",
-      "max_peak_hour": 11,
-      "max_peak_conditions": {
-        "sun_elevation_deg": 21.88,
-        "cloud_cover_percent": null,
-        "temperature_c": null,
-        "solar_radiation_wm2": 182.0
-      },
-      "hourly_max_peaks": {
+    },
+    "2026-02-19": {
+      "sunrise_local": "2026-02-19T07:30:00+01:00",
+      "sunset_local": "2026-02-19T17:45:00+01:00",
+      "solar_noon_local": "2026-02-19T12:35:00+01:00",
+      "production_window_start": "2026-02-19T07:00:00+01:00",
+      "production_window_end": "2026-02-19T18:15:00+01:00",
+      "daylight_hours": 10.25,
+      "hourly": {
         "0": {
-          "kwh": 0.0,
-          "date": null,
-          "conditions": {}
+          "elevation_deg": -48.97,
+          "azimuth_deg": 358.18,
+          "clear_sky_solar_radiation_wm2": 0.0,
+          "theoretical_max_pv_kwh": 0.0,
+          "hours_since_solar_noon": -12.08,
+          "day_progress_ratio": 0.0
         },
         "1": {
-          "kwh": 0.0,
-          "date": null,
-          "conditions": {}
+          "elevation_deg": -47.49,
+          "azimuth_deg": 20.23,
+          "clear_sky_solar_radiation_wm2": 0.0,
+          "theoretical_max_pv_kwh": 0.0,
+          "hours_since_solar_noon": -11.08,
+          "day_progress_ratio": 0.0
         },
         "2": {
-          "kwh": 0.0,
-          "date": null,
-          "conditions": {}
+          "elevation_deg": -42.86,
+          "azimuth_deg": 40.1,
+          "clear_sky_solar_radiation_wm2": 0.0,
+          "theoretical_max_pv_kwh": 0.0,
+          "hours_since_solar_noon": -10.08,
+          "day_progress_ratio": 0.0
         },
         "3": {
-          "kwh": 0.0,
-          "date": null,
-          "conditions": {}
+          "elevation_deg": -35.98,
+          "azimuth_deg": 56.99,
+          "clear_sky_solar_radiation_wm2": 0.0,
+          "theoretical_max_pv_kwh": 0.0,
+          "hours_since_solar_noon": -9.08,
+          "day_progress_ratio": 0.0
         },
         "4": {
-          "kwh": 0.0,
-          "date": null,
-          "conditions": {}
+          "elevation_deg": -27.74,
+          "azimuth_deg": 71.36,
+          "clear_sky_solar_radiation_wm2": 0.0,
+          "theoretical_max_pv_kwh": 0.0,
+          "hours_since_solar_noon": -8.08,
+          "day_progress_ratio": 0.0
         },
         "5": {
-          "kwh": 0.0,
-          "date": null,
-          "conditions": {}
+          "elevation_deg": -18.79,
+          "azimuth_deg": 84.1,
+          "clear_sky_solar_radiation_wm2": 0.0,
+          "theoretical_max_pv_kwh": 0.0,
+          "hours_since_solar_noon": -7.08,
+          "day_progress_ratio": 0.0
         },
         "6": {
-          "kwh": 0.0,
-          "date": null,
-          "conditions": {}
+          "elevation_deg": -9.63,
+          "azimuth_deg": 95.99,
+          "clear_sky_solar_radiation_wm2": 0.0,
+          "theoretical_max_pv_kwh": 0.0,
+          "hours_since_solar_noon": -6.08,
+          "day_progress_ratio": 0.0
         },
         "7": {
-          "kwh": 0.0,
-          "date": null,
-          "conditions": {}
+          "elevation_deg": -0.67,
+          "azimuth_deg": 107.72,
+          "clear_sky_solar_radiation_wm2": 0.0,
+          "theoretical_max_pv_kwh": 0.0,
+          "hours_since_solar_noon": -5.08,
+          "day_progress_ratio": 0.0
         },
         "8": {
-          "kwh": 0.658,
-          "date": "2026-02-10",
-          "conditions": {
-            "sun_elevation_deg": 5.07,
-            "cloud_cover_percent": null,
-            "temperature_c": null,
-            "solar_radiation_wm2": 22.1
-          }
+          "elevation_deg": 7.71,
+          "azimuth_deg": 119.84,
+          "clear_sky_solar_radiation_wm2": 48.7,
+          "theoretical_max_pv_kwh": 1.4123,
+          "hours_since_solar_noon": -4.08,
+          "day_progress_ratio": 0.098,
+          "theoretical_max_per_group": [
+            {
+              "name": "Gruppe 1",
+              "power_kwp": 12.865,
+              "azimuth_deg": 180.0,
+              "tilt_deg": 28.0,
+              "theoretical_kwh": 1.4123,
+              "poa_wm2": 115.56,
+              "aoi_deg": 69.5
+            }
+          ]
         },
         "9": {
-          "kwh": 1.399,
-          "date": "2026-02-10",
-          "conditions": {
-            "sun_elevation_deg": 12.31,
-            "cloud_cover_percent": null,
-            "temperature_c": null,
-            "solar_radiation_wm2": 83.5
-          }
+          "elevation_deg": 15.09,
+          "azimuth_deg": 132.83,
+          "clear_sky_solar_radiation_wm2": 150.7,
+          "theoretical_max_pv_kwh": 3.518,
+          "hours_since_solar_noon": -3.08,
+          "day_progress_ratio": 0.195,
+          "theoretical_max_per_group": [
+            {
+              "name": "Gruppe 1",
+              "power_kwp": 12.865,
+              "azimuth_deg": 180.0,
+              "tilt_deg": 28.0,
+              "theoretical_kwh": 3.518,
+              "poa_wm2": 287.85,
+              "aoi_deg": 57.4
+            }
+          ]
         },
         "10": {
-          "kwh": 1.638,
-          "date": "2026-02-10",
-          "conditions": {
-            "sun_elevation_deg": 18.07,
-            "cloud_cover_percent": null,
-            "temperature_c": null,
-            "solar_radiation_wm2": 141.5
-          }
+          "elevation_deg": 21.0,
+          "azimuth_deg": 147.02,
+          "clear_sky_solar_radiation_wm2": 245.5,
+          "theoretical_max_pv_kwh": 5.3272,
+          "hours_since_solar_noon": -2.08,
+          "day_progress_ratio": 0.293,
+          "theoretical_max_per_group": [
+            {
+              "name": "Gruppe 1",
+              "power_kwp": 12.865,
+              "azimuth_deg": 180.0,
+              "tilt_deg": 28.0,
+              "theoretical_kwh": 5.3272,
+              "poa_wm2": 435.88,
+              "aoi_deg": 46.8
+            }
+          ]
         },
         "11": {
-          "kwh": 3.405,
-          "date": "2026-02-10",
-          "conditions": {
-            "sun_elevation_deg": 21.88,
-            "cloud_cover_percent": null,
-            "temperature_c": null,
-            "solar_radiation_wm2": 182.0
-          }
+          "elevation_deg": 24.93,
+          "azimuth_deg": 162.43,
+          "clear_sky_solar_radiation_wm2": 310.7,
+          "theoretical_max_pv_kwh": 6.5384,
+          "hours_since_solar_noon": -1.08,
+          "day_progress_ratio": 0.39,
+          "theoretical_max_per_group": [
+            {
+              "name": "Gruppe 1",
+              "power_kwp": 12.865,
+              "azimuth_deg": 180.0,
+              "tilt_deg": 28.0,
+              "theoretical_kwh": 6.5384,
+              "poa_wm2": 534.98,
+              "aoi_deg": 38.9
+            }
+          ]
         },
         "12": {
-          "kwh": 3.032,
-          "date": "2026-02-09",
-          "conditions": {
-            "sun_elevation_deg": 23.04,
-            "cloud_cover_percent": null,
-            "temperature_c": null,
-            "solar_radiation_wm2": 110.6
-          }
+          "elevation_deg": 26.45,
+          "azimuth_deg": 178.68,
+          "clear_sky_solar_radiation_wm2": 336.0,
+          "theoretical_max_pv_kwh": 7.0036,
+          "hours_since_solar_noon": -0.08,
+          "day_progress_ratio": 0.488,
+          "theoretical_max_per_group": [
+            {
+              "name": "Gruppe 1",
+              "power_kwp": 12.865,
+              "azimuth_deg": 180.0,
+              "tilt_deg": 28.0,
+              "theoretical_kwh": 7.0036,
+              "poa_wm2": 573.04,
+              "aoi_deg": 35.6
+            }
+          ]
         },
         "13": {
-          "kwh": 2.036,
-          "date": "2026-02-09",
-          "conditions": {
-            "sun_elevation_deg": 22.02,
-            "cloud_cover_percent": null,
-            "temperature_c": null,
-            "solar_radiation_wm2": 94.9
-          }
+          "elevation_deg": 25.37,
+          "azimuth_deg": 195.01,
+          "clear_sky_solar_radiation_wm2": 318.0,
+          "theoretical_max_pv_kwh": 6.6713,
+          "hours_since_solar_noon": 0.92,
+          "day_progress_ratio": 0.585,
+          "theoretical_max_per_group": [
+            {
+              "name": "Gruppe 1",
+              "power_kwp": 12.865,
+              "azimuth_deg": 180.0,
+              "tilt_deg": 28.0,
+              "theoretical_kwh": 6.6713,
+              "poa_wm2": 545.85,
+              "aoi_deg": 38.0
+            }
+          ]
         },
         "14": {
-          "kwh": 1.767,
-          "date": "2026-02-09",
-          "conditions": {
-            "sun_elevation_deg": 18.62,
-            "cloud_cover_percent": null,
-            "temperature_c": null,
-            "solar_radiation_wm2": 42.2
-          }
+          "elevation_deg": 21.83,
+          "azimuth_deg": 210.61,
+          "clear_sky_solar_radiation_wm2": 259.2,
+          "theoretical_max_pv_kwh": 5.5783,
+          "hours_since_solar_noon": 1.92,
+          "day_progress_ratio": 0.683,
+          "theoretical_max_per_group": [
+            {
+              "name": "Gruppe 1",
+              "power_kwp": 12.865,
+              "azimuth_deg": 180.0,
+              "tilt_deg": 28.0,
+              "theoretical_kwh": 5.5783,
+              "poa_wm2": 456.42,
+              "aoi_deg": 45.3
+            }
+          ]
         },
         "15": {
-          "kwh": 1.095,
-          "date": "2026-02-09",
-          "conditions": {
-            "sun_elevation_deg": 13.2,
-            "cloud_cover_percent": null,
-            "temperature_c": null,
-            "solar_radiation_wm2": 21.8
-          }
+          "elevation_deg": 16.23,
+          "azimuth_deg": 225.02,
+          "clear_sky_solar_radiation_wm2": 168.5,
+          "theoretical_max_pv_kwh": 3.8555,
+          "hours_since_solar_noon": 2.92,
+          "day_progress_ratio": 0.78,
+          "theoretical_max_per_group": [
+            {
+              "name": "Gruppe 1",
+              "power_kwp": 12.865,
+              "azimuth_deg": 180.0,
+              "tilt_deg": 28.0,
+              "theoretical_kwh": 3.8555,
+              "poa_wm2": 315.47,
+              "aoi_deg": 55.6
+            }
+          ]
         },
         "16": {
-          "kwh": 0.233,
-          "date": "2026-02-09",
-          "conditions": {
-            "sun_elevation_deg": 6.22,
-            "cloud_cover_percent": null,
-            "temperature_c": null,
-            "solar_radiation_wm2": 5.6
-          }
+          "elevation_deg": 9.07,
+          "azimuth_deg": 238.21,
+          "clear_sky_solar_radiation_wm2": 65.2,
+          "theoretical_max_pv_kwh": 1.7686,
+          "hours_since_solar_noon": 3.92,
+          "day_progress_ratio": 0.878,
+          "theoretical_max_per_group": [
+            {
+              "name": "Gruppe 1",
+              "power_kwp": 12.865,
+              "azimuth_deg": 180.0,
+              "tilt_deg": 28.0,
+              "theoretical_kwh": 1.7686,
+              "poa_wm2": 144.71,
+              "aoi_deg": 67.5
+            }
+          ]
         },
         "17": {
-          "kwh": 0.0,
-          "date": null,
-          "conditions": {}
+          "elevation_deg": 0.84,
+          "azimuth_deg": 250.46,
+          "clear_sky_solar_radiation_wm2": 0.7,
+          "theoretical_max_pv_kwh": 0.0837,
+          "hours_since_solar_noon": 4.92,
+          "day_progress_ratio": 0.976,
+          "theoretical_max_per_group": [
+            {
+              "name": "Gruppe 1",
+              "power_kwp": 12.865,
+              "azimuth_deg": 180.0,
+              "tilt_deg": 28.0,
+              "theoretical_kwh": 0.0837,
+              "poa_wm2": 6.85,
+              "aoi_deg": 80.2
+            }
+          ]
         },
         "18": {
-          "kwh": 0.0,
-          "date": null,
-          "conditions": {}
+          "elevation_deg": -8.03,
+          "azimuth_deg": 262.24,
+          "clear_sky_solar_radiation_wm2": 0.0,
+          "theoretical_max_pv_kwh": 0.0,
+          "hours_since_solar_noon": 5.92,
+          "day_progress_ratio": 1.0
         },
         "19": {
-          "kwh": 0.0,
-          "date": null,
-          "conditions": {}
+          "elevation_deg": -17.16,
+          "azimuth_deg": 274.09,
+          "clear_sky_solar_radiation_wm2": 0.0,
+          "theoretical_max_pv_kwh": 0.0,
+          "hours_since_solar_noon": 6.92,
+          "day_progress_ratio": 1.0
         },
         "20": {
-          "kwh": 0.0,
-          "date": null,
-          "conditions": {}
+          "elevation_deg": -26.14,
+          "azimuth_deg": 286.66,
+          "clear_sky_solar_radiation_wm2": 0.0,
+          "theoretical_max_pv_kwh": 0.0,
+          "hours_since_solar_noon": 7.92,
+          "day_progress_ratio": 1.0
         },
         "21": {
-          "kwh": 0.0,
-          "date": null,
-          "conditions": {}
+          "elevation_deg": -34.51,
+          "azimuth_deg": 300.73,
+          "clear_sky_solar_radiation_wm2": 0.0,
+          "theoretical_max_pv_kwh": 0.0,
+          "hours_since_solar_noon": 8.92,
+          "day_progress_ratio": 1.0
         },
         "22": {
-          "kwh": 0.0,
-          "date": null,
-          "conditions": {}
+          "elevation_deg": -41.62,
+          "azimuth_deg": 317.16,
+          "clear_sky_solar_radiation_wm2": 0.0,
+          "theoretical_max_pv_kwh": 0.0,
+          "hours_since_solar_noon": 9.92,
+          "day_progress_ratio": 1.0
         },
         "23": {
-          "kwh": 0.0,
-          "date": null,
-          "conditions": {}
+          "elevation_deg": -46.62,
+          "azimuth_deg": 336.51,
+          "clear_sky_solar_radiation_wm2": 0.0,
+          "theoretical_max_pv_kwh": 0.0,
+          "hours_since_solar_noon": 10.92,
+          "day_progress_ratio": 1.0
         }
       }
-    },
-    "last_updated": "2026-02-11T09:38:14.575520"
+    }
   }
 }

@@ -1,24 +1,24 @@
 {
   "version": "3.0",
-  "updated_at": "2026-02-10T23:30:05.640460",
+  "updated_at": "2026-02-11T23:30:13.584116",
   "physics_defaults": {
     "albedo": 0.2,
     "system_efficiency": 0.9,
-    "learned_efficiency_factor": 1.3275
+    "learned_efficiency_factor": 1.4657
   },
   "group_calibration": {
     "Gruppe 1": {
-      "global_factor": 1.3275,
+      "global_factor": 1.4657,
       "hourly_factors": {
-        "14": 1.6603,
+        "14": 1.8303,
         "10": 0.8666,
-        "11": 1.1639,
-        "12": 2.0895,
-        "13": 2.6814,
-        "15": 4.941,
-        "16": 4.7424,
-        "8": 0.3537,
-        "9": 4.6303
+        "11": 1.6617,
+        "12": 2.1423,
+        "13": 2.4869,
+        "15": 4.7569,
+        "16": 4.3636,
+        "8": 0.4743,
+        "9": 2.1426
       },
       "bucket_factors": {
         "clear": {
@@ -33,13 +33,13 @@
           "confidence": 0.143
         },
         "clear_low_sun": {
-          "global_factor": 5.412,
+          "global_factor": 4.9328,
           "hourly_factors": {
             "15": 5.5334,
-            "16": 5.2907
+            "16": 4.8296
           },
-          "sample_count": 4,
-          "confidence": 0.286
+          "sample_count": 5,
+          "confidence": 0.357
         },
         "fair": {
           "global_factor": 1.4409,
@@ -51,22 +51,34 @@
           "sample_count": 4,
           "confidence": 0.286
         },
-        "cloudy": {
-          "global_factor": 0.2911,
+        "fair_low_sun": {
+          "global_factor": 3.7141,
           "hourly_factors": {
-            "13": 0.2911
+            "15": 3.7141
           },
           "sample_count": 1,
           "confidence": 0.321
         },
-        "overcast": {
-          "global_factor": 0.4285,
+        "cloudy": {
+          "global_factor": 1.2489,
           "hourly_factors": {
-            "8": 0.3162,
-            "9": 0.5407
+            "13": 0.8379,
+            "12": 2.4416,
+            "14": 2.7935
           },
-          "sample_count": 1,
-          "confidence": 0.321
+          "sample_count": 2,
+          "confidence": 0.164
+        },
+        "overcast": {
+          "global_factor": 1.1753,
+          "hourly_factors": {
+            "8": 0.737,
+            "9": 1.3391,
+            "10": 1.9246,
+            "11": 2.4689
+          },
+          "sample_count": 2,
+          "confidence": 0.269
         },
         "fog": {
           "global_factor": 0.5629,
@@ -106,16 +118,16 @@
           "confidence": 0.652
         }
       },
-      "sample_count": 6,
-      "confidence": 0.429,
-      "last_updated": "2026-02-10T23:30:05.640334"
+      "sample_count": 7,
+      "confidence": 0.5,
+      "last_updated": "2026-02-11T23:30:13.583983"
     }
   },
   "metadata": {
     "rolling_window_days": 21,
     "min_samples": 1,
     "total_groups": 1,
-    "total_bucket_factors": 9,
+    "total_bucket_factors": 10,
     "weather_buckets": [
       "clear",
       "clear_low_sun",

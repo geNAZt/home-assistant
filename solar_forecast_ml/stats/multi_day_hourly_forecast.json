@@ -1,340 +1,11 @@
 {
   "version": "1.0",
-  "updated_at": "2026-02-11T22:08:24.226024+01:00",
+  "updated_at": "2026-02-12T19:46:33.482233+01:00",
   "days": {
-    "2026-02-11": {
-      "date": "2026-02-11",
-      "day_type": "today",
-      "total_kwh": 2.345,
-      "hourly": [
-        {
-          "hour": 0,
-          "prediction_kwh": 0,
-          "cloud_cover": null,
-          "temperature": null,
-          "solar_radiation_wm2": null,
-          "weather_source": null
-        },
-        {
-          "hour": 1,
-          "prediction_kwh": 0,
-          "cloud_cover": null,
-          "temperature": null,
-          "solar_radiation_wm2": null,
-          "weather_source": null
-        },
-        {
-          "hour": 2,
-          "prediction_kwh": 0,
-          "cloud_cover": null,
-          "temperature": null,
-          "solar_radiation_wm2": null,
-          "weather_source": null
-        },
-        {
-          "hour": 3,
-          "prediction_kwh": 0,
-          "cloud_cover": null,
-          "temperature": null,
-          "solar_radiation_wm2": null,
-          "weather_source": null
-        },
-        {
-          "hour": 4,
-          "prediction_kwh": 0,
-          "cloud_cover": null,
-          "temperature": null,
-          "solar_radiation_wm2": null,
-          "weather_source": null
-        },
-        {
-          "hour": 5,
-          "prediction_kwh": 0,
-          "cloud_cover": null,
-          "temperature": null,
-          "solar_radiation_wm2": null,
-          "weather_source": null
-        },
-        {
-          "hour": 6,
-          "prediction_kwh": 0,
-          "cloud_cover": null,
-          "temperature": null,
-          "solar_radiation_wm2": null,
-          "weather_source": null
-        },
-        {
-          "hour": 7,
-          "prediction_kwh": 0,
-          "cloud_cover": null,
-          "temperature": null,
-          "solar_radiation_wm2": null,
-          "weather_source": null
-        },
-        {
-          "hour": 8,
-          "prediction_kwh": 0.014,
-          "cloud_cover": null,
-          "temperature": null,
-          "solar_radiation_wm2": null,
-          "weather_source": null,
-          "panel_groups": [
-            {
-              "name": "Gruppe 1",
-              "power_kwh": 0.0139,
-              "contribution_percent": 100.0,
-              "poa_wm2": 3.5,
-              "aoi_deg": 71.1,
-              "source": "physics"
-            }
-          ],
-          "panel_group_predictions": {
-            "Gruppe 1": 0.0139
-          }
-        },
-        {
-          "hour": 9,
-          "prediction_kwh": 0.178,
-          "cloud_cover": null,
-          "temperature": null,
-          "solar_radiation_wm2": null,
-          "weather_source": null,
-          "panel_groups": [
-            {
-              "name": "Gruppe 1",
-              "power_kwh": 0.1779,
-              "contribution_percent": 100.0,
-              "poa_wm2": 49.0,
-              "aoi_deg": 59.3,
-              "source": "physics"
-            }
-          ],
-          "panel_group_predictions": {
-            "Gruppe 1": 0.1779
-          }
-        },
-        {
-          "hour": 10,
-          "prediction_kwh": 0.38,
-          "cloud_cover": null,
-          "temperature": null,
-          "solar_radiation_wm2": null,
-          "weather_source": null,
-          "panel_groups": [
-            {
-              "name": "Gruppe 1",
-              "power_kwh": 0.3798,
-              "contribution_percent": 100.0,
-              "poa_wm2": 105.5,
-              "aoi_deg": 49.0,
-              "source": "physics"
-            }
-          ],
-          "panel_group_predictions": {
-            "Gruppe 1": 0.3798
-          }
-        },
-        {
-          "hour": 11,
-          "prediction_kwh": 0.354,
-          "cloud_cover": null,
-          "temperature": null,
-          "solar_radiation_wm2": null,
-          "weather_source": null,
-          "panel_groups": [
-            {
-              "name": "Gruppe 1",
-              "power_kwh": 0.3535,
-              "contribution_percent": 100.0,
-              "poa_wm2": 66.5,
-              "aoi_deg": 41.5,
-              "source": "physics"
-            }
-          ],
-          "panel_group_predictions": {
-            "Gruppe 1": 0.3535
-          }
-        },
-        {
-          "hour": 12,
-          "prediction_kwh": 0.401,
-          "cloud_cover": null,
-          "temperature": null,
-          "solar_radiation_wm2": null,
-          "weather_source": null,
-          "panel_groups": [
-            {
-              "name": "Gruppe 1",
-              "power_kwh": 0.4014,
-              "contribution_percent": 100.0,
-              "poa_wm2": 75.7,
-              "aoi_deg": 38.3,
-              "source": "physics"
-            }
-          ],
-          "panel_group_predictions": {
-            "Gruppe 1": 0.4014
-          }
-        },
-        {
-          "hour": 13,
-          "prediction_kwh": 0.491,
-          "cloud_cover": null,
-          "temperature": null,
-          "solar_radiation_wm2": null,
-          "weather_source": null,
-          "panel_groups": [
-            {
-              "name": "Gruppe 1",
-              "power_kwh": 0.4906,
-              "contribution_percent": 100.0,
-              "poa_wm2": 137.3,
-              "aoi_deg": 40.6,
-              "source": "physics"
-            }
-          ],
-          "panel_group_predictions": {
-            "Gruppe 1": 0.4906
-          }
-        },
-        {
-          "hour": 14,
-          "prediction_kwh": 0.333,
-          "cloud_cover": null,
-          "temperature": null,
-          "solar_radiation_wm2": null,
-          "weather_source": null,
-          "panel_groups": [
-            {
-              "name": "Gruppe 1",
-              "power_kwh": 0.3327,
-              "contribution_percent": 100.0,
-              "poa_wm2": 92.8,
-              "aoi_deg": 47.4,
-              "source": "physics"
-            }
-          ],
-          "panel_group_predictions": {
-            "Gruppe 1": 0.3327
-          }
-        },
-        {
-          "hour": 15,
-          "prediction_kwh": 0.157,
-          "cloud_cover": null,
-          "temperature": null,
-          "solar_radiation_wm2": null,
-          "weather_source": null,
-          "panel_groups": [
-            {
-              "name": "Gruppe 1",
-              "power_kwh": 0.1572,
-              "contribution_percent": 100.0,
-              "poa_wm2": 43.7,
-              "aoi_deg": 57.3,
-              "source": "physics"
-            }
-          ],
-          "panel_group_predictions": {
-            "Gruppe 1": 0.1572
-          }
-        },
-        {
-          "hour": 16,
-          "prediction_kwh": 0.033,
-          "cloud_cover": null,
-          "temperature": null,
-          "solar_radiation_wm2": null,
-          "weather_source": null,
-          "panel_groups": [
-            {
-              "name": "Gruppe 1",
-              "power_kwh": 0.0325,
-              "contribution_percent": 100.0,
-              "poa_wm2": 11.6,
-              "aoi_deg": 68.9,
-              "source": "physics"
-            }
-          ],
-          "panel_group_predictions": {
-            "Gruppe 1": 0.0325
-          }
-        },
-        {
-          "hour": 17,
-          "prediction_kwh": 0.004,
-          "cloud_cover": null,
-          "temperature": null,
-          "solar_radiation_wm2": null,
-          "weather_source": null,
-          "panel_groups": [
-            {
-              "name": "Gruppe 1",
-              "power_kwh": 0.0044,
-              "contribution_percent": 100.0,
-              "poa_wm2": 0.6,
-              "aoi_deg": 90.0,
-              "source": "physics"
-            }
-          ],
-          "panel_group_predictions": {
-            "Gruppe 1": 0.0044
-          }
-        },
-        {
-          "hour": 18,
-          "prediction_kwh": 0,
-          "cloud_cover": null,
-          "temperature": null,
-          "solar_radiation_wm2": null,
-          "weather_source": null
-        },
-        {
-          "hour": 19,
-          "prediction_kwh": 0,
-          "cloud_cover": null,
-          "temperature": null,
-          "solar_radiation_wm2": null,
-          "weather_source": null
-        },
-        {
-          "hour": 20,
-          "prediction_kwh": 0,
-          "cloud_cover": null,
-          "temperature": null,
-          "solar_radiation_wm2": null,
-          "weather_source": null
-        },
-        {
-          "hour": 21,
-          "prediction_kwh": 0,
-          "cloud_cover": null,
-          "temperature": null,
-          "solar_radiation_wm2": null,
-          "weather_source": null
-        },
-        {
-          "hour": 22,
-          "prediction_kwh": 0,
-          "cloud_cover": null,
-          "temperature": null,
-          "solar_radiation_wm2": null,
-          "weather_source": null
-        },
-        {
-          "hour": 23,
-          "prediction_kwh": 0,
-          "cloud_cover": null,
-          "temperature": null,
-          "solar_radiation_wm2": null,
-          "weather_source": null
-        }
-      ]
-    },
     "2026-02-12": {
       "date": "2026-02-12",
-      "day_type": "tomorrow",
-      "total_kwh": 2.609,
+      "day_type": "today",
+      "total_kwh": 4.533,
       "hourly": [
         {
           "hour": 0,
@@ -402,7 +73,7 @@
         },
         {
           "hour": 8,
-          "prediction_kwh": 0.031,
+          "prediction_kwh": 0.009,
           "cloud_cover": null,
           "temperature": null,
           "solar_radiation_wm2": null,
@@ -410,20 +81,20 @@
           "panel_groups": [
             {
               "name": "Gruppe 1",
-              "power_kwh": 0.0315,
+              "power_kwh": 0.0088,
               "contribution_percent": 100.0,
-              "poa_wm2": 8.6,
+              "poa_wm2": 3.6,
               "aoi_deg": 70.9,
               "source": "physics"
             }
           ],
           "panel_group_predictions": {
-            "Gruppe 1": 0.0315
+            "Gruppe 1": 0.0088
           }
         },
         {
           "hour": 9,
-          "prediction_kwh": 0.139,
+          "prediction_kwh": 0.027,
           "cloud_cover": null,
           "temperature": null,
           "solar_radiation_wm2": null,
@@ -431,20 +102,20 @@
           "panel_groups": [
             {
               "name": "Gruppe 1",
-              "power_kwh": 0.1388,
+              "power_kwh": 0.0265,
               "contribution_percent": 100.0,
-              "poa_wm2": 38.2,
+              "poa_wm2": 10.9,
               "aoi_deg": 59.1,
               "source": "physics"
             }
           ],
           "panel_group_predictions": {
-            "Gruppe 1": 0.1388
+            "Gruppe 1": 0.0265
           }
         },
         {
           "hour": 10,
-          "prediction_kwh": 0.313,
+          "prediction_kwh": 0.277,
           "cloud_cover": null,
           "temperature": null,
           "solar_radiation_wm2": null,
@@ -452,20 +123,20 @@
           "panel_groups": [
             {
               "name": "Gruppe 1",
-              "power_kwh": 0.3126,
+              "power_kwh": 0.2766,
               "contribution_percent": 100.0,
-              "poa_wm2": 86.7,
+              "poa_wm2": 25.7,
               "aoi_deg": 48.8,
               "source": "physics"
             }
           ],
           "panel_group_predictions": {
-            "Gruppe 1": 0.3126
+            "Gruppe 1": 0.2766
           }
         },
         {
           "hour": 11,
-          "prediction_kwh": 0.484,
+          "prediction_kwh": 0.775,
           "cloud_cover": null,
           "temperature": null,
           "solar_radiation_wm2": null,
@@ -473,20 +144,20 @@
           "panel_groups": [
             {
               "name": "Gruppe 1",
-              "power_kwh": 0.4842,
+              "power_kwh": 0.7752,
               "contribution_percent": 100.0,
-              "poa_wm2": 135.2,
+              "poa_wm2": 47.2,
               "aoi_deg": 41.2,
               "source": "physics"
             }
           ],
           "panel_group_predictions": {
-            "Gruppe 1": 0.4842
+            "Gruppe 1": 0.7752
           }
         },
         {
           "hour": 12,
-          "prediction_kwh": 0.569,
+          "prediction_kwh": 1.842,
           "cloud_cover": null,
           "temperature": null,
           "solar_radiation_wm2": null,
@@ -494,20 +165,21 @@
           "panel_groups": [
             {
               "name": "Gruppe 1",
-              "power_kwh": 0.569,
+              "power_kwh": 1.8419,
               "contribution_percent": 100.0,
-              "poa_wm2": 159.5,
-              "aoi_deg": 38.0,
-              "source": "physics"
+              "physics_kwh": 1.7849,
+              "ai_kwh": 1.9011,
+              "ai_weight": 0.49,
+              "source": "physics_lstm49"
             }
           ],
           "panel_group_predictions": {
-            "Gruppe 1": 0.569
+            "Gruppe 1": 1.8419
           }
         },
         {
           "hour": 13,
-          "prediction_kwh": 0.507,
+          "prediction_kwh": 1.385,
           "cloud_cover": null,
           "temperature": null,
           "solar_radiation_wm2": null,
@@ -515,20 +187,21 @@
           "panel_groups": [
             {
               "name": "Gruppe 1",
-              "power_kwh": 0.507,
+              "power_kwh": 1.385,
               "contribution_percent": 100.0,
-              "poa_wm2": 141.9,
-              "aoi_deg": 40.2,
-              "source": "physics"
+              "physics_kwh": 1.3427,
+              "ai_kwh": 1.4289,
+              "ai_weight": 0.49,
+              "source": "physics_lstm49"
             }
           ],
           "panel_group_predictions": {
-            "Gruppe 1": 0.507
+            "Gruppe 1": 1.385
           }
         },
         {
           "hour": 14,
-          "prediction_kwh": 0.345,
+          "prediction_kwh": 0.1,
           "cloud_cover": null,
           "temperature": null,
           "solar_radiation_wm2": null,
@@ -536,20 +209,20 @@
           "panel_groups": [
             {
               "name": "Gruppe 1",
-              "power_kwh": 0.3452,
+              "power_kwh": 0.0998,
               "contribution_percent": 100.0,
-              "poa_wm2": 96.0,
+              "poa_wm2": 28.5,
               "aoi_deg": 47.2,
               "source": "physics"
             }
           ],
           "panel_group_predictions": {
-            "Gruppe 1": 0.3452
+            "Gruppe 1": 0.0998
           }
         },
         {
           "hour": 15,
-          "prediction_kwh": 0.168,
+          "prediction_kwh": 0.027,
           "cloud_cover": null,
           "temperature": null,
           "solar_radiation_wm2": null,
@@ -557,20 +230,20 @@
           "panel_groups": [
             {
               "name": "Gruppe 1",
-              "power_kwh": 0.1676,
+              "power_kwh": 0.0267,
               "contribution_percent": 100.0,
-              "poa_wm2": 46.3,
+              "poa_wm2": 13.0,
               "aoi_deg": 57.1,
               "source": "physics"
             }
           ],
           "panel_group_predictions": {
-            "Gruppe 1": 0.1676
+            "Gruppe 1": 0.0267
           }
         },
         {
           "hour": 16,
-          "prediction_kwh": 0.046,
+          "prediction_kwh": 0.084,
           "cloud_cover": null,
           "temperature": null,
           "solar_radiation_wm2": null,
@@ -578,15 +251,16 @@
           "panel_groups": [
             {
               "name": "Gruppe 1",
-              "power_kwh": 0.046,
+              "power_kwh": 0.0838,
               "contribution_percent": 100.0,
-              "poa_wm2": 12.6,
-              "aoi_deg": 68.7,
-              "source": "physics"
+              "physics_kwh": 0.0729,
+              "ai_kwh": 0.1046,
+              "ai_weight": 0.34,
+              "source": "physics_lstm34"
             }
           ],
           "panel_group_predictions": {
-            "Gruppe 1": 0.046
+            "Gruppe 1": 0.0838
           }
         },
         {
@@ -662,8 +336,8 @@
     },
     "2026-02-13": {
       "date": "2026-02-13",
-      "day_type": "day_after_tomorrow",
-      "total_kwh": 2.152,
+      "day_type": "tomorrow",
+      "total_kwh": 11.61,
       "hourly": [
         {
           "hour": 0,
@@ -731,7 +405,7 @@
         },
         {
           "hour": 8,
-          "prediction_kwh": 0.032,
+          "prediction_kwh": 0.022,
           "cloud_cover": null,
           "temperature": null,
           "solar_radiation_wm2": null,
@@ -739,7 +413,7 @@
           "panel_groups": [
             {
               "name": "Gruppe 1",
-              "power_kwh": 0.0324,
+              "power_kwh": 0.022,
               "contribution_percent": 100.0,
               "poa_wm2": 8.8,
               "aoi_deg": 70.7,
@@ -747,12 +421,12 @@
             }
           ],
           "panel_group_predictions": {
-            "Gruppe 1": 0.0324
+            "Gruppe 1": 0.022
           }
         },
         {
           "hour": 9,
-          "prediction_kwh": 0.145,
+          "prediction_kwh": 0.096,
           "cloud_cover": null,
           "temperature": null,
           "solar_radiation_wm2": null,
@@ -760,20 +434,20 @@
           "panel_groups": [
             {
               "name": "Gruppe 1",
-              "power_kwh": 0.1451,
+              "power_kwh": 0.0956,
               "contribution_percent": 100.0,
-              "poa_wm2": 39.7,
+              "poa_wm2": 38.5,
               "aoi_deg": 58.8,
               "source": "physics"
             }
           ],
           "panel_group_predictions": {
-            "Gruppe 1": 0.1451
+            "Gruppe 1": 0.0956
           }
         },
         {
           "hour": 10,
-          "prediction_kwh": 0.318,
+          "prediction_kwh": 1.16,
           "cloud_cover": null,
           "temperature": null,
           "solar_radiation_wm2": null,
@@ -781,20 +455,21 @@
           "panel_groups": [
             {
               "name": "Gruppe 1",
-              "power_kwh": 0.3183,
+              "power_kwh": 1.1603,
               "contribution_percent": 100.0,
-              "poa_wm2": 87.6,
-              "aoi_deg": 48.5,
-              "source": "physics"
+              "physics_kwh": 0.949,
+              "ai_kwh": 1.284,
+              "ai_weight": 0.63,
+              "source": "physics_lstm63"
             }
           ],
           "panel_group_predictions": {
-            "Gruppe 1": 0.3183
+            "Gruppe 1": 1.1603
           }
         },
         {
           "hour": 11,
-          "prediction_kwh": 0.492,
+          "prediction_kwh": 1.968,
           "cloud_cover": null,
           "temperature": null,
           "solar_radiation_wm2": null,
@@ -802,20 +477,21 @@
           "panel_groups": [
             {
               "name": "Gruppe 1",
-              "power_kwh": 0.4918,
+              "power_kwh": 1.9678,
               "contribution_percent": 100.0,
-              "poa_wm2": 136.3,
-              "aoi_deg": 40.9,
-              "source": "physics"
+              "physics_kwh": 2.2489,
+              "ai_kwh": 1.8033,
+              "ai_weight": 0.63,
+              "source": "physics_lstm63"
             }
           ],
           "panel_group_predictions": {
-            "Gruppe 1": 0.4918
+            "Gruppe 1": 1.9678
           }
         },
         {
           "hour": 12,
-          "prediction_kwh": 0.325,
+          "prediction_kwh": 4.096,
           "cloud_cover": null,
           "temperature": null,
           "solar_radiation_wm2": null,
@@ -823,20 +499,20 @@
           "panel_groups": [
             {
               "name": "Gruppe 1",
-              "power_kwh": 0.3246,
+              "power_kwh": 4.0958,
               "contribution_percent": 100.0,
-              "poa_wm2": 60.7,
+              "poa_wm2": 160.2,
               "aoi_deg": 37.7,
               "source": "physics"
             }
           ],
           "panel_group_predictions": {
-            "Gruppe 1": 0.3246
+            "Gruppe 1": 4.0958
           }
         },
         {
           "hour": 13,
-          "prediction_kwh": 0.27,
+          "prediction_kwh": 3.784,
           "cloud_cover": null,
           "temperature": null,
           "solar_radiation_wm2": null,
@@ -844,20 +520,20 @@
           "panel_groups": [
             {
               "name": "Gruppe 1",
-              "power_kwh": 0.2697,
+              "power_kwh": 3.7838,
               "contribution_percent": 100.0,
-              "poa_wm2": 50.4,
+              "poa_wm2": 142.7,
               "aoi_deg": 39.9,
               "source": "physics"
             }
           ],
           "panel_group_predictions": {
-            "Gruppe 1": 0.2697
+            "Gruppe 1": 3.7838
           }
         },
         {
           "hour": 14,
-          "prediction_kwh": 0.339,
+          "prediction_kwh": 0.342,
           "cloud_cover": null,
           "temperature": null,
           "solar_radiation_wm2": null,
@@ -865,7 +541,7 @@
           "panel_groups": [
             {
               "name": "Gruppe 1",
-              "power_kwh": 0.3386,
+              "power_kwh": 0.342,
               "contribution_percent": 100.0,
               "poa_wm2": 96.7,
               "aoi_deg": 46.9,
@@ -873,12 +549,12 @@
             }
           ],
           "panel_group_predictions": {
-            "Gruppe 1": 0.3386
+            "Gruppe 1": 0.342
           }
         },
         {
           "hour": 15,
-          "prediction_kwh": 0.173,
+          "prediction_kwh": 0.096,
           "cloud_cover": null,
           "temperature": null,
           "solar_radiation_wm2": null,
@@ -886,20 +562,20 @@
           "panel_groups": [
             {
               "name": "Gruppe 1",
-              "power_kwh": 0.1734,
+              "power_kwh": 0.0959,
               "contribution_percent": 100.0,
-              "poa_wm2": 47.4,
+              "poa_wm2": 46.0,
               "aoi_deg": 56.9,
               "source": "physics"
             }
           ],
           "panel_group_predictions": {
-            "Gruppe 1": 0.1734
+            "Gruppe 1": 0.0959
           }
         },
         {
           "hour": 16,
-          "prediction_kwh": 0.049,
+          "prediction_kwh": 0.037,
           "cloud_cover": null,
           "temperature": null,
           "solar_radiation_wm2": null,
@@ -907,15 +583,15 @@
           "panel_groups": [
             {
               "name": "Gruppe 1",
-              "power_kwh": 0.0491,
+              "power_kwh": 0.0369,
               "contribution_percent": 100.0,
-              "poa_wm2": 13.3,
+              "poa_wm2": 12.8,
               "aoi_deg": 68.5,
               "source": "physics"
             }
           ],
           "panel_group_predictions": {
-            "Gruppe 1": 0.0491
+            "Gruppe 1": 0.0369
           }
         },
         {
@@ -928,7 +604,7 @@
           "panel_groups": [
             {
               "name": "Gruppe 1",
-              "power_kwh": 0.0093,
+              "power_kwh": 0.0094,
               "contribution_percent": 100.0,
               "poa_wm2": 1.3,
               "aoi_deg": 90.0,
@@ -936,7 +612,340 @@
             }
           ],
           "panel_group_predictions": {
-            "Gruppe 1": 0.0093
+            "Gruppe 1": 0.0094
+          }
+        },
+        {
+          "hour": 18,
+          "prediction_kwh": 0,
+          "cloud_cover": null,
+          "temperature": null,
+          "solar_radiation_wm2": null,
+          "weather_source": null
+        },
+        {
+          "hour": 19,
+          "prediction_kwh": 0,
+          "cloud_cover": null,
+          "temperature": null,
+          "solar_radiation_wm2": null,
+          "weather_source": null
+        },
+        {
+          "hour": 20,
+          "prediction_kwh": 0,
+          "cloud_cover": null,
+          "temperature": null,
+          "solar_radiation_wm2": null,
+          "weather_source": null
+        },
+        {
+          "hour": 21,
+          "prediction_kwh": 0,
+          "cloud_cover": null,
+          "temperature": null,
+          "solar_radiation_wm2": null,
+          "weather_source": null
+        },
+        {
+          "hour": 22,
+          "prediction_kwh": 0,
+          "cloud_cover": null,
+          "temperature": null,
+          "solar_radiation_wm2": null,
+          "weather_source": null
+        },
+        {
+          "hour": 23,
+          "prediction_kwh": 0,
+          "cloud_cover": null,
+          "temperature": null,
+          "solar_radiation_wm2": null,
+          "weather_source": null
+        }
+      ]
+    },
+    "2026-02-14": {
+      "date": "2026-02-14",
+      "day_type": "day_after_tomorrow",
+      "total_kwh": 7.191,
+      "hourly": [
+        {
+          "hour": 0,
+          "prediction_kwh": 0,
+          "cloud_cover": null,
+          "temperature": null,
+          "solar_radiation_wm2": null,
+          "weather_source": null
+        },
+        {
+          "hour": 1,
+          "prediction_kwh": 0,
+          "cloud_cover": null,
+          "temperature": null,
+          "solar_radiation_wm2": null,
+          "weather_source": null
+        },
+        {
+          "hour": 2,
+          "prediction_kwh": 0,
+          "cloud_cover": null,
+          "temperature": null,
+          "solar_radiation_wm2": null,
+          "weather_source": null
+        },
+        {
+          "hour": 3,
+          "prediction_kwh": 0,
+          "cloud_cover": null,
+          "temperature": null,
+          "solar_radiation_wm2": null,
+          "weather_source": null
+        },
+        {
+          "hour": 4,
+          "prediction_kwh": 0,
+          "cloud_cover": null,
+          "temperature": null,
+          "solar_radiation_wm2": null,
+          "weather_source": null
+        },
+        {
+          "hour": 5,
+          "prediction_kwh": 0,
+          "cloud_cover": null,
+          "temperature": null,
+          "solar_radiation_wm2": null,
+          "weather_source": null
+        },
+        {
+          "hour": 6,
+          "prediction_kwh": 0,
+          "cloud_cover": null,
+          "temperature": null,
+          "solar_radiation_wm2": null,
+          "weather_source": null
+        },
+        {
+          "hour": 7,
+          "prediction_kwh": 0,
+          "cloud_cover": null,
+          "temperature": null,
+          "solar_radiation_wm2": null,
+          "weather_source": null
+        },
+        {
+          "hour": 8,
+          "prediction_kwh": 0.162,
+          "cloud_cover": null,
+          "temperature": null,
+          "solar_radiation_wm2": null,
+          "weather_source": null,
+          "panel_groups": [
+            {
+              "name": "Gruppe 1",
+              "power_kwh": 0.1622,
+              "contribution_percent": 100.0,
+              "poa_wm2": 10.2,
+              "aoi_deg": 70.5,
+              "source": "physics"
+            }
+          ],
+          "panel_group_predictions": {
+            "Gruppe 1": 0.1622
+          }
+        },
+        {
+          "hour": 9,
+          "prediction_kwh": 0.777,
+          "cloud_cover": null,
+          "temperature": null,
+          "solar_radiation_wm2": null,
+          "weather_source": null,
+          "panel_groups": [
+            {
+              "name": "Gruppe 1",
+              "power_kwh": 0.7768,
+              "contribution_percent": 100.0,
+              "physics_kwh": 0.6948,
+              "ai_kwh": 0.8477,
+              "ai_weight": 0.54,
+              "source": "physics_lstm53"
+            }
+          ],
+          "panel_group_predictions": {
+            "Gruppe 1": 0.7768
+          }
+        },
+        {
+          "hour": 10,
+          "prediction_kwh": 1.408,
+          "cloud_cover": null,
+          "temperature": null,
+          "solar_radiation_wm2": null,
+          "weather_source": null,
+          "panel_groups": [
+            {
+              "name": "Gruppe 1",
+              "power_kwh": 1.4081,
+              "contribution_percent": 100.0,
+              "physics_kwh": 1.5597,
+              "ai_kwh": 1.3193,
+              "ai_weight": 0.63,
+              "source": "physics_lstm63"
+            }
+          ],
+          "panel_group_predictions": {
+            "Gruppe 1": 1.4081
+          }
+        },
+        {
+          "hour": 11,
+          "prediction_kwh": 1.689,
+          "cloud_cover": null,
+          "temperature": null,
+          "solar_radiation_wm2": null,
+          "weather_source": null,
+          "panel_groups": [
+            {
+              "name": "Gruppe 1",
+              "power_kwh": 1.6892,
+              "contribution_percent": 100.0,
+              "physics_kwh": 1.6411,
+              "ai_kwh": 1.7392,
+              "ai_weight": 0.49,
+              "source": "physics_lstm49"
+            }
+          ],
+          "panel_group_predictions": {
+            "Gruppe 1": 1.6892
+          }
+        },
+        {
+          "hour": 12,
+          "prediction_kwh": 1.046,
+          "cloud_cover": null,
+          "temperature": null,
+          "solar_radiation_wm2": null,
+          "weather_source": null,
+          "panel_groups": [
+            {
+              "name": "Gruppe 1",
+              "power_kwh": 1.0457,
+              "contribution_percent": 100.0,
+              "poa_wm2": 70.4,
+              "aoi_deg": 37.3,
+              "source": "physics"
+            }
+          ],
+          "panel_group_predictions": {
+            "Gruppe 1": 1.0457
+          }
+        },
+        {
+          "hour": 13,
+          "prediction_kwh": 0.952,
+          "cloud_cover": null,
+          "temperature": null,
+          "solar_radiation_wm2": null,
+          "weather_source": null,
+          "panel_groups": [
+            {
+              "name": "Gruppe 1",
+              "power_kwh": 0.9522,
+              "contribution_percent": 100.0,
+              "poa_wm2": 64.1,
+              "aoi_deg": 39.6,
+              "source": "physics"
+            }
+          ],
+          "panel_group_predictions": {
+            "Gruppe 1": 0.9522
+          }
+        },
+        {
+          "hour": 14,
+          "prediction_kwh": 0.769,
+          "cloud_cover": null,
+          "temperature": null,
+          "solar_radiation_wm2": null,
+          "weather_source": null,
+          "panel_groups": [
+            {
+              "name": "Gruppe 1",
+              "power_kwh": 0.7694,
+              "contribution_percent": 100.0,
+              "physics_kwh": 0.6421,
+              "ai_kwh": 0.9016,
+              "ai_weight": 0.49,
+              "source": "physics_lstm49"
+            }
+          ],
+          "panel_group_predictions": {
+            "Gruppe 1": 0.7694
+          }
+        },
+        {
+          "hour": 15,
+          "prediction_kwh": 0.283,
+          "cloud_cover": null,
+          "temperature": null,
+          "solar_radiation_wm2": null,
+          "weather_source": null,
+          "panel_groups": [
+            {
+              "name": "Gruppe 1",
+              "power_kwh": 0.2833,
+              "contribution_percent": 100.0,
+              "poa_wm2": 19.0,
+              "aoi_deg": 56.6,
+              "source": "physics"
+            }
+          ],
+          "panel_group_predictions": {
+            "Gruppe 1": 0.2833
+          }
+        },
+        {
+          "hour": 16,
+          "prediction_kwh": 0.08,
+          "cloud_cover": null,
+          "temperature": null,
+          "solar_radiation_wm2": null,
+          "weather_source": null,
+          "panel_groups": [
+            {
+              "name": "Gruppe 1",
+              "power_kwh": 0.0797,
+              "contribution_percent": 100.0,
+              "poa_wm2": 5.3,
+              "aoi_deg": 68.3,
+              "source": "physics"
+            }
+          ],
+          "panel_group_predictions": {
+            "Gruppe 1": 0.0797
+          }
+        },
+        {
+          "hour": 17,
+          "prediction_kwh": 0.025,
+          "cloud_cover": null,
+          "temperature": null,
+          "solar_radiation_wm2": null,
+          "weather_source": null,
+          "panel_groups": [
+            {
+              "name": "Gruppe 1",
+              "power_kwh": 0.0249,
+              "contribution_percent": 100.0,
+              "poa_wm2": 1.7,
+              "aoi_deg": 90.0,
+              "source": "physics"
+            }
+          ],
+          "panel_group_predictions": {
+            "Gruppe 1": 0.0249
           }
         },
         {
@@ -991,8 +1000,8 @@
     }
   },
   "summary": {
-    "today": 2.345,
-    "tomorrow": 2.609,
-    "day_after_tomorrow": 2.152
+    "today": 4.533,
+    "tomorrow": 11.61,
+    "day_after_tomorrow": 7.191
   }
 }
