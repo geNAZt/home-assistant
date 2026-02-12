@@ -37,5 +37,54 @@ sensor:
       0.0
     {% endif %}
   attributes:
+    cost_preheat: >
+      {% set C = states('input_number.building_heat_capacity') | float(13.28) %}
+      {% set H = states('sensor.H_kW_per_K_effective') | float(0.074) %}
+      {% set COP = 1.0 %}
+      {% set offset = states('sensor.heating_preheat_offset_dynamic') | float(0) %}
+      
+      {# 2. Preise (Euro/kWh) #}
+      {% set p_low = states('sensor.power_price_nt') | float(0.20) %}
+      {% set p_high = states('sensor.power_price_ht') | float(0.35) %}
+
+      {# 3. Zeitraum der Überbrückung (z.B. 14h von 08:00 bis 22:00) #}
+      {% set dt = 22 - 6 %}
+      {% if offset > 0 and p_high > p_low %}
+        {# A: Die Nutzwärme, die wir später brauchen (die Basis-Ladung) #}
+        {% set energy_useful = offset * C %}
+        
+        {# B: Der ZUSÄTZLICHE Verlust durch die höhere Innentemperatur #}
+        {# Formel: Zusatzverlust = H * Offset * Zeit #}
+        {% set energy_loss_penalty = H * offset * dt %}
+        
+        {# Gesamter Strombedarf nachts (Nutzladung + Verlustladung) #}
+        {% set total_electric_low = (energy_useful + energy_loss_penalty) / COP %}
+        
+        {# Kosten nachts vs. Kosten für nur die Nutzwärme zum teuren Preis #}
+        {{ total_electric_low * p_low }}
+      {% else %}
+        0.0
+      {% endif %}
+    cost_normal: >
+      {% set C = states('input_number.building_heat_capacity') | float(13.28) %}
+      {% set H = states('sensor.H_kW_per_K_effective') | float(0.074) %}
+      {% set COP = 1.0 %}
+      {% set offset = states('sensor.heating_preheat_offset_dynamic') | float(0) %}
+      
+      {# 2. Preise (Euro/kWh) #}
+      {% set p_low = states('sensor.power_price_nt') | float(0.20) %}
+      {% set p_high = states('sensor.power_price_ht') | float(0.35) %}
+
+      {# 3. Zeitraum der Überbrückung (z.B. 14h von 08:00 bis 22:00) #}
+      {% set dt = 22 - 6 %}
+      {% if offset > 0 and p_high > p_low %}
+        {# A: Die Nutzwärme, die wir später brauchen (die Basis-Ladung) #}
+        {% set energy_useful = offset * C %}
+        
+        {# Kosten nachts vs. Kosten für nur die Nutzwärme zum teuren Preis #}
+        {{ (energy_useful / COP) * p_high }}
+      {% else %}
+        0.0
+      {% endif %}
     energy_stored_kwh: >
       {{ (states('sensor.heating_preheat_offset_dynamic') | float(0) * states('input_number.building_heat_capacity') | float(13.28)) | round(2) }}
