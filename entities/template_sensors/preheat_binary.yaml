@@ -1,15 +1,11 @@
 binary_sensor:
 - name: "Preheat erlaubt (Demand-Weighted)"
   state: >-
-    {% set pN = states('input_number.tibber_price_dw_00_06')|float(0) %}
-    {% set pD = states('input_number.tibber_price_dw_06_24')|float(0) %}
-    {% set H = states('sensor.h_kw_per_k_effective')|float(0) %}
-    {% set C = states('input_number.building_heat_capacity')|float(0) %}
-    {% set dt = states('input_number.preheat_dt_hours')|float(12) %}
+    {% set p = states('sensor.preheat_spread_ratio_bedarfgewichtet') | float(0) %}
+    {% set pD = states('sensor.preheat_penalty_faktor')|float(0) %}
     {% set m  = states('input_number.preheat_margin_pct')|float(0.02) %}
-    {% if pN>0 and pD>0 and H>0 and C>0 and dt>0 %}
-      {% set penalty = 2.718281828 ** ((H/C) * dt) %}
-      {{ (pD/pN) > (penalty * (1+m)) }}
+    {% if p>0 and pD>0 %}
+      {{ p - pD > m }}
     {% else %}
       false
     {% endif %}
