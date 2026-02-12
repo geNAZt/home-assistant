@@ -2,7 +2,7 @@
   "version": "1.2",
   "metadata": {
     "created_at": null,
-    "last_updated": "2026-02-12T19:00:00.461351+01:00",
+    "last_updated": "2026-02-12T20:00:00.327008+01:00",
     "frost_detection_version": "correlation_enhanced"
   },
   "hourly_data": {
@@ -5470,6 +5470,35 @@
         },
         "hours_after_sunrise": 11.25,
         "hours_before_sunset": -1.5,
+        "snow_covered_panels": false,
+        "snow_coverage_source": "none"
+      },
+      "20": {
+        "temperature_c": 5.3,
+        "humidity_percent": 98.0,
+        "wind_speed_ms": 5.5,
+        "precipitation_mm": 0.2,
+        "pressure_hpa": 984.1,
+        "solar_radiation_wm2": 0.0,
+        "timestamp": "2026-02-12T20:00:00.284574+01:00",
+        "source": "homeassistant_sensors",
+        "cloud_cover_percent": 65.7,
+        "cloud_cover_source": "forecast_fallback",
+        "frost_detected": null,
+        "frost_score": 0,
+        "frost_confidence": 0.0,
+        "frost_analysis": {
+          "dewpoint_c": null,
+          "frost_margin_c": null,
+          "frost_probability": 0.0,
+          "correlation_diff_percent": null,
+          "threshold_used_percent": null,
+          "detection_method": "skipped_nighttime",
+          "wind_frost_factor": null,
+          "physical_frost_possible": false
+        },
+        "hours_after_sunrise": 12.25,
+        "hours_before_sunset": -2.5,
         "snow_covered_panels": false,
         "snow_coverage_source": "none"
       }

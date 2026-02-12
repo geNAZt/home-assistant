@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "last_updated": "2026-02-12T06:00:00.385563+01:00",
+  "last_updated": "2026-02-12T19:59:22.738107",
   "location": {
     "latitude": 52.36948782131487,
     "longitude": 9.750484228134157,
@@ -8,7 +8,183 @@
     "timezone": "Europe/Berlin"
   },
   "pv_system": {
-    "installed_capacity_kwp": 12.87
+    "installed_capacity_kwp": 12.87,
+    "max_peak_record_kwh": 3.405,
+    "max_peak_date": "2026-02-10",
+    "max_peak_hour": 11,
+    "max_peak_conditions": {
+      "sun_elevation_deg": 21.88,
+      "cloud_cover_percent": null,
+      "temperature_c": null,
+      "solar_radiation_wm2": 182.0
+    },
+    "hourly_max_peaks": {
+      "0": {
+        "kwh": 0.0,
+        "date": null,
+        "conditions": {}
+      },
+      "1": {
+        "kwh": 0.0,
+        "date": null,
+        "conditions": {}
+      },
+      "2": {
+        "kwh": 0.0,
+        "date": null,
+        "conditions": {}
+      },
+      "3": {
+        "kwh": 0.0,
+        "date": null,
+        "conditions": {}
+      },
+      "4": {
+        "kwh": 0.0,
+        "date": null,
+        "conditions": {}
+      },
+      "5": {
+        "kwh": 0.0,
+        "date": null,
+        "conditions": {}
+      },
+      "6": {
+        "kwh": 0.0,
+        "date": null,
+        "conditions": {}
+      },
+      "7": {
+        "kwh": 0.0,
+        "date": null,
+        "conditions": {}
+      },
+      "8": {
+        "kwh": 0.658,
+        "date": "2026-02-10",
+        "conditions": {
+          "sun_elevation_deg": 5.07,
+          "cloud_cover_percent": null,
+          "temperature_c": null,
+          "solar_radiation_wm2": 22.1
+        }
+      },
+      "9": {
+        "kwh": 1.399,
+        "date": "2026-02-10",
+        "conditions": {
+          "sun_elevation_deg": 12.31,
+          "cloud_cover_percent": null,
+          "temperature_c": null,
+          "solar_radiation_wm2": 83.5
+        }
+      },
+      "10": {
+        "kwh": 1.638,
+        "date": "2026-02-10",
+        "conditions": {
+          "sun_elevation_deg": 18.07,
+          "cloud_cover_percent": null,
+          "temperature_c": null,
+          "solar_radiation_wm2": 141.5
+        }
+      },
+      "11": {
+        "kwh": 3.405,
+        "date": "2026-02-10",
+        "conditions": {
+          "sun_elevation_deg": 21.88,
+          "cloud_cover_percent": null,
+          "temperature_c": null,
+          "solar_radiation_wm2": 182.0
+        }
+      },
+      "12": {
+        "kwh": 3.032,
+        "date": "2026-02-09",
+        "conditions": {
+          "sun_elevation_deg": 23.04,
+          "cloud_cover_percent": null,
+          "temperature_c": null,
+          "solar_radiation_wm2": 110.6
+        }
+      },
+      "13": {
+        "kwh": 2.036,
+        "date": "2026-02-09",
+        "conditions": {
+          "sun_elevation_deg": 22.02,
+          "cloud_cover_percent": null,
+          "temperature_c": null,
+          "solar_radiation_wm2": 94.9
+        }
+      },
+      "14": {
+        "kwh": 1.767,
+        "date": "2026-02-09",
+        "conditions": {
+          "sun_elevation_deg": 18.62,
+          "cloud_cover_percent": null,
+          "temperature_c": null,
+          "solar_radiation_wm2": 42.2
+        }
+      },
+      "15": {
+        "kwh": 1.095,
+        "date": "2026-02-09",
+        "conditions": {
+          "sun_elevation_deg": 13.2,
+          "cloud_cover_percent": null,
+          "temperature_c": null,
+          "solar_radiation_wm2": 21.8
+        }
+      },
+      "16": {
+        "kwh": 0.233,
+        "date": "2026-02-09",
+        "conditions": {
+          "sun_elevation_deg": 6.22,
+          "cloud_cover_percent": null,
+          "temperature_c": null,
+          "solar_radiation_wm2": 5.6
+        }
+      },
+      "17": {
+        "kwh": 0.0,
+        "date": null,
+        "conditions": {}
+      },
+      "18": {
+        "kwh": 0.0,
+        "date": null,
+        "conditions": {}
+      },
+      "19": {
+        "kwh": 0.0,
+        "date": null,
+        "conditions": {}
+      },
+      "20": {
+        "kwh": 0.0,
+        "date": null,
+        "conditions": {}
+      },
+      "21": {
+        "kwh": 0.0,
+        "date": null,
+        "conditions": {}
+      },
+      "22": {
+        "kwh": 0.0,
+        "date": null,
+        "conditions": {}
+      },
+      "23": {
+        "kwh": 0.0,
+        "date": null,
+        "conditions": {}
+      }
+    }
   },
   "cache_info": {
     "total_days": 38,
@@ -11447,5 +11623,186 @@
         }
       }
     }
+  },
+  "metadata": {
+    "pv_system": {
+      "max_peak_record_kwh": 3.405,
+      "max_peak_date": "2026-02-10",
+      "max_peak_hour": 11,
+      "max_peak_conditions": {
+        "sun_elevation_deg": 21.88,
+        "cloud_cover_percent": null,
+        "temperature_c": null,
+        "solar_radiation_wm2": 182.0
+      },
+      "hourly_max_peaks": {
+        "0": {
+          "kwh": 0.0,
+          "date": null,
+          "conditions": {}
+        },
+        "1": {
+          "kwh": 0.0,
+          "date": null,
+          "conditions": {}
+        },
+        "2": {
+          "kwh": 0.0,
+          "date": null,
+          "conditions": {}
+        },
+        "3": {
+          "kwh": 0.0,
+          "date": null,
+          "conditions": {}
+        },
+        "4": {
+          "kwh": 0.0,
+          "date": null,
+          "conditions": {}
+        },
+        "5": {
+          "kwh": 0.0,
+          "date": null,
+          "conditions": {}
+        },
+        "6": {
+          "kwh": 0.0,
+          "date": null,
+          "conditions": {}
+        },
+        "7": {
+          "kwh": 0.0,
+          "date": null,
+          "conditions": {}
+        },
+        "8": {
+          "kwh": 0.658,
+          "date": "2026-02-10",
+          "conditions": {
+            "sun_elevation_deg": 5.07,
+            "cloud_cover_percent": null,
+            "temperature_c": null,
+            "solar_radiation_wm2": 22.1
+          }
+        },
+        "9": {
+          "kwh": 1.399,
+          "date": "2026-02-10",
+          "conditions": {
+            "sun_elevation_deg": 12.31,
+            "cloud_cover_percent": null,
+            "temperature_c": null,
+            "solar_radiation_wm2": 83.5
+          }
+        },
+        "10": {
+          "kwh": 1.638,
+          "date": "2026-02-10",
+          "conditions": {
+            "sun_elevation_deg": 18.07,
+            "cloud_cover_percent": null,
+            "temperature_c": null,
+            "solar_radiation_wm2": 141.5
+          }
+        },
+        "11": {
+          "kwh": 3.405,
+          "date": "2026-02-10",
+          "conditions": {
+            "sun_elevation_deg": 21.88,
+            "cloud_cover_percent": null,
+            "temperature_c": null,
+            "solar_radiation_wm2": 182.0
+          }
+        },
+        "12": {
+          "kwh": 3.032,
+          "date": "2026-02-09",
+          "conditions": {
+            "sun_elevation_deg": 23.04,
+            "cloud_cover_percent": null,
+            "temperature_c": null,
+            "solar_radiation_wm2": 110.6
+          }
+        },
+        "13": {
+          "kwh": 2.036,
+          "date": "2026-02-09",
+          "conditions": {
+            "sun_elevation_deg": 22.02,
+            "cloud_cover_percent": null,
+            "temperature_c": null,
+            "solar_radiation_wm2": 94.9
+          }
+        },
+        "14": {
+          "kwh": 1.767,
+          "date": "2026-02-09",
+          "conditions": {
+            "sun_elevation_deg": 18.62,
+            "cloud_cover_percent": null,
+            "temperature_c": null,
+            "solar_radiation_wm2": 42.2
+          }
+        },
+        "15": {
+          "kwh": 1.095,
+          "date": "2026-02-09",
+          "conditions": {
+            "sun_elevation_deg": 13.2,
+            "cloud_cover_percent": null,
+            "temperature_c": null,
+            "solar_radiation_wm2": 21.8
+          }
+        },
+        "16": {
+          "kwh": 0.233,
+          "date": "2026-02-09",
+          "conditions": {
+            "sun_elevation_deg": 6.22,
+            "cloud_cover_percent": null,
+            "temperature_c": null,
+            "solar_radiation_wm2": 5.6
+          }
+        },
+        "17": {
+          "kwh": 0.0,
+          "date": null,
+          "conditions": {}
+        },
+        "18": {
+          "kwh": 0.0,
+          "date": null,
+          "conditions": {}
+        },
+        "19": {
+          "kwh": 0.0,
+          "date": null,
+          "conditions": {}
+        },
+        "20": {
+          "kwh": 0.0,
+          "date": null,
+          "conditions": {}
+        },
+        "21": {
+          "kwh": 0.0,
+          "date": null,
+          "conditions": {}
+        },
+        "22": {
+          "kwh": 0.0,
+          "date": null,
+          "conditions": {}
+        },
+        "23": {
+          "kwh": 0.0,
+          "date": null,
+          "conditions": {}
+        }
+      }
+    },
+    "last_updated": "2026-02-12T19:59:22.738119"
   }
 }
