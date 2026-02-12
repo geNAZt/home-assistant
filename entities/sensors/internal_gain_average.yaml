@@ -1,0 +1,6 @@
+platform: statistics
+name: "Internal Gains Average"
+entity_id: sensor.internal_gains_total
+state_characteristic: average_linear
+max_age:
+  hours: 24

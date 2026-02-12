@@ -1,0 +1,6 @@
+platform: statistics
+name: "Solar Gains Average"
+entity_id: sensor.solar_gains
+state_characteristic: average_linear
+max_age:
+  hours: 24
