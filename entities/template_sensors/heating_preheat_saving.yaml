@@ -14,7 +14,7 @@ sensor:
     {% set p_high = states('sensor.power_price_ht') | float(0.35) %}
     
     {# 3. Zeitraum der Überbrückung (z.B. 14h von 08:00 bis 22:00) #}
-    {% set dt = 22 - 6 %}
+    {% set dt = 24 %}
 
     {% if offset > 0 and p_high > p_low %}
       {# A: Die Nutzwärme, die wir später brauchen (die Basis-Ladung) #}
@@ -48,7 +48,7 @@ sensor:
       {% set p_high = states('sensor.power_price_ht') | float(0.35) %}
 
       {# 3. Zeitraum der Überbrückung (z.B. 14h von 08:00 bis 22:00) #}
-      {% set dt = 22 - 6 %}
+      {% set dt = 24 %}
       {% if offset > 0 and p_high > p_low %}
         {# A: Die Nutzwärme, die wir später brauchen (die Basis-Ladung) #}
         {% set energy_useful = offset * C %}
@@ -76,7 +76,7 @@ sensor:
       {% set p_high = states('sensor.power_price_ht') | float(0.35) %}
 
       {# 3. Zeitraum der Überbrückung (z.B. 14h von 08:00 bis 22:00) #}
-      {% set dt = 22 - 6 %}
+      {% set dt = 24 %}
       {% if offset > 0 and p_high > p_low %}
         {# A: Die Nutzwärme, die wir später brauchen (die Basis-Ladung) #}
         {% set energy_useful = offset * C %}

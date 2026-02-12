@@ -32,14 +32,14 @@
       {% set t1 = as_timestamp(now().replace(hour=14, minute=0, second=0, microsecond=0)) %}
       {{ t0 <= nowts < t1 }}
 
-    # Preheat-Fenster 00–06 Uhr (Preis egal)
+    # Preheat-Fenster 00–05 Uhr (Preis egal)
     is_preheat_window: >-
       {% set nowts = as_timestamp(now()) %}
       {% set t0 = as_timestamp(now().replace(hour=0, minute=0, second=0, microsecond=0)) %}
-      {% set t1 = as_timestamp(now().replace(hour=6, minute=0, second=0, microsecond=0)) %}
+      {% set t1 = as_timestamp(now().replace(hour=5, minute=0, second=0, microsecond=0)) %}
       {{ t0 <= nowts < t1 }}
     
-    # Heating blocking: When enabled, only allow heating during preheat window (00:00-06:00)
+    # Heating blocking: When enabled, only allow heating during preheat window (00:00-05:00)
     # Turn this switch ON to block heating outside preheat window
     preheat_enabled: "{{ is_state('binary_sensor.preheat_erlaubt_demand_weighted', 'on') }}"
     heating_block_enabled: "{{ is_state('input_boolean.heating_block_daytime', 'on') and preheat_enabled }}"

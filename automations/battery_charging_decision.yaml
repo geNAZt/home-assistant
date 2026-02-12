@@ -10,7 +10,7 @@
     current_hour: "{{ now().hour }}"
     is_charge_window: >-
       {% set hour = current_hour | int(0) %}
-      {{ hour >= 0 and hour <= 6 }}
+      {{ hour >= 0 and hour <= 5 }}
     
     battery_charge_enabled: "{{ is_state('binary_sensor.preheat_erlaubt_demand_weighted', 'on') }}"
 
@@ -30,7 +30,7 @@
     
     # Time calculations for charge window (00:00 to 06:00)
     now_ts: "{{ as_timestamp(now()) }}"
-    end_time_6am: "{{ as_timestamp(now().replace(hour=6, minute=0, second=0, microsecond=0)) }}"
+    end_time_6am: "{{ as_timestamp(now().replace(hour=5, minute=0, second=0, microsecond=0)) }}"
     hours_until_6am: "{{ ((end_time_6am - now_ts) / 3600.0) | float(0) }}"
     charging_hours: >-
       {% set hours = hours_until_6am | float(0) %}

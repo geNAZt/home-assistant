@@ -1,0 +1,25 @@
+- id: car_battery_start_charge
+  alias: Car Battery Start Charge
+  description: "Start charge when power is cheap"
+  mode: single
+  triggers:
+    - trigger: time
+      at: "00:00:10"
+      weekday:
+        - mon
+        - tue
+        - wed
+        - thu
+        - fri
+        - sat
+        - sun
+  conditions:
+    - condition: numeric_state
+      entity_id: sensor.hexe_car_evinfo_battery_stateofcharge
+      below: 85
+  actions:
+    - action: select.select_option
+      data:
+        option: "2"
+      target:
+        entity_id: select.goe_288025_frc

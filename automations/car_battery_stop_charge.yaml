@@ -7,11 +7,21 @@
       entity_id:
         - sensor.hexe_car_evinfo_battery_stateofcharge
       above: 85
+    - trigger: time
+      at: "04:59:50"
+      weekday:
+        - mon
+        - tue
+        - wed
+        - thu
+        - fri
+        - sat
+        - sun
   conditions: []
   actions:
     - action: select.select_option
       data:
-        option: "1"
+        option: "0"
       target:
         entity_id: select.goe_288025_frc
     - action: input_boolean.turn_off
