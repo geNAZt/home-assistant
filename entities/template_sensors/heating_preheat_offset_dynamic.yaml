@@ -4,7 +4,10 @@ sensor:
   state: >
     {% set h_wind = states('sensor.H_kW_per_K_effective') | float(0.08) %}
     {% set c_real = states('input_number.building_heat_capacity') | float(7.5) %}
-    {% set delta_t = states('sensor.deltaT') | float(20) %}
+    {% set rooms = states.input_number 
+                | selectattr('entity_id', 'search', '^input_number.heating_base_') 
+                | map(attribute='state') | map('float') | list %}
+    {% set delta_t = ((rooms | sum / rooms | count) | round(2) if rooms | count > 0 else 0) - (states('sensor.outside_temperature') | float(0)) %}
     {% set hours_to_bridge = 24 %}
     {% set total_energy_loss = h_wind * delta_t * hours_to_bridge %}
     {% set solar_gains = states('sensor.solar_gains_average') | float(0) %}
