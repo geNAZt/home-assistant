@@ -6562,6 +6562,912 @@
         }
       ],
       "calculated_at": "2026-02-11T23:30:00.198981+01:00"
+    },
+    "2026-02-11": {
+      "date": "2026-02-11",
+      "hours_tracked": 24,
+      "daily_factors": {
+        "temperature": 0.317,
+        "pressure": -0.067,
+        "solar_radiation_wm2": 0.724,
+        "clouds": 0.723,
+        "humidity": 1.011,
+        "wind": 0.545,
+        "rain": -0.004
+      },
+      "hourly_comparisons": [
+        {
+          "hour": 0,
+          "fields": {
+            "temperature": {
+              "forecast": 4.0,
+              "actual": 5.2,
+              "offset": 1.2
+            },
+            "clouds": {
+              "forecast": 95,
+              "actual": 64.0,
+              "factor": 0.674
+            },
+            "humidity": {
+              "forecast": 95,
+              "actual": 89.4,
+              "factor": 0.941
+            },
+            "wind": {
+              "forecast": 11.3,
+              "actual": 9.3,
+              "factor": 0.823
+            },
+            "rain": {
+              "forecast": 0,
+              "actual": 0.0,
+              "difference": 0.0
+            },
+            "pressure": {
+              "forecast": 988.5,
+              "actual": 988.3,
+              "offset": -0.2
+            }
+          }
+        },
+        {
+          "hour": 1,
+          "fields": {
+            "temperature": {
+              "forecast": 3.8,
+              "actual": 5.0,
+              "offset": 1.2
+            },
+            "clouds": {
+              "forecast": 92,
+              "actual": 72.1,
+              "factor": 0.784
+            },
+            "humidity": {
+              "forecast": 96,
+              "actual": 91.3,
+              "factor": 0.951
+            },
+            "wind": {
+              "forecast": 10.1,
+              "actual": 7.4,
+              "factor": 0.733
+            },
+            "rain": {
+              "forecast": 0,
+              "actual": 0.0,
+              "difference": 0.0
+            },
+            "pressure": {
+              "forecast": 987.7,
+              "actual": 987.8,
+              "offset": 0.1
+            }
+          }
+        },
+        {
+          "hour": 2,
+          "fields": {
+            "temperature": {
+              "forecast": 3.6,
+              "actual": 5.0,
+              "offset": 1.4
+            },
+            "clouds": {
+              "forecast": 88,
+              "actual": 72.0,
+              "factor": 0.818
+            },
+            "humidity": {
+              "forecast": 96,
+              "actual": 91.9,
+              "factor": 0.957
+            },
+            "wind": {
+              "forecast": 10.5,
+              "actual": 7.4,
+              "factor": 0.705
+            },
+            "rain": {
+              "forecast": 0,
+              "actual": 0.0,
+              "difference": 0.0
+            },
+            "pressure": {
+              "forecast": 987.0,
+              "actual": 986.7,
+              "offset": -0.3
+            }
+          }
+        },
+        {
+          "hour": 3,
+          "fields": {
+            "temperature": {
+              "forecast": 3.3,
+              "actual": 4.8,
+              "offset": 1.5
+            },
+            "clouds": {
+              "forecast": 85,
+              "actual": 71.1,
+              "factor": 0.836
+            },
+            "humidity": {
+              "forecast": 97,
+              "actual": 91.9,
+              "factor": 0.947
+            },
+            "wind": {
+              "forecast": 11.5,
+              "actual": 7.4,
+              "factor": 0.643
+            },
+            "rain": {
+              "forecast": 0,
+              "actual": 0.0,
+              "difference": 0.0
+            },
+            "pressure": {
+              "forecast": 986.2,
+              "actual": 986.0,
+              "offset": -0.2
+            }
+          }
+        },
+        {
+          "hour": 4,
+          "fields": {
+            "temperature": {
+              "forecast": 3.2,
+              "actual": 4.6,
+              "offset": 1.4
+            },
+            "clouds": {
+              "forecast": 84,
+              "actual": 72.1,
+              "factor": 0.858
+            },
+            "humidity": {
+              "forecast": 97,
+              "actual": 93.2,
+              "factor": 0.961
+            },
+            "wind": {
+              "forecast": 11.9,
+              "actual": 7.4,
+              "factor": 0.622
+            },
+            "rain": {
+              "forecast": 0,
+              "actual": 0.0,
+              "difference": 0.0
+            },
+            "pressure": {
+              "forecast": 985.6,
+              "actual": 985.6,
+              "offset": 0.0
+            }
+          }
+        },
+        {
+          "hour": 5,
+          "fields": {
+            "temperature": {
+              "forecast": 3.4,
+              "actual": 4.5,
+              "offset": 1.1
+            },
+            "clouds": {
+              "forecast": 88,
+              "actual": 75.8,
+              "factor": 0.861
+            },
+            "humidity": {
+              "forecast": 97,
+              "actual": 94.5,
+              "factor": 0.974
+            },
+            "wind": {
+              "forecast": 11.5,
+              "actual": 5.5,
+              "factor": 0.478
+            },
+            "rain": {
+              "forecast": 0.4,
+              "actual": 0.0,
+              "difference": -0.4
+            },
+            "pressure": {
+              "forecast": 985.1,
+              "actual": 985.0,
+              "offset": -0.1
+            }
+          }
+        },
+        {
+          "hour": 6,
+          "fields": {
+            "temperature": {
+              "forecast": 3.8,
+              "actual": 4.2,
+              "offset": 0.4
+            },
+            "clouds": {
+              "forecast": 95,
+              "actual": 64.9,
+              "factor": 0.683
+            },
+            "humidity": {
+              "forecast": 97,
+              "actual": 95.2,
+              "factor": 0.981
+            },
+            "wind": {
+              "forecast": 10.5,
+              "actual": 5.5,
+              "factor": 0.524
+            },
+            "rain": {
+              "forecast": 0.4,
+              "actual": 0.0,
+              "difference": -0.4
+            },
+            "pressure": {
+              "forecast": 984.6,
+              "actual": 984.7,
+              "offset": 0.1
+            }
+          }
+        },
+        {
+          "hour": 7,
+          "fields": {
+            "temperature": {
+              "forecast": 4.1,
+              "actual": 4.0,
+              "offset": -0.1
+            },
+            "clouds": {
+              "forecast": 100,
+              "actual": 65.2,
+              "factor": 0.652
+            },
+            "humidity": {
+              "forecast": 97,
+              "actual": 97.9,
+              "factor": 1.009
+            },
+            "wind": {
+              "forecast": 9.8,
+              "actual": 5.5,
+              "factor": 0.561
+            },
+            "rain": {
+              "forecast": 0.4,
+              "actual": 0.1,
+              "difference": -0.3
+            },
+            "pressure": {
+              "forecast": 984.3,
+              "actual": 984.7,
+              "offset": 0.4
+            }
+          }
+        },
+        {
+          "hour": 8,
+          "fields": {
+            "temperature": {
+              "forecast": 4.3,
+              "actual": 4.1,
+              "offset": -0.2
+            },
+            "clouds": {
+              "forecast": 100,
+              "actual": 100.0,
+              "factor": 1.0
+            },
+            "humidity": {
+              "forecast": 97,
+              "actual": 97.2,
+              "factor": 1.002
+            },
+            "wind": {
+              "forecast": 9.5,
+              "actual": 3.7,
+              "factor": 0.389
+            },
+            "rain": {
+              "forecast": 0.1,
+              "actual": 0.3,
+              "difference": 0.2
+            },
+            "pressure": {
+              "forecast": 984.2,
+              "actual": 984.5,
+              "offset": 0.3
+            }
+          }
+        },
+        {
+          "hour": 9,
+          "fields": {
+            "temperature": {
+              "forecast": 4.5,
+              "actual": 4.3,
+              "offset": -0.2
+            },
+            "solar_radiation_wm2": {
+              "forecast": 9.0,
+              "actual": 6.0,
+              "factor": 0.667
+            },
+            "clouds": {
+              "forecast": 100,
+              "actual": 90.6,
+              "factor": 0.906
+            },
+            "humidity": {
+              "forecast": 97,
+              "actual": 96.6,
+              "factor": 0.996
+            },
+            "wind": {
+              "forecast": 9.0,
+              "actual": 3.7,
+              "factor": 0.411
+            },
+            "rain": {
+              "forecast": 0.1,
+              "actual": 0.1,
+              "difference": 0.0
+            },
+            "pressure": {
+              "forecast": 984.2,
+              "actual": 984.6,
+              "offset": 0.4
+            }
+          }
+        },
+        {
+          "hour": 10,
+          "fields": {
+            "temperature": {
+              "forecast": 5.0,
+              "actual": 5.4,
+              "offset": 0.4
+            },
+            "solar_radiation_wm2": {
+              "forecast": 25.0,
+              "actual": 17.0,
+              "factor": 0.68
+            },
+            "clouds": {
+              "forecast": 100,
+              "actual": 85.1,
+              "factor": 0.851
+            },
+            "humidity": {
+              "forecast": 96,
+              "actual": 92.0,
+              "factor": 0.958
+            },
+            "wind": {
+              "forecast": 8.6,
+              "actual": 3.7,
+              "factor": 0.43
+            },
+            "rain": {
+              "forecast": 0.1,
+              "actual": 0.1,
+              "difference": 0.0
+            },
+            "pressure": {
+              "forecast": 984.2,
+              "actual": 984.3,
+              "offset": 0.1
+            }
+          }
+        },
+        {
+          "hour": 11,
+          "fields": {
+            "temperature": {
+              "forecast": 6.0,
+              "actual": 5.6,
+              "offset": -0.4
+            },
+            "solar_radiation_wm2": {
+              "forecast": 43.0,
+              "actual": 33.0,
+              "factor": 0.767
+            },
+            "clouds": {
+              "forecast": 100,
+              "actual": 77.9,
+              "factor": 0.779
+            },
+            "humidity": {
+              "forecast": 93,
+              "actual": 95.8,
+              "factor": 1.03
+            },
+            "wind": {
+              "forecast": 8.5,
+              "actual": 5.5,
+              "factor": 0.647
+            },
+            "rain": {
+              "forecast": 0.7,
+              "actual": 0.3,
+              "difference": -0.4
+            },
+            "pressure": {
+              "forecast": 984.2,
+              "actual": 984.2,
+              "offset": 0.0
+            }
+          }
+        },
+        {
+          "hour": 12,
+          "fields": {
+            "temperature": {
+              "forecast": 7.2,
+              "actual": 6.0,
+              "offset": -1.2
+            },
+            "solar_radiation_wm2": {
+              "forecast": 60.0,
+              "actual": 47.0,
+              "factor": 0.783
+            },
+            "clouds": {
+              "forecast": 100,
+              "actual": 71.2,
+              "factor": 0.712
+            },
+            "humidity": {
+              "forecast": 89,
+              "actual": 95.9,
+              "factor": 1.078
+            },
+            "wind": {
+              "forecast": 9.2,
+              "actual": 3.7,
+              "factor": 0.402
+            },
+            "rain": {
+              "forecast": 0.7,
+              "actual": 0.2,
+              "difference": -0.5
+            },
+            "pressure": {
+              "forecast": 984.2,
+              "actual": 984.1,
+              "offset": -0.1
+            }
+          }
+        },
+        {
+          "hour": 13,
+          "fields": {
+            "temperature": {
+              "forecast": 8.0,
+              "actual": 6.7,
+              "offset": -1.3
+            },
+            "solar_radiation_wm2": {
+              "forecast": 74.0,
+              "actual": 50.0,
+              "factor": 0.676
+            },
+            "clouds": {
+              "forecast": 100,
+              "actual": 67.5,
+              "factor": 0.675
+            },
+            "humidity": {
+              "forecast": 87,
+              "actual": 97.2,
+              "factor": 1.117
+            },
+            "wind": {
+              "forecast": 9.4,
+              "actual": 3.7,
+              "factor": 0.394
+            },
+            "rain": {
+              "forecast": 0.7,
+              "actual": 0.2,
+              "difference": -0.5
+            },
+            "pressure": {
+              "forecast": 984.2,
+              "actual": 983.9,
+              "offset": -0.3
+            }
+          }
+        },
+        {
+          "hour": 14,
+          "fields": {
+            "temperature": {
+              "forecast": 8.2,
+              "actual": 7.4,
+              "offset": -0.8
+            },
+            "solar_radiation_wm2": {
+              "forecast": 81.0,
+              "actual": 50.0,
+              "factor": 0.617
+            },
+            "clouds": {
+              "forecast": 100,
+              "actual": 59.0,
+              "factor": 0.59
+            },
+            "humidity": {
+              "forecast": 88,
+              "actual": 93.6,
+              "factor": 1.064
+            },
+            "wind": {
+              "forecast": 8.1,
+              "actual": 3.7,
+              "factor": 0.457
+            },
+            "rain": {
+              "forecast": 0,
+              "actual": 0.1,
+              "difference": 0.1
+            },
+            "pressure": {
+              "forecast": 984.1,
+              "actual": 983.6,
+              "offset": -0.5
+            }
+          }
+        },
+        {
+          "hour": 15,
+          "fields": {
+            "temperature": {
+              "forecast": 8.0,
+              "actual": 7.0,
+              "offset": -1.0
+            },
+            "solar_radiation_wm2": {
+              "forecast": 70.0,
+              "actual": 47.0,
+              "factor": 0.671
+            },
+            "clouds": {
+              "forecast": 100,
+              "actual": 36.2,
+              "factor": 0.362
+            },
+            "humidity": {
+              "forecast": 91,
+              "actual": 98.5,
+              "factor": 1.082
+            },
+            "wind": {
+              "forecast": 6.3,
+              "actual": 3.7,
+              "factor": 0.587
+            },
+            "rain": {
+              "forecast": 0,
+              "actual": 0.3,
+              "difference": 0.3
+            },
+            "pressure": {
+              "forecast": 983.9,
+              "actual": 983.5,
+              "offset": -0.4
+            }
+          }
+        },
+        {
+          "hour": 16,
+          "fields": {
+            "temperature": {
+              "forecast": 7.7,
+              "actual": 7.0,
+              "offset": -0.7
+            },
+            "solar_radiation_wm2": {
+              "forecast": 43.0,
+              "actual": 28.0,
+              "factor": 0.651
+            },
+            "clouds": {
+              "forecast": 100,
+              "actual": 0.0,
+              "factor": 0.0
+            },
+            "humidity": {
+              "forecast": 93,
+              "actual": 99.3,
+              "factor": 1.068
+            },
+            "wind": {
+              "forecast": 5.2,
+              "actual": 3.7,
+              "factor": 0.712
+            },
+            "rain": {
+              "forecast": 0,
+              "actual": 0.2,
+              "difference": 0.2
+            },
+            "pressure": {
+              "forecast": 983.7,
+              "actual": 983.6,
+              "offset": -0.1
+            }
+          }
+        },
+        {
+          "hour": 17,
+          "fields": {
+            "temperature": {
+              "forecast": 7.3,
+              "actual": 7.1,
+              "offset": -0.2
+            },
+            "solar_radiation_wm2": {
+              "forecast": 14.0,
+              "actual": 14.0,
+              "factor": 1.0
+            },
+            "clouds": {
+              "forecast": 100,
+              "actual": 65.6,
+              "factor": 0.656
+            },
+            "humidity": {
+              "forecast": 95,
+              "actual": 99.3,
+              "factor": 1.045
+            },
+            "wind": {
+              "forecast": 6.2,
+              "actual": 5.5,
+              "factor": 0.887
+            },
+            "rain": {
+              "forecast": 0.1,
+              "actual": 0.3,
+              "difference": 0.2
+            },
+            "pressure": {
+              "forecast": 983.6,
+              "actual": 983.5,
+              "offset": -0.1
+            }
+          }
+        },
+        {
+          "hour": 18,
+          "fields": {
+            "temperature": {
+              "forecast": 6.7,
+              "actual": 6.8,
+              "offset": 0.1
+            },
+            "solar_radiation_wm2": {
+              "forecast": 1.0,
+              "actual": 0.0,
+              "factor": 0.0
+            },
+            "clouds": {
+              "forecast": 100,
+              "actual": 65.7,
+              "factor": 0.657
+            },
+            "humidity": {
+              "forecast": 97,
+              "actual": 100.0,
+              "factor": 1.031
+            },
+            "wind": {
+              "forecast": 7.7,
+              "actual": 3.7,
+              "factor": 0.481
+            },
+            "rain": {
+              "forecast": 0.1,
+              "actual": 0.3,
+              "difference": 0.2
+            },
+            "pressure": {
+              "forecast": 983.5,
+              "actual": 983.3,
+              "offset": -0.2
+            }
+          }
+        },
+        {
+          "hour": 19,
+          "fields": {
+            "temperature": {
+              "forecast": 6.4,
+              "actual": 6.6,
+              "offset": 0.2
+            },
+            "clouds": {
+              "forecast": 100,
+              "actual": 65.7,
+              "factor": 0.657
+            },
+            "humidity": {
+              "forecast": 98,
+              "actual": 100.0,
+              "factor": 1.02
+            },
+            "wind": {
+              "forecast": 9.2,
+              "actual": 3.7,
+              "factor": 0.402
+            },
+            "rain": {
+              "forecast": 0.1,
+              "actual": 0.4,
+              "difference": 0.3
+            },
+            "pressure": {
+              "forecast": 983.4,
+              "actual": 983.4,
+              "offset": 0.0
+            }
+          }
+        },
+        {
+          "hour": 20,
+          "fields": {
+            "temperature": {
+              "forecast": 6.3,
+              "actual": 6.8,
+              "offset": 0.5
+            },
+            "clouds": {
+              "forecast": 100,
+              "actual": 65.6,
+              "factor": 0.656
+            },
+            "humidity": {
+              "forecast": 98,
+              "actual": 98.7,
+              "factor": 1.007
+            },
+            "wind": {
+              "forecast": 10.0,
+              "actual": 3.8,
+              "factor": 0.38
+            },
+            "rain": {
+              "forecast": 0.6,
+              "actual": 1.0,
+              "difference": 0.4
+            },
+            "pressure": {
+              "forecast": 983.2,
+              "actual": 983.1,
+              "offset": -0.1
+            }
+          }
+        },
+        {
+          "hour": 21,
+          "fields": {
+            "temperature": {
+              "forecast": 6.3,
+              "actual": 7.4,
+              "offset": 1.1
+            },
+            "clouds": {
+              "forecast": 100,
+              "actual": 65.5,
+              "factor": 0.655
+            },
+            "humidity": {
+              "forecast": 97,
+              "actual": 98.6,
+              "factor": 1.016
+            },
+            "wind": {
+              "forecast": 11.1,
+              "actual": 5.5,
+              "factor": 0.495
+            },
+            "rain": {
+              "forecast": 0.6,
+              "actual": 0.8,
+              "difference": 0.2
+            },
+            "pressure": {
+              "forecast": 983.0,
+              "actual": 982.8,
+              "offset": -0.2
+            }
+          }
+        },
+        {
+          "hour": 22,
+          "fields": {
+            "temperature": {
+              "forecast": 6.4,
+              "actual": 7.7,
+              "offset": 1.3
+            },
+            "clouds": {
+              "forecast": 100,
+              "actual": 65.4,
+              "factor": 0.654
+            },
+            "humidity": {
+              "forecast": 96,
+              "actual": 97.3,
+              "factor": 1.014
+            },
+            "wind": {
+              "forecast": 11.6,
+              "actual": 5.5,
+              "factor": 0.474
+            },
+            "rain": {
+              "forecast": 0.6,
+              "actual": 0.7,
+              "difference": 0.1
+            },
+            "pressure": {
+              "forecast": 982.8,
+              "actual": 982.5,
+              "offset": -0.3
+            }
+          }
+        },
+        {
+          "hour": 23,
+          "fields": {
+            "temperature": {
+              "forecast": 6.7,
+              "actual": 8.6,
+              "offset": 1.9
+            },
+            "clouds": {
+              "forecast": 100,
+              "actual": 65.1,
+              "factor": 0.651
+            },
+            "humidity": {
+              "forecast": 96,
+              "actual": 97.3,
+              "factor": 1.014
+            },
+            "wind": {
+              "forecast": 12.4,
+              "actual": 5.5,
+              "factor": 0.444
+            },
+            "rain": {
+              "forecast": 0.6,
+              "actual": 0.8,
+              "difference": 0.2
+            },
+            "pressure": {
+              "forecast": 982.5,
+              "actual": 982.6,
+              "offset": 0.1
+            }
+          }
+        }
+      ],
+      "calculated_at": "2026-02-12T23:30:00.544304+01:00"
     }
   },
   "rolling_averages": {
@@ -6569,13 +7475,13 @@
     "sample_days_clear": 0,
     "sample_days_cloudy": 7,
     "correction_factors": {
-      "temperature": -0.273,
-      "solar_radiation_wm2": 0.593,
+      "temperature": -0.233,
+      "solar_radiation_wm2": 0.611,
       "clouds": 0.679,
-      "humidity": 1.02,
-      "wind": 0.804,
-      "rain": 0.004,
-      "pressure": -0.469
+      "humidity": 1.017,
+      "wind": 0.782,
+      "rain": 0.002,
+      "pressure": -0.323
     },
     "correction_factors_clear": {
       "temperature": 0.0,
@@ -6587,110 +7493,110 @@
       "pressure": 0.0
     },
     "correction_factors_cloudy": {
-      "temperature": -0.273,
-      "solar_radiation_wm2": 0.593,
+      "temperature": -0.233,
+      "solar_radiation_wm2": 0.611,
       "clouds": 0.679,
-      "humidity": 1.02,
-      "wind": 0.804,
-      "rain": 0.004,
-      "pressure": -0.469
+      "humidity": 1.017,
+      "wind": 0.782,
+      "rain": 0.002,
+      "pressure": -0.323
     },
     "confidence": {
-      "temperature": 0.52,
-      "solar_radiation_wm2": 0.9,
+      "temperature": 0.5,
+      "solar_radiation_wm2": 0.89,
       "clouds": 0.98,
       "humidity": 0.98,
-      "wind": 0.89,
+      "wind": 0.86,
       "rain": 0.98,
-      "pressure": 0.68
+      "pressure": 0.78
     },
     "hourly_factors": {
       "solar_radiation_wm2": {
         "9": {
-          "factor": 0.234,
+          "factor": 0.316,
           "samples": 6,
-          "confidence": 0.91,
-          "std_dev": 0.063
+          "confidence": 0.89,
+          "std_dev": 0.167
         },
         "10": {
-          "factor": 0.399,
+          "factor": 0.437,
           "samples": 7,
-          "confidence": 0.98,
-          "std_dev": 0.088
+          "confidence": 0.97,
+          "std_dev": 0.132
         },
         "11": {
-          "factor": 0.515,
+          "factor": 0.539,
           "samples": 7,
-          "confidence": 0.98,
-          "std_dev": 0.097
+          "confidence": 0.97,
+          "std_dev": 0.13
         },
         "12": {
-          "factor": 0.553,
+          "factor": 0.574,
           "samples": 7,
           "confidence": 0.97,
-          "std_dev": 0.112
+          "std_dev": 0.137
         },
         "13": {
-          "factor": 0.585,
+          "factor": 0.59,
           "samples": 7,
           "confidence": 0.97,
-          "std_dev": 0.123
+          "std_dev": 0.126
         },
         "14": {
-          "factor": 0.66,
+          "factor": 0.651,
           "samples": 7,
           "confidence": 0.97,
           "std_dev": 0.126
         },
         "15": {
-          "factor": 0.693,
+          "factor": 0.691,
           "samples": 7,
           "confidence": 0.97,
-          "std_dev": 0.132
+          "std_dev": 0.133
         },
         "16": {
-          "factor": 0.752,
+          "factor": 0.742,
           "samples": 7,
           "confidence": 0.97,
-          "std_dev": 0.122
+          "std_dev": 0.127
         },
         "17": {
-          "factor": 0.908,
+          "factor": 0.932,
           "samples": 7,
           "confidence": 0.97,
-          "std_dev": 0.11
+          "std_dev": 0.109
         }
       },
       "clouds": {
         "0": {
-          "factor": 0.665,
+          "factor": 0.667,
           "samples": 7,
           "confidence": 0.99,
           "std_dev": 0.051
         },
         "1": {
-          "factor": 0.7,
+          "factor": 0.687,
           "samples": 7,
           "confidence": 0.98,
-          "std_dev": 0.088
+          "std_dev": 0.064
         },
         "2": {
-          "factor": 0.66,
+          "factor": 0.683,
           "samples": 7,
-          "confidence": 0.99,
-          "std_dev": 0.028
+          "confidence": 0.98,
+          "std_dev": 0.062
         },
         "3": {
-          "factor": 0.685,
+          "factor": 0.68,
           "samples": 7,
           "confidence": 0.98,
-          "std_dev": 0.079
+          "std_dev": 0.066
         },
         "4": {
-          "factor": 0.678,
+          "factor": 0.676,
           "samples": 7,
           "confidence": 0.98,
-          "std_dev": 0.079
+          "std_dev": 0.075
         },
         "5": {
           "factor": 0.669,
@@ -6699,10 +7605,10 @@
           "std_dev": 0.082
         },
         "6": {
-          "factor": 0.621,
+          "factor": 0.625,
           "samples": 7,
           "confidence": 0.98,
-          "std_dev": 0.067
+          "std_dev": 0.069
         },
         "7": {
           "factor": 0.638,
@@ -6717,97 +7623,97 @@
           "std_dev": 0.087
         },
         "9": {
-          "factor": 0.94,
+          "factor": 0.932,
           "samples": 7,
           "confidence": 0.99,
           "std_dev": 0.051
         },
         "10": {
-          "factor": 0.775,
+          "factor": 0.778,
           "samples": 7,
           "confidence": 0.96,
-          "std_dev": 0.176
+          "std_dev": 0.177
         },
         "11": {
-          "factor": 0.625,
+          "factor": 0.64,
           "samples": 7,
           "confidence": 0.94,
-          "std_dev": 0.226
+          "std_dev": 0.232
+        },
+        "12": {
+          "factor": 0.626,
+          "samples": 6,
+          "confidence": 0.89,
+          "std_dev": 0.15
+        },
+        "13": {
+          "factor": 0.534,
+          "samples": 6,
+          "confidence": 0.88,
+          "std_dev": 0.19
+        },
+        "14": {
+          "factor": 0.464,
+          "samples": 5,
+          "confidence": 0.83,
+          "std_dev": 0.111
+        },
+        "15": {
+          "factor": 0.263,
+          "samples": 4,
+          "confidence": 0.76,
+          "std_dev": 0.116
         },
         "17": {
-          "factor": 0.697,
+          "factor": 0.695,
           "samples": 7,
           "confidence": 0.98,
           "std_dev": 0.075
         },
         "18": {
-          "factor": 0.698,
-          "samples": 7,
-          "confidence": 0.98,
-          "std_dev": 0.074
-        },
-        "19": {
-          "factor": 0.691,
+          "factor": 0.696,
           "samples": 7,
           "confidence": 0.98,
           "std_dev": 0.075
         },
-        "20": {
-          "factor": 0.682,
+        "19": {
+          "factor": 0.692,
           "samples": 7,
           "confidence": 0.98,
-          "std_dev": 0.065
+          "std_dev": 0.074
+        },
+        "20": {
+          "factor": 0.684,
+          "samples": 7,
+          "confidence": 0.98,
+          "std_dev": 0.064
         },
         "21": {
-          "factor": 0.66,
+          "factor": 0.662,
           "samples": 7,
           "confidence": 1.0,
-          "std_dev": 0.018
+          "std_dev": 0.017
         },
         "22": {
-          "factor": 0.653,
+          "factor": 0.655,
           "samples": 7,
           "confidence": 0.99,
           "std_dev": 0.024
         },
         "23": {
-          "factor": 0.676,
+          "factor": 0.677,
           "samples": 7,
           "confidence": 0.98,
-          "std_dev": 0.068
-        },
-        "12": {
-          "factor": 0.6,
-          "samples": 6,
-          "confidence": 0.89,
-          "std_dev": 0.146
-        },
-        "13": {
-          "factor": 0.487,
-          "samples": 6,
-          "confidence": 0.88,
-          "std_dev": 0.184
-        },
-        "14": {
-          "factor": 0.432,
-          "samples": 4,
-          "confidence": 0.76,
-          "std_dev": 0.102
-        },
-        "15": {
-          "factor": 0.23,
-          "samples": 3,
-          "confidence": 0.69,
-          "std_dev": 0.117
+          "std_dev": 0.067
         }
       }
     },
     "hourly_min_samples": 3,
-    "updated_at": "2026-02-11T23:30:00.199328+01:00"
+    "updated_at": "2026-02-12T23:30:00.545164+01:00"
   },
   "metadata": {
     "created": "2026-02-04T23:30:00.456877+01:00",
-    "last_updated": "2026-02-11T23:30:00.199415+01:00",
+    "last_updated": "2026-02-12T23:30:00.545401+01:00",
     "total_days_tracked": 0,
     "sensors_configured": [],
     "sensors_optional": true

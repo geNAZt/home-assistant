@@ -30,10 +30,10 @@
       "pirate_weather": 0.3
     },
     "stratus": {
-      "open_meteo": 0.21369877427919823,
-      "wttr_in": 0.21724578444255055,
-      "ecmwf_layers": 0.3500697075275575,
-      "bright_sky": 0.21898573375069377
+      "open_meteo": 0.2208521248960769,
+      "wttr_in": 0.2172574197563557,
+      "ecmwf_layers": 0.3329094676509185,
+      "bright_sky": 0.22898098769664887
     },
     "overcast": {
       "open_meteo": 0.1,
@@ -65,7 +65,7 @@
     }
   },
   "metadata": {
-    "last_updated": "2026-02-11T23:30:13.599550",
+    "last_updated": "2026-02-12T23:30:14.539460",
     "experts": [
       "open_meteo",
       "wttr_in",

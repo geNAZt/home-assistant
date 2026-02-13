@@ -1,9 +1,9 @@
 {
   "version": "1.0",
-  "date": "2026-02-12",
-  "accumulated_hours": 8.7793,
-  "is_active": false,
-  "start_time": null,
-  "last_updated": "2026-02-12T17:20:30.426272+01:00",
-  "production_time_today": "08:46:45"
+  "date": "2026-02-13",
+  "accumulated_hours": 1.9852,
+  "is_active": true,
+  "start_time": "2026-02-13T09:05:15.717792+01:00",
+  "last_updated": "2026-02-13T10:08:30.415326+01:00",
+  "production_time_today": "03:02:21"
 }
