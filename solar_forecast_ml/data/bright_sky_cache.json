@@ -2,7 +2,7 @@
   "version": "1.1",
   "source": "bright_sky",
   "metadata": {
-    "last_updated": "2026-02-13T06:00:21.210328",
+    "last_updated": "2026-02-13T10:09:06.549720",
     "latitude": 52.36948782131487,
     "longitude": 9.750484228134157,
     "retention_days": 730
@@ -1109,19 +1109,19 @@
       },
       "5": {
         "cloud_cover": 100.0,
-        "visibility_m": 1300.0
+        "visibility_m": 9500.0
       },
       "6": {
         "cloud_cover": 100.0,
-        "visibility_m": 1400.0
+        "visibility_m": 3200.0
       },
       "7": {
         "cloud_cover": 100.0,
-        "visibility_m": 1400.0
+        "visibility_m": 6600.0
       },
       "8": {
-        "cloud_cover": 100.0,
-        "visibility_m": 1300.0
+        "cloud_cover": 88.0,
+        "visibility_m": 11100.0
       },
       "9": {
         "cloud_cover": 100.0,
@@ -1129,7 +1129,7 @@
       },
       "10": {
         "cloud_cover": 100.0,
-        "visibility_m": 1200.0
+        "visibility_m": 1500.0
       },
       "11": {
         "cloud_cover": 100.0,
@@ -1137,19 +1137,19 @@
       },
       "12": {
         "cloud_cover": 100.0,
-        "visibility_m": 1300.0
+        "visibility_m": 1400.0
       },
       "13": {
         "cloud_cover": 100.0,
-        "visibility_m": 1400.0
+        "visibility_m": 1500.0
       },
       "14": {
         "cloud_cover": 100.0,
-        "visibility_m": 1300.0
+        "visibility_m": 1400.0
       },
       "15": {
         "cloud_cover": 100.0,
-        "visibility_m": 1300.0
+        "visibility_m": 1400.0
       },
       "16": {
         "cloud_cover": 100.0,
@@ -1164,11 +1164,11 @@
         "visibility_m": 1100.0
       },
       "19": {
-        "cloud_cover": 99.0,
-        "visibility_m": 1200.0
+        "cloud_cover": 98.0,
+        "visibility_m": 1100.0
       },
       "20": {
-        "cloud_cover": 97.0,
+        "cloud_cover": 98.0,
         "visibility_m": 1100.0
       },
       "21": {
@@ -1177,11 +1177,11 @@
       },
       "22": {
         "cloud_cover": 99.0,
-        "visibility_m": 1300.0
+        "visibility_m": 1200.0
       },
       "23": {
         "cloud_cover": 99.0,
-        "visibility_m": 1400.0
+        "visibility_m": 1300.0
       }
     },
     "2026-02-14": {
@@ -1191,35 +1191,35 @@
       },
       "1": {
         "cloud_cover": 100.0,
-        "visibility_m": 1500.0
+        "visibility_m": 1600.0
       },
       "2": {
         "cloud_cover": 100.0,
-        "visibility_m": 1400.0
+        "visibility_m": 1500.0
       },
       "3": {
         "cloud_cover": 100.0,
-        "visibility_m": 1800.0
+        "visibility_m": 1900.0
       },
       "4": {
-        "cloud_cover": 99.0,
+        "cloud_cover": 100.0,
         "visibility_m": 2100.0
       },
       "5": {
         "cloud_cover": 100.0,
-        "visibility_m": 3200.0
+        "visibility_m": 3100.0
       },
       "6": {
         "cloud_cover": 100.0,
-        "visibility_m": 3400.0
+        "visibility_m": 3600.0
       },
       "7": {
-        "cloud_cover": 100.0,
-        "visibility_m": 4300.0
+        "cloud_cover": 99.0,
+        "visibility_m": 4400.0
       },
       "8": {
-        "cloud_cover": 100.0,
-        "visibility_m": 3000.0
+        "cloud_cover": 98.0,
+        "visibility_m": 3400.0
       },
       "9": {
         "cloud_cover": 100.0,
