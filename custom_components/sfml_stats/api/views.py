@@ -1,13 +1,13 @@
 # ******************************************************************************
-# @copyright (C) 2025 Zara-Toorox - SFML Stats
+# @copyright (C) 2026 Zara-Toorox - Solar Forecast Stats x86 DB-Version part of Solar Forecast ML DB
 # * This program is protected by a Proprietary Non-Commercial License.
 # 1. Personal and Educational use only.
 # 2. COMMERCIAL USE AND AI TRAINING ARE STRICTLY PROHIBITED.
 # 3. Clear attribution to "Zara-Toorox" is required.
-# * Full license terms: https://github.com/Zara-Toorox/sfml-stats/blob/main/LICENSE
+# * Full license terms: https://github.com/Zara-Toorox/ha-solar-forecast-ml/blob/main/LICENSE
 # ******************************************************************************
 
-"""REST API views for SFML Stats Dashboard."""
+"""REST API views for SFML Stats dashboard. @zara"""
 from __future__ import annotations
 
 import asyncio
@@ -15,18 +15,17 @@ import functools
 import ipaddress
 import json
 import logging
+from contextlib import asynccontextmanager
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, AsyncIterator
 
+import aiosqlite
 from aiohttp import web
 from homeassistant.components.http import HomeAssistantView
 from homeassistant.core import HomeAssistant
 
 
-# ============================================================
-# Local Network Security - Only allow local network access
-# ============================================================
 LOCAL_NETWORKS = [
     ipaddress.ip_network("10.0.0.0/8"),
     ipaddress.ip_network("172.16.0.0/12"),
@@ -41,17 +40,14 @@ LOCAL_NETWORKS = [
 
 def _get_client_ip(request: web.Request) -> str:
     """Extract real client IP from request. @zara"""
-    # Cloudflare specific header (highest priority)
     cf_ip = request.headers.get("CF-Connecting-IP")
     if cf_ip:
         return cf_ip.strip()
 
-    # Standard proxy header
     forwarded = request.headers.get("X-Forwarded-For")
     if forwarded:
         return forwarded.split(",")[0].strip()
 
-    # Direct connection
     peername = request.transport.get_extra_info("peername")
     if peername:
         return peername[0]
@@ -92,17 +88,17 @@ def local_only(func):
 from ..const import (
     DOMAIN,
     VERSION,
-    CONF_SENSOR_SOLAR_POWER,
     CONF_SENSOR_SOLAR_TO_HOUSE,
     CONF_SENSOR_SOLAR_TO_BATTERY,
     CONF_SENSOR_BATTERY_TO_HOUSE,
     CONF_SENSOR_GRID_TO_HOUSE,
     CONF_SENSOR_GRID_TO_BATTERY,
     CONF_SENSOR_HOUSE_TO_GRID,
+    CONF_SENSOR_SMARTMETER_IMPORT,
+    CONF_SENSOR_SMARTMETER_EXPORT,
     CONF_SENSOR_BATTERY_SOC,
     CONF_SENSOR_BATTERY_POWER,
     CONF_SENSOR_HOME_CONSUMPTION,
-    CONF_SENSOR_SOLAR_YIELD_DAILY,
     CONF_SENSOR_GRID_IMPORT_DAILY,
     CONF_SENSOR_GRID_IMPORT_YEARLY,
     CONF_SENSOR_BATTERY_CHARGE_SOLAR_DAILY,
@@ -127,12 +123,13 @@ from ..const import (
     DEFAULT_PANEL4_NAME,
     CONF_FEED_IN_TARIFF,
     DEFAULT_FEED_IN_TARIFF,
+    CONF_BILLING_PRICE_MODE,
+    DEFAULT_BILLING_PRICE_MODE,
     CONF_PANEL_GROUP_NAMES,
     CONF_DASHBOARD_STYLE,
     DEFAULT_DASHBOARD_STYLE,
     CONF_THEME,
     DEFAULT_THEME,
-    # Consumer sensors (Wärmepumpe, Heizstab, Wallbox)
     CONF_SENSOR_HEATPUMP_POWER,
     CONF_SENSOR_HEATPUMP_DAILY,
     CONF_SENSOR_HEATPUMP_COP,
@@ -142,8 +139,16 @@ from ..const import (
     CONF_SENSOR_WALLBOX_DAILY,
     CONF_SENSOR_WALLBOX_STATE,
     DEFAULT_HEATPUMP_COP,
+    SOLAR_FORECAST_DB,
+    CONF_FORECAST_ENTITY_1_NAME,
+    CONF_FORECAST_ENTITY_2_NAME,
+    DEFAULT_FORECAST_ENTITY_1_NAME,
+    DEFAULT_FORECAST_ENTITY_2_NAME,
 )
 from ..utils import get_json_cache, read_json_safe
+from ..readers.solar_reader import SolarDataReader, DailyForecast
+from ..readers.weather_reader import WeatherDataReader
+from ..sfml_data_reader import SFMLDataReader
 
 if TYPE_CHECKING:
     from aiohttp.web import Request, Response
@@ -152,11 +157,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class APIContext:
-    """Singleton context for API views. @zara
-
-    Replaces global variables with a proper singleton pattern.
-    Provides access to Home Assistant instance and paths.
-    """
+    """Singleton context for API views. @zara"""
 
     _instance: "APIContext | None" = None
 
@@ -169,25 +170,14 @@ class APIContext:
 
     @classmethod
     def get(cls) -> "APIContext":
-        """Get the singleton instance. @zara
-
-        Raises:
-            RuntimeError: If context has not been initialized.
-        """
+        """Get the singleton instance. @zara"""
         if cls._instance is None:
             raise RuntimeError("APIContext not initialized - call initialize() first")
         return cls._instance
 
     @classmethod
     def initialize(cls, hass: HomeAssistant) -> "APIContext":
-        """Initialize the singleton instance. @zara
-
-        Args:
-            hass: Home Assistant instance.
-
-        Returns:
-            The initialized APIContext.
-        """
+        """Initialize the singleton instance. @zara"""
         cls._instance = cls(hass)
         return cls._instance
 
@@ -197,20 +187,31 @@ class APIContext:
         return cls._instance is not None
 
 
-# Backwards compatibility - these will be removed in future versions
 SOLAR_PATH: Path | None = None
 GRID_PATH: Path | None = None
 HASS: HomeAssistant | None = None
+
+
+@asynccontextmanager
+async def _get_db() -> AsyncIterator[aiosqlite.Connection]:
+    """Get DB connection via manager with direct fallback. @zara"""
+    from ..storage.db_connection_manager import get_manager
+    manager = get_manager()
+    if manager is not None and manager.is_connected:
+        yield await manager.get_connection()
+        return
+    db_path = Path(HASS.config.path()) / SOLAR_FORECAST_DB
+    async with aiosqlite.connect(str(db_path)) as conn:
+        conn.row_factory = aiosqlite.Row
+        yield conn
 
 
 async def async_setup_views(hass: HomeAssistant) -> None:
     """Register all API views. @zara"""
     global SOLAR_PATH, GRID_PATH, HASS
 
-    # Initialize new APIContext
     ctx = APIContext.initialize(hass)
 
-    # Maintain backwards compatibility
     HASS = hass
     config_path = Path(hass.config.path())
     SOLAR_PATH = config_path / "solar_forecast_ml"
@@ -221,8 +222,6 @@ async def async_setup_views(hass: HomeAssistant) -> None:
     hass.http.register_view(HealthCheckView())
     hass.http.register_view(DashboardView())
     hass.http.register_view(LcarsDashboardView())
-    hass.http.register_view(HelpView())
-    hass.http.register_view(HelpSFMLView())
     hass.http.register_view(TariffDashboardView())
     hass.http.register_view(SolarDataView())
     hass.http.register_view(PriceDataView())
@@ -244,24 +243,21 @@ async def async_setup_views(hass: HomeAssistant) -> None:
     hass.http.register_view(EnergySourcesDailyStatsView())
     hass.http.register_view(ClothingRecommendationView())
 
-    # Monthly Tariffs (EEG/Energy Sharing support)
     hass.http.register_view(MonthlyTariffsView())
     hass.http.register_view(MonthlyTariffDetailView())
     hass.http.register_view(MonthlyTariffFinalizeView())
     hass.http.register_view(MonthlyTariffsExportView())
     hass.http.register_view(MonthlyTariffsDefaultsView())
 
-    # Weekly Report Export (Modern Redesign)
     hass.http.register_view(ExportWeeklyReportView())
 
-    # Background Image for Dashboard
     hass.http.register_view(BackgroundImageView())
 
-    # Forecast Comparison
     hass.http.register_view(ForecastComparisonView())
     hass.http.register_view(ForecastComparisonChartView())
+    hass.http.register_view(ShadowAnalyticsView())
+    hass.http.register_view(AIStatusView())
 
-    # Dashboard Settings (for style toggle)
     hass.http.register_view(DashboardSettingsView())
 
     _LOGGER.info("SFML Stats API views registered")
@@ -287,12 +283,125 @@ async def _read_json_file(path: Path | None) -> dict | None:
         return None
 
 
-class HealthCheckView(HomeAssistantView):
-    """Health check endpoint for monitoring. @zara
+def _get_solar_reader() -> SolarDataReader:
+    """Get a SolarDataReader instance for database access. @zara"""
+    if SOLAR_PATH is None:
+        raise RuntimeError("SOLAR_PATH not initialized - was async_setup_views called?")
+    return SolarDataReader(SOLAR_PATH.parent)
 
-    Returns the health status of the SFML Stats integration,
-    including availability of data sources and configuration status.
-    """
+
+async def _get_today_yield_from_db() -> float | None:
+    """Get today's solar yield from prediction_panel_groups (sum of all panels). @zara"""
+    try:
+        async with _get_db() as db:
+            async with db.execute(
+                """SELECT SUM(ppg.actual_kwh) as total
+                   FROM prediction_panel_groups ppg
+                   JOIN hourly_predictions hp ON hp.prediction_id = ppg.prediction_id
+                   WHERE hp.target_date = ?""",
+                (date.today().isoformat(),)
+            ) as cursor:
+                row = await cursor.fetchone()
+
+        if row and row["total"] is not None:
+            return row["total"]
+        return None
+    except Exception as e:
+        _LOGGER.error("Error getting today's yield from database: %s", e)
+        return None
+
+
+async def _get_weather_from_db(days: int = 7) -> dict[str, dict[str, dict]]:
+    """Get hourly weather data from database. @zara"""
+    try:
+        if SOLAR_PATH is None:
+            return {}
+
+        weather_reader = WeatherDataReader(SOLAR_PATH.parent)
+        if not weather_reader.is_available:
+            _LOGGER.debug("Weather database not available")
+            return {}
+
+        cutoff = date.today() - timedelta(days=days)
+        hourly_weather = await weather_reader.async_get_hourly_weather(start_date=cutoff)
+
+        if not hourly_weather:
+            _LOGGER.debug("No hourly weather data in database")
+            return {}
+
+        result: dict[str, dict[str, dict]] = {}
+        for w in hourly_weather:
+            date_str = w.date.isoformat()
+            hour_str = str(w.hour)
+
+            if date_str not in result:
+                result[date_str] = {}
+
+            result[date_str][hour_str] = {
+                "temperature_c": w.temperature_c,
+                "humidity_percent": w.humidity_percent,
+                "wind_speed_ms": w.wind_speed_ms,
+                "precipitation_mm": w.precipitation_mm,
+                "solar_radiation_wm2": w.solar_radiation_wm2,
+                "cloud_cover_percent": w.cloud_cover_percent,
+            }
+
+        _LOGGER.debug("Loaded weather data for %d days from database", len(result))
+        return result
+
+    except Exception as e:
+        _LOGGER.error("Error getting weather from database: %s", e)
+        return {}
+
+
+async def _get_weather_forecast_from_db(days: int = 3) -> dict[str, dict[str, dict]]:
+    """Get corrected weather forecast from database. @zara"""
+    try:
+        if SOLAR_PATH is None:
+            return {}
+
+        weather_reader = WeatherDataReader(SOLAR_PATH.parent)
+        if not weather_reader.is_available:
+            _LOGGER.debug("Weather database not available for forecast")
+            return {}
+
+        start = date.today()
+        end = start + timedelta(days=days)
+        forecast_weather = await weather_reader.async_get_forecast_weather(
+            start_date=start, end_date=end
+        )
+
+        if not forecast_weather:
+            _LOGGER.debug("No forecast weather data in database")
+            return {}
+
+        result: dict[str, dict[str, dict]] = {}
+        for w in forecast_weather:
+            date_str = w.date.isoformat()
+            hour_str = str(w.hour)
+
+            if date_str not in result:
+                result[date_str] = {}
+
+            result[date_str][hour_str] = {
+                "temperature": w.temperature_c,
+                "humidity": w.humidity_percent,
+                "wind_speed": w.wind_speed_ms,
+                "precipitation": w.precipitation_mm,
+                "cloud_cover": w.cloud_cover_percent,
+                "solar_radiation_wm2": w.solar_radiation_wm2,
+            }
+
+        _LOGGER.debug("Loaded forecast weather for %d days from database", len(result))
+        return result
+
+    except Exception as e:
+        _LOGGER.error("Error getting weather forecast from database: %s", e)
+        return {}
+
+
+class HealthCheckView(HomeAssistantView):
+    """Health check endpoint for monitoring. @zara"""
 
     url = "/api/sfml_stats/health"
     name = "api:sfml_stats:health"
@@ -304,7 +413,6 @@ class HealthCheckView(HomeAssistantView):
         try:
             ctx = APIContext.get()
 
-            # Check various health indicators
             checks = {
                 "solar_data_available": ctx.solar_path.exists(),
                 "grid_data_available": ctx.grid_path.exists(),
@@ -314,10 +422,9 @@ class HealthCheckView(HomeAssistantView):
                 ) > 0,
             }
 
-            # Check for specific data files
             if checks["solar_data_available"]:
                 checks["solar_stats_available"] = (
-                    ctx.solar_path / "stats" / "daily_summaries.json"
+                    ctx.solar_path / "solar_forecast.db"
                 ).exists()
             else:
                 checks["solar_stats_available"] = False
@@ -329,7 +436,6 @@ class HealthCheckView(HomeAssistantView):
             else:
                 checks["grid_prices_available"] = False
 
-            # Determine overall health
             critical_checks = [
                 checks["integration_loaded"],
                 checks["config_entries_present"],
@@ -358,7 +464,6 @@ class HealthCheckView(HomeAssistantView):
             )
 
         except RuntimeError:
-            # APIContext not initialized
             return web.json_response(
                 {
                     "status": "unhealthy",
@@ -438,13 +543,11 @@ class DashboardView(HomeAssistantView):
         """Return the dashboard HTML page. @zara"""
         frontend_path = None
 
-        # Try via hass.config.path() first (works in Docker)
         if HASS is not None:
             frontend_path = Path(HASS.config.path()) / "custom_components" / "sfml_stats" / "frontend" / "dist" / "index.html"
             if not frontend_path.exists():
                 frontend_path = None
 
-        # Fallback via __file__
         if frontend_path is None:
             frontend_path = Path(__file__).parent.parent / "frontend" / "dist" / "index.html"
 
@@ -511,13 +614,11 @@ class LcarsDashboardView(HomeAssistantView):
         """Return the LCARS dashboard HTML page. @zara"""
         frontend_path = None
 
-        # Try via hass.config.path() first (works in Docker)
         if HASS is not None:
             frontend_path = Path(HASS.config.path()) / "custom_components" / "sfml_stats" / "frontend" / "dist" / "index-lcars.html"
             if not frontend_path.exists():
                 frontend_path = None
 
-        # Fallback via __file__
         if frontend_path is None:
             frontend_path = Path(__file__).parent.parent / "frontend" / "dist" / "index-lcars.html"
 
@@ -541,7 +642,7 @@ class LcarsDashboardView(HomeAssistantView):
         )
 
     def _get_fallback_html(self) -> str:
-        """Return fallback HTML when LCARS build is not present. @zara"""
+        """Return fallback HTML when LCARS build is missing. @zara"""
         return """<!DOCTYPE html>
 <html>
 <head>
@@ -574,156 +675,6 @@ class LcarsDashboardView(HomeAssistantView):
 </html>"""
 
 
-class HelpView(HomeAssistantView):
-    """Help page with sensor configuration documentation. @zara"""
-
-    url = "/api/sfml_stats/help"
-    name = "api:sfml_stats:help"
-    requires_auth = False
-    cors_allowed = True
-
-    @local_only
-    async def get(self, request: Request) -> Response:
-        """Return the help page HTML. @zara"""
-        frontend_path = None
-
-        # Try via hass.config.path() first (works in Docker)
-        if HASS is not None:
-            frontend_path = Path(HASS.config.path()) / "custom_components" / "sfml_stats" / "frontend" / "dist" / "help.html"
-            if not frontend_path.exists():
-                frontend_path = None
-
-        # Fallback via __file__
-        if frontend_path is None:
-            frontend_path = Path(__file__).parent.parent / "frontend" / "dist" / "help.html"
-
-        if not frontend_path.exists():
-            html_content = self._get_fallback_html()
-        else:
-            import aiofiles
-            async with aiofiles.open(frontend_path, "r", encoding="utf-8") as f:
-                html_content = await f.read()
-
-        return web.Response(
-            text=html_content,
-            content_type="text/html",
-            headers={
-                "X-Frame-Options": "SAMEORIGIN",
-                "Content-Security-Policy": "frame-ancestors 'self'",
-                "Cache-Control": "no-cache, no-store, must-revalidate",
-                "Pragma": "no-cache",
-                "Expires": "0",
-            }
-        )
-
-    def _get_fallback_html(self) -> str:
-        """Return fallback HTML when help page is not present. @zara"""
-        return """<!DOCTYPE html>
-<html>
-<head>
-    <title>SFML Stats - Help</title>
-    <style>
-        body {
-            background: #0a0a1a;
-            color: #fff;
-            font-family: system-ui;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-        }
-        .message { text-align: center; }
-        h1 { color: #00d4ff; }
-        a { color: #a855f7; }
-    </style>
-</head>
-<body>
-    <div class="message">
-        <h1>Sensor Configuration Help</h1>
-        <p>Help page is being loaded...</p>
-        <p style="color: #666;">If this message persists, the help page was not built yet.</p>
-        <p><a href="/api/sfml_stats/dashboard">Back to Dashboard</a></p>
-    </div>
-</body>
-</html>"""
-
-
-class HelpSFMLView(HomeAssistantView):
-    """Solar Forecast ML help page with sensor configuration documentation. @zara"""
-
-    url = "/api/sfml_stats/help-sfml"
-    name = "api:sfml_stats:help_sfml"
-    requires_auth = False
-    cors_allowed = True
-
-    @local_only
-    async def get(self, request: Request) -> Response:
-        """Return the SFML help page HTML. @zara"""
-        frontend_path = None
-
-        # Try via hass.config.path() first (works in Docker)
-        if HASS is not None:
-            frontend_path = Path(HASS.config.path()) / "custom_components" / "sfml_stats" / "frontend" / "dist" / "help-sfml.html"
-            if not frontend_path.exists():
-                frontend_path = None
-
-        # Fallback via __file__
-        if frontend_path is None:
-            frontend_path = Path(__file__).parent.parent / "frontend" / "dist" / "help-sfml.html"
-
-        if not frontend_path.exists():
-            html_content = self._get_fallback_html()
-        else:
-            import aiofiles
-            async with aiofiles.open(frontend_path, "r", encoding="utf-8") as f:
-                html_content = await f.read()
-
-        return web.Response(
-            text=html_content,
-            content_type="text/html",
-            headers={
-                "X-Frame-Options": "SAMEORIGIN",
-                "Content-Security-Policy": "frame-ancestors 'self'",
-                "Cache-Control": "no-cache, no-store, must-revalidate",
-                "Pragma": "no-cache",
-                "Expires": "0",
-            }
-        )
-
-    def _get_fallback_html(self) -> str:
-        """Return fallback HTML when SFML help page is not present. @zara"""
-        return """<!DOCTYPE html>
-<html>
-<head>
-    <title>Solar Forecast ML - Help</title>
-    <style>
-        body {
-            background: #0a0a1a;
-            color: #fff;
-            font-family: system-ui;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-        }
-        .message { text-align: center; }
-        h1 { color: #ff9500; }
-        a { color: #ffd60a; }
-    </style>
-</head>
-<body>
-    <div class="message">
-        <h1>☀️ Solar Forecast ML - Sensor Help</h1>
-        <p>Help page is being loaded...</p>
-        <p style="color: #666;">If this message persists, the help page was not built yet.</p>
-        <p><a href="/api/sfml_stats/dashboard">Back to Dashboard</a></p>
-    </div>
-</body>
-</html>"""
-
-
 class StaticFilesView(HomeAssistantView):
     """Serve static files (JS, CSS, Assets). @zara"""
 
@@ -733,42 +684,29 @@ class StaticFilesView(HomeAssistantView):
 
     @local_only
     async def get(self, request: Request, filename: str) -> Response:
-        """Return a static file. @zara
-
-        Supports files from:
-        - frontend/dist/assets/  (images, fonts)
-        - frontend/dist/css/     (stylesheets)
-        - frontend/dist/js/      (javascript modules)
-        """
+        """Return a static file. @zara"""
         frontend_path = None
 
-        # Determine the subdirectory based on file type
         if filename.startswith("css/") or filename.endswith(".css"):
             subdir = "css"
-            # Remove css/ prefix if present
             clean_filename = filename[4:] if filename.startswith("css/") else filename
         elif filename.startswith("js/") or filename.endswith(".js"):
             subdir = "js"
-            # Remove js/ prefix if present
             clean_filename = filename[3:] if filename.startswith("js/") else filename
         else:
             subdir = "assets"
             clean_filename = filename
 
-        # Try via hass.config.path() first (works in Docker)
         if HASS is not None:
             frontend_path = Path(HASS.config.path()) / "custom_components" / "sfml_stats" / "frontend" / "dist" / subdir / clean_filename
             if not frontend_path.exists():
-                # Fallback to assets folder for backward compatibility
                 frontend_path = Path(HASS.config.path()) / "custom_components" / "sfml_stats" / "frontend" / "dist" / "assets" / filename
                 if not frontend_path.exists():
                     frontend_path = None
 
-        # Fallback via __file__
         if frontend_path is None:
             frontend_path = Path(__file__).parent.parent / "frontend" / "dist" / subdir / clean_filename
             if not frontend_path.exists():
-                # Fallback to assets folder
                 frontend_path = Path(__file__).parent.parent / "frontend" / "dist" / "assets" / filename
 
         if not frontend_path.exists():
@@ -784,6 +722,8 @@ class StaticFilesView(HomeAssistantView):
             content_type = "image/svg+xml"
         elif filename.endswith(".png"):
             content_type = "image/png"
+        elif filename.endswith(".webp"):
+            content_type = "image/webp"
         elif filename.endswith(".woff2"):
             content_type = "font/woff2"
 
@@ -830,81 +770,130 @@ class SolarDataView(HomeAssistantView):
                 if date.fromisoformat(h["date"]) >= cutoff
             ]
         else:
-            summaries = await _read_json_file(SOLAR_PATH / "stats" / "daily_summaries.json")
-            if summaries and "summaries" in summaries:
+            try:
+                reader = _get_solar_reader()
                 cutoff = date.today() - timedelta(days=days)
+                summaries = await reader.async_get_daily_summaries(
+                    start_date=cutoff,
+                    end_date=date.today()
+                )
                 result["data"]["daily"] = [
-                    s for s in summaries["summaries"]
-                    if date.fromisoformat(s["date"]) >= cutoff
+                    {
+                        "date": s.date.isoformat(),
+                        "overall": {
+                            "predicted_total_kwh": s.predicted_total_kwh,
+                            "actual_total_kwh": s.actual_total_kwh,
+                            "accuracy_percent": s.accuracy_percent,
+                            "error_kwh": s.error_kwh,
+                            "production_hours": s.production_hours,
+                            "peak_hour": s.peak_hour,
+                            "peak_kwh": s.peak_kwh,
+                        },
+                        "time_windows": {
+                            "morning_accuracy": s.morning_accuracy,
+                            "midday_accuracy": s.midday_accuracy,
+                            "afternoon_accuracy": s.afternoon_accuracy,
+                        },
+                        "ml_metrics": {
+                            "mae": s.ml_mae,
+                            "rmse": s.ml_rmse,
+                            "r2_score": s.ml_r2_score,
+                        }
+                    }
+                    for s in summaries
                 ]
+            except Exception as e:
+                _LOGGER.error("Error loading daily summaries from database: %s", e)
+                result["data"]["daily"] = []
 
         if include_hourly:
-            predictions = await _read_json_file(SOLAR_PATH / "stats" / "hourly_predictions.json")
-            if predictions and "predictions" in predictions:
-                cutoff = date.today() - timedelta(days=days)
-                result["data"]["hourly"] = [
-                    p for p in predictions["predictions"]
-                    if date.fromisoformat(p.get("target_date", "1970-01-01")) >= cutoff
-                ]
+            try:
+                reader = _get_solar_reader()
+                cutoff_date = date.today() - timedelta(days=days)
+                all_predictions = []
+                current = cutoff_date
+                while current <= date.today():
+                    day_predictions = await reader.async_get_hourly_predictions(target_date=current)
+                    for p in day_predictions:
+                        all_predictions.append({
+                            "target_datetime": p.target_datetime.isoformat(),
+                            "target_hour": p.target_hour,
+                            "target_date": p.target_date.isoformat(),
+                            "prediction_kwh": p.prediction_kwh,
+                            "actual_kwh": p.actual_kwh,
+                            "accuracy_percent": p.accuracy_percent,
+                            "error_kwh": p.error_kwh,
+                            "prediction_method": p.prediction_method,
+                            "ml_contribution_percent": p.ml_contribution_percent,
+                            "confidence": p.confidence,
+                            "temperature": p.temperature,
+                            "solar_radiation": p.solar_radiation,
+                            "clouds": p.clouds,
+                            "sun_elevation": p.sun_elevation,
+                            "theoretical_max_kwh": p.theoretical_max_kwh,
+                        })
+                    current += timedelta(days=1)
+                result["data"]["hourly"] = all_predictions
+            except Exception as e:
+                _LOGGER.error("Error loading hourly predictions from database: %s", e)
+                result["data"]["hourly"] = []
 
-        weather = await _read_json_file(SOLAR_PATH / "stats" / "hourly_weather_actual.json")
-        if weather and "hourly_data" in weather:
-            cutoff = date.today() - timedelta(days=days)
-            result["data"]["weather"] = {
-                k: v for k, v in weather["hourly_data"].items()
-                if date.fromisoformat(k) >= cutoff
-            }
+        weather_db = await _get_weather_from_db(days=days)
+        if weather_db:
+            result["data"]["weather"] = weather_db
 
-        weather_corrected = await _read_json_file(SOLAR_PATH / "stats" / "weather_forecast_corrected.json")
-        if weather_corrected and "forecast" in weather_corrected:
-            cutoff = date.today() - timedelta(days=days)
-            result["data"]["weather_corrected"] = {
-                k: v for k, v in weather_corrected["forecast"].items()
-                if date.fromisoformat(k) >= cutoff
-            }
+        weather_corrected = await _get_weather_forecast_from_db(days=days)
+        if weather_corrected:
+            result["data"]["weather_corrected"] = weather_corrected
 
-        ai_weights = await _read_json_file(SOLAR_PATH / "ai" / "learned_weights.json")
-        if ai_weights:
-            result["data"]["ai_state"] = ai_weights
+        try:
+            reader = _get_solar_reader()
+            model_state = await reader.async_get_model_state()
+            if model_state:
+                result["data"]["ai_state"] = {
+                    "model_loaded": model_state.model_loaded,
+                    "algorithm_used": model_state.algorithm_used,
+                    "training_samples": model_state.training_samples,
+                    "current_accuracy": model_state.current_accuracy,
+                    "last_training": model_state.last_training.isoformat() if model_state.last_training else None,
+                    "peak_power_kw": model_state.peak_power_kw,
+                    "feature_weights": model_state.feature_weights,
+                    "feature_importance": model_state.feature_importance,
+                }
+        except Exception as e:
+            _LOGGER.error("Error loading AI model state from database: %s", e)
 
-        if forecasts_data and "today" in forecasts_data:
-            forecast_day = forecasts_data["today"].get("forecast_day", {})
-            forecast_tomorrow = forecasts_data["today"].get("forecast_tomorrow", {})
-            forecast_day_after = forecasts_data["today"].get("forecast_day_after_tomorrow", {})
+        try:
+            reader = _get_solar_reader()
+            daily_forecasts = await reader.async_get_daily_forecasts()
+
+            today_fc = daily_forecasts.get("today")
+            tomorrow_fc = daily_forecasts.get("tomorrow")
+            day_after_fc = daily_forecasts.get("day_after_tomorrow")
+
             result["data"]["forecasts"] = {
                 "today": {
-                    "prediction_kwh": forecast_day.get("prediction_kwh"),
-                    "prediction_kwh_display": forecast_day.get("prediction_kwh_display"),
+                    "prediction_kwh": today_fc.prediction_kwh if today_fc else None,
+                    "prediction_kwh_display": f"{today_fc.prediction_kwh:.2f}" if today_fc else None,
                 },
                 "tomorrow": {
-                    "date": forecast_tomorrow.get("date"),
-                    "prediction_kwh": forecast_tomorrow.get("prediction_kwh"),
-                    "prediction_kwh_display": forecast_tomorrow.get("prediction_kwh_display"),
+                    "date": tomorrow_fc.forecast_date.isoformat() if tomorrow_fc and tomorrow_fc.forecast_date else None,
+                    "prediction_kwh": tomorrow_fc.prediction_kwh if tomorrow_fc else None,
+                    "prediction_kwh_display": f"{tomorrow_fc.prediction_kwh:.2f}" if tomorrow_fc else None,
                 },
                 "day_after_tomorrow": {
-                    "date": forecast_day_after.get("date"),
-                    "prediction_kwh": forecast_day_after.get("prediction_kwh"),
-                    "prediction_kwh_display": forecast_day_after.get("prediction_kwh_display"),
+                    "date": day_after_fc.forecast_date.isoformat() if day_after_fc and day_after_fc.forecast_date else None,
+                    "prediction_kwh": day_after_fc.prediction_kwh if day_after_fc else None,
+                    "prediction_kwh_display": f"{day_after_fc.prediction_kwh:.2f}" if day_after_fc else None,
                 },
             }
-
-            if "history" in forecasts_data:
-                result["data"]["history"] = [
-                    {
-                        "date": h["date"],
-                        "predicted_kwh": h.get("predicted_kwh", 0),
-                        "actual_kwh": h.get("actual_kwh", 0),
-                        "accuracy": h.get("accuracy", 0),
-                        "peak_power_w": h.get("peak_power_w"),
-                        "peak_at": h.get("peak_at"),
-                        "consumption_kwh": h.get("consumption_kwh", 0),
-                        "production_hours": h.get("production_hours"),
-                    }
-                    for h in forecasts_data["history"]
-                ]
-
-            if "statistics" in forecasts_data:
-                result["data"]["statistics"] = forecasts_data["statistics"]
+        except Exception as e:
+            _LOGGER.error("Error loading forecasts from database: %s", e)
+            result["data"]["forecasts"] = {
+                "today": {"prediction_kwh": None, "prediction_kwh_display": None},
+                "tomorrow": {"date": None, "prediction_kwh": None, "prediction_kwh_display": None},
+                "day_after_tomorrow": {"date": None, "prediction_kwh": None, "prediction_kwh_display": None},
+            }
 
         astronomy = await _read_json_file(SOLAR_PATH / "stats" / "astronomy_cache.json")
         if astronomy and "days" in astronomy:
@@ -919,10 +908,35 @@ class SolarDataView(HomeAssistantView):
                 if k >= cutoff_str
             }
 
-        # Multi-day hourly forecast (Heute, Morgen, Übermorgen)
-        multi_day = await _read_json_file(SOLAR_PATH / "stats" / "multi_day_hourly_forecast.json")
-        if multi_day and "days" in multi_day:
-            result["data"]["multi_day_hourly"] = multi_day["days"]
+        try:
+            reader = _get_solar_reader()
+            today = date.today()
+            tomorrow = today + timedelta(days=1)
+            day_after = today + timedelta(days=2)
+
+            multi_day_data = {}
+
+            for target_date in [today, tomorrow, day_after]:
+                predictions = await reader.async_get_hourly_predictions(target_date=target_date)
+                if predictions:
+                    hourly_data = []
+                    for p in predictions:
+                        hourly_data.append({
+                            "hour": p.target_hour,
+                            "prediction_kwh": p.prediction_kwh,
+                            "actual_kwh": p.actual_kwh,
+                        })
+                    multi_day_data[target_date.isoformat()] = {
+                        "date": target_date.isoformat(),
+                        "hourly": hourly_data,
+                        "total_kwh": sum(p.prediction_kwh for p in predictions),
+                    }
+
+            if multi_day_data:
+                result["data"]["multi_day_hourly"] = multi_day_data
+
+        except Exception as e:
+            _LOGGER.error("Error loading multi-day hourly forecast from database: %s", e)
 
         return web.json_response(result)
 
@@ -945,39 +959,32 @@ class PriceDataView(HomeAssistantView):
             "data": {},
         }
 
-        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+        try:
+            cutoff_date = (date.today() - timedelta(days=days)).isoformat()
 
-        price_cache = await _read_json_file(GRID_PATH / "data" / "price_cache.json")
-        if price_cache and "prices" in price_cache:
-            result["data"]["prices"] = [
-                {
-                    "timestamp": p["timestamp"],
-                    "date": p.get("date"),
-                    "hour": p.get("hour"),
-                    "price_net": p.get("price", p.get("price_net", 0)),
-                    "price_total": p.get("total_price", 0),
-                }
-                for p in price_cache["prices"]
-                if datetime.fromisoformat(p["timestamp"].replace("Z", "+00:00")) >= cutoff
-            ]
-        else:
-            prices = await _read_json_file(GRID_PATH / "data" / "price_history.json")
-            if prices and "prices" in prices:
+            async with _get_db() as db:
+                async with db.execute("""
+                    SELECT timestamp, hour, price_net, total_price,
+                           date(timestamp, '+1 hour') as price_date
+                    FROM GPM_price_history
+                    WHERE date(timestamp, '+1 hour') >= ?
+                    ORDER BY timestamp
+                """, (cutoff_date,)) as cursor:
+                    rows = await cursor.fetchall()
+
+            if rows:
                 result["data"]["prices"] = [
                     {
-                        "timestamp": p["timestamp"],
-                        "date": p.get("date"),
-                        "hour": p.get("hour"),
-                        "price_net": p.get("price_net", 0),
-                        "price_total": None,
+                        "timestamp": row["timestamp"],
+                        "date": row["price_date"],
+                        "hour": row["hour"],
+                        "price_net": row["price_net"] or 0,
+                        "price_total": row["total_price"] or 0,
                     }
-                    for p in prices["prices"]
-                    if datetime.fromisoformat(p["timestamp"].replace("Z", "+00:00")) >= cutoff
+                    for row in rows
                 ]
-
-        stats = await _read_json_file(GRID_PATH / "data" / "statistics.json")
-        if stats:
-            result["data"]["statistics"] = stats
+        except Exception as e:
+            _LOGGER.error("Error loading prices from DB: %s", e)
 
         return web.json_response(result)
 
@@ -1000,59 +1007,62 @@ class SummaryDataView(HomeAssistantView):
             "week": {},
         }
 
-        summaries = await _read_json_file(SOLAR_PATH / "stats" / "daily_summaries.json")
         today = date.today()
         week_ago = today - timedelta(days=7)
 
-        if summaries and "summaries" in summaries:
-            today_data = next(
-                (s for s in summaries["summaries"] if s["date"] == today.isoformat()),
-                None
+        try:
+            reader = _get_solar_reader()
+            summaries = await reader.async_get_daily_summaries(
+                start_date=week_ago,
+                end_date=today
             )
+
+            today_data = next((s for s in summaries if s.date == today), None)
             if today_data:
                 result["today"] = {
-                    "production": today_data.get("overall", {}).get("actual_total_kwh", 0),
-                    "forecast": today_data.get("overall", {}).get("predicted_total_kwh", 0),
-                    "accuracy": today_data.get("overall", {}).get("accuracy_percent", 0),
-                    "peak_hour": today_data.get("overall", {}).get("peak_hour"),
-                    "peak_kwh": today_data.get("overall", {}).get("peak_kwh", 0),
+                    "production": today_data.actual_total_kwh,
+                    "forecast": today_data.predicted_total_kwh,
+                    "accuracy": today_data.accuracy_percent,
+                    "peak_hour": today_data.peak_hour,
+                    "peak_kwh": today_data.peak_kwh,
                 }
 
-            week_data = [
-                s for s in summaries["summaries"]
-                if date.fromisoformat(s["date"]) >= week_ago
-            ]
-            if week_data:
+            if summaries:
                 result["week"] = {
-                    "total_production": sum(
-                        s.get("overall", {}).get("actual_total_kwh", 0) for s in week_data
-                    ),
-                    "total_forecast": sum(
-                        s.get("overall", {}).get("predicted_total_kwh", 0) for s in week_data
-                    ),
-                    "avg_accuracy": sum(
-                        s.get("overall", {}).get("accuracy_percent", 0) for s in week_data
-                    ) / len(week_data) if week_data else 0,
-                    "days_count": len(week_data),
+                    "total_production": sum(s.actual_total_kwh for s in summaries),
+                    "total_forecast": sum(s.predicted_total_kwh for s in summaries),
+                    "avg_accuracy": sum(s.accuracy_percent for s in summaries) / len(summaries) if summaries else 0,
+                    "days_count": len(summaries),
                 }
+        except Exception as e:
+            _LOGGER.error("Error loading daily summaries from database: %s", e)
 
-        prices = await _read_json_file(GRID_PATH / "data" / "price_history.json")
-        if prices and "prices" in prices:
-            # Support both "price_net" and "price" field names for compatibility
-            recent_prices = [
-                p.get("price_net") or p.get("price") or 0
-                for p in prices["prices"][-48:]
-                if p.get("price_net") or p.get("price")
-            ]
-            if recent_prices:
-                result["kpis"]["price_current"] = recent_prices[-1] if recent_prices else 0
-                result["kpis"]["price_avg"] = sum(recent_prices) / len(recent_prices)
-                result["kpis"]["price_min"] = min(recent_prices)
-                result["kpis"]["price_max"] = max(recent_prices)
+        try:
+            async with _get_db() as db:
+                async with db.execute("""
+                    SELECT price_net, total_price
+                    FROM GPM_price_history
+                    WHERE timestamp >= datetime('now', '-48 hours')
+                    ORDER BY timestamp
+                """) as cursor:
+                    price_rows = await cursor.fetchall()
+            if price_rows:
+                recent_prices = [r["price_net"] for r in price_rows if r["price_net"]]
+                if recent_prices:
+                    result["kpis"]["price_current"] = recent_prices[-1]
+                    result["kpis"]["price_avg"] = sum(recent_prices) / len(recent_prices)
+                    result["kpis"]["price_min"] = min(recent_prices)
+                    result["kpis"]["price_max"] = max(recent_prices)
+        except Exception as e:
+            _LOGGER.error("Error loading price KPIs from DB: %s", e)
 
-        ai_weights = await _read_json_file(SOLAR_PATH / "ai" / "learned_weights.json")
-        if ai_weights:
-            result["kpis"]["ai_training_samples"] = ai_weights.get("training_samples", 0)
+        try:
+            reader = _get_solar_reader()
+            model_state = await reader.async_get_model_state()
+            if model_state:
+                result["kpis"]["ai_training_samples"] = model_state.training_samples
+        except Exception as e:
+            _LOGGER.error("Error loading AI model state from database: %s", e)
 
         def extract_time(iso_string: str | None) -> str | None:
             """Extract HH:MM from ISO string. @zara"""
@@ -1116,44 +1126,56 @@ class RealtimeDataView(HomeAssistantView):
             "data": {},
         }
 
-        predictions = await _read_json_file(SOLAR_PATH / "stats" / "hourly_predictions.json")
-        if predictions and "predictions" in predictions:
+        try:
+            reader = _get_solar_reader()
             now = datetime.now()
-            current = next(
-                (p for p in predictions["predictions"]
-                 if p.get("target_date") == now.date().isoformat()
-                 and p.get("target_hour") == now.hour),
-                None
-            )
+            predictions = await reader.async_get_hourly_predictions(target_date=now.date())
+            current = next((p for p in predictions if p.target_hour == now.hour), None)
+
+            actual_kwh = current.actual_kwh if current else None
+
             if current:
                 result["data"]["solar"] = {
-                    "prediction_kwh": current.get("prediction_kwh", 0),
-                    "actual_kwh": current.get("actual_kwh"),
-                    "weather": current.get("weather_forecast", {}),
-                    "astronomy": current.get("astronomy", {}),
+                    "prediction_kwh": current.prediction_kwh,
+                    "actual_kwh": actual_kwh,
+                    "weather": {
+                        "temperature": current.temperature,
+                        "solar_radiation": current.solar_radiation,
+                        "clouds": current.clouds,
+                    },
+                    "astronomy": {
+                        "sun_elevation": current.sun_elevation,
+                        "theoretical_max_kwh": current.theoretical_max_kwh,
+                    },
                 }
+        except Exception as e:
+            _LOGGER.error("Error loading realtime prediction from database: %s", e)
 
-        prices = await _read_json_file(GRID_PATH / "data" / "price_history.json")
-        if prices and "prices" in prices:
+        try:
             now = datetime.now()
-            current_price = next(
-                (p for p in reversed(prices["prices"])
-                 if datetime.fromisoformat(p["timestamp"].replace("Z", "+00:00")).hour == now.hour),
-                None
-            )
-            if current_price:
+            today_str = now.strftime("%Y-%m-%d")
+            current_hour = now.hour
+            async with _get_db() as db:
+                async with db.execute("""
+                    SELECT price_net, hour
+                    FROM GPM_price_history
+                    WHERE date(timestamp, '+1 hour') = ? AND hour = ?
+                    ORDER BY timestamp DESC LIMIT 1
+                """, (today_str, current_hour)) as cursor:
+                    price_row = await cursor.fetchone()
+            if price_row:
                 result["data"]["price"] = {
-                    "current": current_price.get("price_net", 0),
-                    "hour": current_price.get("hour"),
+                    "current": price_row["price_net"] or 0,
+                    "hour": price_row["hour"],
                 }
+        except Exception as e:
+            _LOGGER.error("Error loading current price from DB: %s", e)
 
-        weather = await _read_json_file(SOLAR_PATH / "stats" / "hourly_weather_actual.json")
-        if weather and "hourly_data" in weather:
-            today_str = date.today().isoformat()
-            hour_str = str(datetime.now().hour)
-            if today_str in weather["hourly_data"]:
-                current_weather = weather["hourly_data"][today_str].get(hour_str, {})
-                result["data"]["weather_actual"] = current_weather
+        today_str = date.today().isoformat()
+        hour_str = str(datetime.now().hour)
+        weather_db = await _get_weather_from_db(days=1)
+        if weather_db and today_str in weather_db and hour_str in weather_db[today_str]:
+            result["data"]["weather_actual"] = weather_db[today_str][hour_str]
 
         return web.json_response(result)
 
@@ -1183,13 +1205,10 @@ def _get_sfml_panel_groups() -> list[dict[str, Any]]:
         return []
 
     try:
-        # SFML domain - coordinator is stored directly (not as dict)
         sfml_domain = "solar_forecast_ml"
         entries = HASS.data.get(sfml_domain, {})
 
         for entry_id, entry_data in entries.items():
-            # Coordinator is stored directly, not as {"coordinator": ...}
-            # Check if entry_data has panel_groups attribute (it's the coordinator itself)
             if hasattr(entry_data, "panel_groups"):
                 panel_groups = entry_data.panel_groups
                 if panel_groups:
@@ -1213,7 +1232,6 @@ def _read_panel_group_sensor(entity_id: str) -> float | None:
 
         value = float(state.state)
 
-        # Convert Wh to kWh if needed
         unit = state.attributes.get("unit_of_measurement", "")
         if unit.lower() == "wh":
             value = value / 1000.0
@@ -1249,17 +1267,14 @@ def _get_weather_data(entity_id: str | None) -> dict[str, Any] | None:
 
     attrs = state.attributes
 
-    # Windgeschwindigkeit: Konvertiere km/h zu m/s falls nötig
-    # HA Weather-Entitäten liefern wind_speed_unit als Attribut
     wind_speed = attrs.get("wind_speed")
     if wind_speed is not None:
         wind_speed_unit = attrs.get("wind_speed_unit", "km/h")
         if wind_speed_unit == "km/h":
-            wind_speed = round(wind_speed / 3.6, 1)  # km/h -> m/s
-        # Wenn bereits m/s, keine Konvertierung nötig
+            wind_speed = round(wind_speed / 3.6, 1)
 
     return {
-        "state": state.state,  # z.B. "sunny", "cloudy", etc.
+        "state": state.state,
         "temperature": attrs.get("temperature"),
         "humidity": attrs.get("humidity"),
         "wind_speed": wind_speed,
@@ -1283,23 +1298,12 @@ class EnergyFlowView(HomeAssistantView):
         """Return current energy flow data. @zara"""
         config = _get_config()
 
-        # DEBUG: Log configured sensor keys
-        _LOGGER.info(
-            "EnergyFlowView: solar_to_house config key = %s, solar_to_battery config key = %s",
-            config.get(CONF_SENSOR_SOLAR_TO_HOUSE),
-            config.get(CONF_SENSOR_SOLAR_TO_BATTERY),
-        )
+        sfml_reader = SFMLDataReader(HASS)
 
-        # Solar kann NIEMALS negativ sein - korrigiere negative Werte
-        solar_power = _get_sensor_value(config.get(CONF_SENSOR_SOLAR_POWER))
+        solar_power = sfml_reader.get_live_power()
         solar_to_house = _get_sensor_value(config.get(CONF_SENSOR_SOLAR_TO_HOUSE))
         solar_to_battery = _get_sensor_value(config.get(CONF_SENSOR_SOLAR_TO_BATTERY))
 
-        # DEBUG: Log sensor values
-        _LOGGER.info(
-            "EnergyFlowView: solar_power = %s, solar_to_house = %s, solar_to_battery = %s",
-            solar_power, solar_to_house, solar_to_battery,
-        )
         if solar_power is not None and solar_power < 0:
             solar_power = 0.0
         if solar_to_house is not None and solar_to_house < 0:
@@ -1307,28 +1311,47 @@ class EnergyFlowView(HomeAssistantView):
         if solar_to_battery is not None and solar_to_battery < 0:
             solar_to_battery = 0.0
 
-        # Wenn keine Solarproduktion, kann auch nichts zur Batterie/Haus fließen
-        # Dies korrigiert fehlerhafte Sensor-Berechnungen
         if solar_power is not None and solar_power <= 0:
             solar_to_house = 0.0
             solar_to_battery = 0.0
-        # solar_to_battery kann nie größer sein als solar_power
         elif solar_power is not None and solar_to_battery is not None:
             solar_to_battery = min(solar_to_battery, solar_power)
-        # solar_to_house kann nie größer sein als solar_power
         if solar_power is not None and solar_to_house is not None:
             solar_to_house = min(solar_to_house, solar_power)
 
-        # Prüfe ob Batterie konfiguriert ist (battery_soc ist der Haupt-Indikator)
+        # Fallback: solar_to_house berechnen wenn kein Sensor konfiguriert
+        if solar_to_house is None and solar_power is not None and solar_power > 0:
+            solar_to_battery_val = solar_to_battery or 0
+            solar_to_house = max(0, solar_power - solar_to_battery_val)
+
         battery_configured = config.get(CONF_SENSOR_BATTERY_SOC) is not None
         battery_soc = _get_sensor_value(config.get(CONF_SENSOR_BATTERY_SOC)) if battery_configured else None
         battery_power = _get_sensor_value(config.get(CONF_SENSOR_BATTERY_POWER)) if battery_configured else None
         battery_to_house = _get_sensor_value(config.get(CONF_SENSOR_BATTERY_TO_HOUSE)) if battery_configured else None
         grid_to_battery = _get_sensor_value(config.get(CONF_SENSOR_GRID_TO_BATTERY)) if battery_configured else None
 
-        # Wenn keine Batterie konfiguriert, auch solar_to_battery auf None setzen
         if not battery_configured:
             solar_to_battery = None
+
+        if battery_configured and (battery_power is None or battery_power == 0):
+            charge_power = (solar_to_battery or 0) + (grid_to_battery or 0)
+            discharge_power = battery_to_house or 0
+            if charge_power > 0:
+                battery_power = charge_power
+            elif discharge_power > 0:
+                battery_power = -discharge_power
+
+        solar_yield_daily_db = await _get_today_yield_from_db()
+        solar_yield_daily = solar_yield_daily_db if solar_yield_daily_db is not None else sfml_reader.get_live_yield()
+
+        # grid_to_house / house_to_grid: Fallback auf Smartmeter-Sensoren
+        grid_to_house = _get_sensor_value(config.get(CONF_SENSOR_GRID_TO_HOUSE))
+        if grid_to_house is None:
+            grid_to_house = _get_sensor_value(config.get(CONF_SENSOR_SMARTMETER_IMPORT))
+
+        house_to_grid = _get_sensor_value(config.get(CONF_SENSOR_HOUSE_TO_GRID))
+        if house_to_grid is None:
+            house_to_grid = _get_sensor_value(config.get(CONF_SENSOR_SMARTMETER_EXPORT))
 
         result = {
             "success": True,
@@ -1338,9 +1361,9 @@ class EnergyFlowView(HomeAssistantView):
                 "solar_to_house": solar_to_house,
                 "solar_to_battery": solar_to_battery,
                 "battery_to_house": battery_to_house,
-                "grid_to_house": _get_sensor_value(config.get(CONF_SENSOR_GRID_TO_HOUSE)),
+                "grid_to_house": grid_to_house,
                 "grid_to_battery": grid_to_battery,
-                "house_to_grid": _get_sensor_value(config.get(CONF_SENSOR_HOUSE_TO_GRID)),
+                "house_to_grid": house_to_grid,
             },
             "battery": {
                 "soc": battery_soc,
@@ -1350,7 +1373,7 @@ class EnergyFlowView(HomeAssistantView):
                 "consumption": _get_sensor_value(config.get(CONF_SENSOR_HOME_CONSUMPTION)),
             },
             "statistics": {
-                "solar_yield_daily": _get_sensor_value(config.get(CONF_SENSOR_SOLAR_YIELD_DAILY)),
+                "solar_yield_daily": solar_yield_daily,
                 "grid_import_daily": _get_sensor_value(config.get(CONF_SENSOR_GRID_IMPORT_DAILY)),
                 "grid_import_yearly": _get_sensor_value(config.get(CONF_SENSOR_GRID_IMPORT_YEARLY)),
                 "battery_charge_solar_daily": _get_sensor_value(config.get(CONF_SENSOR_BATTERY_CHARGE_SOLAR_DAILY)),
@@ -1358,7 +1381,7 @@ class EnergyFlowView(HomeAssistantView):
                 "price_total": _get_sensor_value(config.get(CONF_SENSOR_PRICE_TOTAL)),
             },
             "configured_sensors": {
-                "solar_power": config.get(CONF_SENSOR_SOLAR_POWER),
+                "solar_power": sfml_reader.get_power_entity_id() or "(from SFML)",
                 "solar_to_house": config.get(CONF_SENSOR_SOLAR_TO_HOUSE),
                 "solar_to_battery": config.get(CONF_SENSOR_SOLAR_TO_BATTERY),
                 "battery_to_house": config.get(CONF_SENSOR_BATTERY_TO_HOUSE),
@@ -1367,7 +1390,7 @@ class EnergyFlowView(HomeAssistantView):
                 "house_to_grid": config.get(CONF_SENSOR_HOUSE_TO_GRID),
                 "battery_soc": config.get(CONF_SENSOR_BATTERY_SOC),
                 "home_consumption": config.get(CONF_SENSOR_HOME_CONSUMPTION),
-                "solar_yield_daily": config.get(CONF_SENSOR_SOLAR_YIELD_DAILY),
+                "solar_yield_daily": sfml_reader.get_yield_entity_id() or "(from SFML)",
                 "weather_entity": config.get(CONF_WEATHER_ENTITY),
             },
             "panels": self._get_panel_data(config),
@@ -1376,35 +1399,34 @@ class EnergyFlowView(HomeAssistantView):
             "sun_position": await self._get_sun_position(),
             "current_price": await self._get_current_price(),
             "feed_in_tariff": config.get(CONF_FEED_IN_TARIFF, DEFAULT_FEED_IN_TARIFF),
+            "price_mode": config.get(CONF_BILLING_PRICE_MODE, DEFAULT_BILLING_PRICE_MODE),
         }
-
-        # DEBUG: Log final result flows
-        _LOGGER.info(
-            "EnergyFlowView FINAL: solar_to_house = %s, solar_to_battery = %s",
-            result["flows"]["solar_to_house"],
-            result["flows"]["solar_to_battery"],
-        )
 
         return web.json_response(result)
 
     async def _get_current_price(self) -> dict[str, Any] | None:
-        """Read current electricity price from price_cache.json. @zara"""
-        price_cache = await _read_json_file(GRID_PATH / "data" / "price_cache.json")
-        if not price_cache or "prices" not in price_cache:
-            return None
+        """Read current electricity price from GPM_price_history DB. @zara"""
+        try:
+            today_str = date.today().isoformat()
+            current_hour = datetime.now().hour
 
-        today_str = date.today().isoformat()
-        current_hour = datetime.now().hour
+            async with _get_db() as db:
+                async with db.execute("""
+                    SELECT price_net, total_price, hour
+                    FROM GPM_price_history
+                    WHERE date(timestamp, '+1 hour') = ? AND hour = ?
+                    ORDER BY timestamp DESC LIMIT 1
+                """, (today_str, current_hour)) as cursor:
+                    row = await cursor.fetchone()
 
-        for p in price_cache["prices"]:
-            if p.get("date") == today_str and p.get("hour") == current_hour:
-                # Support both "price_net" and "price" field names for compatibility
-                net_price = p.get("price_net") or p.get("price")
+            if row:
                 return {
-                    "total_price": p.get("total_price"),
-                    "net_price": net_price,
+                    "total_price": row["total_price"],
+                    "net_price": row["price_net"],
                     "hour": current_hour,
                 }
+        except Exception as e:
+            _LOGGER.error("Error loading current price from DB: %s", e)
         return None
 
     async def _get_sun_position(self) -> dict[str, Any] | None:
@@ -1495,20 +1517,18 @@ class EnergyFlowView(HomeAssistantView):
         return panels
 
     def _get_consumer_data(self, config: dict[str, Any]) -> dict[str, Any]:
-        """Read consumer data from configured sensors (WP, Heizstab, Wallbox). @zara"""
+        """Read consumer data from configured sensors. @zara"""
         consumers = {
             "heatpump": None,
             "heatingrod": None,
             "wallbox": None,
         }
 
-        # Wärmepumpe (Heat Pump)
         if config.get(CONF_SENSOR_HEATPUMP_POWER):
             power = _get_sensor_value(config.get(CONF_SENSOR_HEATPUMP_POWER))
             daily = _get_sensor_value(config.get(CONF_SENSOR_HEATPUMP_DAILY))
             cop = _get_sensor_value(config.get(CONF_SENSOR_HEATPUMP_COP))
 
-            # Fallback to default COP if not configured
             if cop is None:
                 cop = DEFAULT_HEATPUMP_COP
 
@@ -1519,7 +1539,6 @@ class EnergyFlowView(HomeAssistantView):
                 "configured": True,
             }
 
-        # Heizstab (Heating Rod)
         if config.get(CONF_SENSOR_HEATINGROD_POWER):
             power = _get_sensor_value(config.get(CONF_SENSOR_HEATINGROD_POWER))
             daily = _get_sensor_value(config.get(CONF_SENSOR_HEATINGROD_DAILY))
@@ -1530,7 +1549,6 @@ class EnergyFlowView(HomeAssistantView):
                 "configured": True,
             }
 
-        # Wallbox (EV Charger)
         if config.get(CONF_SENSOR_WALLBOX_POWER):
             power = _get_sensor_value(config.get(CONF_SENSOR_WALLBOX_POWER))
             daily = _get_sensor_value(config.get(CONF_SENSOR_WALLBOX_DAILY))
@@ -1555,8 +1573,7 @@ class StatisticsView(HomeAssistantView):
 
     @local_only
     async def get(self, request: Request) -> Response:
-        """Return statistics data from Solar Forecast ML JSON files. @zara"""
-        # Normal statistics response
+        """Return statistics data from SFML SQLite database. @zara"""
         result = {
             "success": True,
             "timestamp": datetime.now().isoformat(),
@@ -1565,62 +1582,208 @@ class StatisticsView(HomeAssistantView):
             "statistics": {},
         }
 
-        forecasts = await _read_json_file(SOLAR_PATH / "stats" / "daily_forecasts.json")
-        if forecasts:
-            today_data = forecasts.get("today", {})
-            peak_today = today_data.get("peak_today", {})
-            result["peaks"]["today"] = {
-                "power_w": peak_today.get("power_w"),
-                "at": peak_today.get("at"),
-            }
+        reader = _get_solar_reader()
 
-            stats = forecasts.get("statistics", {})
-            all_time_peak = stats.get("all_time_peak", {})
-            result["peaks"]["all_time"] = {
-                "power_w": all_time_peak.get("power_w"),
-                "date": all_time_peak.get("date"),
-                "at": all_time_peak.get("at"),
-            }
+        try:
+            daily_forecasts = await reader.async_get_daily_forecasts()
 
-            forecast_day_data = today_data.get("forecast_day", {})
-            result["production"]["today"] = {
-                "forecast_kwh": forecast_day_data.get("prediction_kwh"),
-                "forecast_kwh_display": forecast_day_data.get("prediction_kwh_display"),
-                "yield_kwh": today_data.get("yield_today", {}).get("kwh"),
-            }
+            today_forecast = daily_forecasts.get("today")
+            if today_forecast:
+                result["production"]["today"] = {
+                    "forecast_kwh": today_forecast.prediction_kwh,
+                    "forecast_kwh_display": f"{today_forecast.prediction_kwh:.2f}",
+                    "yield_kwh": None,
+                    "source": today_forecast.source,
+                    "locked": today_forecast.locked,
+                }
+            else:
+                result["production"]["today"] = {
+                    "forecast_kwh": None,
+                    "forecast_kwh_display": None,
+                    "yield_kwh": None,
+                }
 
-            forecast_tomorrow_data = today_data.get("forecast_tomorrow", {})
-            result["production"]["tomorrow"] = {
-                "forecast_kwh": forecast_tomorrow_data.get("prediction_kwh"),
-                "forecast_kwh_display": forecast_tomorrow_data.get("prediction_kwh_display"),
-            }
+            tomorrow_forecast = daily_forecasts.get("tomorrow")
+            if tomorrow_forecast:
+                result["production"]["tomorrow"] = {
+                    "forecast_kwh": tomorrow_forecast.prediction_kwh,
+                    "forecast_kwh_display": f"{tomorrow_forecast.prediction_kwh:.2f}",
+                    "date": tomorrow_forecast.forecast_date.isoformat() if tomorrow_forecast.forecast_date else None,
+                }
+            else:
+                result["production"]["tomorrow"] = {
+                    "forecast_kwh": None,
+                    "forecast_kwh_display": None,
+                }
 
-            predictions = await _read_json_file(SOLAR_PATH / "stats" / "hourly_predictions.json")
+        except Exception as e:
+            _LOGGER.error("Error loading daily forecasts from database: %s", e)
+            result["production"]["today"] = {"forecast_kwh": None, "forecast_kwh_display": None, "yield_kwh": None}
+            result["production"]["tomorrow"] = {"forecast_kwh": None, "forecast_kwh_display": None}
+
+        try:
+            sfml_reader = SFMLDataReader(HASS)
+            yield_value = sfml_reader.get_live_yield()
+            if yield_value is not None:
+                result["production"]["today"]["yield_kwh"] = yield_value
+        except Exception as e:
+            _LOGGER.debug("Could not load yield from SFML: %s", e)
+
+        try:
+            async with _get_db() as conn:
+                async with conn.execute(
+                    "SELECT peak_power_w, peak_power_time, peak_record_w, peak_record_date, peak_record_time, production_time_today FROM production_time_state WHERE id = 1"
+                ) as cursor:
+                    row = await cursor.fetchone()
+                    if row:
+                        result["peaks"]["today"] = {
+                            "power_w": row["peak_power_w"],
+                            "at": row["peak_power_time"],
+                        }
+                        result["peaks"]["record"] = {
+                            "power_w": row["peak_record_w"],
+                            "date": row["peak_record_date"],
+                            "at": row["peak_record_time"],
+                        }
+                        result["production_time"] = row["production_time_today"]
+                    else:
+                        result["peaks"]["today"] = {"power_w": None, "at": None}
+        except Exception as e:
+            _LOGGER.debug("Could not load today's peak from database: %s", e)
+            result["peaks"]["today"] = {"power_w": None, "at": None}
+
+        try:
+            async with reader._get_db_connection() as conn:
+                async with conn.execute(
+                    """SELECT all_time_peak_power_w, all_time_peak_date, all_time_peak_at
+                       FROM daily_statistics WHERE id = 1"""
+                ) as cursor:
+                    row = await cursor.fetchone()
+                    if row:
+                        result["peaks"]["all_time"] = {
+                            "power_w": row["all_time_peak_power_w"],
+                            "date": row["all_time_peak_date"],
+                            "at": row["all_time_peak_at"],
+                        }
+                    else:
+                        result["peaks"]["all_time"] = {"power_w": None, "date": None, "at": None}
+        except Exception as e:
+            _LOGGER.debug("Could not load all-time peak from database: %s", e)
+            result["peaks"]["all_time"] = {"power_w": None, "date": None, "at": None}
+
+        try:
+            today_preds = await reader.async_get_hourly_predictions(target_date=date.today())
+
             result["best_hour"] = {"hour": None, "prediction_kwh": None}
-            if predictions and "predictions" in predictions:
-                today_str = date.today().isoformat()
-                today_preds = [
-                    p for p in predictions["predictions"]
-                    if p.get("target_date") == today_str and p.get("prediction_kwh")
-                ]
-                if today_preds:
-                    best = max(today_preds, key=lambda x: x.get("prediction_kwh", 0))
+            if today_preds:
+                preds_with_values = [p for p in today_preds if p.prediction_kwh > 0]
+                if preds_with_values:
+                    best = max(preds_with_values, key=lambda x: x.prediction_kwh)
                     result["best_hour"] = {
-                        "hour": best.get("target_hour"),
-                        "prediction_kwh": best.get("prediction_kwh"),
+                        "hour": best.target_hour,
+                        "prediction_kwh": best.prediction_kwh,
                     }
+        except Exception as e:
+            _LOGGER.error("Error loading best hour from database: %s", e)
+            result["best_hour"] = {"hour": None, "prediction_kwh": None}
 
-            result["statistics"]["current_week"] = stats.get("current_week", {})
-            result["statistics"]["current_month"] = stats.get("current_month", {})
-            result["statistics"]["last_7_days"] = stats.get("last_7_days", {})
-            result["statistics"]["last_30_days"] = stats.get("last_30_days", {})
-            result["statistics"]["last_365_days"] = stats.get("last_365_days", {})
+        try:
+            async with reader._get_db_connection() as conn:
+                async with conn.execute(
+                    """SELECT
+                        current_week_period, current_week_yield_kwh, current_week_consumption_kwh, current_week_days,
+                        current_month_period, current_month_yield_kwh, current_month_consumption_kwh, current_month_avg_autarky, current_month_days,
+                        last_7_days_avg_yield_kwh, last_7_days_avg_accuracy, last_7_days_total_yield_kwh,
+                        last_30_days_avg_yield_kwh, last_30_days_avg_accuracy, last_30_days_total_yield_kwh,
+                        last_365_days_avg_yield_kwh, last_365_days_total_yield_kwh
+                       FROM daily_statistics WHERE id = 1"""
+                ) as cursor:
+                    row = await cursor.fetchone()
+                    if row:
+                        result["statistics"]["current_week"] = {
+                            "period": row["current_week_period"],
+                            "yield_kwh": row["current_week_yield_kwh"],
+                            "consumption_kwh": row["current_week_consumption_kwh"],
+                            "days": row["current_week_days"],
+                        }
+                        result["statistics"]["current_month"] = {
+                            "period": row["current_month_period"],
+                            "yield_kwh": row["current_month_yield_kwh"],
+                            "consumption_kwh": row["current_month_consumption_kwh"],
+                            "avg_autarky": row["current_month_avg_autarky"],
+                            "days": row["current_month_days"],
+                        }
+                        result["statistics"]["last_7_days"] = {
+                            "avg_yield_kwh": row["last_7_days_avg_yield_kwh"],
+                            "avg_accuracy": row["last_7_days_avg_accuracy"],
+                            "total_yield_kwh": row["last_7_days_total_yield_kwh"],
+                        }
+                        result["statistics"]["last_30_days"] = {
+                            "avg_yield_kwh": row["last_30_days_avg_yield_kwh"],
+                            "avg_accuracy": row["last_30_days_avg_accuracy"],
+                            "total_yield_kwh": row["last_30_days_total_yield_kwh"],
+                        }
+                        result["statistics"]["last_365_days"] = {
+                            "avg_yield_kwh": row["last_365_days_avg_yield_kwh"],
+                            "total_yield_kwh": row["last_365_days_total_yield_kwh"],
+                        }
+        except Exception as e:
+            _LOGGER.debug("Could not load statistics from database: %s", e)
 
-            history = forecasts.get("history", [])
-            result["history"] = [
-                h for h in history[:365]  # Return up to 365 days for year view
-                if h.get("actual_kwh") is not None or h.get("yield_kwh") is not None
-            ]
+        try:
+            async with reader._get_db_connection() as conn:
+                async with conn.execute(
+                    """SELECT date, predicted_total_kwh, actual_total_kwh,
+                              accuracy_percent, peak_power_w, peak_hour,
+                              peak_power_time, production_hours
+                       FROM daily_summaries
+                       WHERE date < date('now')
+                       ORDER BY date DESC
+                       LIMIT 365"""
+                ) as cursor:
+                    rows = await cursor.fetchall()
+                    history = []
+                    for row in rows:
+                        predicted = row["predicted_total_kwh"] or 0
+                        actual = row["actual_total_kwh"] or 0
+                        acc = row["accuracy_percent"]
+                        if not acc or acc <= 0:
+                            if predicted > 0 and actual > 0:
+                                acc = max(0, min(100, 100 - abs((actual - predicted) / predicted) * 100))
+                            else:
+                                acc = 0
+                        history.append({
+                            "date": row["date"],
+                            "predicted_kwh": predicted,
+                            "actual_kwh": actual,
+                            "accuracy": round(acc, 1),
+                            "peak_power_w": row["peak_power_w"],
+                            "peak_hour": row["peak_hour"],
+                            "peak_at": row["peak_power_time"],
+                            "production_hours": row["production_hours"],
+                        })
+                    result["history"] = history
+
+                # Hourly production data for heatmap
+                async with conn.execute(
+                    """SELECT target_date, target_hour, actual_kwh
+                       FROM hourly_predictions
+                       WHERE actual_kwh IS NOT NULL
+                         AND target_date >= date('now', '-365 days')
+                       ORDER BY target_date, target_hour"""
+                ) as cursor:
+                    hourly_rows = await cursor.fetchall()
+                    hourly_data: dict[str, dict[int, float]] = {}
+                    for row in hourly_rows:
+                        date_str = row["target_date"]
+                        if date_str not in hourly_data:
+                            hourly_data[date_str] = {}
+                        hourly_data[date_str][row["target_hour"]] = row["actual_kwh"]
+                    result["hourly_production"] = hourly_data
+        except Exception as e:
+            _LOGGER.debug("Could not load history from database: %s", e)
+            result["history"] = []
+            result["hourly_production"] = {}
 
         result["panel_groups"] = await self._get_panel_group_data()
 
@@ -1628,73 +1791,49 @@ class StatisticsView(HomeAssistantView):
 
     async def _get_panel_group_data(self) -> dict[str, Any]:
         """Extract panel group predictions and actuals for today. @zara"""
-        # Get live sensor values from SFML panel group config
-        sfml_groups = _get_sfml_panel_groups()
-        live_sensor_values: dict[str, float] = {}
-        for group in sfml_groups:
-            group_name = group.get("name", "")
-            energy_sensor = group.get("energy_sensor", "")
-            if group_name and energy_sensor:
-                value = _read_panel_group_sensor(energy_sensor)
-                if value is not None:
-                    live_sensor_values[group_name] = value
+        current_hour = datetime.now().hour
 
-        predictions = await _read_json_file(SOLAR_PATH / "stats" / "hourly_predictions.json")
-        if not predictions or "predictions" not in predictions:
+        try:
+            reader = _get_solar_reader()
+            panel_groups_by_name = await reader.async_get_panel_group_data(target_date=date.today())
+
+            if not panel_groups_by_name:
+                return {"available": False, "groups": {}}
+        except Exception as e:
+            _LOGGER.error("Error loading panel group data from database: %s", e)
             return {"available": False, "groups": {}}
 
-        today_str = date.today().isoformat()
-        today_preds = [
-            p for p in predictions["predictions"]
-            if p.get("target_date") == today_str
-        ]
-
-        if not today_preds:
-            return {"available": False, "groups": {}}
-
-        group_names = set()
-        for p in today_preds:
-            if p.get("panel_group_predictions"):
-                group_names.update(p["panel_group_predictions"].keys())
-            if p.get("panel_group_actuals"):
-                group_names.update(p["panel_group_actuals"].keys())
-
-        if not group_names:
-            return {"available": False, "groups": {}}
-
-        # Get panel group name mapping from config
         config = _get_config()
         name_mapping = config.get(CONF_PANEL_GROUP_NAMES, {})
         if not isinstance(name_mapping, dict):
             name_mapping = {}
 
         groups = {}
-        for group_name in sorted(group_names):
-            # Apply name mapping: use custom name if configured, otherwise original name
+        for group_name, hourly_data in panel_groups_by_name.items():
             display_name = name_mapping.get(group_name, group_name)
 
             group_data = {
                 "name": display_name,
-                "original_name": group_name,  # Keep original for reference
-                "prediction_total_kwh": 0.0,
-                "actual_total_kwh": 0.0,
+                "original_name": group_name,
+                "prediction_day_kwh": 0.0,
+                "prediction_until_now_kwh": 0.0,
+                "actual_until_now_kwh": 0.0,
                 "hourly": [],
             }
 
-            for p in today_preds:
-                hour = p.get("target_hour")
-                pred_kwh = None
-                actual_kwh = None
-
-                if p.get("panel_group_predictions"):
-                    pred_kwh = p["panel_group_predictions"].get(group_name)
-                if p.get("panel_group_actuals"):
-                    actual_kwh = p["panel_group_actuals"].get(group_name)
+            for panel_data in hourly_data:
+                pred_kwh = panel_data.prediction_kwh
+                actual_kwh = panel_data.actual_kwh
+                hour = panel_data.target_hour if panel_data.target_hour is not None else 0
 
                 if pred_kwh is not None:
-                    group_data["prediction_total_kwh"] += pred_kwh
-                if actual_kwh is not None:
-                    group_data["actual_total_kwh"] += actual_kwh
+                    group_data["prediction_day_kwh"] += pred_kwh
+
+                if hour <= current_hour:
+                    if pred_kwh is not None:
+                        group_data["prediction_until_now_kwh"] += pred_kwh
+                    if actual_kwh is not None:
+                        group_data["actual_until_now_kwh"] += actual_kwh
 
                 group_data["hourly"].append({
                     "hour": hour,
@@ -1702,47 +1841,24 @@ class StatisticsView(HomeAssistantView):
                     "actual_kwh": actual_kwh,
                 })
 
-            # Use live sensor value if available (more accurate than hourly sum)
-            original_name = group_data.get("original_name", group_name)
-            if original_name in live_sensor_values:
-                group_data["actual_total_kwh"] = live_sensor_values[original_name]
-                group_data["actual_source"] = "live_sensor"
-            else:
-                group_data["actual_source"] = "hourly_sum"
+            group_data["actual_source"] = "db_hourly_sum"
 
-            # Calculate accuracy: 100% - |deviation%|
-            # Accuracy can never be >100% or <0%
-            if group_data["prediction_total_kwh"] > 0 and group_data["actual_total_kwh"] > 0:
+            group_data["prediction_total_kwh"] = group_data["prediction_day_kwh"]
+            group_data["actual_total_kwh"] = group_data["actual_until_now_kwh"]
+
+            if group_data["prediction_until_now_kwh"] > 0 and group_data["actual_until_now_kwh"] > 0:
                 deviation_percent = abs(
-                    (group_data["actual_total_kwh"] - group_data["prediction_total_kwh"])
-                    / group_data["prediction_total_kwh"]
+                    (group_data["actual_until_now_kwh"] - group_data["prediction_until_now_kwh"])
+                    / group_data["prediction_until_now_kwh"]
                 ) * 100
                 group_data["accuracy_percent"] = max(0, min(100, 100 - deviation_percent))
             else:
                 group_data["accuracy_percent"] = None
 
-            # Use display_name as key for the groups dict
             groups[display_name] = group_data
 
-        result = {"available": True, "groups": groups}
-        await self._save_panel_group_cache(result, today_str)
+        return {"available": True, "groups": groups}
 
-        return result
-
-    async def _save_panel_group_cache(self, data: dict[str, Any], today_str: str) -> None:
-        """Save panel group data to cache file. @zara"""
-        try:
-            cache_path = SOLAR_PATH / "stats" / "panel_group_today_cache.json"
-            cache_data = {
-                "date": today_str,
-                "last_updated": datetime.now().isoformat(),
-                **data
-            }
-            import aiofiles
-            async with aiofiles.open(cache_path, "w", encoding="utf-8") as f:
-                await f.write(json.dumps(cache_data, indent=2))
-        except Exception as e:
-            _LOGGER.warning("Failed to save panel group cache: %s", e)
 
 
 class BillingDataView(HomeAssistantView):
@@ -1787,7 +1903,7 @@ class BillingDataView(HomeAssistantView):
 
 
 class ExportSolarAnalyticsView(HomeAssistantView):
-    """View to export solar analytics as PNG (Matplotlib)."""
+    """Export solar analytics as PNG. @zara"""
 
     url = "/api/sfml_stats/export_solar_analytics"
     name = "api:sfml_stats:export_solar_analytics"
@@ -1795,9 +1911,8 @@ class ExportSolarAnalyticsView(HomeAssistantView):
 
     @local_only
     async def post(self, request: web.Request) -> web.Response:
-        """Generate and return solar analytics PNG."""
+        """Generate and return solar analytics PNG. @zara"""
         try:
-            # Parse request JSON
             data = await request.json()
             period = data.get("period", "week")
             stats = data.get("stats", {})
@@ -1805,20 +1920,16 @@ class ExportSolarAnalyticsView(HomeAssistantView):
 
             _LOGGER.info("Generating solar analytics export: period=%s, data_points=%d", period, len(history))
 
-            # Import chart class
             from ..charts.solar_analytics import SolarAnalyticsChart
 
-            # Generate chart
             chart = SolarAnalyticsChart(
                 period=period,
                 stats=stats,
                 data=history
             )
 
-            # Render to PNG bytes
             png_bytes = await chart.async_render()
 
-            # Return as PNG
             return web.Response(
                 body=png_bytes,
                 content_type="image/png",
@@ -1836,7 +1947,7 @@ class ExportSolarAnalyticsView(HomeAssistantView):
 
 
 class ExportBatteryAnalyticsView(HomeAssistantView):
-    """View to export battery analytics as PNG (Matplotlib)."""
+    """Export battery analytics as PNG. @zara"""
 
     url = "/api/sfml_stats/export_battery_analytics"
     name = "api:sfml_stats:export_battery_analytics"
@@ -1844,7 +1955,7 @@ class ExportBatteryAnalyticsView(HomeAssistantView):
 
     @local_only
     async def post(self, request: web.Request) -> web.Response:
-        """Generate and return battery analytics PNG."""
+        """Generate and return battery analytics PNG. @zara"""
         try:
             data = await request.json()
             period = data.get("period", "week")
@@ -1880,7 +1991,7 @@ class ExportBatteryAnalyticsView(HomeAssistantView):
 
 
 class ExportHouseAnalyticsView(HomeAssistantView):
-    """View to export house analytics as PNG (Matplotlib)."""
+    """Export house analytics as PNG. @zara"""
 
     url = "/api/sfml_stats/export_house_analytics"
     name = "api:sfml_stats:export_house_analytics"
@@ -1888,7 +1999,7 @@ class ExportHouseAnalyticsView(HomeAssistantView):
 
     @local_only
     async def post(self, request: web.Request) -> web.Response:
-        """Generate and return house analytics PNG."""
+        """Generate and return house analytics PNG. @zara"""
         try:
             data = await request.json()
             period = data.get("period", "week")
@@ -1924,7 +2035,7 @@ class ExportHouseAnalyticsView(HomeAssistantView):
 
 
 class ExportGridAnalyticsView(HomeAssistantView):
-    """View to export grid analytics as PNG (Matplotlib)."""
+    """Export grid analytics as PNG. @zara"""
 
     url = "/api/sfml_stats/export_grid_analytics"
     name = "api:sfml_stats:export_grid_analytics"
@@ -1932,7 +2043,7 @@ class ExportGridAnalyticsView(HomeAssistantView):
 
     @local_only
     async def post(self, request: web.Request) -> web.Response:
-        """Generate and return grid analytics PNG."""
+        """Generate and return grid analytics PNG. @zara"""
         try:
             data = await request.json()
             period = data.get("period", "week")
@@ -1968,7 +2079,7 @@ class ExportGridAnalyticsView(HomeAssistantView):
 
 
 class WeatherHistoryView(HomeAssistantView):
-    """View to get weather history data."""
+    """Get weather history data. @zara"""
 
     url = "/api/sfml_stats/weather_history"
     name = "api:sfml_stats:weather_history"
@@ -1976,7 +2087,7 @@ class WeatherHistoryView(HomeAssistantView):
 
     @local_only
     async def get(self, request: web.Request) -> web.Response:
-        """Get weather history."""
+        """Get weather history. @zara"""
         try:
             from ..weather_collector import WeatherDataCollector
 
@@ -2001,7 +2112,7 @@ class WeatherHistoryView(HomeAssistantView):
 
 
 class WeatherComparisonView(HomeAssistantView):
-    """View to get IST vs KI weather comparison data."""
+    """Get actual vs forecast weather comparison data. @zara"""
 
     url = "/api/sfml_stats/weather_comparison"
     name = "api:sfml_stats:weather_comparison"
@@ -2009,12 +2120,12 @@ class WeatherComparisonView(HomeAssistantView):
 
     @local_only
     async def get(self, request: web.Request) -> web.Response:
-        """Get IST vs KI weather comparison data."""
+        """Get actual vs forecast weather comparison data. @zara"""
         try:
             from ..weather_collector import WeatherDataCollector
 
             days = int(request.query.get("days", 7))
-            days = min(days, 30)  # Max 30 days
+            days = min(days, 30)
 
             data_path = Path(HASS.config.path()) / "sfml_stats_weather"
             collector = WeatherDataCollector(HASS, data_path)
@@ -2032,7 +2143,7 @@ class WeatherComparisonView(HomeAssistantView):
 
 
 class ExportWeatherAnalyticsView(HomeAssistantView):
-    """View to export weather analytics as PNG."""
+    """Export weather analytics as PNG. @zara"""
 
     url = "/api/sfml_stats/export_weather_analytics"
     name = "api:sfml_stats:export_weather_analytics"
@@ -2040,7 +2151,7 @@ class ExportWeatherAnalyticsView(HomeAssistantView):
 
     @local_only
     async def post(self, request: web.Request) -> web.Response:
-        """Generate and return weather analytics PNG."""
+        """Generate and return weather analytics PNG. @zara"""
         try:
             data = await request.json()
             period = data.get("period", "week")
@@ -2087,13 +2198,13 @@ class PowerSourcesHistoryView(HomeAssistantView):
         """Get power sources history from Home Assistant Recorder. @zara"""
         try:
             hours = int(request.query.get("hours", 24))
-            hours = min(hours, 168)  # Max 7 days
+            hours = min(hours, 168)
 
             config = _get_config()
+            sfml_reader = SFMLDataReader(HASS)
 
-            # Get configured sensor entity IDs
             sensors = {
-                "solar_power": config.get(CONF_SENSOR_SOLAR_POWER),
+                "solar_power": sfml_reader.get_power_entity_id(),
                 "solar_to_house": config.get(CONF_SENSOR_SOLAR_TO_HOUSE),
                 "solar_to_battery": config.get(CONF_SENSOR_SOLAR_TO_BATTERY),
                 "battery_to_house": config.get(CONF_SENSOR_BATTERY_TO_HOUSE),
@@ -2102,7 +2213,6 @@ class PowerSourcesHistoryView(HomeAssistantView):
                 "battery_soc": config.get(CONF_SENSOR_BATTERY_SOC),
             }
 
-            # Filter out None values
             entity_ids = [eid for eid in sensors.values() if eid]
 
             if not entity_ids:
@@ -2111,40 +2221,29 @@ class PowerSourcesHistoryView(HomeAssistantView):
                     "error": "No sensors configured"
                 })
 
-            # Try collector data FIRST - it's more reliable than recorder
-            data_source = "collector"
-            collector_data = await self._get_power_sources_collector_data(hours)
+            end_time = datetime.now(timezone.utc)
+            start_time = end_time - timedelta(hours=hours)
 
-            if collector_data and len(collector_data) > 0:
-                processed_data = collector_data
-                _LOGGER.info("Got %d entries from power sources collector", len(collector_data))
-            else:
-                # Fallback to recorder if collector has no data
-                _LOGGER.info("No collector data, trying recorder")
-                end_time = datetime.now(timezone.utc)
-                start_time = end_time - timedelta(hours=hours)
+            history_data = await self._get_recorder_history(
+                entity_ids, start_time, end_time
+            )
+            processed_data = self._process_history(history_data, sensors, start_time, end_time)
+            data_source = "recorder"
 
-                history_data = await self._get_recorder_history(
-                    entity_ids, start_time, end_time
-                )
+            # Check flow sensors specifically (not just solar_power)
+            flow_keys = ['solar_to_house', 'grid_to_house', 'home_consumption']
+            flow_data_count = sum(
+                1 for d in processed_data
+                if any(d.get(k) is not None and d.get(k, 0) > 0 for k in flow_keys)
+            )
+            has_data = flow_data_count >= 3  # Need at least 3 valid data points
 
-                # Process and align data
-                processed_data = self._process_history(history_data, sensors, start_time, end_time)
-                data_source = "recorder"
-
-                # Check if we got any actual data from recorder
-                has_data = any(
-                    any(d.get(k) is not None for k in ['solar_power', 'solar_to_house', 'solar_to_battery', 'battery_to_house', 'grid_to_house', 'home_consumption'])
-                    for d in processed_data
-                )
-
-                if not has_data:
-                    # Last resort: try hourly file fallback
-                    file_data = await self._get_hourly_history_from_file()
-                    if file_data:
-                        processed_data = file_data
-                        data_source = "hourly_file"
-                        _LOGGER.info("Got %d entries from hourly file", len(file_data))
+            if not has_data:
+                collector_data = await self._get_power_sources_collector_data(hours)
+                if collector_data:
+                    processed_data = collector_data
+                    data_source = "db"
+                    _LOGGER.debug("Power history from DB: %d points", len(collector_data))
 
             return web.json_response({
                 "success": True,
@@ -2175,9 +2274,6 @@ class PowerSourcesHistoryView(HomeAssistantView):
 
         _LOGGER.debug("Fetching history for entities: %s from %s to %s", entity_ids, start_time, end_time)
 
-        # Try multiple methods to get history data
-        # Method 1: Use get_significant_states via recorder instance executor
-        # Note: get_significant_states is a SYNC function, must run in executor
         try:
             from homeassistant.components.recorder import get_instance
             from homeassistant.components.recorder import history as recorder_history
@@ -2185,7 +2281,6 @@ class PowerSourcesHistoryView(HomeAssistantView):
             if hasattr(recorder_history, 'get_significant_states'):
                 instance = get_instance(HASS)
 
-                # get_significant_states is synchronous - must run in executor
                 def _get_history_sync():
                     return recorder_history.get_significant_states(
                         HASS,
@@ -2207,7 +2302,6 @@ class PowerSourcesHistoryView(HomeAssistantView):
         except Exception as e:
             _LOGGER.warning("Method 1 (get_significant_states via executor) failed: %s", e)
 
-        # Fallback - collect current states and build minimal history
         _LOGGER.warning("All recorder methods failed, falling back to current state")
         return await self._get_history_fallback(entity_ids)
 
@@ -2223,7 +2317,6 @@ class PowerSourcesHistoryView(HomeAssistantView):
         for entity_id in entity_ids:
             state = HASS.states.get(entity_id)
             if state:
-                # Create a simple state object that matches the expected format
                 result[entity_id] = [state]
                 _LOGGER.debug("Fallback: Got current state for %s: %s", entity_id, state.state)
 
@@ -2250,7 +2343,7 @@ class PowerSourcesHistoryView(HomeAssistantView):
             for hour_key, hour_data in sorted(hours_data.items()):
                 result.append({
                     "timestamp": hour_key + ":00",
-                    "solar_to_house": hour_data.get("solar_to_house_kwh", 0) * 1000,  # Convert to W (avg)
+                    "solar_to_house": hour_data.get("solar_to_house_kwh", 0) * 1000,
                     "battery_to_house": hour_data.get("battery_to_house_kwh", 0) * 1000,
                     "grid_to_house": hour_data.get("grid_to_house_kwh", 0) * 1000,
                     "home_consumption": hour_data.get("home_consumption_kwh", 0) * 1000,
@@ -2263,42 +2356,42 @@ class PowerSourcesHistoryView(HomeAssistantView):
             return []
 
     async def _get_power_sources_collector_data(self, hours: int) -> list[dict]:
-        """Get data from power sources collector file. @zara"""
+        """Get data from stats_power_sources DB table. @zara"""
         try:
-            collector_path = Path(HASS.config.path()) / "sfml_stats" / "data" / "power_sources_history.json"
+            async with _get_db() as conn:
+                cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
 
-            if not collector_path.exists():
-                _LOGGER.debug("Power sources collector file not found")
-                return []
+                async with conn.execute("""
+                    SELECT timestamp, solar_power_w, solar_to_house_w,
+                           solar_to_battery_w, battery_to_house_w,
+                           grid_to_house_w, house_consumption_w
+                    FROM stats_power_sources
+                    WHERE timestamp >= ?
+                    ORDER BY timestamp
+                """, (cutoff,)) as cursor:
+                    rows = await cursor.fetchall()
 
-            import aiofiles
-            import json
+                if not rows:
+                    return []
 
-            async with aiofiles.open(collector_path, 'r') as f:
-                content = await f.read()
-                data = json.loads(content)
-
-            data_points = data.get("data_points", [])
-            if not data_points:
-                return []
-
-            # Filter by time
-            cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
-            filtered = []
-
-            for dp in data_points:
-                try:
-                    ts = datetime.fromisoformat(dp["timestamp"].replace('Z', '+00:00'))
-                    if ts > cutoff:
-                        filtered.append(dp)
-                except (ValueError, KeyError):
-                    continue
-
-            _LOGGER.debug("Power sources collector: %d points after filtering", len(filtered))
-            return sorted(filtered, key=lambda x: x["timestamp"])
+                result = [
+                    {
+                        "timestamp": row["timestamp"],
+                        "solar_power": row["solar_power_w"] or 0,
+                        "solar_to_house": row["solar_to_house_w"] or 0,
+                        "solar_to_battery": row["solar_to_battery_w"] or 0,
+                        "battery_to_house": row["battery_to_house_w"] or 0,
+                        "grid_to_house": row["grid_to_house_w"] or 0,
+                        "home_consumption": row["house_consumption_w"] or 0,
+                        "battery_soc": None,
+                    }
+                    for row in rows
+                ]
+                _LOGGER.debug("Power sources from DB: %d points", len(result))
+                return result
 
         except Exception as e:
-            _LOGGER.error("Error reading power sources collector file: %s", e)
+            _LOGGER.error("Error reading power sources from DB: %s", e)
             return []
 
     def _process_history(
@@ -2309,7 +2402,6 @@ class PowerSourcesHistoryView(HomeAssistantView):
         end_time: datetime
     ) -> list[dict]:
         """Process and align history data into time series. @zara"""
-        # Create time buckets (5-minute intervals)
         interval_minutes = 5
         buckets = []
         current_time = start_time
@@ -2327,7 +2419,6 @@ class PowerSourcesHistoryView(HomeAssistantView):
             })
             current_time += timedelta(minutes=interval_minutes)
 
-        # Fill buckets with sensor data
         for sensor_key, entity_id in sensors.items():
             if not entity_id or entity_id not in history_data:
                 continue
@@ -2336,7 +2427,6 @@ class PowerSourcesHistoryView(HomeAssistantView):
             if not states:
                 continue
 
-            # Sort states by time
             sorted_states = sorted(states, key=lambda s: s.last_updated if hasattr(s, 'last_updated') else s.last_changed)
 
             state_idx = 0
@@ -2345,7 +2435,6 @@ class PowerSourcesHistoryView(HomeAssistantView):
                 if bucket_time.tzinfo is None:
                     bucket_time = bucket_time.replace(tzinfo=timezone.utc)
 
-                # Find the most recent state before bucket time
                 while (state_idx < len(sorted_states) - 1):
                     next_state = sorted_states[state_idx + 1]
                     next_time = next_state.last_updated if hasattr(next_state, 'last_updated') else next_state.last_changed
@@ -2383,7 +2472,6 @@ class ExportPowerSourcesView(HomeAssistantView):
             stats = data.get("stats", {})
             history = data.get("data", [])
 
-            # Convert reactive proxy to plain dict if needed
             if hasattr(stats, '__dict__'):
                 stats = dict(stats)
 
@@ -2429,16 +2517,14 @@ class EnergySourcesDailyStatsView(HomeAssistantView):
         """Get daily energy sources statistics. @zara"""
         try:
             days = int(request.query.get("days", 7))
-            days = min(days, 365)  # Max 1 year
+            days = min(days, 365)
 
-            # Get power sources collector from hass.data
             if HASS is None:
                 return web.json_response({
                     "success": False,
                     "error": "Home Assistant not initialized"
                 })
 
-            # Try to get collector from entry data
             collector = None
             entries = HASS.data.get(DOMAIN, {})
             for entry_id, entry_data in entries.items():
@@ -2447,7 +2533,6 @@ class EnergySourcesDailyStatsView(HomeAssistantView):
                     break
 
             if collector is None:
-                # Fallback: read directly from file
                 data_path = Path(HASS.config.path()) / "sfml_stats" / "data" / "energy_sources_daily_stats.json"
                 if data_path.exists():
                     import aiofiles
@@ -2459,7 +2544,6 @@ class EnergySourcesDailyStatsView(HomeAssistantView):
             else:
                 daily_stats = await collector.get_daily_stats(days)
 
-            # Merge with daily_energy_history.json for more complete data
             history_path = Path(HASS.config.path()) / "sfml_stats" / "data" / "daily_energy_history.json"
             if history_path.exists():
                 import aiofiles
@@ -2468,10 +2552,8 @@ class EnergySourcesDailyStatsView(HomeAssistantView):
                     history_data = json.loads(content)
                     history_days = history_data.get("days", {})
 
-                    # Merge history data into daily_stats (add missing days)
                     for date_str, day_data in history_days.items():
                         if date_str not in daily_stats.get("days", {}):
-                            # Convert history format to daily_stats format
                             daily_stats.setdefault("days", {})[date_str] = {
                                 "date": date_str,
                                 "solar_to_house_kwh": day_data.get("solar_to_house_kwh", 0),
@@ -2489,14 +2571,12 @@ class EnergySourcesDailyStatsView(HomeAssistantView):
                                 "min_soc": day_data.get("min_soc", 0),
                                 "max_soc": day_data.get("max_soc", 0),
                                 "peak_battery_power_w": day_data.get("peak_battery_power_w", 0),
-                                "peak_consumption_w": day_data.get("peak_battery_power_w", 0),  # Use battery peak as proxy
+                                "peak_consumption_w": day_data.get("peak_battery_power_w", 0),
                             }
                         else:
-                            # Merge additional fields from history into existing day data
                             existing = daily_stats["days"][date_str]
                             if existing.get("peak_battery_power_w") is None or existing.get("peak_battery_power_w") == 0:
                                 existing["peak_battery_power_w"] = day_data.get("peak_battery_power_w", 0)
-                            # Also merge home_consumption, autarky, etc. if missing
                             if existing.get("home_consumption_kwh") is None or existing.get("home_consumption_kwh") == 0:
                                 existing["home_consumption_kwh"] = day_data.get("home_consumption_kwh", 0)
                             if existing.get("autarky_percent") is None or existing.get("autarky_percent") == 0:
@@ -2506,10 +2586,10 @@ class EnergySourcesDailyStatsView(HomeAssistantView):
                             if existing.get("peak_consumption_w") is None or existing.get("peak_consumption_w") == 0:
                                 existing["peak_consumption_w"] = day_data.get("peak_battery_power_w", 0)
 
-            # Also get current sensor values for real-time display
             config = _get_config()
-            # Solar kann NIEMALS negativ sein
-            solar_power_val = _get_sensor_value(config.get(CONF_SENSOR_SOLAR_POWER))
+            sfml_reader = SFMLDataReader(HASS)
+
+            solar_power_val = sfml_reader.get_live_power()
             solar_to_house_val = _get_sensor_value(config.get(CONF_SENSOR_SOLAR_TO_HOUSE))
             solar_to_battery_val = _get_sensor_value(config.get(CONF_SENSOR_SOLAR_TO_BATTERY))
             if solar_power_val is not None and solar_power_val < 0:
@@ -2518,7 +2598,6 @@ class EnergySourcesDailyStatsView(HomeAssistantView):
                 solar_to_house_val = 0.0
             if solar_to_battery_val is not None and solar_to_battery_val < 0:
                 solar_to_battery_val = 0.0
-            # Wenn keine Solarproduktion, kann auch nichts zur Batterie/Haus fließen
             if solar_power_val is not None and solar_power_val <= 0:
                 solar_to_house_val = 0.0
                 solar_to_battery_val = 0.0
@@ -2528,7 +2607,7 @@ class EnergySourcesDailyStatsView(HomeAssistantView):
                 if solar_to_house_val is not None:
                     solar_to_house_val = min(solar_to_house_val, solar_power_val)
             current_values = {
-                "solar_yield_daily": _get_sensor_value(config.get(CONF_SENSOR_SOLAR_YIELD_DAILY)),
+                "solar_yield_daily": sfml_reader.get_live_yield(),
                 "solar_to_house": solar_to_house_val,
                 "solar_to_battery": solar_to_battery_val,
                 "battery_to_house": _get_sensor_value(config.get(CONF_SENSOR_BATTERY_TO_HOUSE)),
@@ -2536,12 +2615,50 @@ class EnergySourcesDailyStatsView(HomeAssistantView):
                 "home_consumption": _get_sensor_value(config.get(CONF_SENSOR_HOME_CONSUMPTION)),
             }
 
+            # Hourly data from stats_hourly_billing + prices from GPM
+            hourly_profile = {}
+            hourly_grid = {}
+            daily_prices = {}
+            try:
+                cutoff_date = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+                async with _get_db() as conn:
+                    # Hourly consumption + grid import profile
+                    async with conn.execute(
+                        """SELECT date, hour,
+                                  COALESCE(grid_to_house_kwh, 0) + COALESCE(solar_to_house_kwh, 0)
+                                  + COALESCE(battery_to_house_kwh, 0) AS consumption_kwh,
+                                  COALESCE(grid_to_house_kwh, 0) + COALESCE(grid_to_battery_kwh, 0) AS grid_import_kwh
+                           FROM stats_hourly_billing
+                           WHERE date >= ?
+                           ORDER BY date, hour""",
+                        (cutoff_date,)
+                    ) as cursor:
+                        for row in await cursor.fetchall():
+                            d = row["date"]
+                            h = row["hour"]
+                            hourly_profile.setdefault(d, {})[h] = round(row["consumption_kwh"], 4)
+                            hourly_grid.setdefault(d, {})[h] = round(row["grid_import_kwh"], 4)
+
+                    # Daily average prices from GPM
+                    async with conn.execute(
+                        """SELECT date, average_total FROM GPM_daily_averages
+                           WHERE date >= ? ORDER BY date""",
+                        (cutoff_date,)
+                    ) as cursor:
+                        for row in await cursor.fetchall():
+                            daily_prices[row["date"]] = round(row["average_total"], 2)
+            except Exception as e:
+                _LOGGER.debug("Could not load hourly/price data: %s", e)
+
             return web.json_response({
                 "success": True,
                 "timestamp": datetime.now().isoformat(),
                 "days_requested": days,
                 "daily_stats": daily_stats.get("days", {}),
                 "current_values": current_values,
+                "hourly_consumption": hourly_profile,
+                "hourly_grid": hourly_grid,
+                "daily_prices": daily_prices,
             })
 
         except Exception as err:
@@ -2565,7 +2682,6 @@ class ClothingRecommendationView(HomeAssistantView):
         try:
             from ..clothing_recommendation import get_recommendation
 
-            # Get weather data from Solar Forecast ML cache
             weather_data = await self._get_weather_data()
             if not weather_data:
                 return web.json_response({
@@ -2573,10 +2689,8 @@ class ClothingRecommendationView(HomeAssistantView):
                     "error": "No weather data available"
                 })
 
-            # Get hourly forecast for rain probability
             forecast_hours = await self._get_forecast_hours()
 
-            # Generate recommendation
             recommendation = get_recommendation(weather_data, forecast_hours)
 
             return web.json_response({
@@ -2617,48 +2731,39 @@ class ClothingRecommendationView(HomeAssistantView):
             }, status=500)
 
     async def _get_weather_data(self) -> dict | None:
-        """Get current weather data from Solar Forecast ML. @zara"""
-        # Try open_meteo_cache.json first
-        cache_data = await _read_json_file(SOLAR_PATH / "data" / "open_meteo_cache.json")
-        if cache_data and "forecast" in cache_data:
-            today_str = date.today().isoformat()
-            current_hour = datetime.now().hour
+        """Get current weather data from SFML database. @zara"""
+        today_str = date.today().isoformat()
+        current_hour = str(datetime.now().hour)
 
-            if today_str in cache_data["forecast"]:
-                hour_data = cache_data["forecast"][today_str].get(str(current_hour), {})
-                if hour_data:
-                    return {
-                        "temperature": hour_data.get("temperature", 15),
-                        "humidity": hour_data.get("humidity", 50),
-                        "wind_speed": hour_data.get("wind_speed", 0),
-                        "precipitation": hour_data.get("precipitation", 0),
-                        "cloud_cover": hour_data.get("cloud_cover", 50),
-                        "pressure": hour_data.get("pressure", 1013),
-                        "radiation": hour_data.get("ghi", 0) or hour_data.get("direct_radiation", 0),
-                        "uv_index": hour_data.get("uv_index", 0),
-                    }
+        weather_actual_db = await _get_weather_from_db(days=1)
+        if weather_actual_db and today_str in weather_actual_db and current_hour in weather_actual_db[today_str]:
+            hour_data = weather_actual_db[today_str][current_hour]
+            return {
+                "temperature": hour_data.get("temperature_c", 15),
+                "humidity": hour_data.get("humidity_percent", 50),
+                "wind_speed": hour_data.get("wind_speed_ms", 0),
+                "precipitation": hour_data.get("precipitation_mm", 0),
+                "cloud_cover": hour_data.get("cloud_cover_percent", 50),
+                "pressure": 1013,
+                "radiation": hour_data.get("solar_radiation_wm2", 0),
+                "uv_index": 0,
+            }
 
-        # Fallback: try hourly_weather_actual.json
-        weather_actual = await _read_json_file(SOLAR_PATH / "stats" / "hourly_weather_actual.json")
-        if weather_actual and "hourly_data" in weather_actual:
-            today_str = date.today().isoformat()
-            current_hour = str(datetime.now().hour)
+        forecast_data = await _get_weather_forecast_from_db(days=1)
+        if forecast_data and today_str in forecast_data:
+            hour_data = forecast_data[today_str].get(current_hour, {})
+            if hour_data:
+                return {
+                    "temperature": hour_data.get("temperature", 15),
+                    "humidity": hour_data.get("humidity", 50),
+                    "wind_speed": hour_data.get("wind_speed", 0),
+                    "precipitation": hour_data.get("precipitation", 0),
+                    "cloud_cover": hour_data.get("cloud_cover", 50),
+                    "pressure": 1013,
+                    "radiation": hour_data.get("solar_radiation_wm2", 0),
+                    "uv_index": 0,
+                }
 
-            if today_str in weather_actual["hourly_data"]:
-                hour_data = weather_actual["hourly_data"][today_str].get(current_hour, {})
-                if hour_data:
-                    return {
-                        "temperature": hour_data.get("temperature", 15),
-                        "humidity": hour_data.get("humidity", 50),
-                        "wind_speed": hour_data.get("wind_speed", 0),
-                        "precipitation": hour_data.get("precipitation", 0),
-                        "cloud_cover": hour_data.get("cloud_cover", 50),
-                        "pressure": hour_data.get("pressure", 1013),
-                        "radiation": hour_data.get("radiation", 0),
-                        "uv_index": hour_data.get("uv_index", 0),
-                    }
-
-        # Last fallback: HA weather entity
         config = _get_config()
         weather_ha = _get_weather_data(config.get(CONF_WEATHER_ENTITY))
         if weather_ha:
@@ -2676,23 +2781,25 @@ class ClothingRecommendationView(HomeAssistantView):
         return None
 
     async def _get_forecast_hours(self) -> list[dict] | None:
-        """Get hourly forecast for rain probability. @zara"""
-        cache_data = await _read_json_file(SOLAR_PATH / "data" / "open_meteo_cache.json")
-        if not cache_data or "forecast" not in cache_data:
+        """Get hourly forecast for rain probability from database. @zara"""
+        forecast_data = await _get_weather_forecast_from_db(days=1)
+        if not forecast_data:
             return None
 
         today_str = date.today().isoformat()
         current_hour = datetime.now().hour
         forecast_hours = []
 
-        if today_str in cache_data["forecast"]:
+        if today_str in forecast_data:
             for hour in range(current_hour, 24):
-                hour_data = cache_data["forecast"][today_str].get(str(hour), {})
+                hour_data = forecast_data[today_str].get(str(hour), {})
                 if hour_data:
+                    precip = hour_data.get("precipitation", 0) or 0
+                    precip_prob = 100 if precip > 0 else 0
                     forecast_hours.append({
                         "hour": hour,
-                        "precipitation_probability": hour_data.get("precipitation_probability", 0),
-                        "precipitation": hour_data.get("precipitation", 0),
+                        "precipitation_probability": precip_prob,
+                        "precipitation": precip,
                     })
 
         return forecast_hours if forecast_hours else None
@@ -2707,12 +2814,7 @@ class MonthlyTariffsView(HomeAssistantView):
 
     @local_only
     async def get(self, request: web.Request) -> web.Response:
-        """Get monthly tariffs data. @zara
-
-        Query params:
-        - year: Year to fetch (default: current year)
-        - include_empty: Include months without data (default: false)
-        """
+        """Get monthly tariffs data. @zara"""
         try:
             if HASS is None:
                 return web.json_response({
@@ -2720,7 +2822,6 @@ class MonthlyTariffsView(HomeAssistantView):
                     "error": "Home Assistant not initialized",
                 })
 
-            # Get tariff manager from entry data
             tariff_manager = None
             entries = HASS.data.get(DOMAIN, {})
             for entry_id, entry_data in entries.items():
@@ -2794,19 +2895,7 @@ class MonthlyTariffDetailView(HomeAssistantView):
 
     @local_only
     async def post(self, request: web.Request, year: str, month: str) -> web.Response:
-        """Update overrides for a specific month. @zara
-
-        Request body:
-        {
-            "overrides": {
-                "import_price_ct": 32.5,
-                "export_price_ct": 7.2,
-                "reference_price_ct": 26.0,
-                "grid_fee_ct": 18.0,
-                "eeg_share_percent": 45.0
-            }
-        }
-        """
+        """Update overrides for a specific month. @zara"""
         try:
             if HASS is None:
                 return web.json_response({
@@ -2829,7 +2918,6 @@ class MonthlyTariffDetailView(HomeAssistantView):
             )
 
             if success:
-                # Return updated data
                 month_data = await tariff_manager.get_monthly_data(int(year), int(month))
                 return web.json_response({
                     "success": True,
@@ -2869,13 +2957,7 @@ class MonthlyTariffFinalizeView(HomeAssistantView):
 
     @local_only
     async def post(self, request: web.Request, year: str, month: str) -> web.Response:
-        """Finalize a month and optionally recalculate history. @zara
-
-        Request body:
-        {
-            "recalculate_history": true  // Optional, default true
-        }
-        """
+        """Finalize a month and optionally recalculate history. @zara"""
         try:
             if HASS is None:
                 return web.json_response({
@@ -2960,12 +3042,7 @@ class MonthlyTariffsExportView(HomeAssistantView):
 
     @local_only
     async def get(self, request: web.Request) -> web.Response:
-        """Export monthly tariffs as CSV. @zara
-
-        Query params:
-        - start: Start month in YYYY-MM format (default: January of current year)
-        - end: End month in YYYY-MM format (default: current month)
-        """
+        """Export monthly tariffs as CSV. @zara"""
         try:
             if HASS is None:
                 return web.json_response({
@@ -3061,18 +3138,7 @@ class MonthlyTariffsDefaultsView(HomeAssistantView):
 
     @local_only
     async def post(self, request: web.Request) -> web.Response:
-        """Update default tariff settings. @zara
-
-        Request body:
-        {
-            "reference_price_ct": 26.0,
-            "feed_in_tariff_ct": 8.1,
-            "eeg_import_price_ct": 18.0,
-            "eeg_feed_in_ct": 12.0,
-            "grid_fee_base_ct": 13.0,
-            "grid_fee_scaling_enabled": true
-        }
-        """
+        """Update default tariff settings. @zara"""
         try:
             if HASS is None:
                 return web.json_response({
@@ -3122,14 +3188,7 @@ class MonthlyTariffsDefaultsView(HomeAssistantView):
 
 
 class ExportWeeklyReportView(HomeAssistantView):
-    """View to generate and export weekly report as PNG. @zara
-
-    GET/POST /api/sfml_stats/export_weekly_report
-    Optional JSON body: {"year": 2025, "week": 1}
-    If not provided, uses current week.
-
-    Returns PNG image and saves to sfml_stats/weekly/ folder.
-    """
+    """Generate and export weekly report as PNG. @zara"""
 
     url = "/api/sfml_stats/export_weekly_report"
     name = "api:sfml_stats:export_weekly_report"
@@ -3137,14 +3196,13 @@ class ExportWeeklyReportView(HomeAssistantView):
 
     @local_only
     async def post(self, request: web.Request) -> web.Response:
-        """Generate and return weekly report PNG."""
+        """Generate and return weekly report PNG. @zara"""
         try:
             from datetime import date
             from pathlib import Path
             from ..charts.weekly_report import WeeklyReportChart
             from ..storage import DataValidator
 
-            # Parse optional parameters
             try:
                 data = await request.json()
             except Exception:
@@ -3153,7 +3211,6 @@ class ExportWeeklyReportView(HomeAssistantView):
             year = data.get("year")
             week = data.get("week")
 
-            # Default to current week
             if year is None or week is None:
                 today = date.today()
                 iso = today.isocalendar()
@@ -3162,7 +3219,6 @@ class ExportWeeklyReportView(HomeAssistantView):
 
             _LOGGER.info("Generating weekly report: KW %d/%d (Modern Redesign)", week, year)
 
-            # Get validator from HASS data
             if HASS is None:
                 return web.json_response({
                     "success": False,
@@ -3182,11 +3238,9 @@ class ExportWeeklyReportView(HomeAssistantView):
                     "error": "DataValidator not initialized"
                 }, status=500)
 
-            # Create chart and generate
             chart = WeeklyReportChart(validator)
             fig = await chart.generate(year=year, week=week)
 
-            # Render to PNG bytes
             import io
             from concurrent.futures import ThreadPoolExecutor
 
@@ -3209,7 +3263,6 @@ class ExportWeeklyReportView(HomeAssistantView):
             with ThreadPoolExecutor() as pool:
                 png_bytes = await loop.run_in_executor(pool, _render_to_bytes)
 
-            # Also save to file
             save_path = await chart.save(year=year, week=week)
             _LOGGER.info("Weekly report saved to: %s", save_path)
 
@@ -3231,13 +3284,12 @@ class ExportWeeklyReportView(HomeAssistantView):
 
     @local_only
     async def get(self, request: web.Request) -> web.Response:
-        """GET method - generate with default parameters (current week)."""
+        """Generate weekly report for current week. @zara"""
         from datetime import date
 
         today = date.today()
         iso = today.isocalendar()
 
-        # Create response directly
         class MockRequest:
             async def json(self):
                 return {"year": iso[0], "week": iso[1]}
@@ -3247,42 +3299,33 @@ class ExportWeeklyReportView(HomeAssistantView):
 
 
 class BackgroundImageView(HomeAssistantView):
-    """Serve the dashboard background image. @zara
-
-    GET /api/sfml_stats/background
-    Returns the background image from frontend/dist/background.png
-    """
+    """Serve the dashboard background image. @zara"""
 
     url = "/api/sfml_stats/background"
     name = "api:sfml_stats:background"
     requires_auth = False
 
     async def get(self, request: web.Request) -> web.Response:
-        """Return the background image."""
+        """Return the background image. @zara"""
         from pathlib import Path
 
         bg_path = None
         paths_tried = []
 
-        # Try paths in order of preference
-        # 1. First try via hass.config.path() (works in Docker container)
         if HASS is not None:
-            # Primary: custom_components path
-            primary = Path(HASS.config.path()) / "custom_components" / "sfml_stats" / "frontend" / "dist" / "background.png"
+            primary = Path(HASS.config.path()) / "custom_components" / "sfml_stats" / "frontend" / "dist" / "assets" / "background.webp"
             paths_tried.append(str(primary))
             if primary.exists():
                 bg_path = primary
 
-            # Alternative: sfml_stats data folder
             if bg_path is None:
-                alt_path = Path(HASS.config.path()) / "sfml_stats" / "background.png"
+                alt_path = Path(HASS.config.path()) / "sfml_stats" / "background.webp"
                 paths_tried.append(str(alt_path))
                 if alt_path.exists():
                     bg_path = alt_path
 
-        # 2. Fallback via __file__ (for development/testing)
         if bg_path is None:
-            file_path = Path(__file__).parent.parent / "frontend" / "dist" / "background.png"
+            file_path = Path(__file__).parent.parent / "frontend" / "dist" / "assets" / "background.webp"
             paths_tried.append(str(file_path))
             if file_path.exists():
                 bg_path = file_path
@@ -3297,9 +3340,9 @@ class BackgroundImageView(HomeAssistantView):
 
             return web.Response(
                 body=image_data,
-                content_type="image/png",
+                content_type="image/webp",
                 headers={
-                    "Cache-Control": "public, max-age=86400",  # Cache for 24h
+                    "Cache-Control": "public, max-age=86400",
                 }
             )
         except Exception as err:
@@ -3308,13 +3351,7 @@ class BackgroundImageView(HomeAssistantView):
 
 
 class ForecastComparisonView(HomeAssistantView):
-    """View to get forecast comparison data for the last 7 days. @zara
-
-    GET /api/sfml_stats/forecast_comparison
-    Optional query params: ?days=7
-
-    Returns JSON with comparison data for charting.
-    """
+    """Get forecast comparison data. @zara"""
 
     url = "/api/sfml_stats/forecast_comparison"
     name = "api:sfml_stats:forecast_comparison"
@@ -3322,13 +3359,12 @@ class ForecastComparisonView(HomeAssistantView):
 
     @local_only
     async def get(self, request: web.Request) -> web.Response:
-        """Return forecast comparison data as JSON."""
+        """Return forecast comparison data as JSON. @zara"""
         try:
             from ..readers.forecast_comparison_reader import ForecastComparisonReader
 
-            # Parse optional days parameter
             days = int(request.query.get("days", "7"))
-            days = min(max(days, 1), 30)  # Clamp between 1 and 30
+            days = min(max(days, 1), 30)
 
             if HASS is None:
                 return web.json_response({
@@ -3336,8 +3372,12 @@ class ForecastComparisonView(HomeAssistantView):
                     "error": "Home Assistant not initialized"
                 }, status=500)
 
-            config_path = Path(HASS.config.path())
-            reader = ForecastComparisonReader(config_path)
+            db_path = Path(HASS.config.path()) / SOLAR_FORECAST_DB
+            config = _get_config()
+            ext1_name = config.get(CONF_FORECAST_ENTITY_1_NAME, DEFAULT_FORECAST_ENTITY_1_NAME)
+            ext2_name = config.get(CONF_FORECAST_ENTITY_2_NAME, DEFAULT_FORECAST_ENTITY_2_NAME)
+
+            reader = ForecastComparisonReader(db_path, ext1_name, ext2_name)
 
             if not reader.is_available:
                 return web.json_response({
@@ -3346,8 +3386,6 @@ class ForecastComparisonView(HomeAssistantView):
                     "hint": "Data is collected daily at 23:50"
                 }, status=404)
 
-            # Use async_get_chart_data() which returns the correct format for frontend
-            # Format: {dates: [], actual: [], sfml: [], external_1: [], external_2: [], stats: {}}
             chart_data = await reader.async_get_chart_data(days=days)
 
             return web.json_response({
@@ -3364,13 +3402,7 @@ class ForecastComparisonView(HomeAssistantView):
 
 
 class ForecastComparisonChartView(HomeAssistantView):
-    """View to generate and return forecast comparison chart as PNG. @zara
-
-    GET/POST /api/sfml_stats/forecast_comparison_chart
-    Optional JSON body: {"days": 7}
-
-    Returns PNG image.
-    """
+    """Generate and return forecast comparison chart as PNG. @zara"""
 
     url = "/api/sfml_stats/forecast_comparison_chart"
     name = "api:sfml_stats:forecast_comparison_chart"
@@ -3378,14 +3410,13 @@ class ForecastComparisonChartView(HomeAssistantView):
 
     @local_only
     async def get(self, request: web.Request) -> web.Response:
-        """Generate and return forecast comparison chart as PNG."""
+        """Generate and return forecast comparison chart as PNG. @zara"""
         try:
             from ..charts.forecast_comparison import ForecastComparisonChart
             from ..storage import DataValidator
 
-            # Parse optional days parameter
             days = int(request.query.get("days", "7"))
-            days = min(max(days, 1), 30)  # Clamp between 1 and 30
+            days = min(max(days, 1), 30)
 
             if HASS is None:
                 return web.json_response({
@@ -3393,7 +3424,6 @@ class ForecastComparisonChartView(HomeAssistantView):
                     "error": "Home Assistant not initialized"
                 }, status=500)
 
-            # Get validator from HASS data
             validator = None
             entries = HASS.data.get(DOMAIN, {})
             for entry_id, entry_data in entries.items():
@@ -3409,11 +3439,9 @@ class ForecastComparisonChartView(HomeAssistantView):
 
             _LOGGER.info("Generating forecast comparison chart (%d days)", days)
 
-            # Create chart and generate
             chart = ForecastComparisonChart(validator)
             fig = await chart.generate(days=days)
 
-            # Render to PNG bytes
             import io
             from concurrent.futures import ThreadPoolExecutor
 
@@ -3454,29 +3482,268 @@ class ForecastComparisonChartView(HomeAssistantView):
 
     @local_only
     async def post(self, request: web.Request) -> web.Response:
-        """Handle POST request (same as GET)."""
+        """Handle POST request for forecast comparison chart. @zara"""
         try:
             data = await request.json()
             days = data.get("days", 7)
         except Exception:
             days = 7
 
-        # Create mock request with days parameter
         class MockRequest:
             query = {"days": str(days)}
 
         return await self.get(MockRequest())
 
 
+class ShadowAnalyticsView(HomeAssistantView):
+    """Get shadow analytics data from DB. @zara"""
+
+    url = "/api/sfml_stats/shadow_analytics"
+    name = "api:sfml_stats:shadow_analytics"
+    requires_auth = False
+
+    @local_only
+    async def get(self, request: web.Request) -> web.Response:
+        """Return shadow analytics data as JSON. @zara"""
+        try:
+            if HASS is None:
+                return web.json_response({"success": False, "error": "HASS not initialized"}, status=500)
+
+            days = int(request.query.get("days", "30"))
+            days = min(max(days, 7), 365)
+            cutoff = (date.today() - timedelta(days=days)).isoformat()
+
+            async with _get_db() as conn:
+                # --- Heatmap: shadow_percent per date/hour ---
+                heatmap: dict[str, dict[int, dict]] = {}
+                async with conn.execute(
+                    """SELECT p.target_date, p.target_hour,
+                              h.shadow_percent, h.shadow_type, h.root_cause,
+                              h.efficiency_ratio, h.loss_kwh, h.confidence
+                       FROM hourly_shadow_detection h
+                       JOIN hourly_predictions p ON h.prediction_id = p.prediction_id
+                       WHERE p.target_date >= ?
+                         AND p.target_hour >= 7 AND p.target_hour <= 18
+                       ORDER BY p.target_date, p.target_hour""",
+                    (cutoff,),
+                ) as cursor:
+                    for row in await cursor.fetchall():
+                        d = row["target_date"]
+                        hr = row["target_hour"]
+                        if d not in heatmap:
+                            heatmap[d] = {}
+                        heatmap[d][hr] = {
+                            "pct": round(row["shadow_percent"] or 0, 1),
+                            "type": row["shadow_type"],
+                            "cause": row["root_cause"],
+                            "eff": round(row["efficiency_ratio"] or 0, 2),
+                            "loss": round(row["loss_kwh"] or 0, 3),
+                        }
+
+                # --- Causes distribution ---
+                causes: dict[str, int] = {}
+                async with conn.execute(
+                    """SELECT h.root_cause, COUNT(*) as cnt
+                       FROM hourly_shadow_detection h
+                       JOIN hourly_predictions p ON h.prediction_id = p.prediction_id
+                       WHERE p.target_date >= ?
+                         AND p.target_hour >= 7 AND p.target_hour <= 18
+                         AND h.shadow_type <> 'none'
+                       GROUP BY h.root_cause
+                       ORDER BY cnt DESC""",
+                    (cutoff,),
+                ) as cursor:
+                    for row in await cursor.fetchall():
+                        cause = row["root_cause"] or "unknown"
+                        if cause != "night":
+                            causes[cause] = row["cnt"]
+
+                # --- Daily loss from daily_summary_shadow_analysis ---
+                daily_loss: list[dict] = []
+                async with conn.execute(
+                    """SELECT date, shadow_hours_count, cumulative_loss_kwh
+                       FROM daily_summary_shadow_analysis
+                       WHERE date >= ?
+                       ORDER BY date""",
+                    (cutoff,),
+                ) as cursor:
+                    for row in await cursor.fetchall():
+                        daily_loss.append({
+                            "date": row["date"],
+                            "hours": row["shadow_hours_count"],
+                            "loss_kwh": round(row["cumulative_loss_kwh"] or 0, 3),
+                        })
+
+                # --- Aggregate stats ---
+                total_loss = sum(d["loss_kwh"] for d in daily_loss)
+                total_shadow_hours = sum(d["hours"] for d in daily_loss)
+                days_with_shadow = sum(1 for d in daily_loss if d["hours"] > 0)
+
+                avg_efficiency = None
+                async with conn.execute(
+                    """SELECT AVG(h.efficiency_ratio) as avg_eff
+                       FROM hourly_shadow_detection h
+                       JOIN hourly_predictions p ON h.prediction_id = p.prediction_id
+                       WHERE p.target_date >= ?
+                         AND p.target_hour >= 7 AND p.target_hour <= 18
+                         AND h.shadow_type <> 'none'""",
+                    (cutoff,),
+                ) as cursor:
+                    row = await cursor.fetchone()
+                    if row and row["avg_eff"] is not None:
+                        avg_efficiency = round(row["avg_eff"], 3)
+
+                dominant_cause = max(causes, key=causes.get) if causes else None
+
+                # --- Hourly pattern (avg shadow per hour of day) ---
+                hourly_pattern: dict[int, dict] = {}
+                async with conn.execute(
+                    """SELECT p.target_hour,
+                              AVG(h.shadow_percent) as avg_pct,
+                              COUNT(*) as total,
+                              SUM(CASE WHEN h.shadow_type <> 'none' THEN 1 ELSE 0 END) as shadow_cnt
+                       FROM hourly_shadow_detection h
+                       JOIN hourly_predictions p ON h.prediction_id = p.prediction_id
+                       WHERE p.target_date >= ?
+                         AND p.target_hour >= 7 AND p.target_hour <= 18
+                       GROUP BY p.target_hour
+                       ORDER BY p.target_hour""",
+                    (cutoff,),
+                ) as cursor:
+                    for row in await cursor.fetchall():
+                        hr = row["target_hour"]
+                        hourly_pattern[hr] = {
+                            "avg_pct": round(row["avg_pct"] or 0, 1),
+                            "occurrence_rate": round(row["shadow_cnt"] / row["total"] * 100, 1) if row["total"] > 0 else 0,
+                        }
+
+                # --- Learning state ---
+                learning = {}
+                async with conn.execute("SELECT * FROM shadow_pattern_config WHERE id = 1") as cursor:
+                    row = await cursor.fetchone()
+                    if row:
+                        learning = {
+                            "days_learned": row["total_days_learned"],
+                            "hours_learned": row["total_hours_learned"],
+                            "last_date": row["last_learning_date"],
+                            "patterns_detected": row["patterns_detected"],
+                        }
+
+            return web.json_response({
+                "success": True,
+                "data": {
+                    "stats": {
+                        "total_loss_kwh": round(total_loss, 2),
+                        "shadow_hours": total_shadow_hours,
+                        "days_with_shadow": days_with_shadow,
+                        "days_analyzed": len(daily_loss),
+                        "avg_efficiency": avg_efficiency,
+                        "dominant_cause": dominant_cause,
+                    },
+                    "heatmap": heatmap,
+                    "causes": causes,
+                    "daily_loss": daily_loss,
+                    "hourly_pattern": hourly_pattern,
+                    "learning": learning,
+                },
+            })
+
+        except Exception as err:
+            _LOGGER.error("Error getting shadow analytics: %s", err)
+            return web.json_response({"success": False, "error": str(err)}, status=500)
+
+
+class AIStatusView(HomeAssistantView):
+    """Get basic AI/ML model status. @zara"""
+
+    url = "/api/sfml_stats/ai_status"
+    name = "api:sfml_stats:ai_status"
+    requires_auth = False
+
+    @local_only
+    async def get(self, request: web.Request) -> web.Response:
+        """Return AI model status as JSON. @zara"""
+        try:
+            if HASS is None:
+                return web.json_response({"success": False, "error": "HASS not initialized"}, status=500)
+
+            async with _get_db() as conn:
+                # Active model info
+                model_info = {}
+                async with conn.execute(
+                    "SELECT * FROM ai_learned_weights_meta WHERE id = 1"
+                ) as cursor:
+                    row = await cursor.fetchone()
+                    if row:
+                        model_info = {
+                            "active_model": row["active_model"],
+                            "training_samples": row["training_samples"],
+                            "accuracy": round((row["accuracy"] or 0) * 100, 1),
+                            "rmse": round(row["rmse"] or 0, 4),
+                            "last_trained": row["last_trained"],
+                        }
+
+                # Grid search history
+                grid_search = {}
+                async with conn.execute(
+                    "SELECT COUNT(*) as runs, MAX(accuracy) as best_acc FROM ai_grid_search_results"
+                ) as cursor:
+                    row = await cursor.fetchone()
+                    if row:
+                        grid_search = {
+                            "total_runs": row["runs"],
+                            "best_accuracy": round((row["best_acc"] or 0) * 100, 1),
+                        }
+
+                # Shadow learning state
+                shadow_learning = {}
+                async with conn.execute(
+                    "SELECT * FROM shadow_pattern_config WHERE id = 1"
+                ) as cursor:
+                    row = await cursor.fetchone()
+                    if row:
+                        shadow_learning = {
+                            "days_learned": row["total_days_learned"],
+                            "patterns_detected": row["patterns_detected"],
+                            "last_date": row["last_learning_date"],
+                        }
+
+                # Drift events count
+                drift_count = 0
+                async with conn.execute(
+                    "SELECT COUNT(*) as cnt FROM drift_events WHERE event_date >= date('now', '-7 days')"
+                ) as cursor:
+                    row = await cursor.fetchone()
+                    if row:
+                        drift_count = row["cnt"]
+
+                # Training data size
+                hourly_count = 0
+                async with conn.execute(
+                    "SELECT COUNT(*) as cnt FROM hourly_predictions WHERE actual_kwh IS NOT NULL"
+                ) as cursor:
+                    row = await cursor.fetchone()
+                    if row:
+                        hourly_count = row["cnt"]
+
+            return web.json_response({
+                "success": True,
+                "data": {
+                    "model": model_info,
+                    "grid_search": grid_search,
+                    "shadow_learning": shadow_learning,
+                    "drift_events_7d": drift_count,
+                    "training_data_points": hourly_count,
+                },
+            })
+
+        except Exception as err:
+            _LOGGER.error("Error getting AI status: %s", err)
+            return web.json_response({"success": False, "error": str(err)}, status=500)
+
+
 class DashboardSettingsView(HomeAssistantView):
-    """API endpoint for dashboard settings (theme, style). @zara
-
-    GET /api/sfml_stats/dashboard_settings
-    Returns current dashboard settings including dashboard_style and theme.
-
-    POST /api/sfml_stats/dashboard_settings
-    Updates dashboard settings (stores in session, does not persist to config).
-    """
+    """API endpoint for dashboard settings. @zara"""
 
     url = "/api/sfml_stats/dashboard_settings"
     name = "api:sfml_stats:dashboard_settings"
@@ -3497,17 +3764,12 @@ class DashboardSettingsView(HomeAssistantView):
 
     @local_only
     async def post(self, request: web.Request) -> web.Response:
-        """Update dashboard settings (session only, not persisted). @zara
-
-        This allows the frontend to temporarily switch styles without
-        modifying the Home Assistant config entry.
-        """
+        """Update dashboard settings for current session. @zara"""
         try:
             data = await request.json()
             dashboard_style = data.get("dashboard_style")
             theme = data.get("theme")
 
-            # Store in HASS data for session (not persisted)
             if HASS is not None and DOMAIN in HASS.data:
                 entries = HASS.data.get(DOMAIN, {})
                 for entry_id, entry_data in entries.items():

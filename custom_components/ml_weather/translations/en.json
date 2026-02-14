@@ -6,20 +6,21 @@
         "description": "Configure the ML Weather integration that provides corrected weather data from Solar Forecast ML.",
         "data": {
           "name": "Name",
-          "data_path": "Path to corrected weather data"
+          "data_path": "Path to Solar Forecast ML database"
         },
         "data_description": {
           "name": "Display name for the weather entity",
-          "data_path": "Full path to the weather_forecast_corrected.json file"
+          "data_path": "Relative path to the Solar Forecast ML database file (e.g., solar_forecast_ml/solar_forecast.db)"
         }
       }
     },
     "error": {
-      "file_not_found": "The specified file was not found. Please check the path.",
+      "db_not_found": "The database file was not found. Please check the path.",
       "not_a_file": "The specified path is not a file.",
-      "file_too_large": "The file is too large to process.",
-      "permission_denied": "Permission denied. Cannot read the file.",
-      "invalid_json": "The file does not contain valid JSON data.",
+      "not_a_database": "The specified file is not a .db database file.",
+      "missing_weather_table": "The database does not contain the required weather_forecast table.",
+      "invalid_database": "The file is not a valid SQLite database.",
+      "permission_denied": "Permission denied. Cannot read the database file.",
       "cannot_read": "Cannot read the file. Please check permissions.",
       "path_not_allowed": "Path must be within /config/ or /share/ directory.",
       "unknown": "An unknown error occurred."
@@ -33,16 +34,17 @@
       "init": {
         "title": "ML Weather Options",
         "data": {
-          "data_path": "Path to corrected weather data"
+          "data_path": "Path to Solar Forecast ML database"
         }
       }
     },
     "error": {
-      "file_not_found": "The specified file was not found. Please check the path.",
+      "db_not_found": "The database file was not found. Please check the path.",
       "not_a_file": "The specified path is not a file.",
-      "file_too_large": "The file is too large to process.",
-      "permission_denied": "Permission denied. Cannot read the file.",
-      "invalid_json": "The file does not contain valid JSON data.",
+      "not_a_database": "The specified file is not a .db database file.",
+      "missing_weather_table": "The database does not contain the required weather_forecast table.",
+      "invalid_database": "The file is not a valid SQLite database.",
+      "permission_denied": "Permission denied. Cannot read the database file.",
       "cannot_read": "Cannot read the file. Please check permissions.",
       "path_not_allowed": "Path must be within /config/ or /share/ directory."
     }

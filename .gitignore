@@ -32,3 +32,6 @@ tts/*
 *.lock
 
 file_notifications/*.txt
+
+# Solar Forecast ML
+solar_forecast_ml/

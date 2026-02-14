@@ -1,10 +1,11 @@
 {
   "domain": "ml_weather",
   "name": "ML Weather (Korrigierte Wetterdaten)",
-  "version": "6.2.0",
+  "version": "8.0.0",
   "documentation": "https://github.com/custom-components/ml_weather",
   "issue_tracker": "https://github.com/custom-components/ml_weather/issues",
   "dependencies": [],
+  "after_dependencies": ["solar_forecast_ml"],
   "config_flow": true,
   "codeowners": [],
   "requirements": [],

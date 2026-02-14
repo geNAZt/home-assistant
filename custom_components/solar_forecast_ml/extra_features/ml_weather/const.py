@@ -14,7 +14,7 @@ from homeassistant.const import Platform
 # Base component constants
 DOMAIN = "ml_weather"
 NAME = "ML Weather"
-VERSION = "6.2.0"  # Must match manifest.json
+VERSION = "8.0.0"  # Must match manifest.json
 ATTRIBUTION = "Data provided by Solar Forecast ML (Multi-Expert Blended & Corrected)"
 
 # Platforms
@@ -31,24 +31,14 @@ ML_WEATHER_COORDINATOR = "ml_weather_coordinator"
 ML_WEATHER_DATA = "ml_weather_data"
 
 # Config keys
-CONF_DATA_PATH = "data_path"
+CONF_DATA_PATH = "data_path"  # Keep for backward compatibility with config entries
 CONF_NAME = "name"
 
-# Paths
-# Source path (Solar Forecast ML weather integration cache - updated 5x daily)
-# Falls back to weather_forecast_corrected.json if integration cache not available
-DEFAULT_SOURCE_PATH = "/config/solar_forecast_ml/stats/weather_integration_ml.json"
-FALLBACK_SOURCE_PATH = "/config/solar_forecast_ml/stats/weather_forecast_corrected.json"
-
-# Cache directory (own cache for independence)
-CACHE_DIR = "/config/sfml_weather"
-CACHE_FILE = "weather_cache.json"
-
-# PV Forecast source path
-PV_FORECAST_SOURCE_PATH = "/config/solar_forecast_ml/stats/daily_forecasts.json"
+# Database path (relative to HA config directory)
+DEFAULT_DB_PATH = "solar_forecast_ml/solar_forecast.db"
 
 # Legacy alias for config flow
-DEFAULT_DATA_PATH = DEFAULT_SOURCE_PATH
+DEFAULT_DATA_PATH = DEFAULT_DB_PATH
 
 # Forecast attributes (extra beyond standard HA)
 ATTR_FORECAST_CLOUD_COVERAGE = "cloud_coverage"
@@ -103,7 +93,3 @@ RAIN_THRESHOLD_MODERATE = 0.5  # Moderate rain
 
 # Wind speed conversion factor (m/s to km/h)
 WIND_SPEED_CONVERSION = 3.6
-
-# Cache constants
-CACHE_MAX_AGE_HOURS = 24  # Maximum cache age before considered stale
-CACHE_MAX_SIZE_MB = 10    # Maximum cache size in MB

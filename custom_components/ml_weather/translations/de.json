@@ -6,20 +6,21 @@
         "description": "Konfiguriere die ML Weather Integration, die korrigierte Wetterdaten von Solar Forecast ML bereitstellt.",
         "data": {
           "name": "Name",
-          "data_path": "Pfad zu den korrigierten Wetterdaten"
+          "data_path": "Pfad zur Solar Forecast ML Datenbank"
         },
         "data_description": {
           "name": "Anzeigename für die Wetter-Entität",
-          "data_path": "Vollständiger Pfad zur weather_forecast_corrected.json Datei"
+          "data_path": "Relativer Pfad zur Solar Forecast ML Datenbankdatei (z.B. solar_forecast_ml/solar_forecast.db)"
         }
       }
     },
     "error": {
-      "file_not_found": "Die angegebene Datei wurde nicht gefunden. Bitte überprüfe den Pfad.",
+      "db_not_found": "Die Datenbankdatei wurde nicht gefunden. Bitte überprüfe den Pfad.",
       "not_a_file": "Der angegebene Pfad ist keine Datei.",
-      "file_too_large": "Die Datei ist zu groß zur Verarbeitung.",
-      "permission_denied": "Zugriff verweigert. Die Datei kann nicht gelesen werden.",
-      "invalid_json": "Die Datei enthält keine gültigen JSON-Daten.",
+      "not_a_database": "Die angegebene Datei ist keine .db Datenbankdatei.",
+      "missing_weather_table": "Die Datenbank enthält nicht die benötigte weather_forecast Tabelle.",
+      "invalid_database": "Die Datei ist keine gültige SQLite-Datenbank.",
+      "permission_denied": "Zugriff verweigert. Die Datenbankdatei kann nicht gelesen werden.",
       "cannot_read": "Die Datei kann nicht gelesen werden. Bitte Berechtigungen prüfen.",
       "path_not_allowed": "Der Pfad muss innerhalb von /config/ oder /share/ sein.",
       "unknown": "Ein unbekannter Fehler ist aufgetreten."
@@ -33,16 +34,17 @@
       "init": {
         "title": "ML Weather Optionen",
         "data": {
-          "data_path": "Pfad zu den korrigierten Wetterdaten"
+          "data_path": "Pfad zur Solar Forecast ML Datenbank"
         }
       }
     },
     "error": {
-      "file_not_found": "Die angegebene Datei wurde nicht gefunden. Bitte überprüfe den Pfad.",
+      "db_not_found": "Die Datenbankdatei wurde nicht gefunden. Bitte überprüfe den Pfad.",
       "not_a_file": "Der angegebene Pfad ist keine Datei.",
-      "file_too_large": "Die Datei ist zu groß zur Verarbeitung.",
-      "permission_denied": "Zugriff verweigert. Die Datei kann nicht gelesen werden.",
-      "invalid_json": "Die Datei enthält keine gültigen JSON-Daten.",
+      "not_a_database": "Die angegebene Datei ist keine .db Datenbankdatei.",
+      "missing_weather_table": "Die Datenbank enthält nicht die benötigte weather_forecast Tabelle.",
+      "invalid_database": "Die Datei ist keine gültige SQLite-Datenbank.",
+      "permission_denied": "Zugriff verweigert. Die Datenbankdatei kann nicht gelesen werden.",
       "cannot_read": "Die Datei kann nicht gelesen werden. Bitte Berechtigungen prüfen.",
       "path_not_allowed": "Der Pfad muss innerhalb von /config/ oder /share/ sein."
     }

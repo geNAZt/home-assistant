@@ -8,9 +8,7 @@
 # ******************************************************************************
 """Config flow for ML Weather integration."""
 
-import json
 import logging
-import os
 from pathlib import Path
 from typing import Any
 
@@ -25,7 +23,6 @@ from .const import (
     CONF_DATA_PATH,
     CONF_NAME,
     DEFAULT_DATA_PATH,
-    CACHE_MAX_SIZE_MB,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -36,44 +33,50 @@ ALLOWED_BASE_PATHS = ("/config/", "/share/")
 
 def _validate_path_security(path: str) -> bool:
     """Validate that path is within allowed directories."""
-    resolved_path = str(Path(path).resolve())
+    # Handle relative paths by resolving against /config
+    if not Path(path).is_absolute():
+        resolved_path = str((Path("/config") / path).resolve())
+    else:
+        resolved_path = str(Path(path).resolve())
     return any(resolved_path.startswith(base) for base in ALLOWED_BASE_PATHS)
 
 
-def _validate_json_file(path: str) -> tuple[bool, str | None]:
-    """Validate that file exists, is readable, and contains valid JSON.
+def _validate_db_file(path: str) -> tuple[bool, str | None]:
+    """Validate that database file exists and is accessible.
 
     Returns:
         Tuple of (is_valid, error_key) where error_key is None if valid.
     """
     file_path = Path(path)
 
-    # Check existence
-    if not file_path.exists():
-        return False, "file_not_found"
+    # If path is relative, resolve against /config
+    if not file_path.is_absolute():
+        file_path = Path("/config") / file_path
 
-    # Check it's a file, not a directory
+    if not file_path.exists():
+        return False, "db_not_found"
+
     if not file_path.is_file():
         return False, "not_a_file"
 
-    # Check file size
-    try:
-        file_size_mb = file_path.stat().st_size / (1024 * 1024)
-        if file_size_mb > CACHE_MAX_SIZE_MB:
-            return False, "file_too_large"
-    except OSError:
-        return False, "cannot_read"
+    if not str(file_path).endswith(".db"):
+        return False, "not_a_database"
 
-    # Check readability and JSON validity
+    # Verify it's a valid SQLite database with required tables
     try:
-        with open(file_path, "r", encoding="utf-8") as f:
-            json.load(f)
-    except PermissionError:
-        return False, "permission_denied"
-    except json.JSONDecodeError:
-        return False, "invalid_json"
-    except OSError:
-        return False, "cannot_read"
+        import sqlite3
+        conn = sqlite3.connect(str(file_path))
+        cursor = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('weather_forecast', 'daily_forecasts')"
+        )
+        tables = {row[0] for row in cursor.fetchall()}
+        conn.close()
+
+        if "weather_forecast" not in tables:
+            return False, "missing_weather_table"
+
+    except Exception:
+        return False, "invalid_database"
 
     return True, None
 
@@ -81,7 +84,7 @@ def _validate_json_file(path: str) -> tuple[bool, str | None]:
 class MLWeatherConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for ML Weather."""
 
-    VERSION = 1
+    VERSION = 2
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -90,7 +93,6 @@ class MLWeatherConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            # Validate the data path
             data_path = user_input.get(CONF_DATA_PATH, DEFAULT_DATA_PATH)
 
             # Security check: ensure path is within allowed directories
@@ -100,9 +102,9 @@ class MLWeatherConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             if not is_secure:
                 errors["base"] = "path_not_allowed"
             else:
-                # Validate file exists and is readable JSON
+                # Validate database file
                 is_valid, error_key = await self.hass.async_add_executor_job(
-                    _validate_json_file, data_path
+                    _validate_db_file, data_path
                 )
 
                 if not is_valid:
@@ -155,7 +157,6 @@ class MLWeatherOptionsFlow(config_entries.OptionsFlow):
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            # Validate the data path
             data_path = user_input.get(CONF_DATA_PATH, DEFAULT_DATA_PATH)
 
             # Security check
@@ -165,9 +166,9 @@ class MLWeatherOptionsFlow(config_entries.OptionsFlow):
             if not is_secure:
                 errors["base"] = "path_not_allowed"
             else:
-                # Validate file
+                # Validate database file
                 is_valid, error_key = await self.hass.async_add_executor_job(
-                    _validate_json_file, data_path
+                    _validate_db_file, data_path
                 )
 
                 if not is_valid:

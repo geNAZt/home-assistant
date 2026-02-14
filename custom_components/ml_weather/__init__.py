@@ -17,10 +17,27 @@ from .const import (
     PLATFORMS,
     ML_WEATHER_COORDINATOR,
     ML_WEATHER_DATA,
+    CONF_DATA_PATH,
+    DEFAULT_DB_PATH,
 )
 from .coordinator import MLWeatherCoordinator
 
 _LOGGER = logging.getLogger(__name__)
+
+
+async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
+    """Migrate old config entry from v1 (JSON) to v2 (database)."""
+    if config_entry.version == 1:
+        _LOGGER.info("Migrating ML Weather config entry from version 1 to 2")
+        new_data = {**config_entry.data}
+        old_path = new_data.get(CONF_DATA_PATH, "")
+        if old_path.endswith(".json"):
+            new_data[CONF_DATA_PATH] = DEFAULT_DB_PATH
+            _LOGGER.info("Migrated data path from %s to %s", old_path, DEFAULT_DB_PATH)
+
+        hass.config_entries.async_update_entry(config_entry, data=new_data, version=2)
+        _LOGGER.info("Migration to version 2 successful")
+    return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -43,6 +60,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
+    # Close database connection
+    coordinator: MLWeatherCoordinator = hass.data[DOMAIN][entry.entry_id][ML_WEATHER_COORDINATOR]
+    await coordinator.async_close()
+
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
     if unload_ok:

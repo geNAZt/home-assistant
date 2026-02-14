@@ -8,10 +8,8 @@
 # ******************************************************************************
 """DataUpdateCoordinator for ML Weather."""
 
-import json
 import logging
-from datetime import datetime, timedelta
-from pathlib import Path
+from datetime import timedelta
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -21,17 +19,16 @@ from homeassistant.util import dt as dt_util
 
 from .const import (
     DOMAIN,
-    DEFAULT_SOURCE_PATH,
+    DEFAULT_DB_PATH,
     DEFAULT_SCAN_INTERVAL,
     CONF_DATA_PATH,
     CONDITION_MAP,
-    PV_FORECAST_SOURCE_PATH,
     FORECAST_HOURS,
     FORECAST_DAYS,
     RAIN_THRESHOLD_LIGHT,
     RAIN_THRESHOLD_MODERATE,
 )
-from .cache_manager import CacheManager
+from .db_reader import DatabaseReader
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -48,14 +45,12 @@ class MLWeatherCoordinator(DataUpdateCoordinator):
         """Initialize the coordinator."""
         self.hass = hass
         self.entry = entry
-        self._source_path = entry.data.get(CONF_DATA_PATH, DEFAULT_SOURCE_PATH)
+        db_path = entry.data.get(CONF_DATA_PATH, DEFAULT_DB_PATH)
+        self._db_reader = DatabaseReader(hass, db_path)
         self._raw_data: dict = {}
         self._pv_forecast_data: dict = {}
         self._consecutive_failures: int = 0
         self._base_interval = DEFAULT_SCAN_INTERVAL
-
-        # Initialize cache manager
-        self._cache_manager = CacheManager(hass, self._source_path)
 
         super().__init__(
             hass,
@@ -65,46 +60,45 @@ class MLWeatherCoordinator(DataUpdateCoordinator):
         )
 
     async def async_config_entry_first_refresh(self) -> None:
-        """Initialize cache and perform first refresh."""
-        await self._cache_manager.async_initialize()
+        """Initialize DB connection and perform first refresh."""
+        await self._db_reader.async_connect()
         await super().async_config_entry_first_refresh()
 
     async def _async_update_data(self) -> dict[str, Any]:
-        """Fetch data via cache manager with retry backoff."""
+        """Fetch data from SQLite database with retry backoff."""
         try:
-            # Update cache from source (if newer) and get data
-            data = await self._cache_manager.async_update_cache()
+            # Calculate date range: today through FORECAST_DAYS ahead
+            now = dt_util.now()
+            start_date = now.strftime("%Y-%m-%d")
+            end_date = (now + timedelta(days=FORECAST_DAYS)).strftime("%Y-%m-%d")
 
-            if data is None:
-                self._handle_failure()
-                raise UpdateFailed("No weather data available (source and cache empty)")
-
-            self._raw_data = data
-
-            # Load PV forecast data
-            self._pv_forecast_data = await self.hass.async_add_executor_job(
-                self._load_pv_forecast
+            # Read weather forecast from DB
+            forecast_data = await self._db_reader.async_get_weather_forecast(
+                start_date, end_date
             )
+
+            if not forecast_data:
+                self._handle_failure()
+                raise UpdateFailed("No weather data available from database")
+
+            self._raw_data = forecast_data
+
+            # Read PV forecast from DB
+            self._pv_forecast_data = await self._db_reader.async_get_pv_forecast()
+
+            # Get version
+            version = await self._db_reader.async_get_weather_version()
 
             # Success - reset failure counter and interval
             self._handle_success()
 
-            return self._process_data(data)
+            return self._process_data(forecast_data, version)
 
         except UpdateFailed:
             raise
-        except json.JSONDecodeError as err:
-            self._handle_failure()
-            raise UpdateFailed(f"Invalid JSON in weather data: {err}") from err
-        except PermissionError as err:
-            self._handle_failure()
-            raise UpdateFailed(f"Permission denied accessing weather data: {err}") from err
-        except OSError as err:
-            self._handle_failure()
-            raise UpdateFailed(f"OS error loading weather data: {err}") from err
         except Exception as err:
             self._handle_failure()
-            raise UpdateFailed(f"Unexpected error loading weather data: {err}") from err
+            raise UpdateFailed(f"Error loading weather data from database: {err}") from err
 
     def _handle_failure(self) -> None:
         """Handle update failure with exponential backoff."""
@@ -140,25 +134,9 @@ class MLWeatherCoordinator(DataUpdateCoordinator):
         self._consecutive_failures = 0
         self.update_interval = self._base_interval
 
-    def _load_pv_forecast(self) -> dict[str, Any]:
-        """Load PV forecast data from Solar Forecast ML."""
-        pv_path = Path(PV_FORECAST_SOURCE_PATH)
-        if not pv_path.exists():
-            _LOGGER.debug(f"PV forecast file not found: {PV_FORECAST_SOURCE_PATH}")
-            return {}
-
-        try:
-            with open(pv_path, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception as err:
-            _LOGGER.warning(f"Error loading PV forecast: {err}")
-            return {}
-
-    def _process_data(self, raw_data: dict) -> dict[str, Any]:
-        """Process raw data into usable format."""
-        forecast_data = raw_data.get("forecast", {})
-
-        # Get current weather (current hour) - use timezone-aware datetime
+    def _process_data(self, forecast_data: dict, version: str) -> dict[str, Any]:
+        """Process forecast data into usable format."""
+        # Get current weather (current hour)
         now = dt_util.now()
         today_str = now.strftime("%Y-%m-%d")
         current_hour = str(now.hour)
@@ -168,9 +146,8 @@ class MLWeatherCoordinator(DataUpdateCoordinator):
         return {
             "current": current,
             "forecast": forecast_data,
-            "version": raw_data.get("version", "unknown"),
-            "metadata": raw_data.get("metadata", {}),
-            "cache_info": None,  # Will be populated on demand
+            "version": version,
+            "metadata": {},
         }
 
     def _get_hour_data(self, forecast: dict, date_str: str, hour: str) -> dict[str, Any]:
@@ -254,7 +231,7 @@ class MLWeatherCoordinator(DataUpdateCoordinator):
 
         forecast_data = self.data.get("forecast", {})
         forecasts = []
-        now = dt_util.now()  # Use timezone-aware datetime
+        now = dt_util.now()
 
         # Generate forecasts for next FORECAST_HOURS hours
         for hours_ahead in range(FORECAST_HOURS):
@@ -352,14 +329,14 @@ class MLWeatherCoordinator(DataUpdateCoordinator):
 
         return daily_forecasts
 
-    async def async_get_cache_info(self) -> dict[str, Any]:
-        """Get cache status information."""
-        return await self._cache_manager.async_get_cache_info()
+    async def async_get_db_info(self) -> dict[str, Any]:
+        """Get database status information."""
+        return await self._db_reader.async_get_db_info()
 
     @property
-    def cache_path(self) -> str:
-        """Return the path to the cache file."""
-        return self._cache_manager.cache_path
+    def db_path(self) -> str:
+        """Return the path to the database file."""
+        return self._db_reader.db_path
 
     def get_pv_forecast(self) -> dict[str, Any]:
         """Get PV forecast data for today, tomorrow, and day after tomorrow."""
@@ -370,28 +347,18 @@ class MLWeatherCoordinator(DataUpdateCoordinator):
                 "day_after_tomorrow": None,
             }
 
-        today_data = self._pv_forecast_data.get("today", {})
-
-        # Today's forecast
-        forecast_day = today_data.get("forecast_day", {})
-        today_kwh = forecast_day.get("prediction_kwh")
-
-        # Tomorrow's forecast
-        forecast_tomorrow = today_data.get("forecast_tomorrow", {})
-        tomorrow_kwh = forecast_tomorrow.get("prediction_kwh")
-
-        # Day after tomorrow's forecast
-        forecast_day_after = today_data.get("forecast_day_after_tomorrow", {})
-        day_after_kwh = forecast_day_after.get("prediction_kwh")
-
         return {
-            "today": today_kwh,
-            "today_source": forecast_day.get("source"),
-            "today_locked": forecast_day.get("locked", False),
-            "tomorrow": tomorrow_kwh,
-            "tomorrow_date": forecast_tomorrow.get("date"),
-            "tomorrow_source": forecast_tomorrow.get("source"),
-            "day_after_tomorrow": day_after_kwh,
-            "day_after_tomorrow_date": forecast_day_after.get("date"),
-            "day_after_tomorrow_source": forecast_day_after.get("source"),
+            "today": self._pv_forecast_data.get("today"),
+            "today_source": self._pv_forecast_data.get("today_source"),
+            "today_locked": self._pv_forecast_data.get("today_locked", False),
+            "tomorrow": self._pv_forecast_data.get("tomorrow"),
+            "tomorrow_date": self._pv_forecast_data.get("tomorrow_date"),
+            "tomorrow_source": self._pv_forecast_data.get("tomorrow_source"),
+            "day_after_tomorrow": self._pv_forecast_data.get("day_after_tomorrow"),
+            "day_after_tomorrow_date": self._pv_forecast_data.get("day_after_tomorrow_date"),
+            "day_after_tomorrow_source": self._pv_forecast_data.get("day_after_tomorrow_source"),
         }
+
+    async def async_close(self) -> None:
+        """Close database connection."""
+        await self._db_reader.async_close()
