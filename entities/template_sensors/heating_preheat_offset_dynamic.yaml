@@ -14,7 +14,7 @@ sensor:
     {% set internal_gains = states('sensor.internal_gains_average') | float(0) %}
     {% set total_gains = ((solar_gains + internal_gains) * hours_to_bridge) / 1000 %}
     {% set needed_offset = ((total_energy_loss - total_gains) / c_real) %}
-    {{ needed_offset | round(2) }}
+    {{ needed_offset | round(1) }}
   attributes:
     solar_gains: "{{ states('sensor.solar_gains_average') }}"
     internal_gains: "{{ states('sensor.internal_gains_average') }}"
