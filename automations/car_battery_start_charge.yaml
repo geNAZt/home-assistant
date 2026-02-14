@@ -16,7 +16,7 @@
   conditions:
     - condition: numeric_state
       entity_id: sensor.hexe_car_evinfo_battery_stateofcharge
-      below: 85
+      below: 75
   actions:
     - action: select.select_option
       data:
