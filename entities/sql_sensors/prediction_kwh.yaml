@@ -1,0 +1,12 @@
+name: Solar Prediction kWh
+db_url: sqlite:////config/solar_forecast_ml/solar_forecast.db
+query: >
+  SELECT 'active' as state, 
+         json_group_object(target_datetime, prediction_kwh) as predictions
+  FROM (
+      SELECT target_datetime, prediction_kwh 
+      FROM hourly_predictions 
+      WHERE target_datetime > datetime('now', '-1 day')
+      ORDER BY target_datetime ASC
+  );
+column: "state"
