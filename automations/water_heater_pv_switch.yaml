@@ -8,6 +8,7 @@
   variables:
     # Current PV excess power
     exported_power: "{{ states('sensor.filtered_exported_power_w') | float(0) }}"
+    imported_power: "{{ states('sensor.filtered_imported_power_w') | float(0) }}"
     
     # Current switch states
     stage_1_state: "{{ is_state('switch.water_heater_pv_switch_powerr_usage_stage_1', 'on') }}"
@@ -16,7 +17,7 @@
     # Determine which stage should be active
     should_stage_1: "{{ exported_power >= 500 and exported_power < 1600 }}"
     should_stage_2: "{{ exported_power >= 1600 }}"
-    should_all_off: "{{ exported_power < 500 }}"
+    should_all_off: "{{ imported_power > 100 }}"
   
   condition: []
   action:
