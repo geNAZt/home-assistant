@@ -10,13 +10,11 @@
     conditions:
     - condition: template
       value_template: "{{ states('binary_sensor.goe_288025_car_0') == 'on' }}"
-    - condition: template 
-      value_template: "{{ states('sensor.filtered_exported_power_w') | float(0) > 1600 }}"
     - condition: template
       value_template: "{{ states('sensor.hexe_car_evinfo_battery_stateofcharge') | float(0) < 99 }}"
   variables:
-    # Current state
-    exported_power: "{{ states('sensor.filtered_exported_power_w') | float(0) }}"
+    # Current state (will be negative for import, positive for export)
+    exported_power: "{{ states('sensor.pv_m1_ac_power') | float(0) }}"
     
     # Calculate pgrid value
     pgrid_value: >-
