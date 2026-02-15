@@ -4,7 +4,7 @@
   mode: restart
   trigger:
     - platform: time_pattern
-      seconds: "/5" # The charger forgets after 5 seconds
+      seconds: "/2" # The charger forgets after 5 seconds
   condition:
   - condition: and
     conditions:
@@ -13,7 +13,7 @@
     - condition: template 
       value_template: "{{ states('sensor.filtered_exported_power_w') | float(0) > 1600 }}"
     - condition: template
-      value_template: "{{ states('sensor.hexe_car_evinfo_battery_stateofcharge') | float(0) < 85 }}"
+      value_template: "{{ states('sensor.hexe_car_evinfo_battery_stateofcharge') | float(0) < 99 }}"
   variables:
     # Current state
     exported_power: "{{ states('sensor.filtered_exported_power_w') | float(0) }}"
