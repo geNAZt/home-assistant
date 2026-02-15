@@ -7,7 +7,7 @@
       minutes: "/1"
   variables:
     current_hour: "{{ now().hour }}"
-    is_charge_window: "{{ current_hour >= 0 and current_hour <= 5 }}"
+    is_charge_window: "{{ current_hour >= 0 and current_hour < 5 }}"
     battery_charge_enabled: "{{ is_state('binary_sensor.preheat_erlaubt_demand_weighted', 'on') }}"
 
     # Batterie-Parameter
@@ -24,8 +24,8 @@
     # --- ROLLIERENDE ZEITBERECHNUNG ---
     # Wenn es nach 5 Uhr morgens ist, berechnen wir für das NÄCHSTE Fenster (morgen früh)
     next_charge_end: >-
-      {% set t = now().replace(hour=6, minute=0, second=0, microsecond=0) %}
-      {% if now().hour >= 6 %}
+      {% set t = now().replace(hour=5, minute=0, second=0, microsecond=0) %}
+      {% if now().hour >= 5 %}
         {{ as_timestamp(t + timedelta(days=1)) }}
       {% else %}
         {{ as_timestamp(t) }}
@@ -39,8 +39,6 @@
       {% else %}
         {{ as_timestamp(t) }}
       {% endif %}
-
-    hours_until_6am: "{{ max(0.1, (next_charge_end | float - as_timestamp(now())) / 3600.0) }}"
 
     # --- SQL DATEN VERARBEITUNG ---
     predictions: "{{ state_attr('sensor.solar_prediction_kwh', 'predictions') }}"
@@ -95,8 +93,8 @@
     
     charging_power_w: >-
       {% if energy_needed_kwh > 0.01 and is_charge_window %}
-        {# Im Ladefenster: Restenergie durch Reststunden bis 6 Uhr #}
-        {% set remaining_hours = (as_timestamp(now().replace(hour=6, minute=0, second=0)) - as_timestamp(now())) / 3600.0 %}
+        {# Im Ladefenster: Restenergie durch Reststunden bis 5 Uhr #}
+        {% set remaining_hours = (as_timestamp(now().replace(hour=5, minute=0, second=0)) - as_timestamp(now())) / 3600.0 %}
         {{ [ (energy_needed_kwh / max(0.1, remaining_hours) * 1000.0) | int, 5000 ] | min }}
       {% else %}
         0
