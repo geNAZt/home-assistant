@@ -17,8 +17,8 @@
     
     # Determine which stage should be active
     should_stage_1: "{{ exported_power >= 500 and exported_power < 1600 }}"
-    should_stage_2: "{{ exported_power >= 1600 OR (stage_1_state and exported_power >= 1100 ) }}"
-    should_all_off: "{{ imported_power > 100 OR battery_import_power < -300 }}"
+    should_stage_2: "{{ exported_power >= 1600 or (stage_1_state and exported_power >= 1100 ) }}"
+    should_all_off: "{{ imported_power > 100 or battery_import_power < -300 }}"
   
   condition: []
   action:
