@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import random
+from collections import ChainMap
 from datetime import timedelta
 from time import time
 from typing import Any, Final
@@ -12,8 +13,17 @@ from custom_components.goecharger_api2.pygoecharger_ha import GoeChargerApiV2Bri
 from custom_components.goecharger_api2.pygoecharger_ha.keys import Tag
 from homeassistant.components.number import NumberDeviceClass
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_HOST, CONF_TYPE, CONF_ID, CONF_SCAN_INTERVAL, CONF_MODE, CONF_TOKEN
-from homeassistant.core import HomeAssistant, Event, SupportsResponse
+from homeassistant.const import (
+    CONF_HOST,
+    CONF_TYPE,
+    CONF_ID,
+    CONF_SCAN_INTERVAL,
+    CONF_MODE,
+    CONF_TOKEN,
+    CONF_PASSWORD,
+    EVENT_HOMEASSISTANT_STARTED
+)
+from homeassistant.core import HomeAssistant, Event, SupportsResponse, CoreState
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import (
     config_validation as config_val,
@@ -22,6 +32,7 @@ from homeassistant.helpers import (
 )
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity import Entity, EntityDescription
+from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.typing import UNDEFINED, UndefinedType
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.helpers.update_coordinator import UpdateFailed
@@ -46,6 +57,7 @@ _LOGGER: logging.Logger = logging.getLogger(__package__)
 
 SCAN_INTERVAL = timedelta(seconds=10)
 CONFIG_SCHEMA = config_val.removed(DOMAIN, raise_if_present=False)
+WEBSOCKET_WATCHDOG_INTERVAL: Final = timedelta(minutes=5, seconds=1)
 
 
 async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry):
@@ -81,6 +93,21 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
         if not await coordinator.read_versions():
             raise ConfigEntryNotReady("Could not read versions from charger/controller! - please enable debug logging to see more details!")
 
+    start_ws_watch_dog = False
+    if coordinator.intg_type == INTG_TYPE.CHARGER.value:
+        a_pwd = config_entry.data.get(CONF_PASSWORD, None)
+        if a_pwd is not None and len(a_pwd.strip()) > 0:
+            start_ws_watch_dog = True
+
+    if start_ws_watch_dog:
+        # ws watchdog...
+        if hass.state is CoreState.running:
+            _LOGGER.debug(f"starting watchdog INSTANTLY")
+            await coordinator.start_watchdog()
+        else:
+            _LOGGER.debug(f"starting watchdog delayed... (when EVENT_HOMEASSISTANT_STARTED is fired)")
+            hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, coordinator.start_watchdog)
+
     hass.data[DOMAIN][config_entry.entry_id] = coordinator
 
     await hass.config_entries.async_forward_entry_setups(config_entry, PLATFORMS)
@@ -97,6 +124,10 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
         asyncio.create_task(coordinator.check_for_16a_limit(hass, config_entry.entry_id))
 
     asyncio.create_task(coordinator.cleanup_device_registry(hass))
+
+    # double check, if the ws_watchdog should be started...
+    if start_ws_watch_dog and coordinator._ws_start_task is None:
+        asyncio.create_task(coordinator._async_watchdog_check())
 
     config_entry.async_on_unload(config_entry.add_update_listener(entry_update_listener))
     # ok we are done...
@@ -117,6 +148,7 @@ async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> 
     if unload_ok:
         if DOMAIN in hass.data and config_entry.entry_id in hass.data[DOMAIN]:
             coordinator = hass.data[DOMAIN][config_entry.entry_id]
+            coordinator.stop_watchdog()
             coordinator.clear_data()
             hass.data[DOMAIN].pop(config_entry.entry_id)
 
@@ -202,6 +234,9 @@ async def check_device_registry(hass: HomeAssistant):
             for a_device_entry in list(a_device_reg.devices.values()):
                 if hasattr(a_device_entry, "identifiers"):
                     ident_value = a_device_entry.identifiers
+                    #if f"{ident_value}".__contains__(DOMAIN):
+                        #a_ident_value = next(iter(ident_value))
+                        #if len(a_ident_value) != 2 or len(a_ident_value[1].split('@.@')) == 1:
                     if f"{ident_value}".__contains__(DOMAIN) and len(next(iter(ident_value))) != 4:
                         _LOGGER.debug(f"found a OLD {DOMAIN} DeviceEntry: {a_device_entry}")
                         key_list.append(a_device_entry.id)
@@ -215,8 +250,14 @@ async def check_device_registry(hass: HomeAssistant):
 class GoeChargerDataUpdateCoordinator(DataUpdateCoordinator):
 
     _debounced_update_task: asyncio.Task | None = None
+    _watchdog = None
+    _ws_start_task: asyncio.Task | None = None
 
     def __init__(self, hass: HomeAssistant, config_entry):
+        self._watchdog = None
+        self._ws_start_task = None
+        self._force_classic_requests = False
+
         lang = hass.config.language.lower()
         self._hass = hass
         self.name = config_entry.title
@@ -231,6 +272,7 @@ class GoeChargerDataUpdateCoordinator(DataUpdateCoordinator):
             self.bridge = GoeChargerApiV2Bridge(
                 intg_type=self.intg_type,
                 host=None,
+                access_password=config_entry.data.get(CONF_PASSWORD, None),
                 serial=config_entry.data.get(CONF_ID),
                 token=config_entry.data.get(CONF_TOKEN),
                 web_session=async_get_clientsession(hass),
@@ -240,6 +282,7 @@ class GoeChargerDataUpdateCoordinator(DataUpdateCoordinator):
             self.bridge = GoeChargerApiV2Bridge(
                 intg_type=self.intg_type,
                 host=config_entry.data.get(CONF_HOST),
+                access_password=config_entry.data.get(CONF_PASSWORD, None),
                 serial=None,
                 token=None,
                 web_session=async_get_clientsession(hass),
@@ -257,12 +300,52 @@ class GoeChargerDataUpdateCoordinator(DataUpdateCoordinator):
 
         # config_entry only need for providing the '_device_info_dict'...
         self._config_entry = config_entry
-        self.is_charger_fw_version_60_0_or_higher_and_no_cards_list_is_present = False
+        self._is_charger_fw_version_60_0_or_higher = False
+        self._no_cards_list_is_present = False
         self._CLIENT_COMMUNICATION_ERROR_TS = 0
         self._CLIENT_COMMUNICATION_ERROR_COUNT = 0
         self._RESTART_TRIGGERED = False
         self._debounced_update_task = None
         super().__init__(hass, _LOGGER, name=DOMAIN, update_interval=SCAN_INTERVAL)
+
+    def cards_as_single_entries(self):
+        return self._is_charger_fw_version_60_0_or_higher and (self.bridge.ws_connected or self._no_cards_list_is_present)
+
+    async def start_watchdog(self, event=None):
+        """Start websocket watchdog."""
+        await self._async_watchdog_check()
+        self._watchdog = async_track_time_interval(
+            self.hass,
+            self._async_watchdog_check,
+            WEBSOCKET_WATCHDOG_INTERVAL,
+        )
+
+    def stop_watchdog(self):
+        if hasattr(self, "_watchdog") and self._watchdog is not None:
+            self._watchdog()
+
+    def _check_for_ws_task_and_cancel_if_running(self):
+        if self._ws_start_task is not None and not self._ws_start_task.done():
+            _LOGGER.debug(f"Watchdog: websocket connect task is still running - canceling it...")
+            try:
+                canceled = self._ws_start_task.cancel()
+                _LOGGER.debug(f"Watchdog: websocket connect task was CANCELED? {canceled}")
+            except BaseException as ex:
+                _LOGGER.info(f"Watchdog: websocket connect task cancel failed: {type(ex).__name__} - {ex}")
+            self._ws_start_task = None
+
+    async def _async_watchdog_check(self, *_):
+        if not self.bridge.ws_connected:
+            self._check_for_ws_task_and_cancel_if_running()
+            _LOGGER.info(f"Watchdog: websocket connect required")
+            self.bridge.ws_set_coordinator(coordinator=self)
+            self._ws_start_task = self._config_entry.async_create_background_task(self.hass, self.bridge.ws_connect(), "ws_connection")
+            if self._ws_start_task is not None:
+                _LOGGER.debug(f"Watchdog: task created {self._ws_start_task.get_coro()}")
+        else:
+            _LOGGER.debug(f"Watchdog: websocket is connected")
+            if not self.bridge.ws_check_last_update():
+                self._check_for_ws_task_and_cancel_if_running()
 
     # Callable[[Event], Any]
     def __call__(self, evt: Event) -> bool:
@@ -270,8 +353,11 @@ class GoeChargerDataUpdateCoordinator(DataUpdateCoordinator):
         return True
 
     def clear_data(self):
+        _LOGGER.debug(f"clear_data called...")
+        self._check_for_ws_task_and_cancel_if_running()
         self.bridge.clear_data()
-        self.data.clear()
+        if self.data is not None:
+            self.data.clear()
         self._CLIENT_COMMUNICATION_ERROR_TS = 0
         self._CLIENT_COMMUNICATION_ERROR_COUNT = 0
         self._RESTART_TRIGGERED = False
@@ -296,17 +382,23 @@ class GoeChargerDataUpdateCoordinator(DataUpdateCoordinator):
         await self.async_refresh()
 
     def handle_write_result(self, a_type, value, key, result, entity):
-        _LOGGER.debug(f"write {a_type} result: {result}")
+        if result is None and self.bridge.ws_connected:
+            # when using websocket - the writing result will be handled
+            # already in the ws-response processor...
+            return
+        else:
+            _LOGGER.debug(f"handle_write_result() {a_type} result: {result}")
+
         if key in result:
             self.data[key] = result[key]
         else:
-            _LOGGER.error(f"could not write {a_type} value: '{value}' to: {key} result was: {result}")
+            _LOGGER.error(f"handle_write_result() could not write {a_type} value: '{value}' to: {key} result was: {result}")
 
         do_refresh = True
         if self.intg_type == INTG_TYPE.CHARGER.value:
             # since we do not force an update when setting PV surplus data, we 'patch' internally our values
             if key == Tag.IDS.key:
-                self.data = self.bridge._versions | self.bridge._states | self.bridge._config
+                self.data = ChainMap(self.bridge._ws_states, self.bridge._config, self.bridge._states, self.bridge._versions)
                 self.async_update_listeners()
                 do_refresh = False
 
@@ -337,39 +429,38 @@ class GoeChargerDataUpdateCoordinator(DataUpdateCoordinator):
     async def _async_update_data(self) -> dict:
         """Update data via library."""
         _LOGGER.debug(f"_async_update_data(): CALLED")
-        if self._CLIENT_COMMUNICATION_ERROR_TS + 3600 > time():
-            time_info = 3600 - (time() - self._CLIENT_COMMUNICATION_ERROR_TS)
-            _LOGGER.info(f"_async_update_data(): skipping update due to client communication error for the next {time_info} seconds")
-            return self.data
-        if self._RESTART_TRIGGERED:
-            _LOGGER.info(f"_async_update_data(): RESTART is TRIGGERED (waiting for random sleep delay) - skipping update")
-            return self.data
-
-        try:
-            new_data = await self.bridge.read_all()
-            if new_data is not None and len(new_data) > 0:
-                self._CLIENT_COMMUNICATION_ERROR_TS = 0
-                self._CLIENT_COMMUNICATION_ERROR_COUNT = 0
-            # THIS is JUST FOR INTERNAL TESTING...
-            # if not self._RESTART_TRIGGERED:
-            #     _LOGGER.info(f"_async_update_data(): TRIGGER RESTART...")
-            #     self._RESTART_TRIGGERED = True
-            #     self.hass.async_create_task(self.trigger_restart_delayed())
-            return new_data
-
-        except ClientConnectionError as exception:
-            self._handle_client_connection_error("_async_update_data()", exception)
-            raise UpdateFailed(f"Error while fetching data: {exception}") from exception
-        except UpdateFailed as exception:
-            raise UpdateFailed() from exception
-        except Exception as other:
-            _LOGGER.error(f"_async_update_data(): unexpected: {other}")
-            raise UpdateFailed() from other
-
-    # async def async_write_tags(self, kv_pairs: Collection[Tuple[WKHPTag, Any]]) -> dict:
-    #    """Get data from the API."""
-    #    ret = await self.bridge.async_write_values(kv_pairs)
-    #    return ret
+        if self.bridge.ws_connected and self._force_classic_requests is False:
+            _LOGGER.debug(f"_async_update_data called (but websocket is active - no data will be requested!)")
+            return None
+        else:
+            if self._CLIENT_COMMUNICATION_ERROR_TS + 3600 > time():
+                time_info = 3600 - (time() - self._CLIENT_COMMUNICATION_ERROR_TS)
+                _LOGGER.info(f"_async_update_data(): skipping update due to client communication error for the next {time_info} seconds")
+                return self.data
+            if self._RESTART_TRIGGERED:
+                _LOGGER.info(f"_async_update_data(): RESTART is TRIGGERED (waiting for random sleep delay) - skipping update")
+                return self.data
+    
+            try:
+                new_data = await self.bridge.read_all()
+                if new_data is not None and len(new_data) > 0:
+                    self._CLIENT_COMMUNICATION_ERROR_TS = 0
+                    self._CLIENT_COMMUNICATION_ERROR_COUNT = 0
+                # THIS is JUST FOR INTERNAL TESTING...
+                # if not self._RESTART_TRIGGERED:
+                #     _LOGGER.info(f"_async_update_data(): TRIGGER RESTART...")
+                #     self._RESTART_TRIGGERED = True
+                #     self.hass.async_create_task(self.trigger_restart_delayed())
+                return new_data
+    
+            except ClientConnectionError as exception:
+                self._handle_client_connection_error("_async_update_data()", exception)
+                raise UpdateFailed(f"Error while fetching data: {exception}") from exception
+            except UpdateFailed as exception:
+                raise UpdateFailed() from exception
+            except Exception as other:
+                _LOGGER.error(f"_async_update_data(): unexpected: {other}")
+                raise UpdateFailed() from other
 
     async def async_write_key(self, key: str, value, entity: Entity = None) -> dict:
         if self._CLIENT_COMMUNICATION_ERROR_TS + 3600 > time():
@@ -402,7 +493,7 @@ class GoeChargerDataUpdateCoordinator(DataUpdateCoordinator):
             raise ValueError("async_write_multiple_keys(): RESTART is TRIGGERED (waiting for random sleep delay)")
 
         try:
-            result = await self.bridge._write_values_int(attr, key, value)
+            result = await self.bridge.write_multiple_values_to_keys(attr, key, value)
             self.handle_write_result("multiple", value, key, result, entity)
             return result
 
@@ -428,8 +519,9 @@ class GoeChargerDataUpdateCoordinator(DataUpdateCoordinator):
                 # when we request the version info for the charger, then this request will/should also contain the
                 # key 'cards'. The cards array  has been removed in FW 60.0 - but currently in my 60.3 it's back
                 # again - so as long as this array is available, we can/should/will use it?!
-                if Version(sw_version) >= Version("60.0") and len(self.bridge._versions.get(Tag.CARDS.key, [])) == 0:
-                    self.is_charger_fw_version_60_0_or_higher_and_no_cards_list_is_present = True
+                self._is_charger_fw_version_60_0_or_higher = Version(sw_version) >= Version("60.0")
+                if len(self.bridge._versions.get(Tag.CARDS.key, [])) == 0:
+                    self._no_cards_list_is_present = True
         else:
             sw_version = "UNKNOWN"
 
@@ -437,6 +529,7 @@ class GoeChargerDataUpdateCoordinator(DataUpdateCoordinator):
             self._device_info_dict = {
                 # be careful when adjusting the 'identifiers' -> since this will create probably new DeviceEntries
                 # and there exists also code which CLEAN all Devices that does not have 4 (four) identifier values!!
+                #"identifiers": {(DOMAIN, f"lan@.@{self.intg_type.lower()}@.@{self._serial}")},
                 "identifiers": {(
                     DOMAIN,
                     self._serial,
@@ -452,6 +545,7 @@ class GoeChargerDataUpdateCoordinator(DataUpdateCoordinator):
             self._device_info_dict = {
                 # be careful when adjusting the 'identifiers' -> since this will create probably new DeviceEntries
                 # and there exists also code which CLEAN all Devices that does not have 4 (four) identifier values!!
+                #"identifiers": {(DOMAIN, f"wan@.@{self.intg_type.lower()}@.@{self._serial}")},
                 "identifiers": {(
                     DOMAIN,
                     self._serial,
@@ -469,7 +563,7 @@ class GoeChargerDataUpdateCoordinator(DataUpdateCoordinator):
         if self.intg_type == INTG_TYPE.CHARGER.value:
             # fetching the available cards that are enabled
             idx = 1
-            if self.is_charger_fw_version_60_0_or_higher_and_no_cards_list_is_present:
+            if self._is_charger_fw_version_60_0_or_higher and self._no_cards_list_is_present:
                 # since FWV 60.0 there is no cards object any longer...
                 for a_card_number in range(0, 10):
                     a_key_id = f"c{a_card_number}i"
