@@ -15,10 +15,11 @@
   variables:
     # Current state (will be negative for import, positive for export)
     exported_power: "{{ states('sensor.pv_m1_ac_power') | float(0) }}"
+    battery_export_power: "{{ states('sensor.pv_battery1_power') | float(0) }}"
     
     # Calculate pgrid value
     pgrid_value: >-
-      {% set exp = exported_power | float(0) %}    
+      {% set exp = (exported_power | float(0)) + (battery_export_power | float(0)) %}    
       {{ exp * -1 }}
   action:
     - action: select.select_option
