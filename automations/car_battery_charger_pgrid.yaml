@@ -19,7 +19,13 @@
     
     # Calculate pgrid value
     pgrid_value: >-
-      {% set exp = (exported_power | float(0)) + (battery_export_power | float(0)) %}    
+      {% set exp = (exported_power | float(0)) %}    
+      {# Only use discharge power (negative values) for battery #}
+      {% if battery_export_power < 0 %}
+        {% set exp = exp + battery_export_power %}
+      {% endif %}
+      
+      {# The charger expects a positive value for import, negative for export #}
       {{ exp * -1 }}
   action:
     - action: select.select_option
