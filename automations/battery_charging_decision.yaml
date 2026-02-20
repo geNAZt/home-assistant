@@ -139,6 +139,17 @@
               target: { entity_id: number.pv_storage_remote_charge_limit }
               data: { value: "{{ charging_power_w }}" }
         
+        - conditions:
+            - condition: template
+              value_template: "{{ is_charge_window }}"
+          sequence:
+            - service: select.select_option
+              target: { entity_id: select.pv_storage_remote_command_mode }
+              data: { option: "Off" }
+            - service: number.set_value
+              target: { entity_id: number.pv_storage_remote_charge_limit }
+              data: { value: 0 }
+
         # 3. Default: Eigenverbrauch maximieren
         - conditions: []
           sequence:
