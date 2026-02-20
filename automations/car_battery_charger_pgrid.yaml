@@ -23,12 +23,11 @@
     pgrid_value: >-
       {% if pv_battery_soc < 80 %}
         {% if car_charge_power > 0 %}
-          {{ car_charge_power }}
+          15000
         {% else %}
           0
         {% endif %}
       {% else %}
-
         {% set exp = (exported_power | float(0)) %}    
         {# Only use discharge power (negative values) for battery #}
         {% if battery_export_power < 0 %}
