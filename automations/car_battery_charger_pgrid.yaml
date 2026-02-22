@@ -38,11 +38,6 @@
         {{ exp * -1 }}
       {% endif %}
   action:
-    - action: select.select_option
-      data:
-        option: "0"
-      target:
-        entity_id: select.goe_288025_frc
     - service: goecharger_api2.set_pv_data
       data:
         pgrid: "{{ pgrid_value }}"
