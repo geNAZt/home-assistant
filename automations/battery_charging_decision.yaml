@@ -142,6 +142,8 @@
         - conditions:
             - condition: template
               value_template: "{{ is_charge_window }}"
+            - condition: template
+              value_template: "{{ battery_current_energy_kwh < (calculated_target_energy_kwh + 0.5) }}"
           sequence:
             - service: select.select_option
               target: { entity_id: select.pv_storage_remote_command_mode }
