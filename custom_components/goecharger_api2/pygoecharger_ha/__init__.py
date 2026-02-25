@@ -10,6 +10,7 @@ from collections import ChainMap
 from time import time
 
 import aiohttp
+import bcrypt
 import msgpack
 from packaging.version import Version
 
@@ -117,6 +118,9 @@ class GoeChargerApiV2Bridge:
         self._ws_device_info = {}
         self._ws_states = {}
         self._ws_serial = None
+        self._ws_secured = False
+        self._ws_proto = -1
+        self._ws_protocol = -1
 
     def available_fields(self) -> int:
         return len(self._versions) + len(self._states) + len(self._config) + len(self._ws_states)
@@ -132,6 +136,9 @@ class GoeChargerApiV2Bridge:
         self._ws_device_info = {}
         self._ws_states = {}
         self._ws_serial = None
+        self._ws_secured = False
+        self._ws_proto = -1
+        self._ws_protocol = -1
 
     def reset_stored_update_ts(self):
         self._LAST_CONFIG_UPDATE_TS = 0
@@ -455,16 +462,28 @@ class GoeChargerApiV2Bridge:
         if hasattr(self, "coordinator") and self.coordinator is not None:
             self.coordinator.async_set_updated_data(ChainMap(self._ws_states, self._config, self._states, self._versions))
 
-    def _ws_compute_hashed_password(self, password: str, serial: str) -> bytes:
-        """Compute PBKDF2-SHA512 hashed password for WebSocket authentication"""
-        hashed = hashlib.pbkdf2_hmac(
-            'sha512',
-            password.encode('utf-8'),
-            serial.encode('utf-8'),
-            100000,
-            256
-        )
-        return base64.b64encode(hashed)[:32]
+    def _ws_compute_hashed_password(self, hash_type: str, password: str, serial: str) -> bytes:
+        if hash_type == "pbkdf2":
+            # Compute PBKDF2-SHA512 hashed password for WebSocket authentication
+            hashed = hashlib.pbkdf2_hmac(
+                'sha512',
+                password.encode('utf-8'),
+                serial.encode('utf-8'),
+                100000,
+                256
+            )
+            return base64.b64encode(hashed)[:32]
+        elif hash_type == "bcrypt":
+            # initially found @ https://github.com/joscha82/wattpilot/issues/46#issuecomment-3289810024
+            # and then got inspired by Fronius wattpilot...
+            # https://github.com/mk-maddin/wattpilot-HA/blob/master/custom_components/wattpilot/wattpilot/src/wattpilot/__init__.py#L498
+            password_hash = hashlib.sha256(password.encode()).hexdigest()
+            # $2a: the bcrypt-salt-header
+            # $08: the number of iterations (we have hardcoded '8' (with a trailing zero)
+            salt = f"$2a$08${bcryptjs_base64_encode_serial(serial, 16)}"
+            return bcrypt.hashpw(password_hash.encode(), salt.encode())[len(salt):]
+
+        return None
 
     def _ws_compute_auth_hash(self, token1: str, token2: str, token3: str, hashed_password: bytes) -> str:
         """Compute authentication hash for WebSocket"""
@@ -522,11 +541,7 @@ class GoeChargerApiV2Bridge:
             "value": value
         }
 
-        if self.token is not None:
-            # the cloud API can receive real JSON data...
-            _LOGGER.debug(f"_ws_send_command(): Sending {key}={value} as JSON")
-            await self._ws_connection.send_json(original_message)
-        else:
+        if self._ws_secured:
             # the local websocket needs special handling...
             payload = json.dumps(original_message)
             h = hmac.new(bytearray(self._ws_hashed_password), bytearray(payload.encode()), hashlib.sha256)
@@ -542,6 +557,10 @@ class GoeChargerApiV2Bridge:
 
             _LOGGER.debug(f"_ws_send_command(): Sending {key}={value} as BYTES")
             await self._ws_connection.send_bytes(msg_packed)
+        else:
+            # the cloud API can receive real JSON data...
+            _LOGGER.debug(f"_ws_send_command(): Sending {key}={value} as JSON")
+            await self._ws_connection.send_json(original_message)
 
         return True
 
@@ -561,7 +580,7 @@ class GoeChargerApiV2Bridge:
             headers = None
 
         try:
-            async with self.web_session.ws_connect(url=self.ws_url, headers=headers) as ws:
+            async with (self.web_session.ws_connect(url=self.ws_url, headers=headers) as ws):
                 self._ws_connection = ws
                 _LOGGER.info(f"ws_connect(): Connected to WebSocket: {self.ws_url}")
 
@@ -576,31 +595,52 @@ class GoeChargerApiV2Bridge:
                     return None
 
                 self._ws_serial = serial
-                _LOGGER.debug(f"ws_connect(): Extracted the device serial: {serial}")
+                self._ws_secured = normalized_hello.get('secured', False)
+                self._ws_proto = normalized_hello.get('proto', -1)
+                self._ws_protocol = normalized_hello.get('protocol', -1)
+
+                _LOGGER.debug(f"ws_connect(): Extracted the device serial: {self._ws_serial} [secured: {self._ws_secured}, proto: {self._ws_proto}, protocol: {self._ws_protocol}]")
                 self._ws_device_info = {k: v for k, v in normalized_hello.items()}
                 if 'type' in self._ws_device_info:
                     self._ws_device_info.pop('type', None)
                 _LOGGER.debug(f"ws_connect(): ws_device_info: {self._ws_device_info}")
 
-                # Step 2: Compute hashed password
-                if not hasattr(self, 'access_password') or not self.access_password:
-                    _LOGGER.warning("ws_connect(): No access_password configured")
-                    return None
 
-                self._ws_hashed_password = self._ws_compute_hashed_password(self.access_password, serial)
-                _logging_pwd = self._ws_hashed_password.decode('utf-8')
-                _LOGGER.debug(f"ws_connect(): Computed hashed password {_logging_pwd[:6]}...{_logging_pwd[-6:]}")
-
-                # Step 3: Receive AUTH REQUIRED message
+                # Step 2: Receive AUTH REQUIRED message
                 auth_req_msg = await ws.receive()
                 auth_data = self._ws_decode_message(auth_req_msg.data)
                 normalized_auth = self._ws_normalize_dict(auth_data)
 
+                hash_type = normalized_auth.get('hash', '').lower()
+                _LOGGER.debug(f"ws_connect(): Extracted the auth type: '{hash_type}' - source was: '{normalized_auth.get('hash')}'")
+                if hash_type is None or len(hash_type) == 0:
+                    _LOGGER.info("ws_connect(): No authentication hash type in AUTH REQUIRED message found...")
+                    # the default fallback is always 'pbkdf2' for the older devices...
+                    # 'devicetype': 'go-eCharger_V4'
+                    hash_type = "pbkdf2"
+
+                    # 'devicetype': 'go-eCharger_Phoenix', 'devicesubtype': 'core_cable',
+                    if ("_phoenix" in self._ws_device_info.get("devicetype", "").lower() or
+                        "core" in self._ws_device_info.get("devicesubtype", "").lower()):
+                        hash_type = "bcrypt"
+
+                if hash_type not in ["pbkdf2", "bcrypt"]:
+                    _LOGGER.info(f"ws_connect(): Unsupported authentication hash type: {hash_type}")
+                    return None
+
+                # Step 3: Compute hashed password
+                if not hasattr(self, 'access_password') or not self.access_password:
+                    _LOGGER.warning("ws_connect(): No access_password configured")
+                    return None
+
+                self._ws_hashed_password = self._ws_compute_hashed_password(hash_type, self.access_password, serial)
+                _logging_pwd = self._ws_hashed_password.decode('utf-8')
+                _LOGGER.debug(f"ws_connect(): Computed hashed password {hash_type}: {_logging_pwd[:6]}...{_logging_pwd[-6:]}")
+
                 token1 = normalized_auth.get('token1')
                 token2 = normalized_auth.get('token2')
-
                 if not token1 or not token2:
-                    _LOGGER.warning("ws_connect(): Missing authentication tokens")
+                    _LOGGER.warning("ws_connect(): Missing authentication tokens in AUTH REQUIRED message!")
                     return None
 
                 # Step 4: Generate token3 and compute auth hash
@@ -739,3 +779,42 @@ class GoeChargerApiV2Bridge:
             _LOGGER.debug(f"extract_ws_message_data(): Received {msg_type} message")
 
         return new_data_arrived
+
+@staticmethod
+def bcryptjs_base64_encode_serial(serial: str, length: int = 16) -> str:
+    """
+    Encode a numeric serial to bcrypt's non-standard base64 for salt generation.
+
+    bcrypt uses a modified base64 alphabet: ./ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789
+    (different from standard base64: A-Za-z0-9+/)
+
+    This matches bcrypt.js behavior for WebSocket authentication with go-e devices.
+    """
+    BCRYPT_BASE64 = "./ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+
+    if not serial.isdigit():
+        _LOGGER.warning(f"bcryptjs_base64_encode_serial(): check serial string - should be digits only: {serial}")
+        raise ValueError(f"Serial must be digits only: {serial}")
+
+    # Pad serial with leading zeros as byte values
+    b = bytes([0] * (length - len(serial)) + [int(ch) for ch in serial])
+
+    result = []
+    i = 0
+    while i < length:
+        c1 = (b[i] & 0x03) << 4
+        result.append(BCRYPT_BASE64[b[i] >> 2])
+        i += 1
+        if i >= length:
+            result.append(BCRYPT_BASE64[c1])
+            break
+        result.append(BCRYPT_BASE64[c1 | (b[i] >> 4)])
+        c1 = (b[i] & 0x0f) << 2
+        i += 1
+        if i >= length:
+            result.append(BCRYPT_BASE64[c1])
+            break
+        result.append(BCRYPT_BASE64[c1 | (b[i] >> 6)])
+        result.append(BCRYPT_BASE64[b[i] & 0x3f])
+        i += 1
+    return "".join(result)
