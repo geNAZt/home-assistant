@@ -21,7 +21,7 @@
     
     # Calculate pgrid value
     pgrid_value: >-
-      {% if pv_battery_soc < 80 %}
+      {% if pv_battery_soc < 90 %}
         {% if car_charge_power > 0 %}
           15000
         {% else %}
