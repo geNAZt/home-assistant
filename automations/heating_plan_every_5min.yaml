@@ -21,13 +21,17 @@
 
     # PV and preheat parameters
     pv_forecast_w: "{{ states('sensor.filtered_exported_power_w') | float(0) }}"
+    pv_generation_w: "{{ states('sensor.solar_panel_production_w') | float(0) }}"
+    battery_soc: "{{ states('sensor.pv_battery1_state_of_charge') | float(0) }}"
+    battery_support_w: "{{ 5000 if battery_soc > 40 else 0 }}"
+    max_total_heating_w: "{{ pv_generation_w + battery_support_w }}"
     pv_thr_w: "{{ states('input_number.pv_excess_threshold_w') | float(0) }}"
     has_pv_excess: "{{ pv_forecast_w > pv_thr_w }}"
     pv_surplus_w: "{{ [pv_forecast_w - pv_thr_w, 0] | max }}"
     pv_offset_k: "{{ 0.5 if has_pv_excess else 0 }}"
     pv_predictions: "{{ state_attr('sensor.solar_prediction_kwh', 'predictions') }}"
-    pv_tomorrow_kwh: >-
-      {% set base = now().replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1) %}
+    pv_plan_day_kwh: >-
+      {% set base = now().replace(hour=0, minute=0, second=0, microsecond=0) %}
       {% set t0 = as_timestamp(base) %}
       {% set t1 = t0 + 24 * 3600 %}
       {% set ns = namespace(total=0.0) %}
@@ -50,7 +54,7 @@
       {% set missing_delta_k = [setpoint_mean - inside_now, 0] | max %}
       {% set off = states('sensor.heating_preheat_offset_dynamic') | float(0) %}
       {{ [c * (off + missing_delta_k), 0] | max }}
-    pv_enough_next_day: "{{ pv_tomorrow_kwh >= heating_need_next_day_kwh and heating_need_next_day_kwh > 0 }}"
+    pv_enough_next_day: "{{ pv_plan_day_kwh >= heating_need_next_day_kwh and heating_need_next_day_kwh > 0 }}"
     shift_heating_start_to_pv: "{{ is_state('binary_sensor.preheat_erlaubt_demand_weighted', 'on') and pv_enough_next_day }}"
 
     # PV-/Top-Up-Fenster: nur mittags 12–14 Uhr & nur wenn PV-Überschuss
@@ -482,8 +486,12 @@
             - variables:
                 cap: "{{ phase_max_amps | float(16) }}"
                 rd: "{{ room_data | from_json }}"
-                pv_budget_w: "{{ pv_surplus_w | float(0) }}"
-                pv_room_budget_mode: "{{ shift_heating_start_to_pv }}"
+                power_budget_w: >-
+                  {% if pv_enough_next_day %}
+                    {{ max_total_heating_w | float(0) }}
+                  {% else %}
+                    11000
+                  {% endif %}
 
                 # Übernimm die bereits berechneten Selektionen & Plans
                 sel1: "{{ sel_p1 | from_json(default=[]) }}"
@@ -528,26 +536,22 @@
 
                 phase_safe_on_raw: "{{ p1_keep + p2_keep + p3_keep }}"
                 phase_safe_on: >-
-                  {% if not pv_room_budget_mode %}
-                    {{ phase_safe_on_raw }}
-                  {% else %}
-                    {% set ns = namespace(items=[], used=0.0, out=[]) %}
-                    {% for ent in phase_safe_on_raw %}
-                      {% set room = ent | regex_replace('^climate\\.climate_room_', '') %}
-                      {% if rd[room] is defined %}
-                        {% set score = (100000 if rd[room]['must_heat'] else 0) + (rd[room]['error'] | float(0)) %}
-                        {% set room_w = (rd[room]['amps'] | float(0)) * 230.0 %}
-                        {% set ns.items = ns.items + [{'entity': ent, 'score': score, 'w': room_w}] %}
-                      {% endif %}
-                    {% endfor %}
-                    {% for it in ns.items | sort(attribute='score', reverse=True) %}
-                      {% if ns.used + (it.w | float(0)) <= (pv_budget_w | float(0)) %}
-                        {% set ns.used = ns.used + (it.w | float(0)) %}
-                        {% set ns.out = ns.out + [it.entity] %}
-                      {% endif %}
-                    {% endfor %}
-                    {{ ns.out }}
-                  {% endif %}
+                  {% set ns = namespace(items=[], used=0.0, out=[]) %}
+                  {% for ent in phase_safe_on_raw %}
+                    {% set room = ent | regex_replace('^climate\\.climate_room_', '') %}
+                    {% if rd[room] is defined %}
+                      {% set score = (100000 if rd[room]['must_heat'] else 0) + (rd[room]['error'] | float(0)) %}
+                      {% set room_w = (rd[room]['amps'] | float(0)) * 230.0 %}
+                      {% set ns.items = ns.items + [{'entity': ent, 'score': score, 'w': room_w}] %}
+                    {% endif %}
+                  {% endfor %}
+                  {% for it in ns.items | sort(attribute='score', reverse=True) %}
+                    {% if ns.used + (it.w | float(0)) <= (power_budget_w | float(0)) %}
+                      {% set ns.used = ns.used + (it.w | float(0)) %}
+                      {% set ns.out = ns.out + [it.entity] %}
+                    {% endif %}
+                  {% endfor %}
+                  {{ ns.out }}
                 to_off: "{{ (planned_on + planned_off) | reject('in', phase_safe_on) | list }}"
                 cooldown_minutes: "{{ states('input_number.heating_cooldown_minutes')|int(10) }}"
                 to_off_rooms: >-
@@ -597,8 +601,10 @@
                 name: "Heiz-Planer"
                 message: >-
                   Phase guard: cap={{ cap }}A |
-                  PV-Shift={{ pv_room_budget_mode }} |
-                  PV-Budget={{ pv_budget_w | round(0) }}W |
+                  SOC={{ battery_soc | round(1) }}% |
+                  PV-gen={{ pv_generation_w | round(0) }}W |
+                  Batt+={{ battery_support_w | round(0) }}W |
+                  Budget={{ power_budget_w | round(0) }}W |
                   P1={{ p1_keep|length }} {{ p1_keep }} |
                   P2={{ p2_keep|length }} {{ p2_keep }} |
                   P3={{ p3_keep|length }} {{ p3_keep }} |
