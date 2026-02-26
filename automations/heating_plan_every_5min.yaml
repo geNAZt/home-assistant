@@ -129,6 +129,12 @@
           {% set preheat_off = states('sensor.heating_preheat_offset_dynamic') | float(0) %}
         {% endif %}
 
+        {% if shift_heating_start_to_pv %}
+            {% if (max_total_heating_w | float(0)) > (pv_thr_w | float(0)) %}
+              {% set preheat_off = states('sensor.heating_preheat_offset_dynamic') | float(0) %}
+            {% endif %}
+        {% endif %}
+
         {% set room_offset = preheat_off + pv_off %}
         {% if room_offset > cap %}{% set room_offset = cap %}{% endif %}
         {% if room_offset < 0 %}{% set room_offset = 0 %}{% endif %}
