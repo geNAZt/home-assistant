@@ -17,9 +17,10 @@
     stage_2_state: "{{ is_state('switch.water_heater_pv_switch_powerr_usage_stage_2', 'on') }}"
     
     # Determine which stage should be active
-    should_stage_1: "{{ exported_power >= 500 and exported_power < 1600 and battery_soc > 80 }}"
-    should_stage_2: "{{ (exported_power >= 1600 or (stage_1_state and exported_power >= 1100 )) and battery_soc > 80 }}"
-    should_all_off: "{{ imported_power > 100 or battery_import_power < -300 or battery_soc <= 80 }}"
+    battery_ready: "{{ battery_soc > 80 or battery_import_power >= 5000 }}"
+    should_stage_1: "{{ exported_power >= 500 and exported_power < 1600 and battery_ready }}"
+    should_stage_2: "{{ (exported_power >= 1600 or (stage_1_state and exported_power >= 1100 )) and battery_ready }}"
+    should_all_off: "{{ imported_power > 100 or battery_import_power < -300 or not battery_ready }}"
   
   condition: []
   action:
