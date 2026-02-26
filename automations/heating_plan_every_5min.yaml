@@ -494,9 +494,24 @@
                   {% endif %}
 
                 # Übernimm die bereits berechneten Selektionen & Plans
-                sel1: "{{ sel_p1 | from_json(default=[]) }}"
-                sel2: "{{ sel_p2 | from_json(default=[]) }}"
-                sel3: "{{ sel_p3 | from_json(default=[]) }}"
+                sel1: >-
+                  {% if sel_p1 is string %}
+                    {{ sel_p1 | from_json(default=[]) }}
+                  {% else %}
+                    {{ sel_p1 }}
+                  {% endif %}
+                sel2: >-
+                  {% if sel_p2 is string %}
+                    {{ sel_p2 | from_json(default=[]) }}
+                  {% else %}
+                    {{ sel_p2 }}
+                  {% endif %}
+                sel3: >-
+                  {% if sel_p3 is string %}
+                    {{ sel_p3 | from_json(default=[]) }}
+                  {% else %}
+                    {{ sel_p3 }}
+                  {% endif %}
                 planned_on: "{{ climates_on }}"
                 planned_off: "{{ climates_off }}"
 
