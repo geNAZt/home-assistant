@@ -386,7 +386,7 @@
           {% if not preheat_enabled %}
             true
           {% elif shift_heating_start_to_pv %}
-            {{ has_pv_excess }}
+            {{ (max_total_heating_w | float(0)) > (pv_thr_w | float(0)) }}
           {% else %}
             {{ is_preheat_window or (not heating_block_enabled and allow_daytime_heat) }}
           {% endif %}
