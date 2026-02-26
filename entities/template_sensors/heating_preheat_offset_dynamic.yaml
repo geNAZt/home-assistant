@@ -26,6 +26,8 @@ sensor:
     {% set max_offset = states('input_number.heating_max_offset_k') | float(2.5) %}
     {% if uncapped > max_offset %}
       {{ max_offset }}
+    {% elif uncapped < 0 %}
+      0
     {% else %}
       {{ uncapped }}
     {% endif %}
