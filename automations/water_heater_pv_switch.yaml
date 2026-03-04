@@ -26,6 +26,7 @@
     # Current switch states
     stage_1_state: "{{ is_state('switch.water_heater_pv_switch_powerr_usage_stage_1', 'on') }}"
     stage_2_state: "{{ is_state('switch.water_heater_pv_switch_powerr_usage_stage_2', 'on') }}"
+    stage2_whitelist_active: "{{ is_state('input_boolean.water_heater_stage2_whitelist', 'on') }}"
 
     # Priority flags
     battery_min_soc: 15
@@ -34,7 +35,7 @@
     heating_priority_open: "{{ heating_uncovered_kwh > 0.10 }}"
     battery_above_min: "{{ battery_soc >= battery_min_soc }}"
     battery_ready_for_stage2: "{{ battery_soc >= battery_stage2_soc }}"
-    stage2_allowed_by_forecast: "{{ (remaining_after_battery_kwh > 0.20) and (not stage1_needed) and (not heating_priority_open) }}"
+    stage2_allowed_by_forecast: "{{ (remaining_after_battery_kwh > 0.20) and ((not stage1_needed) or stage2_whitelist_active) and (not heating_priority_open) }}"
 
     # Determine which stage should be active
     battery_ready_stage1: "{{ battery_above_min }}"
@@ -83,7 +84,8 @@
                       Stage 2 ON (PV surplus):
                       export={{ exported_power | round(0) }}W,
                       leftover_after_battery={{ remaining_after_battery_kwh | round(2) }}kWh,
-                      battery_soc={{ battery_soc | round(1) }}%
+                      battery_soc={{ battery_soc | round(1) }}%,
+                      whitelist={{ stage2_whitelist_active }}
             - if:
                 - condition: template
                   value_template: "{{ stage_1_state }}"

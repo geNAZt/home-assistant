@@ -1,0 +1,39 @@
+- id: water_heater_stage2_whitelist
+  alias: Water Heater Stage2 Whitelist
+  description: Whitelists stage 2 when stage 1 is enabled but power stays below 300W for 1 minute.
+  mode: restart
+  trigger:
+    - platform: numeric_state
+      entity_id: sensor.water_heating_pump_power
+      below: 300
+      for: "00:01:00"
+    - platform: state
+      entity_id: switch.water_heater_pv_switch_powerr_usage_stage_1
+      to: "off"
+    - platform: time
+      at: "00:05:00"
+  action:
+    - choose:
+        - conditions:
+            - condition: template
+              value_template: "{{ trigger.platform == 'numeric_state' }}"
+            - condition: state
+              entity_id: switch.water_heater_pv_switch_powerr_usage_stage_1
+              state: "on"
+          sequence:
+            - service: input_boolean.turn_on
+              target:
+                entity_id: input_boolean.water_heater_stage2_whitelist
+            - service: logbook.log
+              data:
+                name: Water Heater Stage2 Whitelist
+                message: >-
+                  Stage 2 whitelisted: stage1=on and pump power below 300W for 1 minute
+        - conditions:
+            - condition: template
+              value_template: "{{ trigger.platform in ['state', 'time'] }}"
+          sequence:
+            - service: input_boolean.turn_off
+              target:
+                entity_id: input_boolean.water_heater_stage2_whitelist
+      default: []
