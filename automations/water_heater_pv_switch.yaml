@@ -31,6 +31,11 @@
     # Priority flags
     battery_min_soc: 15
     battery_stage2_soc: 90
+    is_nt_window: >-
+      {% set nowts = as_timestamp(now()) %}
+      {% set t0 = as_timestamp(now().replace(hour=0, minute=0, second=0, microsecond=0)) %}
+      {% set t1 = as_timestamp(now().replace(hour=5, minute=0, second=0, microsecond=0)) %}
+      {{ t0 <= nowts < t1 }}
     stage1_needed: "{{ stage1_remaining_kwh > 0.05 }}"
     heating_priority_open: "{{ heating_uncovered_kwh > 0.10 }}"
     battery_above_min: "{{ battery_soc >= battery_min_soc }}"
@@ -42,8 +47,8 @@
     should_stage_1: >-
       {{
         stage1_needed
-        and stage1_forecast_alloc_kwh > 0
-        and battery_ready_stage1
+        and (stage1_forecast_alloc_kwh > 0 or is_nt_window)
+        and (battery_ready_stage1 or is_nt_window)
       }}
     should_stage_2: >-
       {{
@@ -113,7 +118,8 @@
                       today={{ stage1_done_today_kwh | round(2) }}/{{ stage1_target_kwh | round(2) }}kWh,
                       remaining={{ stage1_remaining_kwh | round(2) }}kWh,
                       export={{ exported_power | round(0) }}W,
-                      battery_soc={{ battery_soc | round(1) }}%
+                      battery_soc={{ battery_soc | round(1) }}%,
+                      nt_window={{ is_nt_window }}
             - if:
                 - condition: template
                   value_template: "{{ stage_2_state }}"
