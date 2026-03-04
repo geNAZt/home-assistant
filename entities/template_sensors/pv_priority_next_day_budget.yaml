@@ -1,3 +1,6 @@
+trigger:
+    - platform: time_pattern
+      minutes: "/5"
 sensor:
 - name: "PV Priority Next Day Budget"
   unique_id: pv_priority_next_day_budget
