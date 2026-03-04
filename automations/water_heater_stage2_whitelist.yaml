@@ -7,6 +7,8 @@
       entity_id: sensor.water_heating_pump_power
       below: 300
       for: "00:01:00"
+    - platform: time_pattern
+      minutes: "/1"
     - platform: state
       entity_id: switch.water_heater_pv_switch_powerr_usage_stage_1
       to: "off"
@@ -16,10 +18,16 @@
     - choose:
         - conditions:
             - condition: template
-              value_template: "{{ trigger.platform == 'numeric_state' }}"
+              value_template: "{{ trigger.platform in ['numeric_state', 'time_pattern'] }}"
             - condition: state
               entity_id: switch.water_heater_pv_switch_powerr_usage_stage_1
               state: "on"
+            - condition: numeric_state
+              entity_id: sensor.water_heating_pump_power
+              below: 300
+            - condition: state
+              entity_id: input_boolean.water_heater_stage2_whitelist
+              state: "off"
           sequence:
             - service: input_boolean.turn_on
               target:
