@@ -1,26 +1,65 @@
 - id: water_heater_pv_switch
   alias: Water Heater PV Switch Control
-  description: Controls water heater PV switches based on PV excess power (500W stage 1, 1600W stage 2)
+  description: Controls water heater with PV forecast priorities (Stage 1 target 5kWh, then heating, then battery, then Stage 2 on PV surplus)
   mode: restart
   trigger:
     - platform: time_pattern
       minutes: "/5"
   variables:
-    # Current PV excess power
+    # Current PV balance
     exported_power: "{{ states('sensor.filtered_exported_power_w') | float(0) }}"
     imported_power: "{{ states('sensor.filtered_imported_power_w') | float(0) }}"
     battery_import_power: "{{ states('sensor.pv_battery1_power') | float(0) }}"
     battery_soc: "{{ states('sensor.pv_battery1_state_of_charge') | float(0) }}"
-    
+
+    # Forecast budget (priority model)
+    stage1_target_kwh: "{{ state_attr('sensor.pv_priority_next_day_budget', 'water_stage1_target_kwh') | float(5) }}"
+    stage1_done_today_kwh: "{{ state_attr('sensor.pv_priority_next_day_budget', 'water_stage1_done_today_kwh') | float(0) }}"
+    stage1_remaining_kwh: "{{ state_attr('sensor.pv_priority_next_day_budget', 'water_stage1_remaining_kwh') | float(0) }}"
+    stage1_forecast_alloc_kwh: "{{ state_attr('sensor.pv_priority_next_day_budget', 'allocated_to_water_stage1_kwh') | float(0) }}"
+    heating_uncovered_kwh: "{{ state_attr('sensor.pv_priority_next_day_budget', 'heating_uncovered_kwh') | float(0) }}"
+    remaining_after_heating_kwh: "{{ state_attr('sensor.pv_priority_next_day_budget', 'remaining_after_heating_kwh') | float(0) }}"
+    battery_needed_before_stage2_kwh: "{{ state_attr('sensor.pv_priority_next_day_budget', 'battery_needed_before_stage2_kwh') | float(0) }}"
+    allocated_to_battery_before_stage2_kwh: "{{ state_attr('sensor.pv_priority_next_day_budget', 'allocated_to_battery_before_stage2_kwh') | float(0) }}"
+    remaining_after_battery_kwh: "{{ state_attr('sensor.pv_priority_next_day_budget', 'remaining_after_battery_kwh') | float(0) }}"
+
     # Current switch states
     stage_1_state: "{{ is_state('switch.water_heater_pv_switch_powerr_usage_stage_1', 'on') }}"
     stage_2_state: "{{ is_state('switch.water_heater_pv_switch_powerr_usage_stage_2', 'on') }}"
-    
+
+    # Priority flags
+    battery_min_soc: 15
+    battery_stage2_soc: 90
+    stage1_needed: "{{ stage1_remaining_kwh > 0.05 }}"
+    heating_priority_open: "{{ heating_uncovered_kwh > 0.10 }}"
+    battery_above_min: "{{ battery_soc >= battery_min_soc }}"
+    battery_ready_for_stage2: "{{ battery_soc >= battery_stage2_soc }}"
+    stage2_allowed_by_forecast: "{{ (remaining_after_battery_kwh > 0.20) and (not stage1_needed) and (not heating_priority_open) }}"
+
     # Determine which stage should be active
-    battery_ready: "{{ battery_soc > 90 or battery_import_power >= 5000 }}"
-    should_stage_1: "{{ (exported_power >= 500 and exported_power < 1600) or battery_ready }}"
-    should_stage_2: "{{ (exported_power >= 1600 or (stage_1_state and exported_power >= 1100 )) or battery_ready }}"
-    should_all_off: "{{ imported_power > 100 or battery_import_power < -300 or not battery_ready }}"
+    battery_ready_stage1: "{{ battery_above_min }}"
+    should_stage_1: >-
+      {{
+        stage1_needed
+        and stage1_forecast_alloc_kwh > 0
+        and battery_ready_stage1
+      }}
+    should_stage_2: >-
+      {{
+        stage2_allowed_by_forecast
+        and battery_ready_for_stage2
+        and (
+          (exported_power >= 1600)
+          or (stage_2_state and exported_power >= 1300)
+        )
+      }}
+    should_all_off: >-
+      {{
+        imported_power > 100
+        or battery_import_power < -300
+        or (not battery_ready_stage1 and not battery_ready_for_stage2)
+        or (not should_stage_1 and not should_stage_2)
+      }}
   
   condition: []
   action:
@@ -40,7 +79,11 @@
                 - service: logbook.log
                   data:
                     name: Water Heater PV Switch
-                    message: "PV excess {{ exported_power | round(2) }} W >= 1600W, turning on stage 2"
+                    message: >-
+                      Stage 2 ON (PV surplus):
+                      export={{ exported_power | round(0) }}W,
+                      leftover_after_battery={{ remaining_after_battery_kwh | round(2) }}kWh,
+                      battery_soc={{ battery_soc | round(1) }}%
             - if:
                 - condition: template
                   value_template: "{{ stage_1_state }}"
@@ -63,7 +106,12 @@
                 - service: logbook.log
                   data:
                     name: Water Heater PV Switch
-                    message: "PV excess {{ exported_power | round(2) }} W >= 500W, turning on stage 1"
+                    message: >-
+                      Stage 1 ON:
+                      today={{ stage1_done_today_kwh | round(2) }}/{{ stage1_target_kwh | round(2) }}kWh,
+                      remaining={{ stage1_remaining_kwh | round(2) }}kWh,
+                      export={{ exported_power | round(0) }}W,
+                      battery_soc={{ battery_soc | round(1) }}%
             - if:
                 - condition: template
                   value_template: "{{ stage_2_state }}"
@@ -92,6 +140,11 @@
                 - service: logbook.log
                   data:
                     name: Water Heater PV Switch
-                    message: "PV excess {{ exported_power | round(2) }} W < 500W, turning off all stages"
+                    message: >-
+                      All OFF:
+                      export={{ exported_power | round(0) }}W,
+                      stage1_remaining={{ stage1_remaining_kwh | round(2) }}kWh,
+                      heating_uncovered={{ heating_uncovered_kwh | round(2) }}kWh,
+                      battery_need={{ battery_needed_before_stage2_kwh | round(2) }}kWh,
+                      battery_alloc={{ allocated_to_battery_before_stage2_kwh | round(2) }}kWh
       default: []
-

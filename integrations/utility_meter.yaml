@@ -130,3 +130,7 @@ utility_meter:
     source: sensor.solar_grid_to_battery_total
     name: Solar Grid To Battery Daily
     cycle: daily
+  water_heating_pump_daily:
+    source: sensor.water_heating_pump_usage
+    name: Water Heating Pump Daily
+    cycle: daily

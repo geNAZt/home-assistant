@@ -23,11 +23,15 @@
     pv_forecast_w: "{{ states('sensor.filtered_exported_power_w') | float(0) }}"
     pv_generation_w: "{{ states('sensor.solar_panel_production_w') | float(0) }}"
     battery_soc: "{{ states('sensor.pv_battery1_state_of_charge') | float(0) }}"
-    battery_support_w: "{{ 5000 if battery_soc > 40 else 0 }}"
+    battery_min_soc: 15
+    battery_above_min: "{{ battery_soc >= battery_min_soc }}"
+    battery_support_w: "{{ 5000 if battery_above_min else 0 }}"
     max_total_heating_w: "{{ pv_generation_w + battery_support_w }}"
     pv_thr_w: "{{ states('input_number.pv_excess_threshold_w') | float(0) }}"
-    has_pv_excess: "{{ pv_forecast_w > pv_thr_w }}"
-    pv_surplus_w: "{{ [pv_forecast_w - pv_thr_w, 0] | max }}"
+    water_stage1_remaining_kwh: "{{ state_attr('sensor.pv_priority_next_day_budget', 'water_stage1_remaining_kwh') | float(0) }}"
+    water_stage1_reserve_w: "{{ 500 if water_stage1_remaining_kwh > 0.05 else 0 }}"
+    has_pv_excess: "{{ pv_forecast_w > (pv_thr_w + water_stage1_reserve_w) }}"
+    pv_surplus_w: "{{ [pv_forecast_w - pv_thr_w - water_stage1_reserve_w, 0] | max }}"
     pv_offset_k: "{{ 0.5 if has_pv_excess else 0 }}"
     pv_predictions: "{{ state_attr('sensor.solar_prediction_kwh', 'predictions') }}"
     pv_plan_day_kwh: >-
@@ -54,7 +58,7 @@
       {% set missing_delta_k = [setpoint_mean - inside_now, 0] | max %}
       {% set off = states('sensor.heating_preheat_offset_dynamic') | float(0) %}
       {{ [c * (off + missing_delta_k), 0] | max }}
-    pv_enough_next_day: "{{ pv_plan_day_kwh >= heating_need_next_day_kwh and heating_need_next_day_kwh > 0 }}"
+    pv_enough_next_day: "{{ (pv_plan_day_kwh - water_stage1_remaining_kwh) >= heating_need_next_day_kwh and heating_need_next_day_kwh > 0 }}"
     shift_heating_start_to_pv: "{{ is_state('binary_sensor.preheat_erlaubt_demand_weighted', 'on') and pv_enough_next_day }}"
 
     # PV-/Top-Up-Fenster: nur mittags 12–14 Uhr & nur wenn PV-Überschuss
@@ -389,7 +393,9 @@
           {% set topup_ok = (is_midday_topup_window and has_pv_excess) %}
           {{ topup_ok }}
         heating_allowed_now: >-
-          {% if not preheat_enabled %}
+          {% if battery_above_min %}
+            true
+          {% elif not preheat_enabled %}
             true
           {% elif shift_heating_start_to_pv %}
             {{ (max_total_heating_w | float(0)) > (pv_thr_w | float(0)) }}
@@ -494,7 +500,7 @@
                 rd: "{{ room_data | from_json }}"
                 power_budget_w: >-
                   {% if pv_enough_next_day %}
-                    {{ max_total_heating_w | float(0) }}
+                    {{ [((max_total_heating_w | float(0)) - (water_stage1_reserve_w | float(0))), 0] | max }}
                   {% else %}
                     11000
                   {% endif %}
