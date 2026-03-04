@@ -56,7 +56,7 @@
         and battery_ready_for_stage2
         and (
           (exported_power >= 1600)
-          or (stage_2_state and exported_power >= 1300)
+          or (stage_1_state and exported_power >= 1200)
         )
       }}
     should_all_off: >-
