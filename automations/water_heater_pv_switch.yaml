@@ -70,6 +70,34 @@
   condition: []
   action:
     - choose:
+        # All off has highest priority
+        - conditions:
+            - condition: template
+              value_template: "{{ should_all_off }}"
+          sequence:
+            - if:
+                - condition: or
+                  conditions:
+                    - condition: template
+                      value_template: "{{ stage_1_state }}"
+                    - condition: template
+                      value_template: "{{ stage_2_state }}"
+              then:
+                - service: switch.turn_off
+                  target:
+                    entity_id:
+                      - switch.water_heater_pv_switch_powerr_usage_stage_1
+                      - switch.water_heater_pv_switch_powerr_usage_stage_2
+                - service: logbook.log
+                  data:
+                    name: Water Heater PV Switch
+                    message: >-
+                      All OFF:
+                      export={{ exported_power | round(0) }}W,
+                      stage1_remaining={{ stage1_remaining_kwh | round(2) }}kWh,
+                      heating_uncovered={{ heating_uncovered_kwh | round(2) }}kWh,
+                      battery_need={{ battery_needed_before_stage2_kwh | round(2) }}kWh,
+                      battery_alloc={{ allocated_to_battery_before_stage2_kwh | round(2) }}kWh
         # Stage 2: >= 1600W - Turn on stage 2, turn off stage 1
         - conditions:
             - condition: template
@@ -127,32 +155,4 @@
                 - service: switch.turn_off
                   target:
                     entity_id: switch.water_heater_pv_switch_powerr_usage_stage_2
-        # All off: < 500W - Turn off both stages
-        - conditions:
-            - condition: template
-              value_template: "{{ should_all_off }}"
-          sequence:
-            - if:
-                - condition: or
-                  conditions:
-                    - condition: template
-                      value_template: "{{ stage_1_state }}"
-                    - condition: template
-                      value_template: "{{ stage_2_state }}"
-              then:
-                - service: switch.turn_off
-                  target:
-                    entity_id:
-                      - switch.water_heater_pv_switch_powerr_usage_stage_1
-                      - switch.water_heater_pv_switch_powerr_usage_stage_2
-                - service: logbook.log
-                  data:
-                    name: Water Heater PV Switch
-                    message: >-
-                      All OFF:
-                      export={{ exported_power | round(0) }}W,
-                      stage1_remaining={{ stage1_remaining_kwh | round(2) }}kWh,
-                      heating_uncovered={{ heating_uncovered_kwh | round(2) }}kWh,
-                      battery_need={{ battery_needed_before_stage2_kwh | round(2) }}kWh,
-                      battery_alloc={{ allocated_to_battery_before_stage2_kwh | round(2) }}kWh
       default: []
