@@ -7,7 +7,8 @@ sensor:
   unit_of_measurement: "kWh"
   icon: mdi:chart-timeline-variant
   state: >
-    {% set pv_predictions = state_attr('sensor.solar_prediction_kwh', 'predictions') %}
+    {% set pv_predictions_raw = state_attr('sensor.solar_prediction_kwh', 'predictions') %}
+      {% set pv_predictions = pv_predictions_raw | from_json(default={}) if pv_predictions_raw is string else pv_predictions_raw %}
     {% set t0 = as_timestamp(now()) %}
     {% set t1 = t0 + (24 * 3600) %}
     {% set ns = namespace(total=0.0) %}
@@ -22,7 +23,8 @@ sensor:
     {{ ns.total | round(3) }}
   attributes:
     pv_next_24h_kwh: >
-      {% set pv_predictions = state_attr('sensor.solar_prediction_kwh', 'predictions') %}
+      {% set pv_predictions_raw = state_attr('sensor.solar_prediction_kwh', 'predictions') %}
+      {% set pv_predictions = pv_predictions_raw | from_json(default={}) if pv_predictions_raw is string else pv_predictions_raw %}
       {% set t0 = as_timestamp(now()) %}
       {% set t1 = t0 + (24 * 3600) %}
       {% set ns = namespace(total=0.0) %}
@@ -52,7 +54,8 @@ sensor:
       {% set off = states('sensor.heating_preheat_offset_dynamic') | float(0) %}
       {{ [c * (off + missing_delta_k), 0] | max | round(3) }}
     allocated_to_water_stage1_kwh: >
-      {% set pv_predictions = state_attr('sensor.solar_prediction_kwh', 'predictions') %}
+      {% set pv_predictions_raw = state_attr('sensor.solar_prediction_kwh', 'predictions') %}
+      {% set pv_predictions = pv_predictions_raw | from_json(default={}) if pv_predictions_raw is string else pv_predictions_raw %}
       {% set t0 = as_timestamp(now()) %}
       {% set t1 = t0 + (24 * 3600) %}
       {% set pv = namespace(total=0.0) %}
@@ -68,7 +71,8 @@ sensor:
       {% set pv_total = pv.total | float(0) %}
       {{ [pv_total, stage1_remaining] | min | round(3) }}
     pv_after_water_stage1_kwh: >
-      {% set pv_predictions = state_attr('sensor.solar_prediction_kwh', 'predictions') %}
+      {% set pv_predictions_raw = state_attr('sensor.solar_prediction_kwh', 'predictions') %}
+      {% set pv_predictions = pv_predictions_raw | from_json(default={}) if pv_predictions_raw is string else pv_predictions_raw %}
       {% set t0 = as_timestamp(now()) %}
       {% set t1 = t0 + (24 * 3600) %}
       {% set pv = namespace(total=0.0) %}
@@ -85,7 +89,8 @@ sensor:
       {% set pv_total = pv.total | float(0) %}
       {{ [pv_total - alloc_stage1, 0] | max | round(3) }}
     allocated_to_heating_kwh: >
-      {% set pv_predictions = state_attr('sensor.solar_prediction_kwh', 'predictions') %}
+      {% set pv_predictions_raw = state_attr('sensor.solar_prediction_kwh', 'predictions') %}
+      {% set pv_predictions = pv_predictions_raw | from_json(default={}) if pv_predictions_raw is string else pv_predictions_raw %}
       {% set t0 = as_timestamp(now()) %}
       {% set t1 = t0 + (24 * 3600) %}
       {% set pv = namespace(total=0.0) %}
@@ -110,7 +115,8 @@ sensor:
       {% set heating_need = [c * (off + missing_delta_k), 0] | max %}
       {{ [pv_after_stage1, heating_need] | min | round(3) }}
     heating_uncovered_kwh: >
-      {% set pv_predictions = state_attr('sensor.solar_prediction_kwh', 'predictions') %}
+      {% set pv_predictions_raw = state_attr('sensor.solar_prediction_kwh', 'predictions') %}
+      {% set pv_predictions = pv_predictions_raw | from_json(default={}) if pv_predictions_raw is string else pv_predictions_raw %}
       {% set t0 = as_timestamp(now()) %}
       {% set t1 = t0 + (24 * 3600) %}
       {% set pv = namespace(total=0.0) %}
@@ -136,7 +142,8 @@ sensor:
       {% set heating_alloc = [pv_after_stage1, heating_need] | min %}
       {{ [heating_need - heating_alloc, 0] | max | round(3) }}
     remaining_after_heating_kwh: >
-      {% set pv_predictions = state_attr('sensor.solar_prediction_kwh', 'predictions') %}
+      {% set pv_predictions_raw = state_attr('sensor.solar_prediction_kwh', 'predictions') %}
+      {% set pv_predictions = pv_predictions_raw | from_json(default={}) if pv_predictions_raw is string else pv_predictions_raw %}
       {% set t0 = as_timestamp(now()) %}
       {% set t1 = t0 + (24 * 3600) %}
       {% set pv = namespace(total=0.0) %}
@@ -174,7 +181,8 @@ sensor:
       {% set missing_pct = [target - soc, 0] | max %}
       {{ (cap * missing_pct / 100.0) | round(3) }}
     allocated_to_battery_before_stage2_kwh: >
-      {% set pv_predictions = state_attr('sensor.solar_prediction_kwh', 'predictions') %}
+      {% set pv_predictions_raw = state_attr('sensor.solar_prediction_kwh', 'predictions') %}
+      {% set pv_predictions = pv_predictions_raw | from_json(default={}) if pv_predictions_raw is string else pv_predictions_raw %}
       {% set t0 = as_timestamp(now()) %}
       {% set t1 = t0 + (24 * 3600) %}
       {% set pv = namespace(total=0.0) %}
@@ -204,7 +212,8 @@ sensor:
       {% set batt_need = [cap * ([90.0 - soc, 0] | max) / 100.0, 0] | max %}
       {{ [rem_after_heat, batt_need] | min | round(3) }}
     remaining_after_battery_kwh: >
-      {% set pv_predictions = state_attr('sensor.solar_prediction_kwh', 'predictions') %}
+      {% set pv_predictions_raw = state_attr('sensor.solar_prediction_kwh', 'predictions') %}
+      {% set pv_predictions = pv_predictions_raw | from_json(default={}) if pv_predictions_raw is string else pv_predictions_raw %}
       {% set t0 = as_timestamp(now()) %}
       {% set t1 = t0 + (24 * 3600) %}
       {% set pv = namespace(total=0.0) %}

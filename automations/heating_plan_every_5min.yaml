@@ -35,6 +35,8 @@
     pv_offset_k: "{{ 0.5 if has_pv_excess else 0 }}"
     pv_predictions: "{{ state_attr('sensor.solar_prediction_kwh', 'predictions') }}"
     pv_plan_day_kwh: >-
+      {% set pv_predictions_raw = state_attr('sensor.solar_prediction_kwh', 'predictions') %}
+      {% set pv_predictions = pv_predictions_raw | from_json(default={}) if pv_predictions_raw is string else pv_predictions_raw %}
       {% set base = now().replace(hour=0, minute=0, second=0, microsecond=0) %}
       {% set t0 = as_timestamp(base) %}
       {% set t1 = t0 + 24 * 3600 %}
