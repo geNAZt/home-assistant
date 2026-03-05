@@ -41,6 +41,7 @@
     battery_above_min: "{{ battery_soc >= battery_min_soc }}"
     battery_ready_for_stage2: "{{ battery_soc >= battery_stage2_soc }}"
     stage2_allowed_by_forecast: "{{ (remaining_after_battery_kwh > 0.20) and ((not stage1_needed) or stage2_whitelist_active) and (not heating_priority_open) }}"
+    level_up_possible: "{{ (exported_power >= 1600) or (stage_1_state and exported_power >= 1200) }}"
 
     # Determine which stage should be active
     battery_ready_stage1: "{{ battery_above_min }}"
@@ -52,12 +53,8 @@
       }}
     should_stage_2: >-
       {{
-        stage2_allowed_by_forecast
-        and battery_ready_for_stage2
-        and (
-          (exported_power >= 1600)
-          or (stage_1_state and exported_power >= 1200)
-        )
+        battery_ready_for_stage2
+        and level_up_possible
       }}
     should_all_off: >-
       {{
