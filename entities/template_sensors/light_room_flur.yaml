@@ -40,4 +40,4 @@ light:
       target:
         entity_id: input_number.flur_color_temp
       data:
-        value: "{{ color_temp }}"
+        value: "{{ color_temp_kelvin }}"
