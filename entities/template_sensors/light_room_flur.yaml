@@ -10,10 +10,6 @@ light:
     {% endif %}
   # Helligkeit vom Helper holen
   level: "{{ states('input_number.flur_brightness') | int(0) }}"
-  # Farbtemperatur vom Helper holen
-  # Achtung: Home Assistant erwartet hier mired, nicht Kelvin
-  # Passe deinen Helper-Bereich ggf. an (z.B. 153–500)
-  temperature: "{{ states('input_number.flur_color_temp') | int(3500) }}"
   # Einschalten der "Automatik"
   turn_on:
     - action: input_boolean.turn_on
