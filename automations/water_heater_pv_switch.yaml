@@ -53,8 +53,14 @@
       }}
     should_stage_2: >-
       {{
-        battery_ready_for_stage2
-        and level_up_possible
+        (
+          stage_2_state and (imported_power | float(0) <= 100)
+        )
+        or
+        (
+          battery_ready_for_stage2
+          and level_up_possible
+        )
       }}
     should_all_off: >-
       {{
