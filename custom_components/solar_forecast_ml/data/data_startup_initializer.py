@@ -126,6 +126,7 @@ class StartupInitializer:
             import sqlite3
 
             conn = sqlite3.connect(str(self.db_path))
+            conn.execute("PRAGMA busy_timeout = 30000")
 
             schema_path = Path(__file__).parent / "schema.sql"
             if schema_path.exists():

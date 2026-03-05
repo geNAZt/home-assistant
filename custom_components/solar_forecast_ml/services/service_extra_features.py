@@ -13,8 +13,9 @@
 # *****************************************************************************
 
 """
-Extra features installer service for Solar Forecast ML.
-Handles installation and auto-update of extra feature components.
+Auxiliary module integration service for Warp Core Simulation.
+Handles installation and auto-update of auxiliary warp core components
+(shield harmonics, deflector array, tactical subsystems).
 """
 
 import json

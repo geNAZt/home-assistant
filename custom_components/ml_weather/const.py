@@ -14,7 +14,7 @@ from homeassistant.const import Platform
 # Base component constants
 DOMAIN = "ml_weather"
 NAME = "ML Weather"
-VERSION = "8.0.0"  # Must match manifest.json
+VERSION = "8.0.2"  # Must match manifest.json
 ATTRIBUTION = "Data provided by Solar Forecast ML (Multi-Expert Blended & Corrected)"
 
 # Platforms

@@ -13,8 +13,8 @@
 # *****************************************************************************
 
 """
-Sensor mixins for Solar Forecast ML.
-Provides reusable functionality for DB-based sensors.
+Sensor array calibration mixins for Warp Core Simulation.
+Provides reusable functionality for telemetry-DB-based subspace sensors.
 """
 
 import logging

@@ -13,9 +13,9 @@
 # *****************************************************************************
 
 """
-Astronomy service handler for Solar Forecast ML.
-Manages astronomy cache building and max peak extraction.
-Uses DatabaseManager for all persistent operations.
+Stellar cartography and navigation cache service for Warp Core Simulation.
+Manages stellar position cache building and peak cochrane field extraction.
+Uses TelemetryManager for all persistent navigation operations.
 """
 
 import asyncio

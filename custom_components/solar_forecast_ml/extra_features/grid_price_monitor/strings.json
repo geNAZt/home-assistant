@@ -2,7 +2,7 @@
   "config": {
     "step": {
       "user": {
-        "title": "Grid Price Monitor Setup",
+        "title": "Solar Forecast GPM Setup",
         "description": "Configure your electricity market region.",
         "data": {
           "country": "Country"
@@ -22,7 +22,12 @@
           "taxes_fees": "Taxes and fees",
           "provider_markup": "Provider markup",
           "max_price": "Maximum price threshold",
-          "battery_power_sensor": "Battery power sensor"
+          "battery_power_sensor": "Battery power sensor",
+          "smart_charging_enabled": "Enable smart charging",
+          "battery_capacity": "Battery capacity",
+          "battery_soc_sensor": "Battery SoC sensor",
+          "max_soc": "Maximum charge level",
+          "min_soc": "Minimum charge level"
         },
         "data_description": {
           "vat_rate": "VAT rate applied to spot price (19% DE, 20% AT, 7% reduced)",
@@ -32,11 +37,16 @@
           "taxes_fees": "Electricity tax, EEG surcharge, etc. (gross, incl. VAT)",
           "provider_markup": "Your provider's margin/profit (gross, incl. VAT)",
           "max_price": "Binary sensor turns ON when total price is below this threshold",
-          "battery_power_sensor": "Power sensor for battery charging from grid (optional)"
+          "battery_power_sensor": "Power sensor for battery charging from grid (optional)",
+          "smart_charging_enabled": "Use solar forecast to optimize grid charging (requires Solar Forecast ML)",
+          "battery_capacity": "Usable battery capacity in kWh (e.g. 10.0)",
+          "battery_soc_sensor": "Sensor showing current battery state of charge in %",
+          "max_soc": "Maximum battery level for grid charging (default: 100%)",
+          "min_soc": "Minimum battery level - grid charges at least to this level (default: 10%)"
         }
       },
       "reconfigure": {
-        "title": "Reconfigure Grid Price Monitor",
+        "title": "Reconfigure Solar Forecast GPM",
         "description": "Change your electricity market region. After this step, you can adjust all pricing settings.",
         "data": {
           "country": "Country"
@@ -52,13 +62,13 @@
       "unknown": "An unknown error occurred"
     },
     "abort": {
-      "already_configured": "Grid Price Monitor is already configured"
+      "already_configured": "Solar Forecast GPM is already configured"
     }
   },
   "options": {
     "step": {
       "init": {
-        "title": "Grid Price Monitor Options",
+        "title": "Solar Forecast GPM Options",
         "description": "Current market: **{country}**\n\nAdjust your pricing configuration. To change the country, use 'Reconfigure' instead.",
         "data": {
           "vat_rate": "VAT rate",
@@ -66,7 +76,12 @@
           "taxes_fees": "Taxes and fees",
           "provider_markup": "Provider markup",
           "max_price": "Maximum price threshold",
-          "battery_power_sensor": "Battery power sensor"
+          "battery_power_sensor": "Battery power sensor",
+          "smart_charging_enabled": "Enable smart charging",
+          "battery_capacity": "Battery capacity",
+          "battery_soc_sensor": "Battery SoC sensor",
+          "max_soc": "Maximum charge level",
+          "min_soc": "Minimum charge level"
         },
         "data_description": {
           "vat_rate": "VAT rate applied to spot price",
@@ -74,7 +89,12 @@
           "taxes_fees": "Electricity tax, EEG surcharge, etc. (ct/kWh, gross)",
           "provider_markup": "Your provider's margin/profit (ct/kWh, gross)",
           "max_price": "Binary sensor turns ON when total price is below this value",
-          "battery_power_sensor": "Power sensor for battery charging from grid (optional)"
+          "battery_power_sensor": "Power sensor for battery charging from grid (optional)",
+          "smart_charging_enabled": "Use solar forecast to optimize grid charging (requires Solar Forecast ML)",
+          "battery_capacity": "Usable battery capacity in kWh (e.g. 10.0)",
+          "battery_soc_sensor": "Sensor showing current battery state of charge in %",
+          "max_soc": "Maximum battery level for grid charging (default: 100%)",
+          "min_soc": "Minimum battery level - grid charges at least to this level (default: 10%)"
         }
       }
     },
@@ -116,6 +136,15 @@
       },
       "battery_charged_month": {
         "name": "Battery Charged Month"
+      },
+      "smart_charging_target_soc": {
+        "name": "Smart Charging Target SoC"
+      },
+      "solar_forecast_today": {
+        "name": "Solar Forecast Today"
+      },
+      "solar_forecast_tomorrow": {
+        "name": "Solar Forecast Tomorrow"
       }
     },
     "binary_sensor": {
@@ -124,6 +153,13 @@
         "state": {
           "on": "Cheap",
           "off": "Expensive"
+        }
+      },
+      "smart_charging": {
+        "name": "Smart Charging",
+        "state": {
+          "on": "Charging",
+          "off": "Stopped"
         }
       }
     }

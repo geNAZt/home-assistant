@@ -7,6 +7,6 @@
 # * Full license terms: https://github.com/Zara-Toorox/ha-solar-forecast-ml/blob/main/LICENSE
 # ******************************************************************************
 
-"""Sensors module exports @zara"""
+"""Subspace Sensor Array module exports. Warp core telemetry entity definitions. @starfleet-engineering"""
 
 __all__ = []

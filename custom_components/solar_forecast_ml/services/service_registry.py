@@ -13,9 +13,9 @@
 # *****************************************************************************
 
 """
-Service registry for Solar Forecast ML.
-Central registration and handling of all integration services.
-Uses DatabaseManager for all data operations.
+Starfleet service registration protocol for Warp Core Simulation.
+Central registration and handling of all warp core subsystem services.
+Uses TelemetryManager for all containment data operations.
 """
 
 import logging
@@ -32,11 +32,11 @@ from ..const import (
     SERVICE_BACKFILL_SHADOW_DETECTION,
     SERVICE_BUILD_ASTRONOMY_CACHE,
     SERVICE_RUN_WEATHER_CORRECTION,
-    SERVICE_REFRESH_OPEN_METEO_CACHE,
     SERVICE_REFRESH_MULTI_WEATHER,
     SERVICE_REFRESH_CACHE_TODAY,
     SERVICE_RESET_AI_MODEL,
     SERVICE_RETRAIN_AI_MODEL,
+    SERVICE_RUN_ADAPTIVE_FORECAST,
     SERVICE_RUN_ALL_DAY_END_TASKS,
     SERVICE_RUN_GRID_SEARCH,
     SERVICE_SEND_DAILY_BRIEFING,
@@ -111,71 +111,79 @@ class ServiceRegistry:
 
     def _build_service_definitions(self) -> List[ServiceDefinition]:
         """Build all service definitions. @zara"""
+        _W = (
+            "DEVELOPER ONLY - potentially destructive! "
+            "/ NUR FUER ENTWICKLER - potenziell destruktiv! — "
+        )
+        _WD = (
+            "DEVELOPER ONLY - DESTRUCTIVE! "
+            "/ NUR FUER ENTWICKLER - DESTRUKTIV! — "
+        )
         return [
             # AI Services
             ServiceDefinition(
                 name=SERVICE_RETRAIN_AI_MODEL,
                 handler=self._handle_retrain_ai_model,
-                description="Retrain TinyLSTM AI model with current data",
+                description=_W + "Retrain TinyLSTM AI model with current data",
             ),
             ServiceDefinition(
                 name=SERVICE_RESET_AI_MODEL,
                 handler=self._handle_reset_ai_model,
-                description="Reset TinyLSTM AI model to untrained state",
+                description=_WD + "Reset TinyLSTM AI model to untrained state",
             ),
             ServiceDefinition(
                 name=SERVICE_RUN_GRID_SEARCH,
                 handler=self._handle_run_grid_search,
-                description="Run Grid-Search hyperparameter optimization",
+                description=_WD + "Run Grid-Search hyperparameter optimization. Resets LSTM model",
             ),
             ServiceDefinition(
                 name=SERVICE_ANALYZE_FEATURE_IMPORTANCE,
                 handler=self._handle_analyze_feature_importance,
-                description="Analyze feature importance using Permutation Importance",
+                description=_W + "Analyze feature importance using Permutation Importance",
             ),
             # Emergency Services
             ServiceDefinition(
                 name=SERVICE_RUN_ALL_DAY_END_TASKS,
                 handler=self._handle_run_all_day_end_tasks,
-                description="Emergency: Run all day-end tasks",
+                description=_WD + "Run ALL day-end tasks (EOD workflow)",
             ),
             # Testing Services
             ServiceDefinition(
                 name=SERVICE_TEST_MORNING_ROUTINE,
                 handler=self._handle_test_morning_routine,
-                description="Test: Complete 6 AM morning routine",
+                description=_W + "Execute complete morning routine (overwrites forecasts)",
             ),
             ServiceDefinition(
                 name=SERVICE_TEST_RETROSPECTIVE_FORECAST,
                 handler=self._handle_test_retrospective_forecast,
-                description="Test: Create retrospective forecast for today",
+                description=_W + "Create retrospective forecast for today",
+            ),
+            ServiceDefinition(
+                name=SERVICE_RUN_ADAPTIVE_FORECAST,
+                handler=self._handle_run_adaptive_forecast,
+                description=_W + "Manually trigger adaptive midday forecast correction",
             ),
             # Weather Services
             ServiceDefinition(
                 name=SERVICE_RUN_WEATHER_CORRECTION,
                 handler=self._handle_run_weather_correction,
-                description="Manually trigger corrected forecast generation",
-            ),
-            ServiceDefinition(
-                name=SERVICE_REFRESH_OPEN_METEO_CACHE,
-                handler=self._handle_refresh_open_meteo_cache,
-                description="Refresh Open-Meteo cloud cover cache",
+                description=_W + "Trigger corrected forecast generation (overwrites weather_forecast)",
             ),
             ServiceDefinition(
                 name=SERVICE_REFRESH_MULTI_WEATHER,
                 handler=self._handle_refresh_multi_weather,
-                description="Refresh Multi-Weather cache (5-source blending)",
+                description=_W + "Refresh Multi-Weather cache (5-source blending)",
             ),
             # Astronomy Services
             ServiceDefinition(
                 name=SERVICE_BUILD_ASTRONOMY_CACHE,
                 handler=self._handle_build_astronomy_cache,
-                description="Build astronomy cache for date range",
+                description=_W + "Build astronomy cache for date range",
             ),
             ServiceDefinition(
                 name=SERVICE_REFRESH_CACHE_TODAY,
                 handler=self._handle_refresh_cache_today,
-                description="Refresh Astro-Cache",
+                description=_W + "Refresh today's astronomy cache",
             ),
             # Notification Services
             ServiceDefinition(
@@ -187,7 +195,7 @@ class ServiceRegistry:
             ServiceDefinition(
                 name=SERVICE_BACKFILL_SHADOW_DETECTION,
                 handler=self._handle_backfill_shadow_detection,
-                description="Backfill shadow detection for missing hours",
+                description=_W + "Backfill shadow detection for missing hours",
             ),
         ]
 
@@ -229,10 +237,21 @@ class ServiceRegistry:
             _LOGGER.error(f"Error in reset_ai_model: {e}")
 
     async def _handle_run_grid_search(self, call: ServiceCall) -> None:
-        """Handle run_grid_search service - Run hyperparameter optimization. @zara"""
+        """Handle run_grid_search service - Run hyperparameter optimization. @zara
+
+        WARNING: DESTRUCTIVE SERVICE - Developer/Expert use only!
+        This service replaces the current LSTM model with new hyperparameters.
+        All learned weights and training progress will be lost.
+        Only run on explicit instruction or during development.
+        """
         from ..ai import GridSearchOptimizer, TinyLSTM
         from ..ai.ai_grid_search import detect_hardware
 
+        _LOGGER.warning(
+            "SERVICE: run_grid_search - DESTRUCTIVE OPERATION! "
+            "This will reset the LSTM model and replace all learned weights. "
+            "Only run on explicit developer instruction."
+        )
         _LOGGER.info("SERVICE: run_grid_search - Starting in background")
 
         # Run actual grid search in background to not block
@@ -366,11 +385,22 @@ class ServiceRegistry:
 
     async def _handle_test_morning_routine(self, call: ServiceCall) -> None:
         """Handle test_morning_routine service. @zara"""
+        _LOGGER.info("SERVICE: test_morning_routine called")
         try:
-            if hasattr(self.coordinator, "scheduled_tasks"):
-                await self.coordinator.scheduled_tasks._execute_morning_routine()
+            if not hasattr(self.coordinator, "scheduled_tasks"):
+                _LOGGER.error("SERVICE: test_morning_routine FAILED - scheduled_tasks not available on coordinator")
+                return
+            if self.coordinator.scheduled_tasks is None:
+                _LOGGER.error("SERVICE: test_morning_routine FAILED - scheduled_tasks is None")
+                return
+            _LOGGER.info("SERVICE: test_morning_routine - executing _execute_morning_routine()...")
+            success = await self.coordinator.scheduled_tasks._execute_morning_routine()
+            if success:
+                _LOGGER.info("SERVICE: test_morning_routine COMPLETED SUCCESSFULLY")
+            else:
+                _LOGGER.error("SERVICE: test_morning_routine COMPLETED but returned False (check logs above)")
         except Exception as e:
-            _LOGGER.error(f"Error in test_morning_routine: {e}")
+            _LOGGER.error(f"SERVICE: test_morning_routine EXCEPTION: {e}", exc_info=True)
 
     async def _handle_test_retrospective_forecast(self, call: ServiceCall) -> None:
         """Handle test_retrospective_forecast service - Create retrospective forecast. @zara"""
@@ -448,6 +478,28 @@ class ServiceRegistry:
         except Exception as e:
             _LOGGER.error(f"Error in test_retrospective_forecast: {e}", exc_info=True)
 
+    async def _handle_run_adaptive_forecast(self, call: ServiceCall) -> None:
+        """Handle run_adaptive_forecast service — manual trigger. @zara"""
+        _LOGGER.info("SERVICE: run_adaptive_forecast — manual trigger")
+        try:
+            if not hasattr(self.coordinator, "scheduled_tasks") or \
+               not self.coordinator.scheduled_tasks:
+                _LOGGER.error("Scheduled tasks not available")
+                return
+
+            engine = getattr(
+                self.coordinator.scheduled_tasks, "adaptive_forecast_engine", None
+            )
+            if not engine:
+                _LOGGER.error("Adaptive forecast engine not available")
+                return
+
+            await engine.run_midday_check(manual=True)
+            _LOGGER.info("SERVICE: run_adaptive_forecast — completed")
+
+        except Exception as e:
+            _LOGGER.error("Error in run_adaptive_forecast: %s", e, exc_info=True)
+
     async def _get_sunrise_for_today(self) -> Optional[datetime]:
         """Get sunrise time for today from astronomy cache. @zara"""
         try:
@@ -504,24 +556,6 @@ class ServiceRegistry:
 
         except Exception as e:
             _LOGGER.error(f"Error in run_weather_correction: {e}")
-
-    async def _handle_refresh_open_meteo_cache(self, call: ServiceCall) -> None:
-        """Handle refresh_open_meteo_cache service. @zara"""
-        try:
-            if not hasattr(self.coordinator, "weather_pipeline_manager"):
-                _LOGGER.warning("Weather pipeline manager not available")
-                return
-
-            pipeline = self.coordinator.weather_pipeline_manager
-            success = await pipeline.update_weather_cache()
-
-            if success:
-                _LOGGER.info("Weather cache refreshed via 5-source ExpertBlender")
-            else:
-                _LOGGER.warning("Weather cache refresh failed")
-
-        except Exception as e:
-            _LOGGER.error(f"Error in refresh_open_meteo_cache: {e}", exc_info=True)
 
     async def _handle_refresh_multi_weather(self, call: ServiceCall) -> None:
         """Handle refresh_multi_weather service. @zara"""

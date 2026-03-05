@@ -25,7 +25,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Set up Grid Price Monitor from a config entry.
+    """Set up Solar Forecast GPM from a config entry.
 
     Uses background initialization to avoid blocking HA startup. @zara
     """
@@ -60,7 +60,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         import asyncio
 
         try:
-            _LOGGER.debug("Grid Price Monitor: Starting background initialization")
+            _LOGGER.debug("Solar Forecast GPM: Starting background initialization")
 
             # Initialize persistent storage (creates /config/grid_price_monitor/ structure)
             await coordinator.async_initialize_storage()
@@ -76,7 +76,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     await coordinator.async_refresh()
             except asyncio.TimeoutError:
                 _LOGGER.warning(
-                    "Grid Price Monitor: First refresh timed out after 60s - "
+                    "Solar Forecast GPM: First refresh timed out after 60s - "
                     "will retry at next scheduled update"
                 )
 
@@ -86,7 +86,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 entry.data.get("country", "DE"),
             )
         except Exception as err:
-            _LOGGER.error("Grid Price Monitor background init failed: %s", err)
+            _LOGGER.error("Solar Forecast GPM background init failed: %s", err)
 
     # Start background initialization - does not block HA startup
     hass.async_create_background_task(
@@ -94,7 +94,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         f"{DOMAIN}_background_init_{entry.entry_id}",
     )
 
-    _LOGGER.info("Grid Price Monitor basic setup complete - initialization continues in background")
+    _LOGGER.info("Solar Forecast GPM basic setup complete - initialization continues in background")
     return True
 
 

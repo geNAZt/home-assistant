@@ -10,6 +10,20 @@
 """SFML Stats integration for Home Assistant. @zara"""
 from __future__ import annotations
 
+
+# PyArmor Runtime Path Setup - MUST be before any protected module imports
+import sys
+from pathlib import Path as _Path
+_runtime_path = str(_Path(__file__).parent)
+if _runtime_path not in sys.path:
+    sys.path.insert(0, _runtime_path)
+
+# Pre-load PyArmor runtime at module level (before async event loop)
+try:
+    import pyarmor_runtime_009810  # noqa: F401
+except ImportError:
+    pass  # Runtime not present (development mode)
+
 import logging
 from datetime import datetime
 from pathlib import Path
@@ -305,10 +319,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         except Exception as err:
             _LOGGER.error("Initial aggregation failed: %s", err)
 
-    hass.async_create_background_task(
+    task_aggregation = hass.async_create_background_task(
         _initial_aggregation(),
         f"{DOMAIN}_initial_aggregation",
     )
+    hass.data[DOMAIN][entry.entry_id]["_task_aggregation"] = task_aggregation
 
     async def _initial_forecast_collection() -> None:
         """Run initial forecast comparison collection if needed. @zara"""
@@ -343,10 +358,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         except Exception as err:
             _LOGGER.error("Initial forecast comparison collection failed: %s", err)
 
-    hass.async_create_background_task(
+    task_forecast = hass.async_create_background_task(
         _initial_forecast_collection(),
         f"{DOMAIN}_initial_forecast_collection",
     )
+    hass.data[DOMAIN][entry.entry_id]["_task_forecast"] = task_forecast
+
+
 
     _LOGGER.info(
         "%s successfully set up. Export path: %s",
@@ -404,6 +422,12 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     if "weather_collector" in entry_data and entry_data["weather_collector"]:
         _LOGGER.debug("Weather collector cleaned up")
+
+    for task_key in ("_task_aggregation", "_task_forecast"):
+        task = entry_data.get(task_key)
+        if task is not None and not task.done():
+            task.cancel()
+            _LOGGER.debug("Background task %s cancelled", task_key)
 
     try:
         from homeassistant.components.persistent_notification import async_dismiss

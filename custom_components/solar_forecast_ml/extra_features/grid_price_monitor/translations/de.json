@@ -2,7 +2,7 @@
   "config": {
     "step": {
       "user": {
-        "title": "Grid Price Monitor Einrichtung",
+        "title": "Solar Forecast GPM Einrichtung",
         "description": "Konfigurieren Sie Ihre Strommarkt-Region.",
         "data": {
           "country": "Land"
@@ -22,7 +22,12 @@
           "taxes_fees": "Steuern und Abgaben",
           "provider_markup": "Anbieter-Aufschlag",
           "max_price": "Maximaler Preisschwellwert",
-          "battery_power_sensor": "Batterie-Leistungssensor"
+          "battery_power_sensor": "Batterie-Leistungssensor",
+          "smart_charging_enabled": "Intelligentes Laden aktivieren",
+          "battery_capacity": "Akkukapazität",
+          "battery_soc_sensor": "Akku-Ladestand Sensor",
+          "max_soc": "Maximaler Ladezustand",
+          "min_soc": "Minimaler Ladezustand"
         },
         "data_description": {
           "vat_rate": "MwSt-Satz auf den Börsenpreis (19% DE, 20% AT, 7% ermäßigt)",
@@ -32,11 +37,16 @@
           "taxes_fees": "Stromsteuer, EEG-Umlage, etc. (brutto, inkl. MwSt)",
           "provider_markup": "Marge/Gewinn Ihres Stromanbieters (brutto, inkl. MwSt)",
           "max_price": "Binärsensor schaltet EIN, wenn der Gesamtpreis unter diesem Schwellwert liegt",
-          "battery_power_sensor": "Leistungssensor für Batterieladung aus dem Netz (optional)"
+          "battery_power_sensor": "Leistungssensor für Batterieladung aus dem Netz (optional)",
+          "smart_charging_enabled": "Solar-Prognose nutzen um Netzladen zu optimieren (erfordert Solar Forecast ML)",
+          "battery_capacity": "Nutzbare Akkukapazität in kWh (z.B. 10.0)",
+          "battery_soc_sensor": "Sensor der den aktuellen Akku-Ladestand in % anzeigt",
+          "max_soc": "Maximaler Akku-Ladestand für Netzladen (Standard: 100%)",
+          "min_soc": "Minimaler Akku-Ladestand - Netz lädt mindestens bis hierhin (Standard: 10%)"
         }
       },
       "reconfigure": {
-        "title": "Grid Price Monitor neu konfigurieren",
+        "title": "Solar Forecast GPM neu konfigurieren",
         "description": "Ändern Sie Ihre Strommarkt-Region. Danach können Sie alle Preiseinstellungen anpassen.",
         "data": {
           "country": "Land"
@@ -52,13 +62,13 @@
       "unknown": "Ein unbekannter Fehler ist aufgetreten"
     },
     "abort": {
-      "already_configured": "Grid Price Monitor ist bereits konfiguriert"
+      "already_configured": "Solar Forecast GPM ist bereits konfiguriert"
     }
   },
   "options": {
     "step": {
       "init": {
-        "title": "Grid Price Monitor Optionen",
+        "title": "Solar Forecast GPM Optionen",
         "description": "Aktueller Markt: **{country}**\n\nPassen Sie Ihre Preiskonfiguration an. Um das Land zu ändern, verwenden Sie 'Neu konfigurieren'.",
         "data": {
           "vat_rate": "MwSt-Satz",
@@ -66,7 +76,12 @@
           "taxes_fees": "Steuern und Abgaben",
           "provider_markup": "Anbieter-Aufschlag",
           "max_price": "Maximaler Preisschwellwert",
-          "battery_power_sensor": "Batterie-Leistungssensor"
+          "battery_power_sensor": "Batterie-Leistungssensor",
+          "smart_charging_enabled": "Intelligentes Laden aktivieren",
+          "battery_capacity": "Akkukapazität",
+          "battery_soc_sensor": "Akku-Ladestand Sensor",
+          "max_soc": "Maximaler Ladezustand",
+          "min_soc": "Minimaler Ladezustand"
         },
         "data_description": {
           "vat_rate": "MwSt-Satz auf den Börsenpreis",
@@ -74,7 +89,12 @@
           "taxes_fees": "Stromsteuer, EEG-Umlage, etc. (ct/kWh, brutto)",
           "provider_markup": "Marge/Gewinn Ihres Stromanbieters (ct/kWh, brutto)",
           "max_price": "Binärsensor schaltet EIN, wenn der Gesamtpreis unter diesem Wert liegt",
-          "battery_power_sensor": "Leistungssensor für Batterieladung aus dem Netz (optional)"
+          "battery_power_sensor": "Leistungssensor für Batterieladung aus dem Netz (optional)",
+          "smart_charging_enabled": "Solar-Prognose nutzen um Netzladen zu optimieren (erfordert Solar Forecast ML)",
+          "battery_capacity": "Nutzbare Akkukapazität in kWh (z.B. 10.0)",
+          "battery_soc_sensor": "Sensor der den aktuellen Akku-Ladestand in % anzeigt",
+          "max_soc": "Maximaler Akku-Ladestand für Netzladen (Standard: 100%)",
+          "min_soc": "Minimaler Akku-Ladestand - Netz lädt mindestens bis hierhin (Standard: 10%)"
         }
       }
     },
@@ -116,6 +136,15 @@
       },
       "battery_charged_month": {
         "name": "Batterie geladen Monat"
+      },
+      "smart_charging_target_soc": {
+        "name": "Intelligentes Laden Ziel-SoC"
+      },
+      "solar_forecast_today": {
+        "name": "Solar-Prognose heute"
+      },
+      "solar_forecast_tomorrow": {
+        "name": "Solar-Prognose morgen"
       }
     },
     "binary_sensor": {
@@ -124,6 +153,13 @@
         "state": {
           "on": "Günstig",
           "off": "Teuer"
+        }
+      },
+      "smart_charging": {
+        "name": "Intelligentes Laden",
+        "state": {
+          "on": "Laden aktiv",
+          "off": "Laden gestoppt"
         }
       }
     }

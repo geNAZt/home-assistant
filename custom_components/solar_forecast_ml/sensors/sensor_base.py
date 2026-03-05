@@ -13,8 +13,9 @@
 # *****************************************************************************
 
 """
-Base sensor classes for Solar Forecast ML.
-All sensors use DatabaseManager for state persistence.
+Subspace sensor array base classes for Warp Core Simulation.
+All sensors use TelemetryManager for warp field state persistence.
+Cochrane field readings cached in coordinator for real-time bridge display.
 """
 
 import logging
@@ -41,8 +42,6 @@ from ..const import (
     # Configuration Keys
     CONF_SOLAR_YIELD_TODAY,
     CONF_TOTAL_CONSUMPTION_TODAY,
-    CONF_GRID_IMPORT_TODAY,
-    CONF_GRID_EXPORT_TODAY,
     # Coordinator Data Keys
     DATA_KEY_FORECAST_TODAY,
     DATA_KEY_FORECAST_DAY_AFTER,
@@ -65,6 +64,8 @@ from ..const import (
     # Cache Keys
     CACHE_HOURLY_PREDICTIONS,
     CACHE_PREDICTIONS,
+    CACHE_PREDICTIONS_TOMORROW,
+    CACHE_PREDICTIONS_DAY_AFTER,
     CACHE_BEST_HOUR_TODAY,
     # Prediction Keys
     PRED_TARGET_DATE,
@@ -76,6 +77,22 @@ from ..coordinator import SolarForecastMLCoordinator
 from ..data.db_manager import DatabaseManager
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _build_hourly_attributes(predictions: list) -> dict:
+    """Build hourly forecast attributes from predictions list. @zara"""
+    if not predictions:
+        return {}
+
+    sorted_preds = sorted(predictions, key=lambda p: p.get("target_hour", 0))
+    hours = {}
+    for pred in sorted_preds:
+        hour = pred.get("target_hour")
+        kwh = pred.get("prediction_kwh", 0.0)
+        if hour is not None and isinstance(kwh, (int, float)):
+            hours[f"{hour:02d}:00"] = round(kwh, 3)
+
+    return {"hours": hours}
 
 
 class BaseSolarSensor(CoordinatorEntity, SensorEntity):
@@ -122,6 +139,7 @@ class SolarForecastSensor(SensorEntity):
         self.entry = entry
         self._key = key
         self._cached_tomorrow_value: float = 0.0
+        self._production_time_entity_id: Optional[str] = None
 
         self._key_mapping = {
             "remaining": {"data_key": "prediction_kwh", "translation_key": "today_forecast"},
@@ -185,8 +203,10 @@ class SolarForecastSensor(SensorEntity):
         if self._key == "tomorrow":
             return self._cached_tomorrow_value
 
-        # For remaining today, calculate from hourly predictions in coordinator cache
-        production_time_sensor = self.hass.states.get(f"sensor.{DOMAIN}_production_time")
+        if not self.hass:
+            return 0.0
+
+        production_time_sensor = self.hass.states.get(self._production_time_entity_id) if self._production_time_entity_id else None
         if production_time_sensor and production_time_sensor.state == "00:00:00":
             return 0.0
 
@@ -220,6 +240,16 @@ class SolarForecastSensor(SensorEntity):
             _LOGGER.warning(f"Failed to calculate remaining from hourly predictions: {e}")
             return 0.0
 
+    @property
+    def extra_state_attributes(self) -> dict:
+        """Return hourly forecast breakdown. @zara"""
+        cache = getattr(self._coordinator, CACHE_HOURLY_PREDICTIONS, None)
+        if not cache:
+            return {}
+        if self._key == "tomorrow":
+            return _build_hourly_attributes(cache.get(CACHE_PREDICTIONS_TOMORROW, []))
+        return _build_hourly_attributes(cache.get(CACHE_PREDICTIONS, []))
+
     async def async_added_to_hass(self) -> None:
         """Run when entity about to be added to hass. @zara"""
         await super().async_added_to_hass()
@@ -230,10 +260,14 @@ class SolarForecastSensor(SensorEntity):
         self.async_on_remove(self._coordinator.async_add_listener(self._handle_coordinator_update))
 
         if self._key == "remaining":
-            production_time_entity = f"sensor.{DOMAIN}_production_time"
+            from homeassistant.helpers import entity_registry as er
+            ent_reg = er.async_get(self.hass)
+            self._production_time_entity_id = ent_reg.async_get_entity_id(
+                "sensor", DOMAIN, f"{self.entry.entry_id}_ml_production_time"
+            ) or f"sensor.{DOMAIN}_production_time"
             self.async_on_remove(
                 async_track_state_change_event(
-                    self.hass, production_time_entity, self._handle_production_time_change
+                    self.hass, self._production_time_entity_id, self._handle_production_time_change
                 )
             )
 
@@ -462,141 +496,6 @@ class AverageYieldSensor(BaseSolarSensor):
         return value if value is not None and value > 0 else None
 
 
-class AutarkySensor(SensorEntity):
-    """Sensor for the calculated self-sufficiency (Autarky) with live updates. @zara"""
-
-    _attr_has_entity_name = True
-    _attr_should_poll = False
-
-    def __init__(self, coordinator: SolarForecastMLCoordinator, entry: ConfigEntry):
-        """Initialize the autarky sensor. @zara"""
-        self._coordinator = coordinator
-        self.entry = entry
-        self._yield_entity = entry.data.get(CONF_SOLAR_YIELD_TODAY)
-        self._consumption_entity = entry.data.get(CONF_TOTAL_CONSUMPTION_TODAY)
-        self._grid_import_entity = entry.data.get(CONF_GRID_IMPORT_TODAY)
-        self._grid_export_entity = entry.data.get(CONF_GRID_EXPORT_TODAY)
-
-        self._attr_unique_id = f"{entry.entry_id}_ml_self_sufficiency"
-        self._attr_translation_key = "self_sufficiency"
-        self._attr_native_unit_of_measurement = PERCENTAGE
-        self._attr_state_class = SensorStateClass.MEASUREMENT
-        self._attr_icon = "mdi:home-lightning-bolt-outline"
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, entry.entry_id)},
-        )
-
-    @property
-    def available(self) -> bool:
-        """Return if entity is available. @zara"""
-        return (
-            self._coordinator.last_update_success
-            and self._coordinator.data is not None
-            and self.native_value is not None
-        )
-
-    @property
-    def native_value(self) -> Optional[float]:
-        """Return the autarky percentage - LIVE calculation. @zara"""
-        # Try coordinator value first
-        coord_value = getattr(self._coordinator, "autarky_today", None)
-        if coord_value is not None:
-            return max(0.0, min(100.0, coord_value))
-
-        # Calculate from grid import and consumption
-        if self._grid_import_entity and self._consumption_entity:
-            try:
-                grid_import_state = self.hass.states.get(self._grid_import_entity)
-                consumption_state = self.hass.states.get(self._consumption_entity)
-
-                if (
-                    grid_import_state
-                    and consumption_state
-                    and grid_import_state.state not in ["unavailable", "unknown", "none", None, ""]
-                    and consumption_state.state not in ["unavailable", "unknown", "none", None, ""]
-                ):
-                    grid_import_val = float(
-                        str(grid_import_state.state).split()[0].replace(",", ".")
-                    )
-                    consumption_val = float(
-                        str(consumption_state.state).split()[0].replace(",", ".")
-                    )
-
-                    if consumption_val > 0:
-                        autarky = ((consumption_val - grid_import_val) / consumption_val) * 100.0
-                        return max(0.0, min(100.0, autarky))
-            except (ValueError, TypeError, AttributeError):
-                pass
-
-        # Fallback to yield/consumption calculation
-        if self._yield_entity and self._consumption_entity:
-            try:
-                yield_state = self.hass.states.get(self._yield_entity)
-                consumption_state = self.hass.states.get(self._consumption_entity)
-
-                if (
-                    yield_state
-                    and consumption_state
-                    and yield_state.state not in ["unavailable", "unknown", "none", None, ""]
-                    and consumption_state.state not in ["unavailable", "unknown", "none", None, ""]
-                ):
-                    yield_val = float(str(yield_state.state).split()[0].replace(",", "."))
-                    consumption_val = float(
-                        str(consumption_state.state).split()[0].replace(",", ".")
-                    )
-
-                    if consumption_val > 0:
-                        autarky = (yield_val / consumption_val) * 100.0
-                        return max(0.0, min(100.0, autarky))
-            except (ValueError, TypeError, AttributeError):
-                pass
-
-        return None
-
-    async def async_added_to_hass(self) -> None:
-        """Run when entity about to be added to hass. @zara"""
-        await super().async_added_to_hass()
-
-        self.async_on_remove(self._coordinator.async_add_listener(self._handle_coordinator_update))
-
-        if self._yield_entity:
-            self.async_on_remove(
-                async_track_state_change_event(
-                    self.hass, self._yield_entity, self._handle_sensor_change
-                )
-            )
-        if self._consumption_entity:
-            self.async_on_remove(
-                async_track_state_change_event(
-                    self.hass, self._consumption_entity, self._handle_sensor_change
-                )
-            )
-        if self._grid_import_entity:
-            self.async_on_remove(
-                async_track_state_change_event(
-                    self.hass, self._grid_import_entity, self._handle_sensor_change
-                )
-            )
-        if self._grid_export_entity:
-            self.async_on_remove(
-                async_track_state_change_event(
-                    self.hass, self._grid_export_entity, self._handle_sensor_change
-                )
-            )
-
-        self.async_write_ha_state()
-
-    @callback
-    def _handle_coordinator_update(self) -> None:
-        """Handle coordinator updates. @zara"""
-        self.async_write_ha_state()
-
-    @callback
-    def _handle_sensor_change(self, event) -> None:
-        """Handle yield or consumption sensor state changes. @zara"""
-        self.async_write_ha_state()
-
-
 class ExpectedDailyProductionSensor(SensorEntity):
     """Sensor for expected daily production morning snapshot using DB. @zara"""
 
@@ -629,6 +528,14 @@ class ExpectedDailyProductionSensor(SensorEntity):
     def native_value(self) -> Optional[float]:
         """Return cached value. @zara"""
         return self._cached_value
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        """Return hourly forecast breakdown for today. @zara"""
+        cache = getattr(self._coordinator, CACHE_HOURLY_PREDICTIONS, None)
+        if not cache:
+            return {}
+        return _build_hourly_attributes(cache.get(CACHE_PREDICTIONS, []))
 
     async def _load_from_db(self) -> None:
         """Load expected daily production from DB via coordinator. @zara"""
@@ -895,6 +802,14 @@ class ForecastDayAfterTomorrowSensor(SensorEntity):
     def native_value(self) -> Optional[float]:
         """Return cached value. @zara"""
         return self._cached_value
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        """Return hourly forecast breakdown for day after tomorrow. @zara"""
+        cache = getattr(self._coordinator, CACHE_HOURLY_PREDICTIONS, None)
+        if not cache:
+            return {}
+        return _build_hourly_attributes(cache.get(CACHE_PREDICTIONS_DAY_AFTER, []))
 
     async def _load_from_db(self) -> None:
         """Load day after tomorrow forecast directly from daily_forecasts DB table. @zara"""
@@ -1198,8 +1113,7 @@ class AverageYield7DaysSensor(SensorEntity):
         self._attr_unique_id = f"{entry.entry_id}_ml_avg_yield_7d"
         self._attr_translation_key = "avg_yield_7d"
         self._attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
-        self._attr_state_class = SensorStateClass.TOTAL
-        self._attr_device_class = SensorDeviceClass.ENERGY
+        self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_icon = "mdi:chart-line"
         self._attr_suggested_display_precision = 2
         self._attr_device_info = DeviceInfo(
@@ -1259,8 +1173,7 @@ class AverageYield30DaysSensor(SensorEntity):
         self._attr_unique_id = f"{entry.entry_id}_ml_avg_yield_30d"
         self._attr_translation_key = "avg_yield_30d"
         self._attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
-        self._attr_state_class = SensorStateClass.TOTAL
-        self._attr_device_class = SensorDeviceClass.ENERGY
+        self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_icon = "mdi:chart-bar"
         self._attr_suggested_display_precision = 2
         self._attr_device_info = DeviceInfo(
@@ -1286,65 +1199,6 @@ class AverageYield30DaysSensor(SensorEntity):
                 self._cached_value = last_30d.get(STATS_AVG_YIELD_KWH)
         except Exception as e:
             _LOGGER.warning(f"Failed to load AverageYield30DaysSensor: {e}")
-
-    async def async_added_to_hass(self) -> None:
-        """Setup sensor. @zara"""
-        await super().async_added_to_hass()
-        await self._load_from_db()
-        self.async_on_remove(self._coordinator.async_add_listener(self._handle_coordinator_update))
-        self.async_write_ha_state()
-
-    @callback
-    def _handle_coordinator_update(self) -> None:
-        """Handle coordinator updates. @zara"""
-        self.hass.async_create_task(self._reload_and_update())
-
-    async def _reload_and_update(self) -> None:
-        """Reload value and update state. @zara"""
-        await self._load_from_db()
-        self.async_write_ha_state()
-
-
-class AverageAutarkyMonthSensor(SensorEntity):
-    """Sensor for average autarky for current month. @zara"""
-
-    _attr_has_entity_name = True
-    _attr_should_poll = False
-
-    def __init__(self, coordinator: SolarForecastMLCoordinator, entry: ConfigEntry):
-        """Initialize the average autarky month sensor. @zara"""
-        self._coordinator = coordinator
-        self.entry = entry
-        self._cached_value: Optional[float] = None
-
-        self._attr_unique_id = f"{entry.entry_id}_ml_avg_autarky_month"
-        self._attr_translation_key = "avg_autarky_month"
-        self._attr_native_unit_of_measurement = PERCENTAGE
-        self._attr_state_class = SensorStateClass.MEASUREMENT
-        self._attr_icon = "mdi:leaf"
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, entry.entry_id)},
-        )
-
-    @property
-    def available(self) -> bool:
-        """Sensor availability. @zara"""
-        return self._cached_value is not None
-
-    @property
-    def native_value(self) -> Optional[float]:
-        """Return cached value. @zara"""
-        return self._cached_value
-
-    async def _load_from_db(self) -> None:
-        """Load average autarky month from coordinator. @zara"""
-        try:
-            if self._coordinator.data:
-                statistics = self._coordinator.data.get(DATA_KEY_STATISTICS, {})
-                current_month = statistics.get(STATS_CURRENT_MONTH, {})
-                self._cached_value = current_month.get("avg_autarky")
-        except Exception as e:
-            _LOGGER.warning(f"Failed to load AverageAutarkyMonthSensor: {e}")
 
     async def async_added_to_hass(self) -> None:
         """Setup sensor. @zara"""

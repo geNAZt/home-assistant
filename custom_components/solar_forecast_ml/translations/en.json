@@ -5,32 +5,32 @@
         "title": "Solar Forecast ML",
         "description": "Required: Power Sensor, Daily Yield\nOptional: All other fields\n\nWeather data is provided automatically via Open-Meteo API (no configuration needed)",
         "data": {
-          "power_entity": "Power Sensor (W)",
-          "solar_yield_today": "Daily Yield (kWh)",
-          "total_consumption_today": "Daily Consumption (kWh)",
-          "solar_capacity": "System Capacity (kWp)",
-          "inverter_max_power": "Inverter Max Power (kW)",
-          "rain_sensor": "Rain Sensor",
-          "lux_sensor": "Illuminance Sensor (lx)",
-          "temp_sensor": "Temperature Sensor",
-          "wind_sensor": "Wind Sensor",
-          "humidity_sensor": "Humidity Sensor",
-          "pressure_sensor": "Pressure Sensor (hPa)",
-          "solar_radiation_sensor": "Solar Radiation Sensor (W/m²)"
+          "power_entity": "⚡ Current Solar Power (W)",
+          "solar_yield_today": "📊 Daily Yield (kWh)",
+          "total_consumption_today": "🏠 Household Consumption (kWh)",
+          "solar_capacity": "☀️ System Capacity (kWp)",
+          "inverter_max_power": "⚙️ Inverter AC Limit (kW)",
+          "rain_sensor": "🌧️ Precipitation (mm/h)",
+          "lux_sensor": "💡 Illuminance (lx)",
+          "temp_sensor": "🌡️ Outdoor Temperature (°C)",
+          "wind_sensor": "💨 Wind Speed",
+          "humidity_sensor": "💧 Humidity (%)",
+          "pressure_sensor": "🌀 Air Pressure (hPa)",
+          "solar_radiation_sensor": "🔆 Solar Radiation (W/m²)"
         },
         "data_description": {
-          "power_entity": "Current power in Watts (Required)",
-          "solar_yield_today": "Daily yield in kWh - MUST reset at midnight (Required)",
-          "total_consumption_today": "Daily consumption in kWh (Optional)",
-          "solar_capacity": "Peak power in kWp, e.g., 5.5 (Optional, auto-calculated with panel groups)",
-          "inverter_max_power": "Max AC power of inverter in kW. Forecasts are capped and clipped hours excluded from training. 0 = disabled. (Optional)",
-          "rain_sensor": "External rain sensor (Optional)",
-          "lux_sensor": "External illuminance in Lux (Optional)",
-          "temp_sensor": "External temperature (Optional)",
-          "wind_sensor": "External wind speed (Optional)",
-          "humidity_sensor": "External humidity (Optional)",
-          "pressure_sensor": "External barometric pressure in hPa (Optional)",
-          "solar_radiation_sensor": "External solar radiation in W/m² (Optional, preferred over Lux)"
+          "power_entity": "Unit: Watts (DC). Only the direct cell output, NOT the AC power after the inverter. (Required)",
+          "solar_yield_today": "Unit: kWh (DC). Must be based on the DC power sensor and reset to 0 at midnight. (Required)",
+          "total_consumption_today": "Unit: kWh. Total household electricity consumption since midnight. Must reset to 0 at midnight. (Optional)",
+          "solar_capacity": "Unit: kWp (e.g. 9.6). Only needed for single systems; with panel groups this is calculated automatically. (Optional)",
+          "inverter_max_power": "Unit: kW. Caps forecasts at the inverter maximum (e.g. 5.0). 0 = Disabled. (Optional)",
+          "rain_sensor": "Unit: mm/h. Physical outdoor sensor required (weather station). No yes/no values, only measurements! (Optional)",
+          "lux_sensor": "Unit: Lux. Physical outdoor sensor required. No indoor sensors, no simulated values! (Optional)",
+          "temp_sensor": "Unit: °C. Only real measurement data from a local outdoor sensor. No online weather services! (Optional)",
+          "wind_sensor": "Unit: m/s or km/h. Physical anemometer at the installation site required. (Optional)",
+          "humidity_sensor": "Unit: % RH. Local outdoor sensor required. Do not use indoor values. (Optional)",
+          "pressure_sensor": "Unit: hPa. Requires a physical barometer sensor on site. Used for trend detection. No online data! (Optional)",
+          "solar_radiation_sensor": "Unit: W/m². Measured by on-site pyranometer. Takes priority over Lux sensors for highest precision. (Optional)"
         }
       },
       "panel_groups": {
@@ -57,32 +57,32 @@
         "title": "Reconfigure Solar Forecast ML",
         "description": "Update configuration\nEmpty optional fields will clear their value\n\nWeather data is provided automatically via Open-Meteo API",
         "data": {
-          "power_entity": "Power Sensor (W)",
-          "solar_yield_today": "Daily Yield (kWh)",
-          "total_consumption_today": "Daily Consumption (kWh)",
-          "solar_capacity": "System Capacity (kWp)",
-          "inverter_max_power": "Inverter Max Power (kW)",
-          "rain_sensor": "Rain Sensor",
-          "lux_sensor": "Illuminance Sensor (lx)",
-          "temp_sensor": "Temperature Sensor",
-          "wind_sensor": "Wind Sensor",
-          "humidity_sensor": "Humidity Sensor",
-          "pressure_sensor": "Pressure Sensor (hPa)",
-          "solar_radiation_sensor": "Solar Radiation Sensor (W/m²)"
+          "power_entity": "⚡ Current Solar Power (W)",
+          "solar_yield_today": "📊 Daily Yield (kWh)",
+          "total_consumption_today": "🏠 Household Consumption (kWh)",
+          "solar_capacity": "☀️ System Capacity (kWp)",
+          "inverter_max_power": "⚙️ Inverter AC Limit (kW)",
+          "rain_sensor": "🌧️ Precipitation (mm/h)",
+          "lux_sensor": "💡 Illuminance (lx)",
+          "temp_sensor": "🌡️ Outdoor Temperature (°C)",
+          "wind_sensor": "💨 Wind Speed",
+          "humidity_sensor": "💧 Humidity (%)",
+          "pressure_sensor": "🌀 Air Pressure (hPa)",
+          "solar_radiation_sensor": "🔆 Solar Radiation (W/m²)"
         },
         "data_description": {
-          "power_entity": "Current power in Watts (Required)",
-          "solar_yield_today": "Daily yield in kWh - MUST reset at midnight (Required)",
-          "total_consumption_today": "Daily consumption in kWh (Optional)",
-          "solar_capacity": "Peak power in kWp, e.g., 5.5 (Optional, auto-calculated with panel groups)",
-          "inverter_max_power": "Max AC power of inverter in kW. Forecasts are capped and clipped hours excluded from training. 0 = disabled. (Optional)",
-          "rain_sensor": "External rain sensor (Optional)",
-          "lux_sensor": "External illuminance in Lux (Optional)",
-          "temp_sensor": "External temperature (Optional)",
-          "wind_sensor": "External wind speed (Optional)",
-          "humidity_sensor": "External humidity (Optional)",
-          "pressure_sensor": "External barometric pressure in hPa (Optional)",
-          "solar_radiation_sensor": "External solar radiation in W/m² (Optional, preferred over Lux)"
+          "power_entity": "Unit: Watts (DC). Only the direct cell output, NOT the AC power after the inverter. (Required)",
+          "solar_yield_today": "Unit: kWh (DC). Must be based on the DC power sensor and reset to 0 at midnight. (Required)",
+          "total_consumption_today": "Unit: kWh. Total household electricity consumption since midnight. Must reset to 0 at midnight. (Optional)",
+          "solar_capacity": "Unit: kWp (e.g. 9.6). Only needed for single systems; with panel groups this is calculated automatically. (Optional)",
+          "inverter_max_power": "Unit: kW. Caps forecasts at the inverter maximum (e.g. 5.0). 0 = Disabled. (Optional)",
+          "rain_sensor": "Unit: mm/h. Physical outdoor sensor required (weather station). No yes/no values, only measurements! (Optional)",
+          "lux_sensor": "Unit: Lux. Physical outdoor sensor required. No indoor sensors, no simulated values! (Optional)",
+          "temp_sensor": "Unit: °C. Only real measurement data from a local outdoor sensor. No online weather services! (Optional)",
+          "wind_sensor": "Unit: m/s or km/h. Physical anemometer at the installation site required. (Optional)",
+          "humidity_sensor": "Unit: % RH. Local outdoor sensor required. Do not use indoor values. (Optional)",
+          "pressure_sensor": "Unit: hPa. Requires a physical barometer sensor on site. Used for trend detection. No online data! (Optional)",
+          "solar_radiation_sensor": "Unit: W/m². Measured by on-site pyranometer. Takes priority over Lux sensors for highest precision. (Optional)"
         }
       }
     },
@@ -98,7 +98,9 @@
       "invalid_sensor_state": "Sensor state invalid or unavailable",
       "invalid_panel_format": "Invalid format. Please use: Power/Azimuth/Tilt (e.g., 1200/180/30)",
       "panel_groups_required": "At least 1 panel group required. Format: Power/Azimuth/Tilt/Sensor (e.g., 5000/180/30/sensor.pv_today)",
-      "too_many_panel_groups": "Maximum 4 panel groups allowed"
+      "too_many_panel_groups": "Maximum 4 panel groups allowed",
+      "energy_sensor_not_found": "Energy sensor not found in Home Assistant. Check the entity ID.",
+      "energy_sensor_not_numeric": "Energy sensor value is not numeric. Check sensor state."
     },
     "abort": {
       "already_configured": "Integration already configured",
@@ -126,6 +128,7 @@
           "notify_snow_covered_panels": "Snow Coverage Notifications",
           "ml_algorithm": "Mode",
           "enable_tiny_lstm": "Enable / Disable AI",
+          "pirate_weather_api_key": "Pirate Weather API Key",
           "adaptive_forecast_mode": "Adaptive Forecast",
           "winter_mode": "Winter Mode",
           "learning_backup_protection": "Learning Data Protection",
@@ -147,12 +150,13 @@
           "notify_snow_covered_panels": "Show notification when panels are snow-covered",
           "ml_algorithm": "Choose algorithm: 'Automatic' lets system decide based on available data (recommended). 'Ridge' is fast and stable. 'Neural Network' provides 5-10% better accuracy with 100+ samples.",
           "enable_tiny_lstm": "Allow use of Neural Network (requires 100+ samples, 200+ MB RAM). Falls back to Ridge automatically if requirements not met. Recommended: Keep enabled.",
+          "pirate_weather_api_key": "Optional: Free API key from https://pirate-weather.apiable.io/ - Enables NOAA GFS/HRRR weather model for improved cloud cover blending.",
           "adaptive_forecast_mode": "When significant deviations (>35%) between morning forecast and actual production are detected, SFML automatically adjusts the afternoon forecast at 12:30. SFML autonomously decides whether a correction is beneficial - based on fresh weather data and objective criteria. Default: OFF",
           "winter_mode": "Enhanced algorithms for low sun angles (Nov-Feb). When enabled, the effect of cloud cover on forecast is calculated more accurately, significantly improving winter accuracy. Default: ON",
           "learning_backup_protection": "Automatically syncs learning data to /share/ for protection against backup restore. When enabled, your learning progress survives HA backup restores. Default: ON",
-          "zero_export_mode": "MPPT THROTTLE DETECTION: Enable if you have a zero-export regulation (e.g. Shelly).\n\nWHY IS THIS IMPORTANT?\nWith zero export, the inverter throttles production to household demand. ML would then learn: 'Sunshine = 200W' instead of 'Sunshine = 1000W (but throttled)'.\n\nWith this option enabled, throttled hours are excluded from ML training.\n\nOnly works during good weather conditions (sun, few clouds) AND when production is significantly below physics prediction.",
-          "has_battery": "MPPT THROTTLE DETECTION (Extension): Enable if you have a battery storage system.\n\nWHY IS THIS IMPORTANT?\nWhen the battery is full AND zero export is active, the MPPT throttles production. SFML detects this when the 'Solar-to-Battery' value drops below 50W.\n\nWhen enabled, you MUST configure the 'Solar-to-Battery Sensor' below!",
-          "solar_to_battery_sensor": "MPPT THROTTLE DETECTION (Sensor): Power sensor measuring energy flow from PV to battery (in Watts).\n\nEXAMPLES:\n- sensor.pv_to_battery_power\n- sensor.battery_charging_power\n- sensor.solar_battery_flow\n\nHOW DOES IT WORK?\nWhen this value drops below 50W during good weather, the battery is not accepting energy → Battery is full → MPPT throttles → Hour is excluded from training.\n\nOnly relevant when 'Battery Storage System' is enabled!"
+          "zero_export_mode": "MPPT THROTTLE DETECTION: Enable if you have a zero-export regulation (e.g. Shelly). This prevents ML from learning incorrect values when your inverter throttles due to no grid export being allowed. When active and production is much lower than expected on sunny days, the hour is excluded from training.",
+          "has_battery": "MPPT THROTTLE DETECTION: Enable if you have a battery storage system. When enabled, you must configure the Solar-to-Battery sensor below. This allows detection of throttling when the battery is full.",
+          "solar_to_battery_sensor": "MPPT THROTTLE DETECTION: Power sensor showing energy flow from PV to battery (in Watts). When this value drops below 50W during good weather conditions, the system assumes the battery is full and excludes the hour from ML training. Examples: sensor.pv_to_battery_power, sensor.battery_charging_power"
         }
       }
     },
@@ -164,31 +168,139 @@
     }
   },
   "services": {
-    "train_model": {
-      "name": "Train ML Model",
-      "description": "Manually trigger ML model training with collected production data",
+    "retrain_ai_model": {
+      "name": "Retrain TinyLSTM AI Model",
+      "description": "DEVELOPER ONLY or on ADVICE"
+    },
+    "reset_ai_model": {
+      "name": "Reset TinyLSTM AI Model",
+      "description": "DEVELOPER ONLY or on ADVICE"
+    },
+    "run_grid_search": {
+      "name": "Grid-Search Hyperparameter Optimization",
+      "description": "DEVELOPER ONLY or on ADVICE",
       "fields": {
-        "force": {
-          "name": "Force Training",
-          "description": "Force training even if minimum samples not reached"
+        "retrain_after": {
+          "name": "Retrain after search",
+          "description": "DEVELOPER ONLY or on ADVICE"
         }
       }
     },
-    "force_forecast": {
-      "name": "Force Forecast Update",
-      "description": "Immediately update all forecast sensors"
+    "analyze_feature_importance": {
+      "name": "Analyze Feature Importance",
+      "description": "DEVELOPER ONLY or on ADVICE",
+      "fields": {
+        "num_permutations": {
+          "name": "Number of Permutations",
+          "description": "DEVELOPER ONLY or on ADVICE"
+        }
+      }
     },
-    "clear_training_data": {
-      "name": "Clear Training Data",
-      "description": "Delete all collected training samples (requires confirmation)"
+    "run_all_day_end_tasks": {
+      "name": "Run All Day-End Tasks",
+      "description": "DEVELOPER ONLY or on ADVICE"
     },
-    "reset_model": {
-      "name": "Reset ML Model",
-      "description": "Reset trained model and switch to rule-based forecast"
+    "test_morning_routine": {
+      "name": "Analyze Morning Predictions",
+      "description": "DEVELOPER ONLY or on ADVICE"
+    },
+    "test_retrospective_forecast": {
+      "name": "Retrospective Forecast",
+      "description": "DEVELOPER ONLY or on ADVICE"
+    },
+    "run_adaptive_forecast": {
+      "name": "Run Adaptive Midday Correction",
+      "description": "DEVELOPER ONLY or on ADVICE"
+    },
+    "run_weather_correction": {
+      "name": "Rebuild Corrected Weather Forecast",
+      "description": "DEVELOPER ONLY or on ADVICE"
+    },
+    "refresh_multi_weather": {
+      "name": "Refresh Multi-Weather Cache",
+      "description": "DEVELOPER ONLY or on ADVICE",
+      "fields": {
+        "force_update": {
+          "name": "Force Update",
+          "description": "DEVELOPER ONLY or on ADVICE"
+        }
+      }
+    },
+    "build_astronomy_cache": {
+      "name": "Build Astronomy Cache",
+      "description": "DEVELOPER ONLY or on ADVICE",
+      "fields": {
+        "days_back": {
+          "name": "Days Back",
+          "description": "DEVELOPER ONLY or on ADVICE"
+        },
+        "days_ahead": {
+          "name": "Days Ahead",
+          "description": "DEVELOPER ONLY or on ADVICE"
+        }
+      }
+    },
+    "refresh_cache_today": {
+      "name": "Refresh Cache for Today",
+      "description": "DEVELOPER ONLY or on ADVICE"
+    },
+    "send_daily_briefing": {
+      "name": "Send Daily Solar Briefing",
+      "description": "DEVELOPER ONLY or on ADVICE",
+      "fields": {
+        "notify_service": {
+          "name": "Mobile Device",
+          "description": "DEVELOPER ONLY or on ADVICE"
+        },
+        "language": {
+          "name": "Language",
+          "description": "DEVELOPER ONLY or on ADVICE"
+        }
+      }
+    },
+    "backfill_shadow_detection": {
+      "name": "Backfill Shadow Detection",
+      "description": "DEVELOPER ONLY or on ADVICE",
+      "fields": {
+        "target_date": {
+          "name": "Target Date",
+          "description": "DEVELOPER ONLY or on ADVICE"
+        }
+      }
     }
   },
   "entity": {
     "sensor": {
+      "avg_accuracy_30d": {
+        "name": "Prediction Accuracy 30 Day"
+      },
+      "forecast_day_after_tomorrow": {
+        "name": "Forecast Day After Tomorrow"
+      },
+      "max_peak_today": {
+        "name": "Peak Power Today"
+      },
+      "max_peak_all_time": {
+        "name": "All Time Peak Power"
+      },
+      "avg_yield_7d": {
+        "name": "Average Yield 7 Day"
+      },
+      "avg_yield_30d": {
+        "name": "Average Yield 30 Day"
+      },
+      "weekly_yield": {
+        "name": "Weekly Yield"
+      },
+      "weekly_consumption": {
+        "name": "Weekly Consumption"
+      },
+      "monthly_yield": {
+        "name": "Monthly Yield"
+      },
+      "monthly_consumption": {
+        "name": "Monthly Consumption"
+      },
       "today_forecast": {
         "name": "Forecast Today Remaining"
       },
@@ -204,20 +316,11 @@
       "average_yield": {
         "name": "Average Monthly Yield"
       },
-      "self_sufficiency": {
-        "name": "Self-Sufficiency"
-      },
       "expected_daily_production": {
         "name": "Expected Daily Production"
       },
       "production_time": {
         "name": "Production Time Today"
-      },
-      "diagnostic_status": {
-        "name": "System Diagnostic Status"
-      },
-      "yesterday_accuracy": {
-        "name": "Yesterday Forecast Accuracy"
       },
       "yesterday_deviation": {
         "name": "Yesterday Forecast Deviation"
@@ -225,19 +328,13 @@
       "last_update_timestamp": {
         "name": "Last Update Timestamp"
       },
-      "data_age": {
-        "name": "Data Age"
-      },
       "last_ai_training": {
         "name": "Last AI Training"
       },
-      "next_scheduled_task": {
-        "name": "Next Scheduled Task"
+      "next_scheduled_update": {
+        "name": "Next Scheduled Update"
       },
-      "ai_service_status": {
-        "name": "AI Service Status"
-      },
-      "ai_metrics": {
+      "ml_metrics": {
         "name": "AI Model Metrics"
       },
       "ai_rmse": {
@@ -254,35 +351,20 @@
       "active_prediction_model": {
         "name": "Active Prediction Model"
       },
-      "pattern_count": {
-        "name": "Pattern Count"
-      },
       "physics_samples": {
         "name": "Physics Samples"
       },
       "coordinator_health": {
         "name": "Coordinator Health"
       },
+      "eod_duration": {
+        "name": "End-of-Day Duration"
+      },
       "data_files_status": {
         "name": "Data Files Status"
       },
-      "external_temp_state": {
-        "name": "External Temperature Sensor State"
-      },
-      "external_humidity_state": {
-        "name": "External Humidity Sensor State"
-      },
-      "external_wind_state": {
-        "name": "External Wind Sensor State"
-      },
-      "external_rain_state": {
-        "name": "External Rain Sensor State"
-      },
-      "external_uv_state": {
-        "name": "External UV Sensor State"
-      },
-      "external_lux_state": {
-        "name": "External Illuminance Sensor State"
+      "external_sensors_status": {
+        "name": "External Sensors Status"
       },
       "power_sensor_state": {
         "name": "Power Sensor State"
@@ -293,45 +375,51 @@
       "cloudiness_trend_1h": {
         "name": "Cloud Trend 1h",
         "state": {
-          "getting_clearer": "Getting clearer",
-          "slightly_clearer": "Slightly clearer",
+          "getting_clearer": "Getting Clearer",
+          "slightly_clearer": "Slightly Clearer",
           "stable": "Stable",
-          "slightly_cloudier": "Slightly cloudier",
-          "getting_cloudier": "Getting cloudier"
+          "slightly_cloudier": "Slightly Cloudier",
+          "getting_cloudier": "Getting Cloudier"
         }
       },
       "cloudiness_trend_3h": {
         "name": "Cloud Trend 3h",
         "state": {
-          "much_clearer": "Much clearer",
-          "getting_clearer": "Getting clearer",
-          "relatively_stable": "Relatively stable",
-          "getting_cloudier": "Getting cloudier",
-          "much_cloudier": "Much cloudier"
+          "much_clearer": "Much Clearer",
+          "getting_clearer": "Getting Clearer",
+          "relatively_stable": "Relatively Stable",
+          "getting_cloudier": "Getting Cloudier",
+          "much_cloudier": "Much Cloudier"
         }
       },
       "cloudiness_volatility": {
         "name": "Weather Stability",
         "state": {
-          "very_stable": "Very stable",
+          "very_stable": "Very Stable",
           "stable": "Stable",
           "moderate": "Moderate",
           "variable": "Variable",
-          "very_variable": "Very variable"
+          "very_variable": "Very Variable"
         },
         "state_attributes": {
           "interpretation": {
             "name": "Interpretation",
             "state": {
-              "very_stable": "Very stable",
+              "very_stable": "Very Stable",
               "stable": "Stable",
               "moderate": "Moderate",
               "variable": "Variable",
-              "very_variable": "Very variable"
+              "very_variable": "Very Variable"
             }
           },
           "volatility_percent": {
             "name": "Volatility"
+          },
+          "volatility_class": {
+            "name": "Volatility Class"
+          },
+          "volatility_class_name": {
+            "name": "Volatility Class Name"
           }
         }
       },
@@ -348,7 +436,75 @@
         }
       },
       "shadow_today": {
-        "name": "Shadow Today"
+        "name": "Shadow Today",
+        "state_attributes": {
+          "shadow_hours_count": {
+            "name": "Shadow Hours Count"
+          },
+          "shadow_hours": {
+            "name": "Shadow Hours"
+          },
+          "none_count": {
+            "name": "No Shadow"
+          },
+          "light_count": {
+            "name": "Light Shadow"
+          },
+          "moderate_count": {
+            "name": "Moderate Shadow"
+          },
+          "heavy_count": {
+            "name": "Heavy Shadow"
+          },
+          "total_analyzed_hours": {
+            "name": "Total Analyzed Hours"
+          },
+          "peak_shadow_hour": {
+            "name": "Peak Shadow Hour"
+          },
+          "peak_shadow_percent": {
+            "name": "Max Shadow Percent"
+          },
+          "cumulative_loss_kwh": {
+            "name": "Cumulative Loss (kWh)"
+          },
+          "cloud_hours": {
+            "name": "Cloud Hours"
+          },
+          "cloud_hours_list": {
+            "name": "Cloud Hours List"
+          },
+          "real_shadow_hours": {
+            "name": "Real Shadow Hours"
+          },
+          "real_shadow_hours_list": {
+            "name": "Real Shadow Hours List"
+          },
+          "low_sun_hours": {
+            "name": "Low Sun Hours"
+          },
+          "low_sun_hours_list": {
+            "name": "Low Sun Hours List"
+          },
+          "daily_loss_percent": {
+            "name": "Daily Loss (%)"
+          },
+          "date": {
+            "name": "Date"
+          },
+          "snow_hours": {
+            "name": "Snow Hours"
+          },
+          "snow_hours_list": {
+            "name": "Snow Hours List"
+          },
+          "hourly_breakdown": {
+            "name": "Hourly Breakdown"
+          }
+        }
+      },
+      "next_production_start": {
+        "name": "Next Production Start"
       },
       "performance_loss_today": {
         "name": "Performance Loss Today"
@@ -363,9 +519,67 @@
           "unknown": "Unknown"
         }
       }
+    },
+    "switch": {
+      "pause_learning": {
+        "name": "Pause Learning"
+      }
+    }
+  },
+  "state_attributes": {
+    "forecast": {
+      "method": "Forecast Method",
+      "confidence": "Confidence",
+      "updated": "Last Update",
+      "weather_condition": "Weather Condition",
+      "cloud_coverage": "Cloud Coverage",
+      "temperature": "Temperature",
+      "uv_index": "UV Index",
+      "sunshine_duration": "Sunshine Duration"
+    },
+    "model": {
+      "accuracy": "Accuracy",
+      "samples": "Training Samples",
+      "last_trained": "Last Training",
+      "mae": "Mean Absolute Error",
+      "rmse": "Root Mean Square Error",
+      "features": "Feature Count"
+    },
+    "production": {
+      "start_time": "Production Start",
+      "end_time": "Production End",
+      "peak_time": "Peak Time",
+      "peak_power": "Peak Power",
+      "current_power": "Current Power",
+      "total_today": "Total Today"
+    }
+  },
+  "issues": {
+    "model_training_failed": {
+      "title": "ML Model Training Failed",
+      "description": "Training failed: {error}\nCheck logs for details."
+    },
+    "insufficient_data": {
+      "title": "Insufficient Training Data",
+      "description": "Need {required} samples, have {current}. Continue collecting data."
+    },
+    "weather_api_error": {
+      "title": "Weather API Error",
+      "description": "Weather API unavailable: {error}\nUsing fallback forecast."
+    },
+    "sensor_unavailable": {
+      "title": "Sensor Unavailable",
+      "description": "Required sensor '{entity}' unavailable. Check configuration."
     }
   },
   "selector": {
+    "forecast_method": {
+      "options": {
+        "ml": "Machine Learning (if trained)",
+        "rule_based": "Rule-Based Only",
+        "auto": "Automatic (ML with fallback)"
+      }
+    },
     "ml_algorithm": {
       "options": {
         "auto": "Automatic (Recommended)",

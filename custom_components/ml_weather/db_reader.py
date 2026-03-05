@@ -10,6 +10,7 @@
 
 import asyncio
 import logging
+import random
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any
@@ -62,8 +63,12 @@ class DatabaseReader:
             try:
                 self._connection = await aiosqlite.connect(str(self._db_path))
                 self._connection.row_factory = aiosqlite.Row
+                # Match SFML PRAGMA settings for shared DB compatibility @zara
+                await self._connection.execute("PRAGMA foreign_keys = ON")
+                await self._connection.execute("PRAGMA journal_mode = DELETE")
+                await self._connection.execute("PRAGMA busy_timeout = 30000")
                 self._is_connected = True
-                _LOGGER.info("ML Weather database connection established: %s", self._db_path)
+                _LOGGER.info("ML Weather database connection established (DELETE mode, 30s timeout): %s", self._db_path)
                 return True
             except Exception as err:
                 _LOGGER.error("Failed to connect to database: %s", err)
@@ -98,6 +103,22 @@ class DatabaseReader:
 
         return False
 
+    async def _retry_on_locked(self, operation, max_retries: int = 3):
+        """Retry a DB operation on 'database is locked' with exponential backoff. @zara"""
+        for attempt in range(max_retries + 1):
+            try:
+                return await operation()
+            except Exception as e:
+                if "database is locked" in str(e) and attempt < max_retries:
+                    wait = (0.1 * (3 ** attempt)) + random.uniform(0, 0.05)
+                    _LOGGER.warning(
+                        "ML Weather DB locked (attempt %d/%d), retrying in %.2fs",
+                        attempt + 1, max_retries, wait
+                    )
+                    await asyncio.sleep(wait)
+                else:
+                    raise
+
     async def async_get_weather_forecast(
         self,
         start_date: str,
@@ -124,8 +145,11 @@ class DatabaseReader:
                 ORDER BY forecast_date, hour
             """
 
-            async with self._connection.execute(query, [start_date, end_date]) as cursor:
-                rows = await cursor.fetchall()
+            async def _do():
+                async with self._connection.execute(query, [start_date, end_date]) as cursor:
+                    return await cursor.fetchall()
+
+            rows = await self._retry_on_locked(_do)
 
             result: dict[str, dict[str, dict[str, Any]]] = {}
 
@@ -172,9 +196,12 @@ class DatabaseReader:
                 SELECT version FROM weather_forecast
                 ORDER BY updated_at DESC LIMIT 1
             """
-            async with self._connection.execute(query) as cursor:
-                row = await cursor.fetchone()
-                return row["version"] if row and row["version"] else "unknown"
+            async def _do():
+                async with self._connection.execute(query) as cursor:
+                    row = await cursor.fetchone()
+                    return row["version"] if row and row["version"] else "unknown"
+
+            return await self._retry_on_locked(_do)
         except Exception:
             return "unknown"
 
@@ -198,8 +225,11 @@ class DatabaseReader:
                 ORDER BY forecast_type, created_at DESC
             """
 
-            async with self._connection.execute(query, [today_str]) as cursor:
-                rows = await cursor.fetchall()
+            async def _do():
+                async with self._connection.execute(query, [today_str]) as cursor:
+                    return await cursor.fetchall()
+
+            rows = await self._retry_on_locked(_do)
 
             result: dict[str, Any] = {}
             seen_types: set[str] = set()
@@ -249,23 +279,28 @@ class DatabaseReader:
 
         if self.is_connected:
             try:
-                async with self._connection.execute(
-                    "SELECT COUNT(*) as cnt FROM weather_forecast"
-                ) as cursor:
-                    row = await cursor.fetchone()
-                    info["weather_forecast_rows"] = row["cnt"] if row else 0
+                async def _get_count(table):
+                    async with self._connection.execute(
+                        f"SELECT COUNT(*) as cnt FROM {table}"
+                    ) as cursor:
+                        row = await cursor.fetchone()
+                        return row["cnt"] if row else 0
 
-                async with self._connection.execute(
-                    "SELECT COUNT(*) as cnt FROM daily_forecasts"
-                ) as cursor:
-                    row = await cursor.fetchone()
-                    info["daily_forecasts_rows"] = row["cnt"] if row else 0
+                info["weather_forecast_rows"] = await self._retry_on_locked(
+                    lambda: _get_count("weather_forecast")
+                )
+                info["daily_forecasts_rows"] = await self._retry_on_locked(
+                    lambda: _get_count("daily_forecasts")
+                )
 
-                async with self._connection.execute(
-                    "SELECT MAX(updated_at) as latest FROM weather_forecast"
-                ) as cursor:
-                    row = await cursor.fetchone()
-                    info["latest_update"] = row["latest"] if row else None
+                async def _get_latest():
+                    async with self._connection.execute(
+                        "SELECT MAX(updated_at) as latest FROM weather_forecast"
+                    ) as cursor:
+                        row = await cursor.fetchone()
+                        return row["latest"] if row else None
+
+                info["latest_update"] = await self._retry_on_locked(_get_latest)
 
             except Exception as err:
                 _LOGGER.debug("Error getting DB info: %s", err)

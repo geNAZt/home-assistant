@@ -13,8 +13,10 @@
 # *****************************************************************************
 
 """
-Diagnostic sensors for Solar Forecast ML.
-All sensors read from coordinator cache or DB - no direct file I/O.
+Warp core diagnostic monitoring array for containment field analysis.
+All sensors read from controller cache or telemetry DB - no direct file I/O.
+Monitors antimatter injection stability, cochrane field harmonics, and
+dilithium crystal degradation metrics.
 """
 
 import logging
@@ -27,7 +29,7 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import PERCENTAGE, UnitOfEnergy
+from homeassistant.const import PERCENTAGE, UnitOfEnergy, UnitOfTime
 from homeassistant.helpers.entity import EntityCategory
 
 from ..const import DAILY_UPDATE_HOUR, UPDATE_INTERVAL
@@ -70,6 +72,32 @@ class YesterdayDeviationSensor(BaseSolarSensor):
         """Get value from coordinator. @zara"""
         deviation = getattr(self.coordinator, "last_day_error_kwh", None)
         return max(0.0, deviation) if deviation is not None else None
+
+
+class EodDurationSensor(BaseSolarSensor):
+    """Sensor showing the duration of the last end-of-day workflow. @zara"""
+
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_native_unit_of_measurement = None
+    _attr_device_class = None
+    _attr_state_class = None
+    _attr_icon = "mdi:clock-end"
+
+    def __init__(self, coordinator: SolarForecastMLCoordinator, entry: ConfigEntry):
+        """Initialize. @zara"""
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{entry.entry_id}_ml_eod_duration"
+        self._attr_translation_key = "eod_duration"
+        self._attr_name = "End-of-Day Duration"
+
+    @property
+    def native_value(self) -> Optional[str]:
+        """Get last EOD duration as MM:SS from coordinator. @zara"""
+        seconds = getattr(self.coordinator, "eod_duration_seconds", None)
+        if seconds is None:
+            return None
+        minutes, secs = divmod(int(seconds), 60)
+        return f"{minutes}:{secs:02} Min"
 
 
 class CloudinessTrend1hSensor(BaseSolarSensor):
@@ -459,7 +487,13 @@ class LastMLTrainingSensor(BaseSolarSensor):
         ai_predictor = self.coordinator.ai_predictor
         if not ai_predictor:
             return None
-        return getattr(ai_predictor, "last_training_time", None)
+        value = getattr(ai_predictor, "last_training_time", None)
+        if value is None:
+            return None
+        # Ensure timezone-aware datetime for HA @zara
+        if isinstance(value, datetime) and value.tzinfo is None:
+            value = value.replace(tzinfo=dt_util.get_default_time_zone())
+        return value
 
     @property
     def extra_state_attributes(self) -> Dict[str, Any]:
@@ -491,13 +525,14 @@ class NextScheduledUpdateSensor(BaseSolarSensor):
         now = dt_util.now()
 
         tasks = [
-            (0, 0, "Reset Expected"),
+            (0, 10, "Midnight Task"),
+            (0, 20, "Astronomy Cache Refresh"),
+            (0, 30, "Early Morning Forecast"),
             (3, 0, "Weekly AI Training" if now.weekday() == 6 else None),
             (DAILY_UPDATE_HOUR, 0, "Morning Forecast"),
             (DAILY_UPDATE_HOUR, 15, "Forecast Retry #1"),
             (DAILY_UPDATE_HOUR, 30, "Forecast Retry #2"),
             (DAILY_UPDATE_HOUR, 45, "Forecast Retry #3"),
-            (23, 5, "AI Training Check"),
             (23, 30, "End of Day"),
         ]
 
@@ -508,8 +543,8 @@ class NextScheduledUpdateSensor(BaseSolarSensor):
             if now < task_time:
                 return f"{task_time.strftime('%H:%M')} ({task_name})"
 
-        next_time = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
-        return f"{next_time.strftime('%H:%M')} (Reset Expected)"
+        next_time = (now + timedelta(days=1)).replace(hour=0, minute=10, second=0, microsecond=0)
+        return f"{next_time.strftime('%H:%M')} (Midnight Task)"
 
     @property
     def extra_state_attributes(self) -> Dict[str, Any]:
@@ -517,13 +552,14 @@ class NextScheduledUpdateSensor(BaseSolarSensor):
         now = dt_util.now()
 
         tasks = [
-            (0, 0, "Reset Expected"),
+            (0, 10, "Midnight Task"),
+            (0, 20, "Astronomy Cache Refresh"),
+            (0, 30, "Early Morning Forecast"),
             (3, 0, "Weekly AI Training" if now.weekday() == 6 else None),
             (DAILY_UPDATE_HOUR, 0, "Morning Forecast"),
             (DAILY_UPDATE_HOUR, 15, "Forecast Retry #1"),
             (DAILY_UPDATE_HOUR, 30, "Forecast Retry #2"),
             (DAILY_UPDATE_HOUR, 45, "Forecast Retry #3"),
-            (23, 5, "AI Training Check"),
             (23, 30, "End of Day"),
         ]
 
@@ -539,8 +575,8 @@ class NextScheduledUpdateSensor(BaseSolarSensor):
                 break
 
         if next_time is None:
-            next_time = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
-            event_type = "Reset Expected"
+            next_time = (now + timedelta(days=1)).replace(hour=0, minute=10, second=0, microsecond=0)
+            event_type = "Midnight Task"
 
         return {
             "next_update_time_iso": next_time.isoformat(),
@@ -548,7 +584,6 @@ class NextScheduledUpdateSensor(BaseSolarSensor):
             "is_sunday": now.weekday() == 6,
             "morning_forecast_time": f"{DAILY_UPDATE_HOUR}:00",
             "end_of_day_time": "23:30",
-            "ml_training_check_time": "23:05",
         }
 
 

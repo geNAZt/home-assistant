@@ -9,7 +9,9 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import random
 from typing import Any
 
 import aiosqlite
@@ -18,7 +20,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class GPMDatabaseConnector:
-    """Lightweight SQLite connector for Grid Price Monitor @zara
+    """Lightweight SQLite connector for Solar Forecast GPM @zara
 
     Uses the shared solar_forecast.db with GPM_ prefixed tables.
     """
@@ -34,7 +36,9 @@ class GPMDatabaseConnector:
 
     async def connect(self) -> None:
         """Establish database connection and ensure tables exist @zara"""
-        self._db = await aiosqlite.connect(self.db_path)
+        self._db = await aiosqlite.connect(
+            self.db_path, timeout=60.0, isolation_level="IMMEDIATE"
+        )
         self._db.row_factory = aiosqlite.Row
 
         # Match SFML PRAGMA settings for shared DB compatibility
@@ -54,73 +58,71 @@ class GPMDatabaseConnector:
             self._db = None
             _LOGGER.debug("GPM database connection closed")
 
+    async def _retry_on_locked(self, operation, max_retries: int = 3):
+        """Retry a DB operation on 'database is locked' with exponential backoff. @zara"""
+        for attempt in range(max_retries + 1):
+            try:
+                return await operation()
+            except Exception as e:
+                if "database is locked" in str(e) and attempt < max_retries:
+                    wait = (0.1 * (3 ** attempt)) + random.uniform(0, 0.05)
+                    _LOGGER.warning(
+                        "GPM DB locked (attempt %d/%d), retrying in %.2fs",
+                        attempt + 1, max_retries, wait
+                    )
+                    await asyncio.sleep(wait)
+                else:
+                    raise
+
     async def execute(
         self,
         sql: str,
         parameters: tuple = (),
         auto_commit: bool = True,
     ) -> None:
-        """Execute a SQL statement @zara
+        """Execute a SQL statement with retry on lock @zara"""
+        async def _do():
+            await self._db.execute(sql, parameters)
+            if auto_commit:
+                await self._db.commit()
 
-        Args:
-            sql: SQL statement
-            parameters: Query parameters
-            auto_commit: Whether to auto-commit after execution
-        """
-        await self._db.execute(sql, parameters)
-        if auto_commit:
-            await self._db.commit()
+        await self._retry_on_locked(_do)
 
     async def fetchone(
         self,
         sql: str,
         parameters: tuple = (),
     ) -> aiosqlite.Row | None:
-        """Execute SQL and fetch one row @zara
+        """Execute SQL and fetch one row with retry on lock @zara"""
+        async def _do():
+            async with self._db.execute(sql, parameters) as cursor:
+                return await cursor.fetchone()
 
-        Args:
-            sql: SQL query
-            parameters: Query parameters
-
-        Returns:
-            Single row or None
-        """
-        async with self._db.execute(sql, parameters) as cursor:
-            return await cursor.fetchone()
+        return await self._retry_on_locked(_do)
 
     async def fetchall(
         self,
         sql: str,
         parameters: tuple = (),
     ) -> list[aiosqlite.Row]:
-        """Execute SQL and fetch all rows @zara
+        """Execute SQL and fetch all rows with retry on lock @zara"""
+        async def _do():
+            async with self._db.execute(sql, parameters) as cursor:
+                return await cursor.fetchall()
 
-        Args:
-            sql: SQL query
-            parameters: Query parameters
-
-        Returns:
-            List of rows
-        """
-        async with self._db.execute(sql, parameters) as cursor:
-            return await cursor.fetchall()
+        return await self._retry_on_locked(_do)
 
     async def executemany(
         self,
         sql: str,
         parameters_list: list[tuple],
     ) -> int:
-        """Execute SQL with multiple parameter sets @zara
+        """Execute SQL with multiple parameter sets with retry on lock @zara"""
+        async def _do():
+            await self._db.executemany(sql, parameters_list)
+            await self._db.commit()
 
-        Args:
-            sql: SQL statement
-            parameters_list: List of parameter tuples
-
-        Returns:
-            Number of rows affected
-        """
-        await self._db.executemany(sql, parameters_list)
-        await self._db.commit()
+        await self._retry_on_locked(_do)
         return len(parameters_list)
 
     async def commit(self) -> None:

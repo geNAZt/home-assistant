@@ -20,12 +20,17 @@ from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import selector
 
 from .const import (
+    CONF_BATTERY_CAPACITY,
     CONF_BATTERY_POWER_SENSOR,
+    CONF_BATTERY_SOC_SENSOR,
     CONF_CALIBRATION_PRICE,
     CONF_COUNTRY,
     CONF_GRID_FEE,
     CONF_MAX_PRICE,
+    CONF_MAX_SOC,
+    CONF_MIN_SOC,
     CONF_PROVIDER_MARKUP,
+    CONF_SMART_CHARGING_ENABLED,
     CONF_TAXES_FEES,
     CONF_USE_CALIBRATION,
     CONF_VAT_RATE,
@@ -33,6 +38,8 @@ from .const import (
     DEFAULT_COUNTRY,
     DEFAULT_GRID_FEE,
     DEFAULT_MAX_PRICE,
+    DEFAULT_MAX_SOC,
+    DEFAULT_MIN_SOC,
     DEFAULT_PROVIDER_MARKUP,
     DEFAULT_TAXES_FEES,
     DOMAIN,
@@ -178,6 +185,56 @@ def _get_pricing_schema(
                 multiple=False,
             ),
         ),
+        vol.Optional(
+            CONF_SMART_CHARGING_ENABLED,
+            default=defaults.get(CONF_SMART_CHARGING_ENABLED, False),
+        ): selector.BooleanSelector(),
+        vol.Optional(
+            CONF_BATTERY_CAPACITY,
+            default=defaults.get(CONF_BATTERY_CAPACITY, 0),
+        ): selector.NumberSelector(
+            selector.NumberSelectorConfig(
+                min=0,
+                max=200,
+                step=0.1,
+                unit_of_measurement="kWh",
+                mode=selector.NumberSelectorMode.BOX,
+            ),
+        ),
+        vol.Optional(
+            CONF_BATTERY_SOC_SENSOR,
+            default=defaults.get(CONF_BATTERY_SOC_SENSOR, ""),
+        ): selector.EntitySelector(
+            selector.EntitySelectorConfig(
+                domain="sensor",
+                device_class="battery",
+                multiple=False,
+            ),
+        ),
+        vol.Optional(
+            CONF_MAX_SOC,
+            default=defaults.get(CONF_MAX_SOC, DEFAULT_MAX_SOC),
+        ): selector.NumberSelector(
+            selector.NumberSelectorConfig(
+                min=20,
+                max=100,
+                step=1,
+                unit_of_measurement="%",
+                mode=selector.NumberSelectorMode.SLIDER,
+            ),
+        ),
+        vol.Optional(
+            CONF_MIN_SOC,
+            default=defaults.get(CONF_MIN_SOC, DEFAULT_MIN_SOC),
+        ): selector.NumberSelector(
+            selector.NumberSelectorConfig(
+                min=0,
+                max=80,
+                step=1,
+                unit_of_measurement="%",
+                mode=selector.NumberSelectorMode.SLIDER,
+            ),
+        ),
     })
 
 
@@ -187,7 +244,7 @@ def _get_pricing_schema(
 
 
 class GridPriceMonitorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Handle the configuration flow for Grid Price Monitor @zara"""
+    """Handle the configuration flow for Solar Forecast GPM @zara"""
 
     VERSION = 1
 
@@ -278,6 +335,11 @@ class GridPriceMonitorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     CONF_PROVIDER_MARKUP: provider_markup,
                     CONF_MAX_PRICE: max_price,
                     CONF_BATTERY_POWER_SENSOR: battery_sensor,
+                    CONF_SMART_CHARGING_ENABLED: user_input.get(CONF_SMART_CHARGING_ENABLED, False),
+                    CONF_BATTERY_CAPACITY: user_input.get(CONF_BATTERY_CAPACITY, 0),
+                    CONF_BATTERY_SOC_SENSOR: user_input.get(CONF_BATTERY_SOC_SENSOR, ""),
+                    CONF_MAX_SOC: int(user_input.get(CONF_MAX_SOC, DEFAULT_MAX_SOC)),
+                    CONF_MIN_SOC: int(user_input.get(CONF_MIN_SOC, DEFAULT_MIN_SOC)),
                 }
 
                 if is_reconfigure:
@@ -367,7 +429,7 @@ class GridPriceMonitorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class GridPriceMonitorOptionsFlow(config_entries.OptionsFlow):
-    """Handle options flow for Grid Price Monitor @zara
+    """Handle options flow for Solar Forecast GPM @zara
 
     Options flow allows quick changes to pricing without changing country.
     For country changes, use the reconfigure flow.
@@ -403,6 +465,11 @@ class GridPriceMonitorOptionsFlow(config_entries.OptionsFlow):
                     CONF_PROVIDER_MARKUP: user_input.get(CONF_PROVIDER_MARKUP),
                     CONF_MAX_PRICE: max_price,
                     CONF_BATTERY_POWER_SENSOR: user_input.get(CONF_BATTERY_POWER_SENSOR, ""),
+                    CONF_SMART_CHARGING_ENABLED: user_input.get(CONF_SMART_CHARGING_ENABLED, False),
+                    CONF_BATTERY_CAPACITY: user_input.get(CONF_BATTERY_CAPACITY, 0),
+                    CONF_BATTERY_SOC_SENSOR: user_input.get(CONF_BATTERY_SOC_SENSOR, ""),
+                    CONF_MAX_SOC: int(user_input.get(CONF_MAX_SOC, DEFAULT_MAX_SOC)),
+                    CONF_MIN_SOC: int(user_input.get(CONF_MIN_SOC, DEFAULT_MIN_SOC)),
                 }
 
                 self.hass.config_entries.async_update_entry(
@@ -484,6 +551,56 @@ class GridPriceMonitorOptionsFlow(config_entries.OptionsFlow):
                     domain="sensor",
                     device_class="power",
                     multiple=False,
+                ),
+            ),
+            vol.Optional(
+                CONF_SMART_CHARGING_ENABLED,
+                default=current_data.get(CONF_SMART_CHARGING_ENABLED, False),
+            ): selector.BooleanSelector(),
+            vol.Optional(
+                CONF_BATTERY_CAPACITY,
+                default=current_data.get(CONF_BATTERY_CAPACITY, 0),
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=0,
+                    max=200,
+                    step=0.1,
+                    unit_of_measurement="kWh",
+                    mode=selector.NumberSelectorMode.BOX,
+                ),
+            ),
+            vol.Optional(
+                CONF_BATTERY_SOC_SENSOR,
+                default=current_data.get(CONF_BATTERY_SOC_SENSOR, ""),
+            ): selector.EntitySelector(
+                selector.EntitySelectorConfig(
+                    domain="sensor",
+                    device_class="battery",
+                    multiple=False,
+                ),
+            ),
+            vol.Optional(
+                CONF_MAX_SOC,
+                default=current_data.get(CONF_MAX_SOC, DEFAULT_MAX_SOC),
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=20,
+                    max=100,
+                    step=1,
+                    unit_of_measurement="%",
+                    mode=selector.NumberSelectorMode.SLIDER,
+                ),
+            ),
+            vol.Optional(
+                CONF_MIN_SOC,
+                default=current_data.get(CONF_MIN_SOC, DEFAULT_MIN_SOC),
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=0,
+                    max=80,
+                    step=1,
+                    unit_of_measurement="%",
+                    mode=selector.NumberSelectorMode.SLIDER,
                 ),
             ),
         })

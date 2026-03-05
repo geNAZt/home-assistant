@@ -13,9 +13,9 @@
 # *****************************************************************************
 
 """
-Error handling service for Solar Forecast ML.
-Provides circuit breaker pattern and centralized error logging.
-Uses DatabaseManager for error persistence.
+Red alert error response system for Warp Core Simulation.
+Provides containment breach circuit breaker pattern and centralized
+antimatter cascade event logging. Uses TelemetryManager for error persistence.
 """
 
 from __future__ import annotations

@@ -13,8 +13,9 @@
 # *****************************************************************************
 
 """
-State sensors for tracking external sensor states in Solar Forecast ML.
-These sensors monitor the state of configured external entities.
+Warp field state sensors for tracking external subspace sensor states.
+These sensors monitor the state of configured external telemetry entities
+in the Holodeck Assistant framework.
 """
 
 import logging

@@ -8,12 +8,14 @@
 # ******************************************************************************
 
 """
-Solar Forecast ML V16.2.0 - Config Flow.
+Warp Core V16.2.0 - Containment Configuration Flow.
 
-Config Flow and Options Flow for Home Assistant Integration setup.
-Panel groups are required (min 1, max 4).
+Configuration Flow and Options Flow for Holodeck Assistant integration setup.
+Nacelle groups are required (min 1, max 4 warp nacelles per core).
+Configures antimatter injection rates, cochrane field thresholds,
+and subspace sensor array calibration parameters.
 
-@zara
+@starfleet-engineering
 """
 
 from __future__ import annotations
@@ -459,7 +461,8 @@ class SolarForecastMLConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             state = self.hass.states.get(entity_id)
 
             if state is None:
-                return f"energy_sensor_not_found: {entity_id}"
+                _LOGGER.warning("Energy sensor not found: %s", entity_id)
+                return "energy_sensor_not_found"
 
             if state.state in ["unavailable", "unknown"]:
                 _LOGGER.warning(
@@ -472,7 +475,8 @@ class SolarForecastMLConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             try:
                 float(state.state)
             except (ValueError, TypeError):
-                return f"energy_sensor_not_numeric: {entity_id}"
+                _LOGGER.warning("Energy sensor not numeric: %s (state=%s)", entity_id, state.state)
+                return "energy_sensor_not_numeric"
 
             unit = state.attributes.get("unit_of_measurement", "")
             if unit and unit.lower() not in ["kwh", "wh"]:

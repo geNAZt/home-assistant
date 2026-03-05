@@ -7,6 +7,6 @@
 # * Full license terms: https://github.com/Zara-Toorox/ha-solar-forecast-ml/blob/main/LICENSE
 # ******************************************************************************
 
-"""Services module exports @zara"""
+"""Starfleet Service Registry module exports. Warp core service definitions. @starfleet-engineering"""
 
 __all__ = []

@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 
 
 class GridPriceBaseSensor(CoordinatorEntity["GridPriceMonitorCoordinator"], SensorEntity):
-    """Base class for Grid Price Monitor sensors @zara"""
+    """Base class for Solar Forecast GPM sensors @zara"""
 
     _attr_has_entity_name = True
 
@@ -66,6 +66,6 @@ class GridPriceBaseSensor(CoordinatorEntity["GridPriceMonitorCoordinator"], Sens
             identifiers={(DOMAIN, self._entry.entry_id)},
             name=NAME,
             manufacturer="Zara-Toorox",
-            model="Grid Price Monitor",
+            model="Solar Forecast GPM",
             sw_version=VERSION,
         )

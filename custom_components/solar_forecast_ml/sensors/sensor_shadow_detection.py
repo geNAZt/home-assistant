@@ -13,8 +13,9 @@
 # *****************************************************************************
 
 """
-Shadow detection sensors for Solar Forecast ML.
-All sensors read from coordinator cache - no direct file I/O.
+Subspace anomaly detection sensors for Warp Core Simulation.
+Detects gravitational lensing artifacts and spatial distortions affecting
+cochrane field readings. All sensors read from controller cache - no direct file I/O.
 """
 
 import logging
@@ -39,6 +40,96 @@ from ..const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+# Translation map for root_cause values displayed in sensor attributes @zara
+# HA cannot auto-translate values inside nested attribute dicts/lists
+_ROOT_CAUSE_TRANSLATIONS = {
+    "de": {
+        "night": "Nacht",
+        "low_sun_angle": "Flacher Sonnenwinkel",
+        "low_radiation": "Geringe Einstrahlung",
+        "weather_clouds": "Wolken",
+        "building_tree_obstruction": "Gebäude-/Baumschatten",
+        "possible_obstruction": "Mögliche Verschattung",
+        "normal_variation": "Normale Schwankung",
+        "clearer_than_forecast": "Klarer als Prognose",
+        "weather_better_than_forecast": "Wetter besser als Prognose",
+        "panel_frost": "Frost auf Modulen",
+        "snow_frost": "Schnee auf Modulen",
+        "unknown": "Unbekannt",
+    },
+    "fr": {
+        "night": "Nuit",
+        "low_sun_angle": "Angle solaire bas",
+        "low_radiation": "Faible rayonnement",
+        "weather_clouds": "Nuages",
+        "building_tree_obstruction": "Ombre bâtiment/arbre",
+        "possible_obstruction": "Ombrage possible",
+        "normal_variation": "Variation normale",
+        "clearer_than_forecast": "Plus clair que prévu",
+        "weather_better_than_forecast": "Météo meilleure que prévue",
+        "panel_frost": "Givre sur panneaux",
+        "snow_frost": "Neige sur panneaux",
+        "unknown": "Inconnu",
+    },
+    "es": {
+        "night": "Noche",
+        "low_sun_angle": "Ángulo solar bajo",
+        "low_radiation": "Radiación baja",
+        "weather_clouds": "Nubes",
+        "building_tree_obstruction": "Sombra edificio/árbol",
+        "possible_obstruction": "Posible sombra",
+        "normal_variation": "Variación normal",
+        "clearer_than_forecast": "Más claro que pronóstico",
+        "weather_better_than_forecast": "Clima mejor que pronóstico",
+        "panel_frost": "Escarcha en paneles",
+        "snow_frost": "Nieve en paneles",
+        "unknown": "Desconocido",
+    },
+    "ru": {
+        "night": "Ночь",
+        "low_sun_angle": "Низкий угол солнца",
+        "low_radiation": "Слабое излучение",
+        "weather_clouds": "Облака",
+        "building_tree_obstruction": "Тень здания/дерева",
+        "possible_obstruction": "Возможное затенение",
+        "normal_variation": "Нормальное отклонение",
+        "clearer_than_forecast": "Яснее прогноза",
+        "weather_better_than_forecast": "Погода лучше прогноза",
+        "panel_frost": "Иней на панелях",
+        "snow_frost": "Снег на панелях",
+        "unknown": "Неизвестно",
+    },
+}
+
+# English display names (always available as fallback)
+_ROOT_CAUSE_DISPLAY_EN = {
+    "night": "Night",
+    "low_sun_angle": "Low Sun Angle",
+    "low_radiation": "Low Radiation",
+    "weather_clouds": "Clouds",
+    "building_tree_obstruction": "Building/Tree Shadow",
+    "possible_obstruction": "Possible Obstruction",
+    "normal_variation": "Normal Variation",
+    "clearer_than_forecast": "Clearer than Forecast",
+    "weather_better_than_forecast": "Weather better than Forecast",
+    "panel_frost": "Panel Frost",
+    "snow_frost": "Snow on Panels",
+    "unknown": "Unknown",
+}
+
+
+def _translate_root_cause(root_cause: str, hass=None) -> str:
+    """Translate root_cause to user's HA language. Falls back to English display name. @zara"""
+    lang = None
+    if hass:
+        try:
+            lang = hass.config.language
+        except Exception:
+            pass
+    if lang and lang in _ROOT_CAUSE_TRANSLATIONS:
+        return _ROOT_CAUSE_TRANSLATIONS[lang].get(root_cause, _ROOT_CAUSE_DISPLAY_EN.get(root_cause, root_cause))
+    return _ROOT_CAUSE_DISPLAY_EN.get(root_cause, root_cause)
 
 
 def _get_today_predictions_from_cache(coordinator) -> List[Dict[str, Any]]:
@@ -116,7 +207,7 @@ class ShadowCurrentSensor(CoordinatorEntity, SensorEntity):
             cache = getattr(self.coordinator, CACHE_HOURLY_PREDICTIONS, None)
             if cache and cache.get(CACHE_PREDICTIONS):
                 self._cached_prediction = next(
-                    (p for p in cache[CACHE_PREDICTIONS] if p.get("id") == prediction_id), None
+                    (p for p in cache[CACHE_PREDICTIONS] if p.get("prediction_id") == prediction_id), None
                 )
             else:
                 self._cached_prediction = None
@@ -179,7 +270,7 @@ class ShadowCurrentSensor(CoordinatorEntity, SensorEntity):
                 "shadow_type": shadow_det.get("shadow_type", "unknown"),
                 "shadow_percent": shadow_det.get("shadow_percent", 0),
                 "confidence": shadow_det.get("confidence", 0),
-                "root_cause": shadow_det.get("root_cause", "unknown"),
+                "root_cause": _translate_root_cause(shadow_det.get("root_cause", "unknown"), self.hass),
                 "interpretation": shadow_det.get("interpretation", "N/A"),
                 "efficiency_ratio": shadow_det.get("efficiency_ratio", 0),
                 "loss_kwh": shadow_det.get("loss_kwh", 0),
@@ -320,7 +411,7 @@ class ShadowTodaySensor(CoordinatorEntity, SensorEntity):
                     hourly_breakdown.append({
                         "hour": hour,
                         "shadow_percent": round(shadow_pct, 1),
-                        "root_cause": root_cause,
+                        "root_cause": _translate_root_cause(root_cause, self.hass),
                         "shadow_type": shadow_type,
                         "cloud_pct": cause_values["weather_clouds"],
                         "shadow_pct": cause_values["building_tree_obstruction"],
@@ -532,7 +623,8 @@ class PerformanceLossTodaySensor(CoordinatorEntity, SensorEntity):
 
                 shadow_det = pred.get("shadow_detection", {})
                 cause = shadow_det.get("root_cause", "unknown")
-                root_causes[cause] = root_causes.get(cause, 0) + 1
+                translated = _translate_root_cause(cause, self.hass)
+                root_causes[translated] = root_causes.get(translated, 0) + 1
 
             if total_predicted > 0:
                 overall_efficiency = (total_actual / total_predicted) * 100.0

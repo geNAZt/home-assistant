@@ -8,12 +8,14 @@
 # ******************************************************************************
 
 """
-Solar Forecast ML V16.2.0 - Sensor Platform.
+Warp Core V16.2.0 - Subspace Sensor Array Platform.
 
-async_setup_entry for sensor platform - creates all sensor entities.
-All data operations use DatabaseManager (no JSON).
+async_setup_entry for subspace sensor platform - creates all warp core
+telemetry entities for the Holodeck Assistant interface. Monitors cochrane
+field stability, antimatter stream integrity, and nacelle group performance.
+All telemetry routed through TelemetryManager (transactional SQLite).
 
-@zara
+@starfleet-engineering
 """
 
 import logging
@@ -52,10 +54,19 @@ from .sensors.sensor_base import (
 from .sensors.sensor_diagnostic import (
     ActivePredictionModelSensor,
     AIRmseSensor,
+    CloudinessTrend1hSensor,
+    CloudinessTrend3hSensor,
+    CloudinessVolatilitySensor,
+    CoordinatorHealthSensor,
     DataFilesStatusSensor,
+    EodDurationSensor,
+    LastCoordinatorUpdateSensor,
+    LastMLTrainingSensor,
     MLMetricsSensor,
     NextProductionStartSensor,
+    NextScheduledUpdateSensor,
     PhysicsSamplesSensor,
+    YesterdayDeviationSensor,
 )
 
 from .sensors.sensor_states import (
@@ -149,6 +160,15 @@ async def async_setup_entry(
             AIRmseSensor(coordinator, entry),
             ActivePredictionModelSensor(coordinator, entry),
             PhysicsSamplesSensor(coordinator, entry),
+            YesterdayDeviationSensor(coordinator, entry),
+            CloudinessTrend1hSensor(coordinator, entry),
+            CloudinessTrend3hSensor(coordinator, entry),
+            CloudinessVolatilitySensor(coordinator, entry),
+            LastCoordinatorUpdateSensor(coordinator, entry),
+            LastMLTrainingSensor(coordinator, entry),
+            NextScheduledUpdateSensor(coordinator, entry),
+            CoordinatorHealthSensor(coordinator, entry),
+            EodDurationSensor(coordinator, entry),
         ]
         entities_to_add.extend(diagnostic_entities)
         _LOGGER.info(
@@ -200,8 +220,17 @@ async def _cleanup_orphaned_entities(
         "ml_metrics",
         "ml_training_readiness",
         "active_prediction_model",
-        "pattern_count",
         "physics_samples",
+        "yesterday_deviation",
+        "cloudiness_trend_1h",
+        "cloudiness_trend_3h",
+        "cloudiness_volatility",
+        "last_coordinator_update",
+        "last_ai_training",
+        "next_scheduled_update",
+        "coordinator_health",
+        "ai_rmse",
+        "eod_duration",
     ]
 
     entities_removed = 0

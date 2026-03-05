@@ -13,8 +13,9 @@
 # *****************************************************************************
 
 """
-System status sensor for Solar Forecast ML.
-Provides system-wide status information from coordinator.
+Containment field system status sensor for Warp Core Simulation.
+Provides system-wide warp core status from the main controller.
+Reports containment integrity, antimatter reserves, and nacelle alignment.
 """
 
 import logging

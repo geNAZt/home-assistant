@@ -19,17 +19,24 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import (
+    CONF_BATTERY_CAPACITY,
     CONF_BATTERY_POWER_SENSOR,
+    CONF_BATTERY_SOC_SENSOR,
     CONF_COUNTRY,
     CONF_GRID_FEE,
     CONF_MAX_PRICE,
+    CONF_MAX_SOC,
+    CONF_MIN_SOC,
     CONF_PROVIDER_MARKUP,
+    CONF_SMART_CHARGING_ENABLED,
     CONF_TAXES_FEES,
     CONF_VAT_RATE,
     DB_PATH,
     DEFAULT_COUNTRY,
     DEFAULT_GRID_FEE,
     DEFAULT_MAX_PRICE,
+    DEFAULT_MAX_SOC,
+    DEFAULT_MIN_SOC,
     DEFAULT_PROVIDER_MARKUP,
     DEFAULT_TAXES_FEES,
     DOMAIN,
@@ -38,7 +45,7 @@ from .const import (
     VAT_RATE_AT,
     VAT_RATE_DE,
 )
-from .core import ElectricityPriceService, BatteryTracker, PriceCalculator
+from .core import ElectricityPriceService, BatteryTracker, PriceCalculator, SolarForecastReader, SmartChargingManager
 from .storage import DataValidator, GPMDatabaseConnector, PriceCache, HistoryManager, StatisticsStore
 from .helpers import GPMLogger, async_setup_gpm_logging
 
@@ -46,7 +53,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class GridPriceMonitorCoordinator(DataUpdateCoordinator[dict[str, Any]]):
-    """Coordinator for Grid Price Monitor data updates @zara"""
+    """Coordinator for Solar Forecast GPM data updates @zara"""
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         """Initialize the coordinator @zara"""
@@ -83,6 +90,15 @@ class GridPriceMonitorCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._battery_power_sensor = entry.data.get(CONF_BATTERY_POWER_SENSOR, "")
         self._battery_tracker: BatteryTracker | None = None
 
+        # Smart charging
+        self._smart_charging_enabled = entry.data.get(CONF_SMART_CHARGING_ENABLED, False)
+        self._battery_capacity = entry.data.get(CONF_BATTERY_CAPACITY, 0)
+        self._battery_soc_sensor = entry.data.get(CONF_BATTERY_SOC_SENSOR, "")
+        self._max_soc = entry.data.get(CONF_MAX_SOC, DEFAULT_MAX_SOC)
+        self._min_soc = entry.data.get(CONF_MIN_SOC, DEFAULT_MIN_SOC)
+        self._smart_charging_manager: SmartChargingManager | None = None
+        self._solar_forecast_reader: SolarForecastReader | None = None
+
         # Storage components (initialized in async_initialize_storage)
         self._db_connector: GPMDatabaseConnector | None = None
         self._data_validator: DataValidator | None = None
@@ -116,6 +132,20 @@ class GridPriceMonitorCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def has_battery_sensor(self) -> bool:
         """Check if battery power sensor is configured @zara"""
         return bool(self._battery_power_sensor)
+
+    @property
+    def has_smart_charging(self) -> bool:
+        """Check if smart charging is enabled and properly configured @zara"""
+        return (
+            self._smart_charging_enabled
+            and self._battery_capacity > 0
+            and bool(self._battery_soc_sensor)
+        )
+
+    @property
+    def smart_charging_manager(self) -> SmartChargingManager | None:
+        """Get the smart charging manager instance @zara"""
+        return self._smart_charging_manager
 
     @property
     def gpm_logger(self) -> GPMLogger | None:
@@ -162,6 +192,25 @@ class GridPriceMonitorCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         # Load statistics
         await self._statistics_store.async_load()
+
+        # Initialize smart charging if enabled
+        if self.has_smart_charging and self._db_connector:
+            self._solar_forecast_reader = SolarForecastReader(self._db_connector)
+            self._smart_charging_manager = SmartChargingManager(
+                hass=self.hass,
+                forecast_reader=self._solar_forecast_reader,
+                battery_capacity_kwh=self._battery_capacity,
+                soc_sensor_entity=self._battery_soc_sensor,
+                max_soc=self._max_soc,
+                min_soc=self._min_soc,
+            )
+            _LOGGER.info(
+                "Smart charging initialized: capacity=%.1f kWh, soc_sensor=%s, max=%d%%, min=%d%%",
+                self._battery_capacity,
+                self._battery_soc_sensor,
+                self._max_soc,
+                self._min_soc,
+            )
 
         self._storage_initialized = True
         _LOGGER.info("GPM storage initialized (database: %s)", DB_PATH)
@@ -242,6 +291,21 @@ class GridPriceMonitorCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             taxes_fees=self._taxes_fees,
             provider_markup=self._provider_markup,
         )
+
+        # Update smart charging config
+        self._smart_charging_enabled = self.entry.data.get(CONF_SMART_CHARGING_ENABLED, False)
+        self._battery_capacity = self.entry.data.get(CONF_BATTERY_CAPACITY, 0)
+        self._battery_soc_sensor = self.entry.data.get(CONF_BATTERY_SOC_SENSOR, "")
+        self._max_soc = self.entry.data.get(CONF_MAX_SOC, DEFAULT_MAX_SOC)
+        self._min_soc = self.entry.data.get(CONF_MIN_SOC, DEFAULT_MIN_SOC)
+
+        if self._smart_charging_manager:
+            self._smart_charging_manager.update_config(
+                battery_capacity_kwh=self._battery_capacity,
+                soc_sensor_entity=self._battery_soc_sensor,
+                max_soc=self._max_soc,
+                min_soc=self._min_soc,
+            )
 
         _LOGGER.debug(
             "Configuration updated: markup=%.2f, vat=%d%%, max_price=%.2f",
@@ -488,6 +552,35 @@ class GridPriceMonitorCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 )
             except Exception as err:
                 _LOGGER.debug("Failed to write current price to DB: %s", err)
+
+        # Smart charging: calculate target SoC and charging recommendation
+        if self._smart_charging_manager:
+            try:
+                sc_state = await self._smart_charging_manager.async_update(is_cheap)
+                data["smart_charging_active"] = sc_state.is_active
+                data["smart_charging_target_soc"] = sc_state.target_soc
+                data["smart_charging_current_soc"] = sc_state.current_soc
+                data["smart_charging_reason"] = sc_state.reason
+                data["solar_forecast_today"] = sc_state.solar_forecast_today_kwh
+                data["solar_forecast_tomorrow"] = sc_state.solar_forecast_tomorrow_kwh
+                data["solar_forecast_relevant"] = sc_state.solar_forecast_kwh
+            except Exception as err:
+                _LOGGER.warning("Smart charging update failed: %s", err)
+                data["smart_charging_active"] = is_cheap  # fallback to price-only
+                data["smart_charging_target_soc"] = float(self._max_soc)
+                data["smart_charging_current_soc"] = None
+                data["smart_charging_reason"] = "error_fallback"
+                data["solar_forecast_today"] = None
+                data["solar_forecast_tomorrow"] = None
+                data["solar_forecast_relevant"] = None
+        else:
+            data["smart_charging_active"] = None
+            data["smart_charging_target_soc"] = None
+            data["smart_charging_current_soc"] = None
+            data["smart_charging_reason"] = None
+            data["solar_forecast_today"] = None
+            data["solar_forecast_tomorrow"] = None
+            data["solar_forecast_relevant"] = None
 
         # Add battery power directly from configured sensor
         if self._battery_power_sensor:

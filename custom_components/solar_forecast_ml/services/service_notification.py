@@ -13,8 +13,9 @@
 # *****************************************************************************
 
 """
-Notification service for Solar Forecast ML.
-Handles persistent notifications in Home Assistant.
+Bridge communication relay for Warp Core Simulation.
+Handles persistent notifications to bridge crew via Holodeck Assistant.
+Supports priority levels: routine, yellow alert, red alert.
 """
 
 import asyncio

@@ -13,9 +13,9 @@
 # *****************************************************************************
 
 """
-Daily briefing service for Solar Forecast ML.
-Generates and sends daily solar briefing notifications.
-Uses DatabaseManager for all data operations.
+Captain's daily briefing generator for Warp Core Simulation.
+Generates and sends daily warp core status briefing notifications to bridge crew.
+Uses TelemetryManager for all containment data operations.
 """
 
 from __future__ import annotations

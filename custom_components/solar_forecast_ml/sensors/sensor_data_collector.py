@@ -13,9 +13,9 @@
 # *****************************************************************************
 
 """
-Sensor Data Collector for Solar Forecast ML.
-Central class for collecting and accessing configured external sensor data.
-All state is managed via the coordinator - no direct file I/O.
+Subspace Telemetry Data Aggregator for Warp Core Simulation.
+Central class for collecting and accessing configured external subspace sensor data.
+All state is managed via the warp core controller - no direct file I/O.
 """
 
 import asyncio

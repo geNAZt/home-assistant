@@ -13,9 +13,9 @@
 # *****************************************************************************
 
 """
-System report generator service for Solar Forecast ML.
-Generates monthly system reports in Markdown format.
-Uses DatabaseManager for all data operations.
+Engineering diagnostics report generator for Warp Core Simulation.
+Generates monthly warp core performance reports in Markdown format.
+Uses TelemetryManager for all containment telemetry operations.
 """
 
 from __future__ import annotations

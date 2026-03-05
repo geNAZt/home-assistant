@@ -87,10 +87,10 @@ class DataManagerIO:
                     await self.db.execute(sql, parameters)
                     return True
         except asyncio.TimeoutError:
-            _LOGGER.error("Database query timeout after %.1f seconds", timeout)
+            _LOGGER.error("Database query timeout after %.1fs: %s", timeout, sql[:100])
             return False
         except Exception as e:
-            _LOGGER.error("Database query failed: %s", e)
+            _LOGGER.error("Database query failed (%s): %s", sql[:100], e)
             return False
 
     async def fetch_one(
@@ -110,7 +110,7 @@ class DataManagerIO:
         try:
             return await self.db.fetchone(sql, parameters)
         except Exception as e:
-            _LOGGER.error("Failed to fetch row: %s", e)
+            _LOGGER.error("Failed to fetch row (%s): %s", sql[:100], e)
             return None
 
     async def fetch_all(
@@ -130,7 +130,7 @@ class DataManagerIO:
         try:
             return await self.db.fetchall(sql, parameters)
         except Exception as e:
-            _LOGGER.error("Failed to fetch rows: %s", e)
+            _LOGGER.error("Failed to fetch rows (%s): %s", sql[:100], e)
             return []
 
     async def get_db_stats(self) -> dict[str, Any]:

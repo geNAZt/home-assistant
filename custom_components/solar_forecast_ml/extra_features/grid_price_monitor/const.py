@@ -15,8 +15,8 @@ from homeassistant.const import Platform
 # DOMAIN & VERSION CONSTANTS
 # ============================================================================
 DOMAIN = "grid_price_monitor"
-NAME = "Grid Price Monitor"
-VERSION = "6.4.0"
+NAME = "Solar Forecast GPM"
+VERSION = "10.0.0"
 
 # ============================================================================
 # PLATFORMS
@@ -46,6 +46,13 @@ CONF_USE_CALIBRATION = "use_calibration"
 CONF_CALIBRATION_PRICE = "calibration_price"
 CONF_BATTERY_POWER_SENSOR = "battery_power_sensor"
 
+# Smart charging options
+CONF_SMART_CHARGING_ENABLED = "smart_charging_enabled"
+CONF_BATTERY_CAPACITY = "battery_capacity"
+CONF_BATTERY_SOC_SENSOR = "battery_soc_sensor"
+CONF_MAX_SOC = "max_soc"
+CONF_MIN_SOC = "min_soc"
+
 # ============================================================================
 # DEFAULT VALUES
 # ============================================================================
@@ -54,6 +61,8 @@ DEFAULT_GRID_FEE = 8.0  # ct/kWh typical German grid fee (brutto)
 DEFAULT_TAXES_FEES = 5.0  # ct/kWh taxes and fees (brutto)
 DEFAULT_PROVIDER_MARKUP = 1.0  # ct/kWh provider margin (brutto)
 DEFAULT_MAX_PRICE = 30.0  # ct/kWh threshold for "cheap" electricity
+DEFAULT_MAX_SOC = 100  # % maximum battery SoC
+DEFAULT_MIN_SOC = 10  # % minimum battery SoC
 
 # ============================================================================
 # VAT RATES
@@ -98,6 +107,12 @@ SENSOR_PRICES_TODAY = "prices_today"
 SENSOR_PRICES_TOMORROW = "prices_tomorrow"
 
 BINARY_SENSOR_CHEAP_ENERGY = "cheap_energy"
+BINARY_SENSOR_SMART_CHARGING = "smart_charging"
+
+# Smart charging sensors
+SENSOR_SMART_CHARGING_TARGET_SOC = "smart_charging_target_soc"
+SENSOR_SOLAR_FORECAST_TODAY = "solar_forecast_today"
+SENSOR_SOLAR_FORECAST_TOMORROW = "solar_forecast_tomorrow"
 
 # Battery sensors
 SENSOR_BATTERY_POWER = "battery_power"
@@ -117,6 +132,9 @@ ICON_BATTERY = "mdi:battery-charging"
 ICON_BATTERY_ENERGY = "mdi:battery-plus"
 ICON_CALENDAR_TODAY = "mdi:calendar-today"
 ICON_CALENDAR_TOMORROW = "mdi:calendar-arrow-right"
+ICON_SMART_CHARGING = "mdi:battery-charging-wireless"
+ICON_SOLAR_FORECAST = "mdi:solar-power-variant"
+ICON_TARGET_SOC = "mdi:battery-sync"
 
 # ============================================================================
 # UNITS

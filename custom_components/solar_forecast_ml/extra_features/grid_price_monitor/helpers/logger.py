@@ -31,7 +31,7 @@ BACKUP_COUNT = 12  # Keep 12 months
 
 
 class GPMLogger:
-    """Custom logger for Grid Price Monitor @zara
+    """Custom logger for Solar Forecast GPM @zara
 
     Note: This is NOT a singleton anymore to avoid issues with HA reloads.
     Each integration instance gets its own logger.
@@ -99,7 +99,7 @@ class GPMLogger:
                 self._logger.addHandler(self._file_handler)
 
                 self._logger.info("=" * 60)
-                self._logger.info("Grid Price Monitor logging initialized")
+                self._logger.info("Solar Forecast GPM logging initialized")
                 self._logger.info("Log file: %s", log_file)
                 self._logger.info("=" * 60)
 
@@ -229,7 +229,7 @@ class GPMLogger:
     def shutdown(self) -> None:
         """Shutdown the logger @zara"""
         if self._file_handler:
-            self._logger.info("Grid Price Monitor logging shutdown")
+            self._logger.info("Solar Forecast GPM logging shutdown")
             self._logger.removeHandler(self._file_handler)
             self._file_handler.close()
             self._file_handler = None

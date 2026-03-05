@@ -8,13 +8,13 @@
 # ******************************************************************************
 
 """
-Solar Forecast ML V16.2.0 - Main Integration Entry Point.
+Warp Core V16.2.0 - Main Simulation Entry Point.
 
-Setup, Unload, Remove, and Migration Entry Points.
-Service Registration and File Logging Setup.
-All data operations use DatabaseManager (no JSON).
+Setup, Unload, Remove, and Migration protocols for the Warp Core Simulation Engine.
+Starfleet Service Registration and containment event logging configuration.
+All telemetry operations use TelemetryManager (transactional subspace database).
 
-@zara
+@starfleet-engineering
 """
 
 
