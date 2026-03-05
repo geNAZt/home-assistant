@@ -55,7 +55,7 @@
       }}
     should_stage_2: >-
       {{
-        (stage_2_state and (stage2_import_equivalent_w | float(0) <= 100))
+        stage_2_state
         or
         (
           battery_ready_for_stage2
