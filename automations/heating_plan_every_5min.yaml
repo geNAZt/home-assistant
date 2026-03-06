@@ -81,6 +81,7 @@
     # Turn this switch ON to block heating outside preheat window
     preheat_enabled: "{{ is_state('binary_sensor.preheat_erlaubt_demand_weighted', 'on') }}"
     heating_block_enabled: "{{ is_state('input_boolean.heating_block_daytime', 'on') and preheat_enabled }}"
+    offset_allowed_now: "{{ has_pv_excess or (is_preheat_window and heating_block_enabled) or max_total_heating_w > pv_thr_w }}"
     
     # --- Preheat goal (room-specific) ---
     max_total_offset_k: 5.0      # <= 5K above each room's base (includes PV + preheat)
@@ -127,7 +128,7 @@
           {% set current = 22.0 %}
         {% endif %}
         
-        {% set pv_off = pv_offset_k | float(0) %}
+        {% set pv_off = (pv_offset_k | float(0)) if has_pv_excess else 0 %}
         {% set cap = max_total_offset_k | float(1.0) %}
 
         {% set preheat_off = 0.0 %}
@@ -135,13 +136,11 @@
           {% set preheat_off = states('sensor.heating_preheat_offset_dynamic') | float(0) %}
         {% endif %}
 
-        {% if shift_heating_start_to_pv %}
-            {% if (max_total_heating_w | float(0)) > (pv_thr_w | float(0)) %}
-              {% set preheat_off = states('sensor.heating_preheat_offset_dynamic') | float(0) %}
-            {% endif %}
+        {% if offset_allowed_now %}
+          {% set room_offset = preheat_off + pv_off %}
+        {% else %}
+          {% set room_offset = 0.0 %}
         {% endif %}
-
-        {% set room_offset = preheat_off + pv_off %}
         {% if room_offset > cap %}{% set room_offset = cap %}{% endif %}
         {% if room_offset < 0 %}{% set room_offset = 0 %}{% endif %}
 
