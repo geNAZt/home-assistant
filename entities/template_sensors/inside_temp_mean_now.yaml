@@ -5,24 +5,33 @@ sensor:
     device_class: temperature
     state_class: measurement
     state: >
-      {# Liste deiner Temperatur-Sensoren #}
-      {% set sensors = [
-        'sensor.temperature_wohnzimmer',
-        'sensor.temperature_kueche',
-        'sensor.temperature_flur_1',
-        'sensor.temperature_flur_2',
-        'sensor.temperature_flur_3',
-        'sensor.temperature_schlafzimmer',
-        'sensor.temperature_buero_fabian',
-        'sensor.temperature_buero_merja',
-        'sensor.temperature_bad',
-        'sensor.temperature_speisekammer'
+      {# Gewichtung der Räume in Prozent (Summe = 100) #}
+      {# HWR-Anteil wurde zu Flur 1 addiert #}
+      {% set room_data = [
+        {'sensor': 'sensor.temperature_wohnzimmer', 'weight': 11.9},
+        {'sensor': 'sensor.temperature_kueche', 'weight': 19.5},
+        {'sensor': 'sensor.temperature_flur_1', 'weight': 16.2},
+        {'sensor': 'sensor.temperature_flur_2', 'weight': 6.4},
+        {'sensor': 'sensor.temperature_flur_3', 'weight': 6.4},
+        {'sensor': 'sensor.temperature_schlafzimmer', 'weight': 9.1},
+        {'sensor': 'sensor.temperature_buero_fabian', 'weight': 6.6},
+        {'sensor': 'sensor.temperature_buero_merja', 'weight': 13.9},
+        {'sensor': 'sensor.temperature_bad', 'weight': 4.9},
+        {'sensor': 'sensor.temperature_speisekammer', 'weight': 5.1}
       ] %}
-      {% set ns = namespace(vals=[]) %}
-      {% for e in sensors %}
-        {% set v = states(e) %}
-        {% set ns.vals = ns.vals + [v|float] %}
+
+      {% set ns = namespace(weighted_sum=0, total_weight=0) %}
+      
+      {% for item in room_data %}
+        {% set temp = states(item.sensor) | float(none) %}
+        {% if temp is not none %}
+          {% set ns.weighted_sum = ns.weighted_sum + (temp * item.weight) %}
+          {% set ns.total_weight = ns.total_weight + item.weight %}
+        {% endif %}
       {% endfor %}
-      {% if ns.vals|length > 0 %}
-        {{ (ns.vals|sum / (ns.vals|length))|round(4) }}
-      {% else %} unknown {% endif %}
+
+      {% if ns.total_weight > 0 %}
+        {{ (ns.weighted_sum / ns.total_weight) | round(4) }}
+      {% else %}
+        {{ states('sensor.inside_temp_mean_now') }}
+      {% endif %}
