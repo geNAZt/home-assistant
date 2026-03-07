@@ -48,7 +48,7 @@ class SensorMapper:
                 channel = self._extract_channel_from_name(name)
                 sensor_type = img.upper()
 
-                if not hardware_id:
+                if not hardware_id or hardware_id.upper() in ("FFFFFFFF", "FFFFFFFE"):
                     continue
 
                 # Store sensor information
@@ -132,11 +132,13 @@ class SensorMapper:
                     ]
                 )
         elif sensor_type.lower() in ("wh51", "soil"):
-            # Soil moisture sensors
+            # Soil moisture sensors (WH51 and WH52 which reports as wh51 in sensors_info)
             if ch_num:
                 keys.extend(
                     [
                         f"soilmoisture{ch_num}",
+                        f"soiltemp{ch_num}",
+                        f"soilec{ch_num}",
                         f"soilbatt{ch_num}",
                     ]
                 )
