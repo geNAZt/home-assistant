@@ -132,7 +132,7 @@
         {% set cap = max_total_offset_k | float(1.0) %}
 
         {% set preheat_off = 0.0 %}
-        {% if is_preheat_window and preheat_enabled %}
+        {% if (is_preheat_window or shift_heating_start_to_pv) and preheat_enabled %}
           {% set preheat_off = states('sensor.heating_preheat_offset_dynamic') | float(0) %}
         {% endif %}
 
