@@ -86,7 +86,7 @@
     offset_allowed_now: "{{ has_pv_excess or (is_preheat_window and preheat_enabled) or pv_shift_active_now }}"
     
     # --- Preheat goal (room-specific) ---
-    max_total_offset_k: 5.0      # <= 5K above each room's base (includes PV + preheat)
+    max_total_offset_k: 1.0      # <= 5K above each room's base (includes PV + preheat)
     
     # ===================================================================
     # SECTION 2: COMPREHENSIVE ROOM DATA (Single Pass)
