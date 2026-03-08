@@ -1,0 +1,6 @@
+platform: statistics
+name: "Heating Preheat Offset 24h Max"
+entity_id: sensor.heating_preheat_offset_dynamic
+state_characteristic: value_max
+max_age:
+  hours: 24

@@ -51,7 +51,7 @@ sensor:
       {% set setpoint_mean = (rooms | sum / rooms | count) if (rooms | count > 0) else 0 %}
       {% set inside_now = states('sensor.inside_temp_mean_now') | float(0) %}
       {% set missing_delta_k = [setpoint_mean - inside_now, 0] | max %}
-      {% set off = states('sensor.heating_preheat_offset_dynamic') | float(0) %}
+      {% set off = states('sensor.heating_preheat_offset_24h_max') | float(0) %}
       {{ [c * (off + missing_delta_k), 0] | max | round(3) }}
     allocated_to_water_stage1_kwh: >
       {% set pv_predictions_raw = state_attr('sensor.solar_prediction_kwh', 'predictions') %}
@@ -111,7 +111,7 @@ sensor:
       {% set setpoint_mean = (rooms | sum / rooms | count) if (rooms | count > 0) else 0 %}
       {% set inside_now = states('sensor.inside_temp_mean_now') | float(0) %}
       {% set missing_delta_k = [setpoint_mean - inside_now, 0] | max %}
-      {% set off = states('sensor.heating_preheat_offset_dynamic') | float(0) %}
+      {% set off = states('sensor.heating_preheat_offset_24h_max') | float(0) %}
       {% set heating_need = [c * (off + missing_delta_k), 0] | max %}
       {{ [pv_after_stage1, heating_need] | min | round(3) }}
     heating_uncovered_kwh: >
@@ -137,7 +137,7 @@ sensor:
       {% set setpoint_mean = (rooms | sum / rooms | count) if (rooms | count > 0) else 0 %}
       {% set inside_now = states('sensor.inside_temp_mean_now') | float(0) %}
       {% set missing_delta_k = [setpoint_mean - inside_now, 0] | max %}
-      {% set off = states('sensor.heating_preheat_offset_dynamic') | float(0) %}
+      {% set off = states('sensor.heating_preheat_offset_24h_max') | float(0) %}
       {% set heating_need = [c * (off + missing_delta_k), 0] | max %}
       {% set heating_alloc = [pv_after_stage1, heating_need] | min %}
       {{ [heating_need - heating_alloc, 0] | max | round(3) }}
@@ -164,7 +164,7 @@ sensor:
       {% set setpoint_mean = (rooms | sum / rooms | count) if (rooms | count > 0) else 0 %}
       {% set inside_now = states('sensor.inside_temp_mean_now') | float(0) %}
       {% set missing_delta_k = [setpoint_mean - inside_now, 0] | max %}
-      {% set off = states('sensor.heating_preheat_offset_dynamic') | float(0) %}
+      {% set off = states('sensor.heating_preheat_offset_24h_max') | float(0) %}
       {% set heating_need = [c * (off + missing_delta_k), 0] | max %}
       {% set heating_alloc = [pv_after_stage1, heating_need] | min %}
       {{ [pv_after_stage1 - heating_alloc, 0] | max | round(3) }}
@@ -203,7 +203,7 @@ sensor:
       {% set setpoint_mean = (rooms | sum / rooms | count) if (rooms | count > 0) else 0 %}
       {% set inside_now = states('sensor.inside_temp_mean_now') | float(0) %}
       {% set missing_delta_k = [setpoint_mean - inside_now, 0] | max %}
-      {% set off = states('sensor.heating_preheat_offset_dynamic') | float(0) %}
+      {% set off = states('sensor.heating_preheat_offset_24h_max') | float(0) %}
       {% set heating_need = [c * (off + missing_delta_k), 0] | max %}
       {% set heating_alloc = [pv_after_stage1, heating_need] | min %}
       {% set rem_after_heat = [pv_after_stage1 - heating_alloc, 0] | max %}
@@ -234,7 +234,7 @@ sensor:
       {% set setpoint_mean = (rooms | sum / rooms | count) if (rooms | count > 0) else 0 %}
       {% set inside_now = states('sensor.inside_temp_mean_now') | float(0) %}
       {% set missing_delta_k = [setpoint_mean - inside_now, 0] | max %}
-      {% set off = states('sensor.heating_preheat_offset_dynamic') | float(0) %}
+      {% set off = states('sensor.heating_preheat_offset_24h_max') | float(0) %}
       {% set heating_need = [c * (off + missing_delta_k), 0] | max %}
       {% set heating_alloc = [pv_after_stage1, heating_need] | min %}
       {% set rem_after_heat = [pv_after_stage1 - heating_alloc, 0] | max %}

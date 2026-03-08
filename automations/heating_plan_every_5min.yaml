@@ -34,6 +34,7 @@
     pv_surplus_w: "{{ [pv_forecast_w - pv_thr_w - water_stage1_reserve_w, 0] | max }}"
     pv_offset_k: "{{ 0.5 if has_pv_excess else 0 }}"
     pv_predictions: "{{ state_attr('sensor.solar_prediction_kwh', 'predictions') }}"
+    preheat_offset_24h_max_k: "{{ states('sensor.heating_preheat_offset_24h_max') | float(0) }}"
     pv_plan_day_kwh: >-
       {% set pv_predictions_raw = state_attr('sensor.solar_prediction_kwh', 'predictions') %}
       {% set pv_predictions = pv_predictions_raw | from_json(default={}) if pv_predictions_raw is string else pv_predictions_raw %}
@@ -58,7 +59,7 @@
       {% set setpoint_mean = (rooms | sum / rooms | count) if (rooms | count > 0) else 0 %}
       {% set inside_now = states('sensor.inside_temp_mean_now') | float(0) %}
       {% set missing_delta_k = [setpoint_mean - inside_now, 0] | max %}
-      {% set off = states('sensor.heating_preheat_offset_dynamic') | float(0) %}
+      {% set off = preheat_offset_24h_max_k | float(0) %}
       {{ [c * (off + missing_delta_k), 0] | max }}
     pv_enough_next_day: "{{ (pv_plan_day_kwh - water_stage1_remaining_kwh) >= heating_need_next_day_kwh and heating_need_next_day_kwh > 0 }}"
     shift_heating_start_to_pv: "{{ is_state('binary_sensor.preheat_erlaubt_demand_weighted', 'on') and pv_enough_next_day }}"
@@ -81,7 +82,8 @@
     # Turn this switch ON to block heating outside preheat window
     preheat_enabled: "{{ is_state('binary_sensor.preheat_erlaubt_demand_weighted', 'on') }}"
     heating_block_enabled: "{{ is_state('input_boolean.heating_block_daytime', 'on') and preheat_enabled }}"
-    offset_allowed_now: "{{ has_pv_excess or (is_preheat_window and heating_block_enabled) or max_total_heating_w > pv_thr_w }}"
+    pv_shift_active_now: "{{ shift_heating_start_to_pv and (max_total_heating_w | float(0)) > (pv_thr_w | float(0)) }}"
+    offset_allowed_now: "{{ has_pv_excess or (is_preheat_window and preheat_enabled) or pv_shift_active_now }}"
     
     # --- Preheat goal (room-specific) ---
     max_total_offset_k: 5.0      # <= 5K above each room's base (includes PV + preheat)
@@ -132,8 +134,10 @@
         {% set cap = max_total_offset_k | float(1.0) %}
 
         {% set preheat_off = 0.0 %}
-        {% if (is_preheat_window or shift_heating_start_to_pv) and preheat_enabled %}
+        {% if is_preheat_window and preheat_enabled %}
           {% set preheat_off = states('sensor.heating_preheat_offset_dynamic') | float(0) %}
+        {% elif pv_shift_active_now %}
+          {% set preheat_off = preheat_offset_24h_max_k | float(0) %}
         {% endif %}
 
         {% if offset_allowed_now %}
