@@ -3,6 +3,4 @@ name: "Heating Preheat Offset 5min Average"
 entity_id: sensor.heating_preheat_offset_dynamic
 state_characteristic: average_linear
 max_age:
-  minutes: 5
-sampling_size: 120
-precision: 3
+  minutes: 15
