@@ -37,7 +37,7 @@ sensor:
         {% endfor %}
       {% endif %}
       {{ ns.total | round(3) }}
-    water_stage1_target_kwh: 5
+    water_stage1_target_kwh: 3.0
     water_stage1_done_today_kwh: >
       {{ (states('sensor.water_heating_pump_daily') | float(0) / 1000.0) | round(3) }}
     water_stage1_remaining_kwh: >
