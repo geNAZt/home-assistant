@@ -4,5 +4,4 @@ entity_id: sensor.heating_preheat_offset_5min_average
 state_characteristic: value_max
 max_age:
   hours: 24
-sampling_size: 10000
 precision: 3
