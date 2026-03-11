@@ -30,7 +30,7 @@
     water_stage1_remaining_kwh: "{{ state_attr('sensor.pv_priority_next_day_budget', 'water_stage1_remaining_kwh') | float(0) }}"
     water_stage1_reserve_w: "{{ 500 if water_stage1_remaining_kwh > 0.05 else 0 }}"
     has_pv_excess: "{{ pv_forecast_w > (pv_thr_w + water_stage1_reserve_w) }}"
-    max_total_heating_w: "{{ ((pv_generation_w + battery_support_w) * 0.7) if has_pv_excess else (pv_generation_w + battery_support_w) }}"
+    max_total_heating_w: "{{ (pv_generation_w * 0.8) if has_pv_excess else (pv_generation_w + battery_support_w) }}"
     pv_surplus_w: "{{ [pv_forecast_w - pv_thr_w - water_stage1_reserve_w, 0] | max }}"
     pv_offset_k: "{{ 0.5 if has_pv_excess else 0 }}"
     pv_predictions: "{{ state_attr('sensor.solar_prediction_kwh', 'predictions') }}"
