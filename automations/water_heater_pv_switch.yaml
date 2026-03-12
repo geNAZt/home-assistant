@@ -44,29 +44,47 @@
     battery_ready_for_stage2: "{{ battery_soc >= battery_stage2_soc }}"
     stage2_allowed_by_forecast: "{{ (remaining_after_battery_kwh > 0.20) and ((not stage1_needed) or stage2_whitelist_active) and (not heating_priority_open) }}"
     level_up_possible: "{{ (exported_power >= 1600) or (stage_1_state and exported_power >= 1200) }}"
+    force_all_off: >-
+      {{
+        imported_power > 100
+        or battery_import_power < -300
+        or (not battery_above_min and not battery_ready_for_stage2)
+      }}
 
     # Determine which stage should be active
     battery_ready_stage1: "{{ battery_above_min }}"
-    should_stage_1: >-
+    stage1_candidate: >-
       {{
         stage1_needed
         and (stage1_forecast_alloc_kwh > 0 or is_nt_window)
         and (battery_ready_stage1 or is_nt_window)
       }}
+    stage2_candidate: >-
+      {{
+        (stage2_import_equivalent_w | float(0) < 100)
+        and (
+          (stage_2_state and (stage2_import_equivalent_w | float(0) < 100))
+          or
+          (
+            battery_ready_for_stage2
+            and level_up_possible
+          )
+        )
+      }}
+    should_stage_1: >-
+      {{
+        (not force_all_off)
+        and (not stage2_candidate)
+        and stage1_candidate
+      }}
     should_stage_2: >-
       {{
-        stage_2_state
-        or
-        (
-          battery_ready_for_stage2
-          and level_up_possible
-        )
+        (not force_all_off)
+        and stage2_candidate
       }}
     should_all_off: >-
       {{
-        imported_power > 100
-        or battery_import_power < -300
-        or (not battery_ready_stage1 and not battery_ready_for_stage2)
+        force_all_off
         or (not should_stage_1 and not should_stage_2)
       }}
   
