@@ -24,8 +24,10 @@
     pv_generation_w: "{{ states('sensor.solar_panel_production_w') | float(0) }}"
     battery_soc: "{{ states('sensor.pv_battery1_state_of_charge') | float(0) }}"
     battery_min_soc: 15
+    battery_support_until_hour: 18
     battery_above_min: "{{ battery_soc >= battery_min_soc }}"
-    battery_support_w: "{{ 5000 if battery_above_min else 0 }}"
+    battery_support_allowed_now: "{{ now().hour < (battery_support_until_hour | int(18)) }}"
+    battery_support_w: "{{ 5000 if (battery_above_min and battery_support_allowed_now) else 0 }}"
     pv_thr_w: "{{ states('input_number.pv_excess_threshold_w') | float(0) }}"
     water_stage1_remaining_kwh: "{{ state_attr('sensor.pv_priority_next_day_budget', 'water_stage1_remaining_kwh') | float(0) }}"
     water_stage1_reserve_w: "{{ 500 if water_stage1_remaining_kwh > 0.05 else 0 }}"
