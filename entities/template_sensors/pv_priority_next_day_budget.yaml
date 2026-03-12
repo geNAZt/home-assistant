@@ -1,30 +1,14 @@
 trigger:
-    - platform: time_pattern
-      minutes: "/5"
+  - platform: time_pattern
+    minutes: "/5"
 sensor:
-- name: "PV Priority Next Day Budget"
-  unique_id: pv_priority_next_day_budget
-  unit_of_measurement: "kWh"
-  icon: mdi:chart-timeline-variant
-  state: >
-    {% set pv_predictions_raw = state_attr('sensor.solar_prediction_kwh', 'predictions') %}
-      {% set pv_predictions = pv_predictions_raw | from_json(default={}) if pv_predictions_raw is string else pv_predictions_raw %}
-    {% set t0 = as_timestamp(now()) %}
-    {% set t1 = t0 + (24 * 3600) %}
-    {% set ns = namespace(total=0.0) %}
-    {% if pv_predictions is mapping %}
-      {% for ts_str, val in pv_predictions.items() %}
-        {% set ts = as_timestamp(ts_str) %}
-        {% if ts is number and t0 <= ts < t1 %}
-          {% set ns.total = ns.total + (val | float(0)) %}
-        {% endif %}
-      {% endfor %}
-    {% endif %}
-    {{ ns.total | round(3) }}
-  attributes:
-    pv_next_24h_kwh: >
+  - name: "PV Priority Next Day Budget"
+    unique_id: pv_priority_next_day_budget
+    unit_of_measurement: "kWh"
+    icon: mdi:chart-timeline-variant
+    state: >
       {% set pv_predictions_raw = state_attr('sensor.solar_prediction_kwh', 'predictions') %}
-      {% set pv_predictions = pv_predictions_raw | from_json(default={}) if pv_predictions_raw is string else pv_predictions_raw %}
+        {% set pv_predictions = pv_predictions_raw | from_json(default={}) if pv_predictions_raw is string else pv_predictions_raw %}
       {% set t0 = as_timestamp(now()) %}
       {% set t1 = t0 + (24 * 3600) %}
       {% set ns = namespace(total=0.0) %}
@@ -37,210 +21,226 @@ sensor:
         {% endfor %}
       {% endif %}
       {{ ns.total | round(3) }}
-    water_stage1_target_kwh: 3.0
-    water_stage1_done_today_kwh: >
-      {{ (states('sensor.water_heating_pump_daily') | float(0) / 1000.0) | round(3) }}
-    water_stage1_remaining_kwh: >
-      {% set done = (states('sensor.water_heating_pump_daily') | float(0) / 1000.0) %}
-      {{ [5 - done, 0] | max | round(3) }}
-    heating_need_next_day_kwh: >
-      {% set c = states('input_number.building_heat_capacity') | float(0) %}
-      {% set rooms = states.input_number
-             | selectattr('entity_id', 'search', '^input_number\\.heating_base_')
-             | map(attribute='state') | map('float') | list %}
-      {% set setpoint_mean = (rooms | sum / rooms | count) if (rooms | count > 0) else 0 %}
-      {% set inside_now = states('sensor.inside_temp_mean_now') | float(0) %}
-      {% set missing_delta_k = [setpoint_mean - inside_now, 0] | max %}
-      {% set off = states('sensor.heating_preheat_offset_24h_max') | float(0) %}
-      {{ [c * (off + missing_delta_k), 0] | max | round(3) }}
-    allocated_to_water_stage1_kwh: >
-      {% set pv_predictions_raw = state_attr('sensor.solar_prediction_kwh', 'predictions') %}
-      {% set pv_predictions = pv_predictions_raw | from_json(default={}) if pv_predictions_raw is string else pv_predictions_raw %}
-      {% set t0 = as_timestamp(now()) %}
-      {% set t1 = t0 + (24 * 3600) %}
-      {% set pv = namespace(total=0.0) %}
-      {% if pv_predictions is mapping %}
-        {% for ts_str, val in pv_predictions.items() %}
-          {% set ts = as_timestamp(ts_str) %}
-          {% if ts is number and t0 <= ts < t1 %}
-            {% set pv.total = pv.total + (val | float(0)) %}
-          {% endif %}
-        {% endfor %}
-      {% endif %}
-      {% set stage1_remaining = [5 - ((states('sensor.water_heating_pump_daily') | float(0)) / 1000.0), 0] | max %}
-      {% set pv_total = pv.total | float(0) %}
-      {{ [pv_total, stage1_remaining] | min | round(3) }}
-    pv_after_water_stage1_kwh: >
-      {% set pv_predictions_raw = state_attr('sensor.solar_prediction_kwh', 'predictions') %}
-      {% set pv_predictions = pv_predictions_raw | from_json(default={}) if pv_predictions_raw is string else pv_predictions_raw %}
-      {% set t0 = as_timestamp(now()) %}
-      {% set t1 = t0 + (24 * 3600) %}
-      {% set pv = namespace(total=0.0) %}
-      {% if pv_predictions is mapping %}
-        {% for ts_str, val in pv_predictions.items() %}
-          {% set ts = as_timestamp(ts_str) %}
-          {% if ts is number and t0 <= ts < t1 %}
-            {% set pv.total = pv.total + (val | float(0)) %}
-          {% endif %}
-        {% endfor %}
-      {% endif %}
-      {% set stage1_remaining = [5 - ((states('sensor.water_heating_pump_daily') | float(0)) / 1000.0), 0] | max %}
-      {% set alloc_stage1 = [pv.total | float(0), stage1_remaining] | min %}
-      {% set pv_total = pv.total | float(0) %}
-      {{ [pv_total - alloc_stage1, 0] | max | round(3) }}
-    allocated_to_heating_kwh: >
-      {% set pv_predictions_raw = state_attr('sensor.solar_prediction_kwh', 'predictions') %}
-      {% set pv_predictions = pv_predictions_raw | from_json(default={}) if pv_predictions_raw is string else pv_predictions_raw %}
-      {% set t0 = as_timestamp(now()) %}
-      {% set t1 = t0 + (24 * 3600) %}
-      {% set pv = namespace(total=0.0) %}
-      {% if pv_predictions is mapping %}
-        {% for ts_str, val in pv_predictions.items() %}
-          {% set ts = as_timestamp(ts_str) %}
-          {% if ts is number and t0 <= ts < t1 %}
-            {% set pv.total = pv.total + (val | float(0)) %}
-          {% endif %}
-        {% endfor %}
-      {% endif %}
-      {% set stage1_remaining = [5 - ((states('sensor.water_heating_pump_daily') | float(0)) / 1000.0), 0] | max %}
-      {% set pv_after_stage1 = [pv.total | float(0) - ([pv.total | float(0), stage1_remaining] | min), 0] | max %}
-      {% set c = states('input_number.building_heat_capacity') | float(0) %}
-      {% set rooms = states.input_number
-             | selectattr('entity_id', 'search', '^input_number\\.heating_base_')
-             | map(attribute='state') | map('float') | list %}
-      {% set setpoint_mean = (rooms | sum / rooms | count) if (rooms | count > 0) else 0 %}
-      {% set inside_now = states('sensor.inside_temp_mean_now') | float(0) %}
-      {% set missing_delta_k = [setpoint_mean - inside_now, 0] | max %}
-      {% set off = states('sensor.heating_preheat_offset_24h_max') | float(0) %}
-      {% set heating_need = [c * (off + missing_delta_k), 0] | max %}
-      {{ [pv_after_stage1, heating_need] | min | round(3) }}
-    heating_uncovered_kwh: >
-      {% set pv_predictions_raw = state_attr('sensor.solar_prediction_kwh', 'predictions') %}
-      {% set pv_predictions = pv_predictions_raw | from_json(default={}) if pv_predictions_raw is string else pv_predictions_raw %}
-      {% set t0 = as_timestamp(now()) %}
-      {% set t1 = t0 + (24 * 3600) %}
-      {% set pv = namespace(total=0.0) %}
-      {% if pv_predictions is mapping %}
-        {% for ts_str, val in pv_predictions.items() %}
-          {% set ts = as_timestamp(ts_str) %}
-          {% if ts is number and t0 <= ts < t1 %}
-            {% set pv.total = pv.total + (val | float(0)) %}
-          {% endif %}
-        {% endfor %}
-      {% endif %}
-      {% set stage1_remaining = [5 - ((states('sensor.water_heating_pump_daily') | float(0)) / 1000.0), 0] | max %}
-      {% set pv_after_stage1 = [pv.total | float(0) - ([pv.total | float(0), stage1_remaining] | min), 0] | max %}
-      {% set c = states('input_number.building_heat_capacity') | float(0) %}
-      {% set rooms = states.input_number
-             | selectattr('entity_id', 'search', '^input_number\\.heating_base_')
-             | map(attribute='state') | map('float') | list %}
-      {% set setpoint_mean = (rooms | sum / rooms | count) if (rooms | count > 0) else 0 %}
-      {% set inside_now = states('sensor.inside_temp_mean_now') | float(0) %}
-      {% set missing_delta_k = [setpoint_mean - inside_now, 0] | max %}
-      {% set off = states('sensor.heating_preheat_offset_24h_max') | float(0) %}
-      {% set heating_need = [c * (off + missing_delta_k), 0] | max %}
-      {% set heating_alloc = [pv_after_stage1, heating_need] | min %}
-      {{ [heating_need - heating_alloc, 0] | max | round(3) }}
-    remaining_after_heating_kwh: >
-      {% set pv_predictions_raw = state_attr('sensor.solar_prediction_kwh', 'predictions') %}
-      {% set pv_predictions = pv_predictions_raw | from_json(default={}) if pv_predictions_raw is string else pv_predictions_raw %}
-      {% set t0 = as_timestamp(now()) %}
-      {% set t1 = t0 + (24 * 3600) %}
-      {% set pv = namespace(total=0.0) %}
-      {% if pv_predictions is mapping %}
-        {% for ts_str, val in pv_predictions.items() %}
-          {% set ts = as_timestamp(ts_str) %}
-          {% if ts is number and t0 <= ts < t1 %}
-            {% set pv.total = pv.total + (val | float(0)) %}
-          {% endif %}
-        {% endfor %}
-      {% endif %}
-      {% set stage1_remaining = [5 - ((states('sensor.water_heating_pump_daily') | float(0)) / 1000.0), 0] | max %}
-      {% set pv_after_stage1 = [pv.total | float(0) - ([pv.total | float(0), stage1_remaining] | min), 0] | max %}
-      {% set c = states('input_number.building_heat_capacity') | float(0) %}
-      {% set rooms = states.input_number
-             | selectattr('entity_id', 'search', '^input_number\\.heating_base_')
-             | map(attribute='state') | map('float') | list %}
-      {% set setpoint_mean = (rooms | sum / rooms | count) if (rooms | count > 0) else 0 %}
-      {% set inside_now = states('sensor.inside_temp_mean_now') | float(0) %}
-      {% set missing_delta_k = [setpoint_mean - inside_now, 0] | max %}
-      {% set off = states('sensor.heating_preheat_offset_24h_max') | float(0) %}
-      {% set heating_need = [c * (off + missing_delta_k), 0] | max %}
-      {% set heating_alloc = [pv_after_stage1, heating_need] | min %}
-      {{ [pv_after_stage1 - heating_alloc, 0] | max | round(3) }}
-    battery_min_soc_pct: 15
-    battery_stage2_target_soc_pct: 90
-    battery_soc_pct: >
-      {{ states('sensor.pv_battery1_state_of_charge') | float(0) | round(2) }}
-    battery_capacity_kwh: >
-      {{ (states('sensor.pv_battery1_size_max') | float(0) / 1000.0) | round(3) }}
-    battery_needed_before_stage2_kwh: >
-      {% set cap = (states('sensor.pv_battery1_size_max') | float(0) / 1000.0) %}
-      {% set soc = states('sensor.pv_battery1_state_of_charge') | float(0) %}
-      {% set target = 90.0 %}
-      {% set missing_pct = [target - soc, 0] | max %}
-      {{ (cap * missing_pct / 100.0) | round(3) }}
-    allocated_to_battery_before_stage2_kwh: >
-      {% set pv_predictions_raw = state_attr('sensor.solar_prediction_kwh', 'predictions') %}
-      {% set pv_predictions = pv_predictions_raw | from_json(default={}) if pv_predictions_raw is string else pv_predictions_raw %}
-      {% set t0 = as_timestamp(now()) %}
-      {% set t1 = t0 + (24 * 3600) %}
-      {% set pv = namespace(total=0.0) %}
-      {% if pv_predictions is mapping %}
-        {% for ts_str, val in pv_predictions.items() %}
-          {% set ts = as_timestamp(ts_str) %}
-          {% if ts is number and t0 <= ts < t1 %}
-            {% set pv.total = pv.total + (val | float(0)) %}
-          {% endif %}
-        {% endfor %}
-      {% endif %}
-      {% set stage1_remaining = [5 - ((states('sensor.water_heating_pump_daily') | float(0)) / 1000.0), 0] | max %}
-      {% set pv_after_stage1 = [pv.total | float(0) - ([pv.total | float(0), stage1_remaining] | min), 0] | max %}
-      {% set c = states('input_number.building_heat_capacity') | float(0) %}
-      {% set rooms = states.input_number
-             | selectattr('entity_id', 'search', '^input_number\\.heating_base_')
-             | map(attribute='state') | map('float') | list %}
-      {% set setpoint_mean = (rooms | sum / rooms | count) if (rooms | count > 0) else 0 %}
-      {% set inside_now = states('sensor.inside_temp_mean_now') | float(0) %}
-      {% set missing_delta_k = [setpoint_mean - inside_now, 0] | max %}
-      {% set off = states('sensor.heating_preheat_offset_24h_max') | float(0) %}
-      {% set heating_need = [c * (off + missing_delta_k), 0] | max %}
-      {% set heating_alloc = [pv_after_stage1, heating_need] | min %}
-      {% set rem_after_heat = [pv_after_stage1 - heating_alloc, 0] | max %}
-      {% set cap = (states('sensor.pv_battery1_size_max') | float(0) / 1000.0) %}
-      {% set soc = states('sensor.pv_battery1_state_of_charge') | float(0) %}
-      {% set batt_need = [cap * ([90.0 - soc, 0] | max) / 100.0, 0] | max %}
-      {{ [rem_after_heat, batt_need] | min | round(3) }}
-    remaining_after_battery_kwh: >
-      {% set pv_predictions_raw = state_attr('sensor.solar_prediction_kwh', 'predictions') %}
-      {% set pv_predictions = pv_predictions_raw | from_json(default={}) if pv_predictions_raw is string else pv_predictions_raw %}
-      {% set t0 = as_timestamp(now()) %}
-      {% set t1 = t0 + (24 * 3600) %}
-      {% set pv = namespace(total=0.0) %}
-      {% if pv_predictions is mapping %}
-        {% for ts_str, val in pv_predictions.items() %}
-          {% set ts = as_timestamp(ts_str) %}
-          {% if ts is number and t0 <= ts < t1 %}
-            {% set pv.total = pv.total + (val | float(0)) %}
-          {% endif %}
-        {% endfor %}
-      {% endif %}
-      {% set stage1_remaining = [5 - ((states('sensor.water_heating_pump_daily') | float(0)) / 1000.0), 0] | max %}
-      {% set pv_after_stage1 = [pv.total | float(0) - ([pv.total | float(0), stage1_remaining] | min), 0] | max %}
-      {% set c = states('input_number.building_heat_capacity') | float(0) %}
-      {% set rooms = states.input_number
-             | selectattr('entity_id', 'search', '^input_number\\.heating_base_')
-             | map(attribute='state') | map('float') | list %}
-      {% set setpoint_mean = (rooms | sum / rooms | count) if (rooms | count > 0) else 0 %}
-      {% set inside_now = states('sensor.inside_temp_mean_now') | float(0) %}
-      {% set missing_delta_k = [setpoint_mean - inside_now, 0] | max %}
-      {% set off = states('sensor.heating_preheat_offset_24h_max') | float(0) %}
-      {% set heating_need = [c * (off + missing_delta_k), 0] | max %}
-      {% set heating_alloc = [pv_after_stage1, heating_need] | min %}
-      {% set rem_after_heat = [pv_after_stage1 - heating_alloc, 0] | max %}
-      {% set cap = (states('sensor.pv_battery1_size_max') | float(0) / 1000.0) %}
-      {% set soc = states('sensor.pv_battery1_state_of_charge') | float(0) %}
-      {% set batt_need = [cap * ([90.0 - soc, 0] | max) / 100.0, 0] | max %}
-      {% set batt_alloc = [rem_after_heat, batt_need] | min %}
-      {{ [rem_after_heat - batt_alloc, 0] | max | round(3) }}
-    priority_order: "Warmwasser Stufe 1 (5 kWh) > Heizung > PV Battery > Warmwasser Stufe 2 (PV Überschuss) > Heizung (PV Überschuss) > EV (PV Überschuss)"
+    attributes:
+      pv_next_24h_kwh: >
+        {% set pv_predictions_raw = state_attr('sensor.solar_prediction_kwh', 'predictions') %}
+        {% set pv_predictions = pv_predictions_raw | from_json(default={}) if pv_predictions_raw is string else pv_predictions_raw %}
+        {% set t0 = as_timestamp(now()) %}
+        {% set t1 = t0 + (24 * 3600) %}
+        {% set ns = namespace(total=0.0) %}
+        {% if pv_predictions is mapping %}
+          {% for ts_str, val in pv_predictions.items() %}
+            {% set ts = as_timestamp(ts_str) %}
+            {% if ts is number and t0 <= ts < t1 %}
+              {% set ns.total = ns.total + (val | float(0)) %}
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+        {{ ns.total | round(3) }}
+      water_stage1_target_kwh: 3.0
+      water_stage1_done_today_kwh: >
+        {{ (states('sensor.water_heating_pump_daily') | float(0) / 1000.0) | round(3) }}
+      water_stage1_remaining_kwh: >
+        {% set done = (states('sensor.water_heating_pump_daily') | float(0) / 1000.0) %}
+        {{ [3 - done, 0] | max | round(3) }}
+      heating_need_next_day_kwh: >
+        {% set c = states('input_number.building_heat_capacity') | float(0) %}
+        {% set rooms = states.input_number
+               | selectattr('entity_id', 'search', '^input_number\\.heating_base_')
+               | map(attribute='state') | map('float') | list %}
+        {% set setpoint_mean = (rooms | sum / rooms | count) if (rooms | count > 0) else 0 %}
+        {% set inside_now = states('sensor.inside_temp_mean_now') | float(0) %}
+        {% set missing_delta_k = [setpoint_mean - inside_now, 0] | max %}
+        {% set off = states('sensor.heating_preheat_offset_24h_max') | float(0) %}
+        {{ [c * (off + missing_delta_k), 0] | max | round(3) }}
+      allocated_to_water_stage1_kwh: >
+        {% set pv_predictions_raw = state_attr('sensor.solar_prediction_kwh', 'predictions') %}
+        {% set pv_predictions = pv_predictions_raw | from_json(default={}) if pv_predictions_raw is string else pv_predictions_raw %}
+        {% set t0 = as_timestamp(now()) %}
+        {% set t1 = t0 + (24 * 3600) %}
+        {% set pv = namespace(total=0.0) %}
+        {% if pv_predictions is mapping %}
+          {% for ts_str, val in pv_predictions.items() %}
+            {% set ts = as_timestamp(ts_str) %}
+            {% if ts is number and t0 <= ts < t1 %}
+              {% set pv.total = pv.total + (val | float(0)) %}
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+        {% set stage1_remaining = [3 - ((states('sensor.water_heating_pump_daily') | float(0)) / 1000.0), 0] | max %}
+        {% set pv_total = pv.total | float(0) %}
+        {{ [pv_total, stage1_remaining] | min | round(3) }}
+      pv_after_water_stage1_kwh: >
+        {% set pv_predictions_raw = state_attr('sensor.solar_prediction_kwh', 'predictions') %}
+        {% set pv_predictions = pv_predictions_raw | from_json(default={}) if pv_predictions_raw is string else pv_predictions_raw %}
+        {% set t0 = as_timestamp(now()) %}
+        {% set t1 = t0 + (24 * 3600) %}
+        {% set pv = namespace(total=0.0) %}
+        {% if pv_predictions is mapping %}
+          {% for ts_str, val in pv_predictions.items() %}
+            {% set ts = as_timestamp(ts_str) %}
+            {% if ts is number and t0 <= ts < t1 %}
+              {% set pv.total = pv.total + (val | float(0)) %}
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+        {% set stage1_remaining = [3 - ((states('sensor.water_heating_pump_daily') | float(0)) / 1000.0), 0] | max %}
+        {% set alloc_stage1 = [pv.total | float(0), stage1_remaining] | min %}
+        {% set pv_total = pv.total | float(0) %}
+        {{ [pv_total - alloc_stage1, 0] | max | round(3) }}
+      allocated_to_heating_kwh: >
+        {% set pv_predictions_raw = state_attr('sensor.solar_prediction_kwh', 'predictions') %}
+        {% set pv_predictions = pv_predictions_raw | from_json(default={}) if pv_predictions_raw is string else pv_predictions_raw %}
+        {% set t0 = as_timestamp(now()) %}
+        {% set t1 = t0 + (24 * 3600) %}
+        {% set pv = namespace(total=0.0) %}
+        {% if pv_predictions is mapping %}
+          {% for ts_str, val in pv_predictions.items() %}
+            {% set ts = as_timestamp(ts_str) %}
+            {% if ts is number and t0 <= ts < t1 %}
+              {% set pv.total = pv.total + (val | float(0)) %}
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+        {% set stage1_remaining = [3 - ((states('sensor.water_heating_pump_daily') | float(0)) / 1000.0), 0] | max %}
+        {% set pv_after_stage1 = [pv.total | float(0) - ([pv.total | float(0), stage1_remaining] | min), 0] | max %}
+        {% set c = states('input_number.building_heat_capacity') | float(0) %}
+        {% set rooms = states.input_number
+               | selectattr('entity_id', 'search', '^input_number\\.heating_base_')
+               | map(attribute='state') | map('float') | list %}
+        {% set setpoint_mean = (rooms | sum / rooms | count) if (rooms | count > 0) else 0 %}
+        {% set inside_now = states('sensor.inside_temp_mean_now') | float(0) %}
+        {% set missing_delta_k = [setpoint_mean - inside_now, 0] | max %}
+        {% set off = states('sensor.heating_preheat_offset_24h_max') | float(0) %}
+        {% set heating_need = [c * (off + missing_delta_k), 0] | max %}
+        {{ [pv_after_stage1, heating_need] | min | round(3) }}
+      heating_uncovered_kwh: >
+        {% set pv_predictions_raw = state_attr('sensor.solar_prediction_kwh', 'predictions') %}
+        {% set pv_predictions = pv_predictions_raw | from_json(default={}) if pv_predictions_raw is string else pv_predictions_raw %}
+        {% set t0 = as_timestamp(now()) %}
+        {% set t1 = t0 + (24 * 3600) %}
+        {% set pv = namespace(total=0.0) %}
+        {% if pv_predictions is mapping %}
+          {% for ts_str, val in pv_predictions.items() %}
+            {% set ts = as_timestamp(ts_str) %}
+            {% if ts is number and t0 <= ts < t1 %}
+              {% set pv.total = pv.total + (val | float(0)) %}
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+        {% set stage1_remaining = [3 - ((states('sensor.water_heating_pump_daily') | float(0)) / 1000.0), 0] | max %}
+        {% set pv_after_stage1 = [pv.total | float(0) - ([pv.total | float(0), stage1_remaining] | min), 0] | max %}
+        {% set c = states('input_number.building_heat_capacity') | float(0) %}
+        {% set rooms = states.input_number
+               | selectattr('entity_id', 'search', '^input_number\\.heating_base_')
+               | map(attribute='state') | map('float') | list %}
+        {% set setpoint_mean = (rooms | sum / rooms | count) if (rooms | count > 0) else 0 %}
+        {% set inside_now = states('sensor.inside_temp_mean_now') | float(0) %}
+        {% set missing_delta_k = [setpoint_mean - inside_now, 0] | max %}
+        {% set off = states('sensor.heating_preheat_offset_24h_max') | float(0) %}
+        {% set heating_need = [c * (off + missing_delta_k), 0] | max %}
+        {% set heating_alloc = [pv_after_stage1, heating_need] | min %}
+        {{ [heating_need - heating_alloc, 0] | max | round(3) }}
+      remaining_after_heating_kwh: >
+        {% set pv_predictions_raw = state_attr('sensor.solar_prediction_kwh', 'predictions') %}
+        {% set pv_predictions = pv_predictions_raw | from_json(default={}) if pv_predictions_raw is string else pv_predictions_raw %}
+        {% set t0 = as_timestamp(now()) %}
+        {% set t1 = t0 + (24 * 3600) %}
+        {% set pv = namespace(total=0.0) %}
+        {% if pv_predictions is mapping %}
+          {% for ts_str, val in pv_predictions.items() %}
+            {% set ts = as_timestamp(ts_str) %}
+            {% if ts is number and t0 <= ts < t1 %}
+              {% set pv.total = pv.total + (val | float(0)) %}
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+        {% set stage1_remaining = [3 - ((states('sensor.water_heating_pump_daily') | float(0)) / 1000.0), 0] | max %}
+        {% set pv_after_stage1 = [pv.total | float(0) - ([pv.total | float(0), stage1_remaining] | min), 0] | max %}
+        {% set c = states('input_number.building_heat_capacity') | float(0) %}
+        {% set rooms = states.input_number
+               | selectattr('entity_id', 'search', '^input_number\\.heating_base_')
+               | map(attribute='state') | map('float') | list %}
+        {% set setpoint_mean = (rooms | sum / rooms | count) if (rooms | count > 0) else 0 %}
+        {% set inside_now = states('sensor.inside_temp_mean_now') | float(0) %}
+        {% set missing_delta_k = [setpoint_mean - inside_now, 0] | max %}
+        {% set off = states('sensor.heating_preheat_offset_24h_max') | float(0) %}
+        {% set heating_need = [c * (off + missing_delta_k), 0] | max %}
+        {% set heating_alloc = [pv_after_stage1, heating_need] | min %}
+        {{ [pv_after_stage1 - heating_alloc, 0] | max | round(3) }}
+      battery_min_soc_pct: 15
+      battery_stage2_target_soc_pct: 90
+      battery_soc_pct: >
+        {{ states('sensor.pv_battery1_state_of_charge') | float(0) | round(2) }}
+      battery_capacity_kwh: >
+        {{ (states('sensor.pv_battery1_size_max') | float(0) / 1000.0) | round(3) }}
+      battery_needed_before_stage2_kwh: >
+        {% set cap = (states('sensor.pv_battery1_size_max') | float(0) / 1000.0) %}
+        {% set soc = states('sensor.pv_battery1_state_of_charge') | float(0) %}
+        {% set target = 90.0 %}
+        {% set missing_pct = [target - soc, 0] | max %}
+        {{ (cap * missing_pct / 100.0) | round(3) }}
+      allocated_to_battery_before_stage2_kwh: >
+        {% set pv_predictions_raw = state_attr('sensor.solar_prediction_kwh', 'predictions') %}
+        {% set pv_predictions = pv_predictions_raw | from_json(default={}) if pv_predictions_raw is string else pv_predictions_raw %}
+        {% set t0 = as_timestamp(now()) %}
+        {% set t1 = t0 + (24 * 3600) %}
+        {% set pv = namespace(total=0.0) %}
+        {% if pv_predictions is mapping %}
+          {% for ts_str, val in pv_predictions.items() %}
+            {% set ts = as_timestamp(ts_str) %}
+            {% if ts is number and t0 <= ts < t1 %}
+              {% set pv.total = pv.total + (val | float(0)) %}
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+        {% set stage1_remaining = [3 - ((states('sensor.water_heating_pump_daily') | float(0)) / 1000.0), 0] | max %}
+        {% set pv_after_stage1 = [pv.total | float(0) - ([pv.total | float(0), stage1_remaining] | min), 0] | max %}
+        {% set c = states('input_number.building_heat_capacity') | float(0) %}
+        {% set rooms = states.input_number
+               | selectattr('entity_id', 'search', '^input_number\\.heating_base_')
+               | map(attribute='state') | map('float') | list %}
+        {% set setpoint_mean = (rooms | sum / rooms | count) if (rooms | count > 0) else 0 %}
+        {% set inside_now = states('sensor.inside_temp_mean_now') | float(0) %}
+        {% set missing_delta_k = [setpoint_mean - inside_now, 0] | max %}
+        {% set off = states('sensor.heating_preheat_offset_24h_max') | float(0) %}
+        {% set heating_need = [c * (off + missing_delta_k), 0] | max %}
+        {% set heating_alloc = [pv_after_stage1, heating_need] | min %}
+        {% set rem_after_heat = [pv_after_stage1 - heating_alloc, 0] | max %}
+        {% set cap = (states('sensor.pv_battery1_size_max') | float(0) / 1000.0) %}
+        {% set soc = states('sensor.pv_battery1_state_of_charge') | float(0) %}
+        {% set batt_need = [cap * ([90.0 - soc, 0] | max) / 100.0, 0] | max %}
+        {{ [rem_after_heat, batt_need] | min | round(3) }}
+      remaining_after_battery_kwh: >
+        {% set pv_predictions_raw = state_attr('sensor.solar_prediction_kwh', 'predictions') %}
+        {% set pv_predictions = pv_predictions_raw | from_json(default={}) if pv_predictions_raw is string else pv_predictions_raw %}
+        {% set t0 = as_timestamp(now()) %}
+        {% set t1 = t0 + (24 * 3600) %}
+        {% set pv = namespace(total=0.0) %}
+        {% if pv_predictions is mapping %}
+          {% for ts_str, val in pv_predictions.items() %}
+            {% set ts = as_timestamp(ts_str) %}
+            {% if ts is number and t0 <= ts < t1 %}
+              {% set pv.total = pv.total + (val | float(0)) %}
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+        {% set stage1_remaining = [3 - ((states('sensor.water_heating_pump_daily') | float(0)) / 1000.0), 0] | max %}
+        {% set pv_after_stage1 = [pv.total | float(0) - ([pv.total | float(0), stage1_remaining] | min), 0] | max %}
+        {% set c = states('input_number.building_heat_capacity') | float(0) %}
+        {% set rooms = states.input_number
+               | selectattr('entity_id', 'search', '^input_number\\.heating_base_')
+               | map(attribute='state') | map('float') | list %}
+        {% set setpoint_mean = (rooms | sum / rooms | count) if (rooms | count > 0) else 0 %}
+        {% set inside_now = states('sensor.inside_temp_mean_now') | float(0) %}
+        {% set missing_delta_k = [setpoint_mean - inside_now, 0] | max %}
+        {% set off = states('sensor.heating_preheat_offset_24h_max') | float(0) %}
+        {% set heating_need = [c * (off + missing_delta_k), 0] | max %}
+        {% set heating_alloc = [pv_after_stage1, heating_need] | min %}
+        {% set rem_after_heat = [pv_after_stage1 - heating_alloc, 0] | max %}
+        {% set cap = (states('sensor.pv_battery1_size_max') | float(0) / 1000.0) %}
+        {% set soc = states('sensor.pv_battery1_state_of_charge') | float(0) %}
+        {% set batt_need = [cap * ([90.0 - soc, 0] | max) / 100.0, 0] | max %}
+        {% set batt_alloc = [rem_after_heat, batt_need] | min %}
+        {{ [rem_after_heat - batt_alloc, 0] | max | round(3) }}
+      priority_order: "Warmwasser Stufe 1 (3 kWh) > Heizung > PV Battery > Warmwasser Stufe 2 (PV Überschuss) > Heizung (PV Überschuss) > EV (PV Überschuss)"
