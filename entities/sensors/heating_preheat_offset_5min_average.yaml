@@ -1,6 +1,6 @@
 platform: statistics
 name: "Heating Preheat Offset 5min Average"
 entity_id: sensor.heating_preheat_offset_dynamic
-state_characteristic: average_linear
+state_characteristic: average_step
 max_age:
-  minutes: 15
+  minutes: 5
