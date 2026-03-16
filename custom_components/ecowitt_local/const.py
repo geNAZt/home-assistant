@@ -304,6 +304,17 @@ SENSOR_TYPES: Final = {
         "device_class": "precipitation",
         "state_class": "total_increasing",
     },
+    # WN38 Black Globe Thermometer
+    "0xA1": {
+        "name": "Black Globe Temperature",
+        "unit": "°C",
+        "device_class": "temperature",
+    },
+    "0xA2": {
+        "name": "WBGT",
+        "unit": "°C",
+        "device_class": "temperature",
+    },
 }
 
 # Add dynamically generated channel sensors
@@ -393,6 +404,36 @@ SENSOR_TYPES.update(
     )
 )
 
+# WS90/WH90 voltage sensors (capacitor and battery)
+SENSOR_TYPES.update(
+    {
+        "ws90cap_volt": {
+            "name": "WS90 Capacitor Voltage",
+            "unit": "V",
+            "device_class": "voltage",
+            "state_class": "measurement",
+        },
+        "wh90cap_volt": {
+            "name": "WH90 Capacitor Voltage",
+            "unit": "V",
+            "device_class": "voltage",
+            "state_class": "measurement",
+        },
+        "ws90_voltage": {
+            "name": "WS90 Battery Voltage",
+            "unit": "V",
+            "device_class": "voltage",
+            "state_class": "measurement",
+        },
+        "wh90_voltage": {
+            "name": "WH90 Battery Voltage",
+            "unit": "V",
+            "device_class": "voltage",
+            "state_class": "measurement",
+        },
+    }
+)
+
 
 def _generate_battery_sensors(
     base_key: str, name_template: str, sensor_key_template: str, max_channels: int
@@ -424,7 +465,7 @@ BATTERY_SENSORS: Final = {
     "wh40batt": {"name": "Rain Sensor Battery", "sensor_key": "rainratein"},
     "wh68batt": {"name": "Weather Station Battery", "sensor_key": "tempf"},
     "wh25batt": {"name": "Indoor Station Battery", "sensor_key": "tempinf"},
-    "wh26batt": {"name": "Indoor Sensor Battery", "sensor_key": "tempinf"},
+    "wh26batt": {"name": "Outdoor Sensor Battery", "sensor_key": "0x02"},
     "co2_batt": {"name": "CO2 Combo Sensor Battery", "sensor_key": "co2"},
     "wh80batt": {"name": "WH80 Weather Station Battery", "sensor_key": "0x02"},
     "wh69batt": {"name": "WH69 Weather Station Battery", "sensor_key": "0x02"},
@@ -465,6 +506,11 @@ BATTERY_SENSORS.update(
 SYSTEM_SENSORS: Final = {
     "runtime": {"name": "Gateway Uptime", "unit": "days", "device_class": "duration"},
     "heap": {"name": "Gateway Heap Memory", "unit": "KB", "device_class": "data_size"},
+}
+
+# Binary sensors (exposed as HA binary_sensor entities, not regular sensors)
+BINARY_SENSORS: Final = {
+    "srain_piezo": {"name": "Rain State Piezo", "device_class": "moisture"},
 }
 
 # Signal strength sensors

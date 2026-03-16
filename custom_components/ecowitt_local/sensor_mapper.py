@@ -260,7 +260,9 @@ class SensorMapper:
                     "0x11",  # Rain weekly
                     "0x12",  # Rain monthly
                     "0x13",  # Rain yearly
-                    "ws90batt",  # Battery level
+                    "ws90batt",  # Battery level (%)
+                    "ws90_voltage",  # Battery voltage (V)
+                    "ws90cap_volt",  # Capacitor voltage (V)
                 ]
             )
         elif (
@@ -308,7 +310,9 @@ class SensorMapper:
                     "0x11",  # Rain weekly
                     "0x12",  # Rain monthly
                     "0x13",  # Rain yearly
-                    "wh90batt",  # Battery level
+                    "wh90batt",  # Battery level (%)
+                    "wh90_voltage",  # Battery voltage (V)
+                    "wh90cap_volt",  # Capacitor voltage (V)
                 ]
             )
         elif (
@@ -349,12 +353,13 @@ class SensorMapper:
                     "wh25batt",
                 ]
             )
-        elif sensor_type.lower() in ("wh26", "indoor_temp_hum"):
-            # Indoor temperature/humidity sensor
+        elif sensor_type.lower() in ("wh26", "wn32", "outdoor_temp_hum"):
+            # Outdoor temperature/humidity sensor (single-channel, e.g. WH26/WN32)
             keys.extend(
                 [
-                    "tempinf",
-                    "humidityin",
+                    "0x02",
+                    "0x07",
+                    "0x03",  # Dewpoint (battery embedded in this item)
                     "wh26batt",
                 ]
             )
@@ -377,6 +382,9 @@ class SensorMapper:
                         f"leaf_batt{ch_num}",
                     ]
                 )
+        elif sensor_type.lower() in ("wn38", "bgt"):
+            # WN38 Black Globe Thermometer (BGT + WBGT)
+            keys.extend(["0xA1", "0xA2"])
         elif sensor_type.lower() in ("wh45", "wh46", "combo", "co2_pm"):
             # WH45/WH46D combo sensor (CO2 + PM + temp/humidity)
             # WH46D adds PM1.0 and PM4.0 on top of WH45 sensors
@@ -489,6 +497,8 @@ class SensorMapper:
                 "0x11": "weekly_rain",
                 "0x12": "monthly_rain",
                 "0x13": "yearly_rain",
+                "0xA1": "bgt",
+                "0xA2": "wbgt",
             }
             # Return mapped name or fallback to hex format if unknown
             return hex_to_name.get(key, key.lower().replace("0x", "hex"))
@@ -516,6 +526,8 @@ class SensorMapper:
             "lightning_mi": "lightning_distance_mi",  # must precede generic "lightning"
             "lightning": "lightning",
             "batt": "battery",
+            "cap_volt": "capacitor_voltage",  # must precede generic "volt"
+            "volt": "voltage",
             "solar_lux": "solar_lux",  # must precede generic "solar"
             "solar": "solar_radiation",
         }
