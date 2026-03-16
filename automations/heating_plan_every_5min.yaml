@@ -11,12 +11,12 @@
     rooms_json: '["bad","kueche","schlafzimmer","flur","speisekammer","wohnzimmer","buero_merja","buero_fabian"]'
     phase_max_amps: 16.0
     hysteresis_k: 0.05
-    stop_margin_k: 0.1   # früher ausmachen, um Overshoot zu reduzieren
-    
+    stop_margin_k: 0.1 # früher ausmachen, um Overshoot zu reduzieren
+
     # --- SOAK CHARGING (Laminat-Schutz) ---
     # Verhindert Hitzestau unter dem Belag. Erzwingt Pausen, damit Wärme
     # in den Estrich ziehen kann (Pulsing).
-    soak_delta_stop: 4.0   # STOPP, wenn Boden > 3.0K wärmer als Luft
+    soak_delta_stop: 4.0 # STOPP, wenn Boden > 3.0K wärmer als Luft
     soak_delta_start: 3.0 # START erlaubt, wenn Delta < 2.0K gesunken ist
 
     # PV and preheat parameters
@@ -79,17 +79,17 @@
       {% set t0 = as_timestamp(now().replace(hour=0, minute=0, second=0, microsecond=0)) %}
       {% set t1 = as_timestamp(now().replace(hour=5, minute=0, second=0, microsecond=0)) %}
       {{ t0 <= nowts < t1 }}
-    
+
     # Heating blocking: When enabled, only allow heating during preheat window (00:00-05:00)
     # Turn this switch ON to block heating outside preheat window
     preheat_enabled: "{{ is_state('binary_sensor.preheat_erlaubt_demand_weighted', 'on') }}"
     heating_block_enabled: "{{ is_state('input_boolean.heating_block_daytime', 'on') and preheat_enabled }}"
     pv_shift_active_now: "{{ shift_heating_start_to_pv and (max_total_heating_w | float(0)) > (pv_thr_w | float(0)) }}"
     offset_allowed_now: "{{ has_pv_excess or (is_preheat_window and preheat_enabled) or pv_shift_active_now }}"
-    
+
     # --- Preheat goal (room-specific) ---
-    max_total_offset_k: 5.0      # <= 5K above each room's base (includes PV + preheat)
-    
+    max_total_offset_k: 5.0 # <= 5K above each room's base (includes PV + preheat)
+
     # ===================================================================
     # SECTION 2: COMPREHENSIVE ROOM DATA (Single Pass)
     # ===================================================================
@@ -97,14 +97,14 @@
     room_data: >-
       {% set rooms = rooms_json | from_json(default=[]) %}
       {% set hyst = hysteresis_k | float(0.05) %}
-      
+
       {# Soak Parameters import #}
       {% set d_stop = soak_delta_stop | float(3.0) %}
       {% set d_start = soak_delta_start | float(2.0) %}
 
       {% set invalid_states = ['unknown', 'unavailable', 'None', ''] %}
       {% set ns = namespace(rooms = {}) %}
-      
+
       {% for room in rooms %}
         {% set climate_entity = 'climate.climate_room_' ~ room %}
         {% set sensor_l1 = 'sensor.current_l1_' ~ room ~ '_current' %}
@@ -114,7 +114,7 @@
         {# Read temperatures #}
         {% set current_temp = state_attr(climate_entity, 'current_temperature') %}
         {% set current_setpoint = state_attr(climate_entity, 'temperature') %}
-        
+
         {# Get base temperature from helper #}
         {% set base_helper = 'input_number.heating_base_' ~ room %}
         {% set stored_base = states(base_helper) | float(0) %}
@@ -125,13 +125,13 @@
         {% else %}
           {% set base_target = 22.0 %}
         {% endif %}
-        
+
         {% if current_temp is number %}
           {% set current = current_temp | float %}
         {% else %}
           {% set current = 22.0 %}
         {% endif %}
-        
+
         {% set pv_off = (pv_offset_k | float(0)) if has_pv_excess else 0 %}
         {% set cap = max_total_offset_k | float(1.0) %}
 
@@ -152,7 +152,7 @@
 
         {% set effective_target = base_target + room_offset %}
         {% set error = effective_target - current %}
-        
+
         {# Determine phase #}
         {% set phase = 0 %}
         {% if states(sensor_l1) not in invalid_states %}
@@ -164,7 +164,7 @@
         {% endif %}
 
         {% set amps = states('input_number.heater_' ~ room ~ '_rated_a') | float(0) %}
-        
+
         {# Determine if heating is needed #}
         {# --- is_heating (robust) --- #}
         {% set st = states(climate_entity) %}
@@ -172,11 +172,8 @@
 
         {# --- Safety band --- #}
         {% set lower_safety_band_k = 1.0 %}
-        {% set sp_eff = effective_target %}
-        {% set sp_now = (state_attr(climate_entity,'temperature')
-                          if state_attr(climate_entity,'temperature') is number
-                          else sp_eff) | float(sp_eff) %}
-        
+        {% set sp_now = effective_target %}
+
         {% set must_heat_start = current <= (sp_now - lower_safety_band_k) %}
 
         {# --- Start/Stop thresholds --- #}
@@ -198,7 +195,7 @@
         {# --- SOAK CHARGING CHECK (Floor vs Air) --- #}
         {% set security_sensor = 'sensor.security_temperature_' ~ room ~ '_max' %}
         {% set floor_temp = states(security_sensor) | float(0) %}
-        
+
         {% set delta_ok = true %}
         {# Nur prüfen, wenn Bodensensor existiert (>0) und Preheat/PV aktiv (hohe Last) #}
         {# oder auch im Normalbetrieb? Hier immer aktiv für Laminatschutz #}
@@ -251,7 +248,7 @@
         }) %}
       {% endfor %}
       {{ (ns.rooms | tojson) | string }}
-    
+
     # ===================================================================
     # SECTION 3: ROOM SELECTION BY PHASE
     # ===================================================================
@@ -280,7 +277,7 @@
         {% endif %}
       {% endfor %}
       {{ (ns.selected | tojson) | string }}
-    
+
     sel_p2: >-
       {% set rooms_data = room_data | from_json(default={}) %}
       {% set all_rooms = rooms_json | from_json(default=[]) %}
@@ -305,7 +302,7 @@
         {% endif %}
       {% endfor %}
       {{ (ns.selected | tojson) | string }}
-    
+
     sel_p3: >-
       {% set rooms_data = room_data | from_json(default={}) %}
       {% set all_rooms = rooms_json | from_json(default=[]) %}
@@ -330,7 +327,7 @@
         {% endif %}
       {% endfor %}
       {{ (ns.selected | tojson) | string }}
-    
+
     # ===================================================================
     # SECTION 4: CLIMATE ENTITY MAPPING (for debug output)
     # ===================================================================
@@ -360,7 +357,7 @@
         {% set ns.climates = ns.climates + ['climate.climate_room_' ~ room] %}
       {% endfor %}
       {{ (ns.climates | tojson) | string }}
-    
+
     climates_off: >-
       {% set rooms_data = room_data | from_json(default={}) %}
       {% set max_amps = phase_max_amps | float(16.0) %}
@@ -390,7 +387,7 @@
         {% endif %}
       {% endfor %}
       {{ (ns.climates | tojson) | string }}
-  
+
   condition: []
   action:
     # 3) Endgültiges Heizerlaubnis
@@ -492,7 +489,7 @@
                   Offset aktiv (room): total_min={{ offs|min }}K total_max={{ offs|max }}K,
                   preheat_min={{ pre|min }}K preheat_max={{ pre|max }}K,
                   PV={{ pv_offset_k | float(0) }}K
-    
+
     # === 9) Phase-safe HVAC control =================================
     - choose:
         - conditions:
