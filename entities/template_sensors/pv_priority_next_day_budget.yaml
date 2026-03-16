@@ -8,7 +8,7 @@ sensor:
     icon: mdi:chart-timeline-variant
     state: >
       {% set pv_predictions_raw = state_attr('sensor.solar_prediction_kwh', 'predictions') %}
-        {% set pv_predictions = pv_predictions_raw | from_json(default={}) if pv_predictions_raw is string else pv_predictions_raw %}
+      {% set pv_predictions = pv_predictions_raw | from_json(default={}) if pv_predictions_raw is string else pv_predictions_raw %}
       {% set t0 = as_timestamp(now()) %}
       {% set t1 = t0 + (24 * 3600) %}
       {% set ns = namespace(total=0.0) %}
