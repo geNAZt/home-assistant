@@ -151,7 +151,19 @@
           "renaultzoe": "Renault Zoe",
           "mitsubishiimiev": "Mitsubishi iMiev",
           "citroenczero": "Citroën C-Zero",
-          "peugeotion": "Peugeot iOn"
+          "peugeotion": "Peugeot iOn",
+          "ecorsa": "Opel Corsa-e",
+          "vwid3_2": "VW ID (SW < 3.2)",
+          "vwid3_4": "VW ID (SW 3.2-4.1)",
+          "vwid5": "WV ID mit SW 5.x",
+          "cuprabornstandard": "Cupra Born Standard",
+          "cuprabornalternative": "Cupra Born Alternative",
+          "fordexplorer": "Ford Explorer",
+          "porschetaycan": "Porsche Taycan",
+          "skodaenyaq": "Skoda Enyaq",
+          "daciaspring": "Dacia Spring",
+          "mercedes": "Mercedes",
+          "ssangyong": "Ssangyong"
         }
       },
       "bac": {
@@ -341,6 +353,10 @@
       "nrg_15": {"name": "Power Factor N"},
       "tma_0": {"name": "Temperature Sensor I"},
       "tma_1": {"name": "Temperature Sensor II"},
+      "tma_2": {"name": "Temperature Sensor III"},
+      "tma_3": {"name": "Temperature Sensor IV"},
+      "tma_4": {"name": "Temperature Sensor V"},
+      "tma_5": {"name": "Temperature Sensor VI"},
       "cdi_type": {"name": "Charging duration counter"},
       "cdi_value": {"name": "Charging duration"},
       "atp_x": {"name": "Next trip plan data"},

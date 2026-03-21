@@ -384,7 +384,28 @@ class SensorMapper:
                 )
         elif sensor_type.lower() in ("wn38", "bgt"):
             # WN38 Black Globe Thermometer (BGT + WBGT)
-            keys.extend(["0xA1", "0xA2"])
+            keys.extend(["0xA1", "0xA2", "wn38batt"])
+        elif sensor_type.lower() in ("wh85", "wind & rain"):
+            # WS85 wind & rain sensor — wind in common_list, rain + battery in piezoRain
+            keys.extend(
+                [
+                    "0x0B",  # Wind speed
+                    "0x0C",  # Wind gust
+                    "0x19",  # Max daily gust
+                    "0x0A",  # Wind direction
+                    "0x6D",  # Wind direction avg 10min
+                    "0x0D",  # Rain event
+                    "0x0E",  # Rain rate
+                    "0x7C",  # 24-hour rolling rain
+                    "0x10",  # Rain daily
+                    "0x11",  # Rain weekly
+                    "0x12",  # Rain monthly
+                    "0x13",  # Rain yearly
+                    "ws85batt",  # Battery level (%)
+                    "ws85_voltage",  # Battery voltage (V)
+                    "ws85cap_volt",  # Capacitor voltage (V)
+                ]
+            )
         elif sensor_type.lower() in ("wh45", "wh46", "combo", "co2_pm"):
             # WH45/WH46D combo sensor (CO2 + PM + temp/humidity)
             # WH46D adds PM1.0 and PM4.0 on top of WH45 sensors
@@ -476,6 +497,14 @@ class SensorMapper:
 
     def _extract_sensor_type_from_key(self, key: str) -> str:
         """Extract sensor type name from live data key."""
+        # Handle decimal ID sensors used by some gateways (GW3000 etc.)
+        decimal_id_names = {
+            "3": "feels_like_temp",
+            "5": "vpd",
+        }
+        if key in decimal_id_names:
+            return decimal_id_names[key]
+
         # Handle hex ID sensors (0x02, 0x07, etc.) - map to human-readable names
         if key.startswith("0x"):
             # Map hex IDs to human-readable sensor type names
