@@ -37,6 +37,7 @@ from .const import (
     CONF_ADAPTIVE_FORECAST_MODE,
     CONF_DIAGNOSTIC,
     CONF_ENABLE_TINY_LSTM,
+    CONF_EVCC_FORECAST,
     CONF_HAS_BATTERY,
     CONF_HOURLY,
     CONF_HUMIDITY_SENSOR,
@@ -704,6 +705,7 @@ class SolarForecastMLOptionsFlow(OptionsFlow):
                 CONF_UPDATE_INTERVAL,
                 CONF_DIAGNOSTIC,
                 CONF_HOURLY,
+                CONF_EVCC_FORECAST,
                 CONF_NOTIFY_STARTUP,
                 CONF_NOTIFY_FORECAST,
                 CONF_NOTIFY_LEARNING,
@@ -770,6 +772,10 @@ class SolarForecastMLOptionsFlow(OptionsFlow):
                 ): bool,
                 vol.Optional(
                     CONF_HOURLY, default=current_options.get(CONF_HOURLY, False)
+                ): bool,
+                vol.Optional(
+                    CONF_EVCC_FORECAST,
+                    default=current_options.get(CONF_EVCC_FORECAST, False),
                 ): bool,
                 vol.Optional(
                     CONF_NOTIFY_STARTUP,

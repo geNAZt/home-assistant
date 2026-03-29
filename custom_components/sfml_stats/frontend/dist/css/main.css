@@ -109,7 +109,7 @@
 
 /* Eigenes Hintergrundbild für Glass */
 :root.glass-theme #app::before {
-    background-image: url('/api/sfml_stats/assets/sfml_background.jpg');
+    background-image: url('/api/sfml_stats/assets/sfml_background.webp');
     background-size: cover;
     background-position: center;
     filter: brightness(1.1) saturate(1.2);
@@ -541,7 +541,7 @@ body {
     z-index: -2;
 
     /* Hintergrundbild - über assets endpoint */
-    background-image: url('/api/sfml_stats/assets/sfml_background.jpg');
+    background-image: url('/api/sfml_stats/assets/sfml_background.webp');
     background-size: cover;
     background-position: center center;
     background-repeat: no-repeat;

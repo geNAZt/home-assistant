@@ -118,6 +118,7 @@
           "update_interval": "Update Interval (s)",
           "diagnostic": "Diagnostic Mode",
           "hourly": "Hourly Forecast Sensor",
+          "evcc_forecast": "evcc Solar Forecast",
           "notify_startup": "Startup Notification",
           "notify_forecast": "Forecast Notifications",
           "notify_learning": "Training Notifications",
@@ -140,6 +141,7 @@
           "update_interval": "Forecast update interval (300-86400s, default: 3600)",
           "diagnostic": "Enable diagnostic sensors for monitoring",
           "hourly": "Enable next hour forecast sensor",
+          "evcc_forecast": "Provides a sensor with hourly forecast data in evcc format. Enables direct integration into evcc without template sensors. Default: OFF",
           "notify_startup": "Show notification on startup",
           "notify_forecast": "Notify on forecast updates",
           "notify_learning": "Notify on training start",
@@ -309,6 +311,9 @@
       },
       "next_hour_forecast": {
         "name": "Next Hour Forecast"
+      },
+      "evcc_forecast": {
+        "name": "evcc Solar Forecast"
       },
       "peak_production_hour": {
         "name": "Best Hour for Consumption"

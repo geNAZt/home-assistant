@@ -214,13 +214,22 @@ class EcowittLocalDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
         rain_list = raw_data.get("rain", [])
         if rain_list:
             _LOGGER.debug("Found rain data with %d items", len(rain_list))
+            # Force rain-array items to the tipping-bucket device (WH40 or WH69) so they
+            # are never mis-attributed to a piezoelectric sensor (WH90/WS90/WS85) that
+            # registers the same hex IDs (0x0D–0x13) for its piezoRain data.
+            _rain_hw_id = self.sensor_mapper.get_hardware_id(
+                "wh69batt"
+            ) or self.sensor_mapper.get_hardware_id("wh40batt")
             for item in rain_list:
                 if (
                     isinstance(item, dict)
                     and item.get("id")
                     and item.get("val") is not None
                 ):
-                    all_sensor_items.append({"id": item["id"], "val": item["val"]})
+                    entry = {"id": item["id"], "val": item["val"]}
+                    if _rain_hw_id:
+                        entry["_force_hardware_id"] = _rain_hw_id
+                    all_sensor_items.append(entry)
                     # Extract WH40/WH69 battery from the 0x13 (yearly rain) item which carries it.
                     # Battery uses binary encoding: "0" = full (100%), "1" = low (10%).
                     # Use wh69batt if a WH69 is registered (links battery to WH69 device),
@@ -424,10 +433,18 @@ class EcowittLocalDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                     all_sensor_items.append({"id": "baromrelin", "val": rel_val})
                     _LOGGER.debug("Added relative pressure: baromrelin = %s", rel_val)
 
-        # Extract piezoRain data (rain sensor readings from WS90/WH40)
+        # Extract piezoRain data (rain sensor readings from WS90/WH90/WS85)
         piezo_rain = raw_data.get("piezoRain", [])
         if piezo_rain:
             _LOGGER.debug("Found piezoRain data with %d items", len(piezo_rain))
+            # Force piezoRain items to the piezoelectric device (WS85 > WS90 > WH90) so
+            # they are never mis-attributed to a tipping-bucket sensor (WH40/WH69) that
+            # registers the same hex IDs (0x0D–0x13) for its rain-array data.
+            _piezo_hw_id = (
+                self.sensor_mapper.get_hardware_id("ws85batt")
+                or self.sensor_mapper.get_hardware_id("ws90batt")
+                or self.sensor_mapper.get_hardware_id("wh90batt")
+            )
             # Process rain sensor data structure
             for item in piezo_rain:
                 _LOGGER.debug("piezoRain item: %s", item)
@@ -435,7 +452,10 @@ class EcowittLocalDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                 if isinstance(item, dict) and "id" in item and "val" in item:
                     sensor_id = item["id"]
                     sensor_val = item["val"]
-                    all_sensor_items.append({"id": sensor_id, "val": sensor_val})
+                    piezo_entry = {"id": sensor_id, "val": sensor_val}
+                    if _piezo_hw_id:
+                        piezo_entry["_force_hardware_id"] = _piezo_hw_id
+                    all_sensor_items.append(piezo_entry)
                     _LOGGER.debug("Added rain sensor: %s = %s", sensor_id, sensor_val)
 
                     # Add battery sensor if present in the item
@@ -770,6 +790,26 @@ class EcowittLocalDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                     all_sensor_items.append({"id": "co2_batt", "val": battery_pct})
                     _LOGGER.debug("Added WH45 battery: co2_batt = %s%%", battery_pct)
 
+        # Fetch soil AD (analog-to-digital) calibration data from /get_cli_soilad
+        try:
+            soil_cal = await self.api.get_soil_calibration()
+            if soil_cal:
+                _LOGGER.debug(
+                    "Found soil calibration data with %d items", len(soil_cal)
+                )
+                for item in soil_cal:
+                    if isinstance(item, dict):
+                        ch = item.get("ch")
+                        now_ad = item.get("nowAd")
+                        if ch and now_ad is not None:
+                            ad_key = f"soilad{ch}"
+                            all_sensor_items.append({"id": ad_key, "val": str(now_ad)})
+                            _LOGGER.debug(
+                                "Added soil AD sensor: %s = %s", ad_key, now_ad
+                            )
+        except Exception as err:
+            _LOGGER.debug("Could not fetch soil AD data: %s", err)
+
         _LOGGER.debug("Total sensor items to process: %d", len(all_sensor_items))
 
         for item in all_sensor_items:
@@ -838,10 +878,15 @@ class EcowittLocalDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                     pass
                 embedded_unit = "lx"
 
-            # Get hardware ID for this sensor (only for non-gateway sensors)
+            # Get hardware ID for this sensor (only for non-gateway sensors).
+            # Items from rain/piezoRain may carry a _force_hardware_id to resolve
+            # conflicts when tipping-bucket (WH40/WH69) and piezoelectric (WH90/WS90/WS85)
+            # sensors coexist and share the same hex IDs (0x0D–0x13).
             hardware_id = None
             if sensor_key not in GATEWAY_SENSORS:
-                hardware_id = self.sensor_mapper.get_hardware_id(sensor_key)
+                hardware_id = item.get(
+                    "_force_hardware_id"
+                ) or self.sensor_mapper.get_hardware_id(sensor_key)
                 _LOGGER.debug("Hardware ID lookup for %s: %s", sensor_key, hardware_id)
 
             # Generate entity information
@@ -943,6 +988,7 @@ class EcowittLocalDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                 "device_class": device_class,
                 "state_class": sensor_info.get("state_class") or "",
                 "entity_category": sensor_info.get("entity_category"),
+                "enabled_default": sensor_info.get("enabled_default"),
                 "suggested_display_precision": sensor_info.get(
                     "suggested_display_precision"
                 ),

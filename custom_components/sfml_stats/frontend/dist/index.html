@@ -7296,12 +7296,12 @@
                         return ['So','Mo','Di','Mi','Do','Fr','Sa'][dateObj.getDay()];
                     });
 
-                    // Abweichung berechnen: (Tatsächlich - Prognose) / Tatsächlich * 100
+                    // Abweichung berechnen: (Tatsächlich - Prognose) / Prognose * 100
                     const deviationData = sorted.map(d => {
                         const actual = d.overall?.actual_total_kwh || 0;
                         const predicted = d.overall?.predicted_total_kwh || 0;
-                        if (actual > 0) {
-                            return parseFloat(((actual - predicted) / actual * 100).toFixed(1));
+                        if (predicted > 0) {
+                            return parseFloat(((actual - predicted) / predicted * 100).toFixed(1));
                         }
                         return 0;
                     });

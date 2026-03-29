@@ -1275,3 +1275,104 @@ class AverageAccuracy30DaysSensor(SensorEntity):
         """Reload value and update state. @zara"""
         await self._load_from_db()
         self.async_write_ha_state()
+
+
+class EvccForecastSensor(SensorEntity):
+    """Sensor providing solar forecast data in evcc-compatible JSON format. @zara
+
+    Outputs hourly forecast data as a JSON array in extra_state_attributes['forecast']
+    with the format evcc expects: [{"start": "...", "end": "...", "value": <watts>}, ...]
+    """
+
+    _attr_has_entity_name = True
+    _attr_should_poll = False
+
+    def __init__(self, coordinator: SolarForecastMLCoordinator, entry: ConfigEntry):
+        """Initialize the evcc forecast sensor. @zara"""
+        self._coordinator = coordinator
+        self.entry = entry
+
+        self._attr_unique_id = f"{entry.entry_id}_ml_evcc_forecast"
+        self._attr_translation_key = "evcc_forecast"
+        self._attr_icon = "mdi:ev-station"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, entry.entry_id)},
+        )
+
+    @property
+    def available(self) -> bool:
+        """Sensor availability. @zara"""
+        return True
+
+    @property
+    def native_value(self) -> str:
+        """Return number of forecast slots as state. @zara"""
+        forecast = self._build_evcc_forecast()
+        return f"{len(forecast)} slots"
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        """Return evcc-compatible forecast JSON array. @zara"""
+        return {"forecast": self._build_evcc_forecast()}
+
+    def _build_evcc_forecast(self) -> list:
+        """Build forecast array in evcc format from SFML hourly predictions. @zara
+
+        evcc expects: [{"start": "2026-03-07T10:00:00", "end": "2026-03-07T11:00:00", "value": 1250.5}, ...]
+        value = average power in Watts for the time slot (kWh * 1000 for a 1-hour slot)
+        """
+        cache = getattr(self._coordinator, CACHE_HOURLY_PREDICTIONS, None)
+        if not cache:
+            return []
+
+        result = []
+
+        for pred in cache.get(CACHE_PREDICTIONS, []):
+            entry = self._pred_to_evcc_entry(pred)
+            if entry:
+                result.append(entry)
+
+        for pred in cache.get(CACHE_PREDICTIONS_TOMORROW, []):
+            entry = self._pred_to_evcc_entry(pred)
+            if entry:
+                result.append(entry)
+
+        for pred in cache.get(CACHE_PREDICTIONS_DAY_AFTER, []):
+            entry = self._pred_to_evcc_entry(pred)
+            if entry:
+                result.append(entry)
+
+        result.sort(key=lambda x: x["start"])
+        return result
+
+    @staticmethod
+    def _pred_to_evcc_entry(pred: dict) -> Optional[dict]:
+        """Convert a single SFML prediction to evcc format. @zara"""
+        date_str = pred.get(PRED_TARGET_DATE)
+        hour = pred.get(PRED_TARGET_HOUR)
+        kwh = pred.get(PRED_PREDICTION_KWH) or pred.get(PRED_PREDICTED_KWH, 0.0)
+
+        if date_str is None or hour is None or kwh is None:
+            return None
+
+        watts = round(float(kwh) * 1000, 1)
+        start = f"{date_str}T{hour:02d}:00:00"
+        end_hour = hour + 1
+        if end_hour >= 24:
+            return None
+        end = f"{date_str}T{end_hour:02d}:00:00"
+
+        return {"start": start, "end": end, "value": watts}
+
+    async def async_added_to_hass(self) -> None:
+        """Setup sensor. @zara"""
+        await super().async_added_to_hass()
+        self.async_on_remove(
+            self._coordinator.async_add_listener(self._handle_coordinator_update)
+        )
+        self.async_write_ha_state()
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle coordinator updates. @zara"""
+        self.async_write_ha_state()

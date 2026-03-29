@@ -118,6 +118,7 @@
           "update_interval": "Update-Intervall (s)",
           "diagnostic": "Diagnose-Modus",
           "hourly": "Stunden-Prognose Sensor",
+          "evcc_forecast": "evcc Solar-Prognose",
           "notify_startup": "Start-Benachrichtigung",
           "notify_forecast": "Prognose-Benachrichtigungen",
           "notify_learning": "Trainings-Benachrichtigungen",
@@ -140,6 +141,7 @@
           "update_interval": "Prognose-Update-Intervall (300-86400s, Standard: 3600)",
           "diagnostic": "Diagnose-Sensoren zur Überwachung aktivieren",
           "hourly": "Nächste-Stunde-Prognose Sensor aktivieren",
+          "evcc_forecast": "Stellt einen Sensor mit stündlichen Prognosedaten im evcc-Format bereit. Ermöglicht die direkte Integration in evcc ohne Template-Sensor. Standard: AUS",
           "notify_startup": "Benachrichtigung beim Start anzeigen",
           "notify_forecast": "Bei Prognose-Updates benachrichtigen",
           "notify_learning": "Bei Trainingsstart benachrichtigen",
@@ -309,6 +311,9 @@
       },
       "next_hour_forecast": {
         "name": "Prognose Nächste Stunde"
+      },
+      "evcc_forecast": {
+        "name": "evcc Solar-Prognose"
       },
       "peak_production_hour": {
         "name": "Beste Stunde"

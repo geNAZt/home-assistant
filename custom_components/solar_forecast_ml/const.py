@@ -15,7 +15,7 @@ from homeassistant.const import Platform
 # Warp Core Identity @starfleet-engineering
 DOMAIN = "solar_forecast_ml"
 NAME = "Solar Forecast ML"
-VERSION = "18.0.0"
+VERSION = "18.2.0"
 SOFTWARE_VERSION = VERSION
 AI_VERSION = "3.0"
 INTEGRATION_MODEL = "Solar Forecast ML V18"
@@ -88,6 +88,7 @@ CONF_NOTIFY_FOG = "notify_fog"
 CONF_NOTIFY_WEATHER_ALERT = "notify_weather_alert"
 CONF_NOTIFY_SNOW_COVERED = "notify_snow_covered_panels"
 CONF_LEARNING_ENABLED = "learning_enabled"
+CONF_EVCC_FORECAST = "evcc_forecast"
 
 # Adaptive Warp Field Prediction @starfleet-engineering
 CONF_ADAPTIVE_FORECAST_MODE = "adaptive_forecast_mode"

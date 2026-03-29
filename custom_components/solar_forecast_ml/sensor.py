@@ -27,6 +27,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import (
     CONF_DIAGNOSTIC,
+    CONF_EVCC_FORECAST,
     CONF_HOURLY,
     DOMAIN,
     VERSION,
@@ -37,6 +38,7 @@ from .sensors.sensor_base import (
     AverageYield7DaysSensor,
     AverageYield30DaysSensor,
     AverageYieldSensor,
+    EvccForecastSensor,
     ExpectedDailyProductionSensor,
     ForecastDayAfterTomorrowSensor,
     MaxPeakAllTimeSensor,
@@ -100,15 +102,17 @@ async def async_setup_entry(
 
     diagnostic_mode_enabled = entry.options.get(CONF_DIAGNOSTIC, True)
     enable_hourly = entry.options.get(CONF_HOURLY, False)
+    enable_evcc = entry.options.get(CONF_EVCC_FORECAST, False)
 
     _LOGGER.info(
         f"Setting up sensors V{VERSION}: "
         f"Diagnostic Mode={'Enabled' if diagnostic_mode_enabled else 'Disabled'}, "
-        f"Hourly Sensor={'Enabled' if enable_hourly else 'Disabled'}"
+        f"Hourly Sensor={'Enabled' if enable_hourly else 'Disabled'}, "
+        f"evcc Forecast={'Enabled' if enable_evcc else 'Disabled'}"
     )
 
     # Clean up orphaned entities @zara
-    await _cleanup_orphaned_entities(hass, entry, diagnostic_mode_enabled)
+    await _cleanup_orphaned_entities(hass, entry, diagnostic_mode_enabled, enable_evcc)
 
     # Create system status sensor and connect to coordinator @zara
     system_status_sensor = SystemStatusSensor(coordinator, entry.entry_id)
@@ -175,6 +179,12 @@ async def async_setup_entry(
             f"Diagnostic mode enabled - Adding {len(diagnostic_entities)} advanced diagnostic sensors."
         )
 
+    # evcc forecast sensor (optional) @zara
+    if enable_evcc:
+        evcc_entities = [EvccForecastSensor(coordinator, entry)]
+        entities_to_add.extend(evcc_entities)
+        _LOGGER.info("evcc Forecast sensor enabled - Adding evcc integration sensor")
+
     # Shadow detection sensors (always created) @zara
     shadow_detection_entities = [
         sensor_class(coordinator, entry) for sensor_class in SHADOW_DETECTION_SENSORS
@@ -203,11 +213,12 @@ async def _cleanup_orphaned_entities(
     hass: HomeAssistant,
     entry: ConfigEntry,
     diagnostic_enabled: bool,
+    evcc_enabled: bool = False,
 ) -> None:
     """Remove entities from registry that should no longer exist based on config. @zara
 
-    Ensures that when a user disables diagnostic mode, the diagnostic sensors
-    are properly removed and don't reappear after restart.
+    Ensures that when a user disables diagnostic mode or evcc forecast,
+    the sensors are properly removed and don't reappear after restart.
     """
     ent_reg = er.async_get(hass)
 
@@ -252,6 +263,13 @@ async def _cleanup_orphaned_entities(
                     ent_reg.async_remove(entity_entry.entity_id)
                     entities_removed += 1
                     break
+
+        if not evcc_enabled and "evcc_forecast" in unique_id_lower:
+            _LOGGER.debug(
+                f"Removing disabled evcc forecast entity: {entity_entry.entity_id}"
+            )
+            ent_reg.async_remove(entity_entry.entity_id)
+            entities_removed += 1
 
     if entities_removed > 0:
         _LOGGER.info(
