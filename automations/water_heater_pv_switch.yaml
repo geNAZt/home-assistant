@@ -38,7 +38,7 @@
       {% set t0 = as_timestamp(now().replace(hour=0, minute=0, second=0, microsecond=0)) %}
       {% set t1 = as_timestamp(now().replace(hour=5, minute=0, second=0, microsecond=0)) %}
       {{ t0 <= nowts < t1 }}
-    stage1_needed: "{{ stage1_remaining_kwh > 0.05 }}"
+    stage1_needed: "{{ stage1_remaining_kwh > 0.05 or exported_power > 450 }}"
     heating_priority_open: "{{ heating_uncovered_kwh > 0.10 }}"
     battery_above_min: "{{ battery_soc >= battery_min_soc }}"
     battery_ready_for_stage2: "{{ battery_soc >= battery_stage2_soc }}"
@@ -87,7 +87,7 @@
         force_all_off
         or (not should_stage_1 and not should_stage_2)
       }}
-  
+
   condition: []
   action:
     - choose:
