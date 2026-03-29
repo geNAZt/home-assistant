@@ -23,7 +23,7 @@
     pgrid_value: >-
       {% set exp = (exported_power | float(0)) %}
       {% if pv_battery_soc < 90 %}
-        {% if (exp - car_charge_power) < 100 %}
+        {% if exp < 100 %}
           15000
         {% else %}
           {{ exp * -1 }}
