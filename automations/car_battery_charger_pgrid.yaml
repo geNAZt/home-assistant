@@ -6,34 +6,35 @@
     - platform: time_pattern
       seconds: "/2" # The charger forgets after 5 seconds
   condition:
-  - condition: and
-    conditions:
-    - condition: template
-      value_template: "{{ states('binary_sensor.goe_288025_car_0') == 'on' }}"
-    - condition: template
-      value_template: "{{ states('sensor.hexe_car_evinfo_battery_stateofcharge') | float(0) < 99 }}"
+    - condition: and
+      conditions:
+        - condition: template
+          value_template: "{{ states('binary_sensor.goe_288025_car_0') == 'on' }}"
+        - condition: template
+          value_template: "{{ states('sensor.hexe_car_evinfo_battery_stateofcharge') | float(0) < 99 }}"
   variables:
     # Current state (will be negative for import, positive for export)
     exported_power: "{{ states('sensor.pv_m1_ac_power') | float(0) }}"
     battery_export_power: "{{ states('sensor.pv_battery1_power') | float(0) }}"
     pv_battery_soc: "{{ states('sensor.pv_battery1_state_of_charge') | float(0) }}"
     car_charge_power: "{{ states('sensor.goe_288025_nrg_11') | float(0) }}"
-    
+
     # Calculate pgrid value
     pgrid_value: >-
+      {% set exp = (exported_power | float(0)) %}
       {% if pv_battery_soc < 90 %}
-        {% if car_charge_power > 0 %}
+        {% if (exp - car_charge_power) < 100 %}
           15000
         {% else %}
-          0
+          {{ exp * -1 }}
         {% endif %}
       {% else %}
-        {% set exp = (exported_power | float(0)) %}    
+        {% set exp = (exported_power | float(0)) %}
         {# Only use discharge power (negative values) for battery #}
         {% if battery_export_power < 0 %}
           {% set exp = exp + battery_export_power %}
         {% endif %}
-        
+
         {# The charger expects a positive value for import, negative for export #}
         {{ exp * -1 }}
       {% endif %}
@@ -41,4 +42,3 @@
     - service: goecharger_api2.set_pv_data
       data:
         pgrid: "{{ pgrid_value }}"
-    
