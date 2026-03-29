@@ -34,7 +34,7 @@
     has_pv_excess: "{{ pv_forecast_w > (pv_thr_w + water_stage1_reserve_w) }}"
     max_total_heating_w: "{{ (pv_generation_w * 0.8) if has_pv_excess else (pv_generation_w + battery_support_w) }}"
     pv_surplus_w: "{{ [pv_forecast_w - pv_thr_w - water_stage1_reserve_w, 0] | max }}"
-    pv_offset_k: "{{ 0.5 if has_pv_excess else 0 }}"
+    pv_offset_k: "0"
     pv_predictions: "{{ state_attr('sensor.solar_prediction_kwh', 'predictions') }}"
     preheat_offset_24h_max_k: "{{ states('sensor.heating_preheat_offset_24h_max') | float(0) }}"
     pv_plan_day_kwh: >-
