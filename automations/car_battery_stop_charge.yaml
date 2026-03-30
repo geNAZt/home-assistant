@@ -6,7 +6,7 @@
     - trigger: numeric_state
       entity_id:
         - sensor.hexe_car_evinfo_battery_stateofcharge
-      above: 50
+      above: 35
     - trigger: time
       at: "04:59:50"
       weekday:
