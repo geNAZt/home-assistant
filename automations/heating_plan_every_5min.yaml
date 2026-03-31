@@ -85,7 +85,7 @@
     preheat_enabled: "{{ is_state('binary_sensor.preheat_erlaubt_demand_weighted', 'on') }}"
     heating_block_enabled: "{{ is_state('input_boolean.heating_block_daytime', 'on') and preheat_enabled }}"
     pv_shift_active_now: "{{ shift_heating_start_to_pv and (max_total_heating_w | float(0)) > (pv_thr_w | float(0)) }}"
-    offset_allowed_now: "{{ has_pv_excess or (is_preheat_window and preheat_enabled) or pv_shift_active_now }}"
+    offset_allowed_now: "{{ has_pv_excess or (is_preheat_window and preheat_enabled and not shift_heating_start_to_pv) or pv_shift_active_now }}"
 
     # --- Preheat goal (room-specific) ---
     max_total_offset_k: 5.0 # <= 5K above each room's base (includes PV + preheat)
