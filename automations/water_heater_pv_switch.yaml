@@ -12,7 +12,12 @@
     battery_import_power: "{{ states('sensor.pv_battery1_power') | float(0) }}"
     battery_soc: "{{ states('sensor.pv_battery1_state_of_charge') | float(0) }}"
     battery_discharge_w: "{{ [(-1 * battery_import_power), 0] | max }}"
-    stage2_import_equivalent_w: "{{ (imported_power | float(0)) + (battery_discharge_w | float(0)) }}"
+    stage2_import_equivalent_w: >-
+      {% if (exported_power | float(0)) > 0 %}
+      0
+      {% else %}
+      {{ (imported_power | float(0)) + (battery_discharge_w | float(0)) }}
+      {% endif %}
 
     # Forecast budget (priority model)
     stage1_target_kwh: "{{ state_attr('sensor.pv_priority_next_day_budget', 'water_stage1_target_kwh') | float(5) }}"
