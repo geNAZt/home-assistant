@@ -1,0 +1,286 @@
+{
+    "title": "Uconnect",
+    "config": {
+        "step": {
+            "user": {
+                "title": "API Authentication",
+                "description": "Set up your Uconnect-enabled vehicle to integrate with Home Assistant.",
+                "data": {
+                    "username": "Username",
+                    "password": "Password",
+                    "brand_region": "Brand + Region",
+                    "pin": "Pin",
+                    "disable_tls_verification": "Disable TLS certificate verification"
+                }
+            },
+            "reauth_confirm": {
+                "title": "API Reauthentication",
+                "description": "Your account is unable to authenticate. Click Submit to reauthenticate."
+            }
+        },
+        "abort": {
+            "already_configured": "Device is already configured"
+        },
+        "error": {
+            "invalid_auth": "The login failed to the Uconnect servers. Double check your vehicle doesn't use SiriusXM Guardian and your credentials are correct.",
+            "unknown": "Unexpected error"
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "API Configuration",
+                "data": {
+                    "scan_interval": "Scan Interval (min)",
+                    "add_command_entities": "Add command entities (Button/Lock/Switch)"
+                }
+            }
+        }
+    },
+    "services": {
+        "update": {
+            "name": "Update",
+            "description": "Refresh vehicle data from the cloud",
+            "fields": {
+                "device_id": {
+                    "name": "Vehicle",
+                    "description": "Target vehicle"
+                }
+            }
+        },
+        "engine_on": {
+            "name": "Engine - Turn On",
+            "description": "Turn on the engine",
+            "fields": {
+                "device_id": {
+                    "name": "Vehicle",
+                    "description": "Target vehicle"
+                }
+            }
+        },
+        "engine_off": {
+            "name": "Engine - Turn Off",
+            "description": "Turn off the engine",
+            "fields": {
+                "device_id": {
+                    "name": "Vehicle",
+                    "description": "Target vehicle"
+                }
+            }
+        },
+        "comfort_on": {
+            "name": "Comfort - Turn On",
+            "description": "Turn on the comfort mode",
+            "fields": {
+                "device_id": {
+                    "name": "Vehicle",
+                    "description": "Target vehicle"
+                }
+            }
+        },
+        "comfort_off": {
+            "name": "Comfort - Turn Off",
+            "description": "Turn off the comfort mode",
+            "fields": {
+                "device_id": {
+                    "name": "Vehicle",
+                    "description": "Target vehicle"
+                }
+            }
+        },
+        "hvac_on": {
+            "name": "HVAC - Turn On",
+            "description": "Turn on the AC",
+            "fields": {
+                "device_id": {
+                    "name": "Vehicle",
+                    "description": "Target vehicle"
+                }
+            }
+        },
+        "hvac_off": {
+            "name": "HVAC - Turn Off",
+            "description": "Turn off the AC",
+            "fields": {
+                "device_id": {
+                    "name": "Vehicle",
+                    "description": "Target vehicle"
+                }
+            }
+        },
+        "precond_on": {
+            "name": "Precond - Turn On",
+            "description": "Turn on the car preconditioning",
+            "fields": {
+                "device_id": {
+                    "name": "Vehicle",
+                    "description": "Target vehicle"
+                }
+            }
+        },
+        "precond_off": {
+            "name": "Precond - Turn Off",
+            "description": "Turn off the car preconditioning",
+            "fields": {
+                "device_id": {
+                    "name": "Vehicle",
+                    "description": "Target vehicle"
+                }
+            }
+        },
+        "lights": {
+            "name": "Lights",
+            "description": "Blink the lights",
+            "fields": {
+                "device_id": {
+                    "name": "Vehicle",
+                    "description": "Target vehicle"
+                }
+            }
+        },
+        "lights_horn": {
+            "name": "Lights and Horn",
+            "description": "Blink the lights & sound the horn",
+            "fields": {
+                "device_id": {
+                    "name": "Vehicle",
+                    "description": "Target vehicle"
+                }
+            }
+        },
+        "doors_lock": {
+            "name": "Doors Lock",
+            "description": "Lock the doors",
+            "fields": {
+                "device_id": {
+                    "name": "Vehicle",
+                    "description": "Target vehicle"
+                }
+            }
+        },
+        "doors_unlock": {
+            "name": "Doors Unlock",
+            "description": "Unlock the doors",
+            "fields": {
+                "device_id": {
+                    "name": "Vehicle",
+                    "description": "Target vehicle"
+                }
+            }
+        },
+        "trunk_lock": {
+            "name": "Trunk Lock",
+            "description": "Lock the trunk",
+            "fields": {
+                "device_id": {
+                    "name": "Vehicle",
+                    "description": "Target vehicle"
+                }
+            }
+        },
+        "trunk_unlock": {
+            "name": "Trunk Unlock",
+            "description": "Unlock the trunk",
+            "fields": {
+                "device_id": {
+                    "name": "Vehicle",
+                    "description": "Target vehicle"
+                }
+            }
+        },
+        "liftgate_lock": {
+            "name": "Liftgate Lock",
+            "description": "Lock the liftgate",
+            "fields": {
+                "device_id": {
+                    "name": "Vehicle",
+                    "description": "Target vehicle"
+                }
+            }
+        },
+        "liftgate_unlock": {
+            "name": "Liftgate Unlock",
+            "description": "Unlock the liftgate",
+            "fields": {
+                "device_id": {
+                    "name": "Vehicle",
+                    "description": "Target vehicle"
+                }
+            }
+        },
+        "cabin_ventilation": {
+            "name": "Cabin Ventilation",
+            "description": "Activate cabin ventilation",
+            "fields": {
+                "device_id": {
+                    "name": "Vehicle",
+                    "description": "Target vehicle"
+                }
+            }
+        },
+        "charge_now": {
+            "name": "Charge Now",
+            "description": "Start the vehicle charging",
+            "fields": {
+                "device_id": {
+                    "name": "Vehicle",
+                    "description": "Target vehicle"
+                }
+            }
+        },
+        "charge_now_v4": {
+            "name": "Charge Now (V4)",
+            "description": "Start the vehicle charging using V4 API",
+            "fields": {
+                "device_id": {
+                    "name": "Vehicle",
+                    "description": "Target vehicle"
+                }
+            }
+        },
+        "deep_refresh": {
+            "name": "Deep Refresh",
+            "description": "Force update vehicle charge & other parameters",
+            "fields": {
+                "device_id": {
+                    "name": "Vehicle",
+                    "description": "Target vehicle"
+                }
+            }
+        },
+        "deep_refresh_v2": {
+            "name": "Deep Refresh (V2)",
+            "description": "Force update vehicle charge & other parameters using V2 API",
+            "fields": {
+                "device_id": {
+                    "name": "Vehicle",
+                    "description": "Target vehicle"
+                }
+            }
+        },
+        "refresh_location": {
+            "name": "Location Refresh",
+            "description": "Update the vehicle location",
+            "fields": {
+                "device_id": {
+                    "name": "Vehicle",
+                    "description": "Target vehicle"
+                }
+            }
+        },
+        "set_charge_schedule": {
+            "name": "Set Charge Schedule",
+            "description": "Set the EV charge schedule",
+            "fields": {
+                "device_id": {
+                    "name": "Vehicle",
+                    "description": "Target vehicle"
+                },
+                "schedule": {
+                    "name": "Schedule",
+                    "description": "Charge schedule as a JSON object"
+                }
+            }
+        }
+    }
+}

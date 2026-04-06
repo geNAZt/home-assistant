@@ -135,12 +135,17 @@ EXTRA_INFO = [
         "country": "ca",
     },
     {
+        "title": "Oak Bay (BC)",
+        "url": "https://www.oakbay.ca/",
+        "country": "ca",
+    },
+    {
         "title": "Prince George (BC)",
         "url": "https://www.princegeorge.ca/",
         "country": "ca",
     },
     {
-        "title": "City of Hamlton (ON)",
+        "title": "City of Hamilton (ON)",
         "url": "https://www.hamilton.ca/",
         "country": "ca",
     },
@@ -155,6 +160,12 @@ EXTRA_INFO = [
         "url": "https://www.delta.ca/",
         "country": "ca",
         "default_params": {"city": "Delta", "state": "British Columbia"},
+    },
+    {
+        "title": "Burnaby (BC)",
+        "url": "https://www.burnaby.ca/",
+        "country": "ca",
+        "default_params": {"city": "Burnaby", "state": "British Columbia"},
     },
 ]
 
@@ -216,6 +227,11 @@ TEST_CASES = {
         "project_id": 3107,
         "zone_id": "zone-z11266-z16205-z16208-z16218",
     },
+    "Oak Bay, BC, Canada (with district_id, project_id & zone_id)": {
+        "district_id": "OAK",
+        "project_id": 3187,
+        "zone_id": "zone-z20122",
+    },
     "Prince George, BC, Canada (with district_id, project_id & zone_id)": {
         "district_id": "PrinceGeorge",
         "project_id": 523,
@@ -234,6 +250,11 @@ TEST_CASES = {
     "6656 Ladner Trunk Rd, Delta, BC V4K 5C8, Kanada": {
         "street": "6656 Ladner Trunk Rd",
         "city": "Delta",
+        "state": "British Columbia",
+    },
+    "Burnaby, BC, Canada": {
+        "street": "215 Gilmore Ave N",
+        "city": "Burnaby",
         "state": "British Columbia",
     },
 }
@@ -369,6 +390,7 @@ class Source:
         schedule_urls = [  # Some regions use different one of these should work
             f"https://api-city.recyclecoach.com/app_data_zone_schedules?project_id={self.project_id}&district_id={self.district_id}&zone_id={self.zone_id}",
             f"https://us-web.apigw.recyclecoach.com/zone-setup/zone/schedules?project_id={self.project_id}&district_id={self.district_id}&zone_id={self.zone_id}",
+            f"https://ca-web.apigw.recyclecoach.com/zone-setup/zone/schedules?project_id={self.project_id}&district_id={self.district_id}&zone_id={self.zone_id}",
         ]
 
         collection_def = None

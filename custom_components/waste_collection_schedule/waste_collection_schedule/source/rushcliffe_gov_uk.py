@@ -62,7 +62,7 @@ class Source:
         r = s.get(API_URL)
         r.raise_for_status()
 
-        args: dict[str, str] = POST_ARGS
+        args: dict[str, str] = POST_ARGS.copy()
 
         soup = BeautifulSoup(r.text, "html.parser")
 
@@ -82,18 +82,33 @@ class Source:
             data=dict(query=self._postcode, searchNlpg="True", classification=""),
         )
 
-        addresses = json.loads(r.text)
+        addresses_raw = json.loads(r.text)
+
+        if isinstance(addresses_raw, dict):
+            # Dict (old) format
+            iterator = addresses_raw.items()
+        elif isinstance(addresses_raw, list):
+            # List (new) format
+            iterator = (
+                (item.get("Key"), item.get("Value"))
+                for item in addresses_raw
+                if isinstance(item, dict)
+            )
+        else:
+            iterator = []
 
         args[POST_POST_UPRN_KEY] = next(
             (
                 key
-                for key, value in addresses.items()
-                if self.__compare(value, self._address)
+                for key, value in iterator
+                if key is not None
+                and value is not None
+                and self.__compare(value, self._address)
             ),
             None,
         )
 
-        if args[POST_POST_UPRN_KEY] == "":
+        if args[POST_POST_UPRN_KEY] is None:
             raise Exception("Address not found")
 
         args[POST_POST_UPRN_KEY + "lbltxt"] = self._address
@@ -117,13 +132,14 @@ class Source:
             before_bin = line.split(" bin", 1)[0]
             before_bin = before_bin.replace("Your next ", "")
             bin_type = before_bin.split("(", 1)[0].strip()
-            date = re.search(r"\d{2}/\d{2}/\d{4}", line)
-            if not date:
+            dates = re.findall(r"\d{2}/\d{2}/\d{4}", line)
+            if not dates:
                 continue
-            date = date.group(0)
 
-            date = datetime.datetime.strptime(date, "%d/%m/%Y").date()
             icon = ICON_MAP.get(bin_type)  # Collection icon
-            entries.append(Collection(date=date, t=bin_type, icon=icon))
+
+            for d in dates:
+                date = datetime.datetime.strptime(d, "%d/%m/%Y").date()
+                entries.append(Collection(date=date, t=bin_type, icon=icon))
 
         return entries

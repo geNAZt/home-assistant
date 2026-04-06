@@ -1,0 +1,188 @@
+update:
+  fields:
+    device_id:
+      required: false
+      selector:
+        device:
+          integration: uconnect
+
+engine_on:
+  fields:
+    device_id:
+      required: false
+      selector:
+        device:
+          integration: uconnect
+engine_off:
+  fields:
+    device_id:
+      required: false
+      selector:
+        device:
+          integration: uconnect
+
+comfort_on:
+  fields:
+    device_id:
+      required: false
+      selector:
+        device:
+          integration: uconnect
+comfort_off:
+  fields:
+    device_id:
+      required: false
+      selector:
+        device:
+          integration: uconnect
+
+hvac_on:
+  fields:
+    device_id:
+      required: false
+      selector:
+        device:
+          integration: uconnect
+hvac_off:
+  fields:
+    device_id:
+      required: false
+      selector:
+        device:
+          integration: uconnect
+
+precond_on:
+  fields:
+    device_id:
+      required: false
+      selector:
+        device:
+          integration: uconnect
+precond_off:
+  fields:
+    device_id:
+      required: false
+      selector:
+        device:
+          integration: uconnect
+
+lights:
+  fields:
+    device_id:
+      required: false
+      selector:
+        device:
+          integration: uconnect
+
+lights_horn:
+  fields:
+    device_id:
+      required: false
+      selector:
+        device:
+          integration: uconnect
+
+doors_lock:
+  fields:
+    device_id:
+      required: false
+      selector:
+        device:
+          integration: uconnect
+doors_unlock:
+  fields:
+    device_id:
+      required: false
+      selector:
+        device:
+          integration: uconnect
+
+trunk_lock:
+  fields:
+    device_id:
+      required: false
+      selector:
+        device:
+          integration: uconnect
+trunk_unlock:
+  fields:
+    device_id:
+      required: false
+      selector:
+        device:
+          integration: uconnect
+
+liftgate_lock:
+  fields:
+    device_id:
+      required: false
+      selector:
+        device:
+          integration: uconnect
+liftgate_unlock:
+  fields:
+    device_id:
+      required: false
+      selector:
+        device:
+          integration: uconnect
+
+cabin_ventilation:
+  fields:
+    device_id:
+      required: false
+      selector:
+        device:
+          integration: uconnect
+
+charge_now:
+  fields:
+    device_id:
+      required: false
+      selector:
+        device:
+          integration: uconnect
+
+charge_now_v4:
+  fields:
+    device_id:
+      required: false
+      selector:
+        device:
+          integration: uconnect
+
+deep_refresh:
+  fields:
+    device_id:
+      required: false
+      selector:
+        device:
+          integration: uconnect
+
+deep_refresh_v2:
+  fields:
+    device_id:
+      required: false
+      selector:
+        device:
+          integration: uconnect
+
+refresh_location:
+  fields:
+    device_id:
+      required: false
+      selector:
+        device:
+          integration: uconnect
+
+set_charge_schedule:
+  fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          integration: uconnect
+    schedule:
+      required: true
+      selector:
+        object:
