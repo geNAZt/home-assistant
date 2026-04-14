@@ -15,7 +15,7 @@
         - sun
   conditions:
     - condition: numeric_state
-      entity_id: sensor.hexe_car_evinfo_battery_stateofcharge
+      entity_id: sensor.fiat_hexe_extrapolated_battery
       below: 40
   actions:
     - action: select.select_option
