@@ -135,6 +135,6 @@ utility_meter:
     name: Water Heating Pump Daily
     cycle: daily
   regen_heute:
-    source: sensor.barsinghausen_hohenb_niederschlag
+    source: sensor.rain_amount_integral
     name: "Niederschlag Heute"
     cycle: daily
