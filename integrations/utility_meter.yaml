@@ -10,7 +10,7 @@ utility_meter:
   solar_battery_in_daily:
     source: sensor.solar_battery_in_kwh
     name: Solar Battery In Daily
-    cycle: daily 
+    cycle: daily
   solar_battery_out_daily:
     source: sensor.solar_battery_out_kwh
     name: Solar Battery Out Daily
@@ -18,15 +18,15 @@ utility_meter:
   solar_house_consumption_daily:
     source: sensor.solar_house_consumption_kwh
     name: Solar House Consumption Daily
-    cycle: daily 
+    cycle: daily
   solar_imported_power_daily:
     source: sensor.solar_imported_power_kwh
     name: Solar Imported Power Daily
-    cycle: daily 
+    cycle: daily
   solar_imported_power_daily_solaredge:
     source: sensor.pv_m1_imported_kwh
     name: Solar Imported Power Daily Solar Edge
-    cycle: daily 
+    cycle: daily
   solar_exported_power_daily:
     source: sensor.solar_exported_power_kwh
     name: Solar Exported Power Daily
@@ -43,11 +43,11 @@ utility_meter:
   solar_imported_power_weekly:
     source: sensor.solar_imported_power_kwh
     name: Solar Imported Power Weekly
-    cycle: weekly 
+    cycle: weekly
   solar_house_consumption_weekly:
     source: sensor.solar_house_consumption_kwh
     name: Solar House Consumption Weekly
-    cycle: weekly 
+    cycle: weekly
   solar_panel_production_weekly:
     source: sensor.solar_panel_production_kwh
     name: Solar Panel Production Weekly
@@ -55,7 +55,7 @@ utility_meter:
   solar_battery_in_weekly:
     source: sensor.solar_battery_in_kwh
     name: Solar Battery In Weekly
-    cycle: weekly 
+    cycle: weekly
   solar_battery_out_weekly:
     source: sensor.solar_battery_out_kwh
     name: Solar Battery Out Weekly
@@ -64,7 +64,7 @@ utility_meter:
     source: sensor.solar_exported_power_kwh
     name: Solar Exported Power Weekly
     cycle: weekly
-    
+
   solar_panel_to_house_monthly:
     source: sensor.solar_panel_to_house_kwh
     name: Solar Panel To House Monthly
@@ -72,11 +72,11 @@ utility_meter:
   solar_imported_power_monthly:
     source: sensor.solar_imported_power_kwh
     name: Solar Imported Power Monthly
-    cycle: monthly 
+    cycle: monthly
   solar_house_consumption_monthly:
     source: sensor.solar_house_consumption_kwh
     name: Solar House Consumption Monthly
-    cycle: monthly 
+    cycle: monthly
   solar_panel_production_monthly:
     source: sensor.solar_panel_production_kwh
     name: Solar Panel Production Monthly
@@ -84,7 +84,7 @@ utility_meter:
   solar_battery_in_monthly:
     source: sensor.solar_battery_in_kwh
     name: Solar Battery In Monthly
-    cycle: monthly 
+    cycle: monthly
   solar_battery_out_monthly:
     source: sensor.solar_battery_out_kwh
     name: Solar Battery Out Monthly
@@ -93,7 +93,7 @@ utility_meter:
     source: sensor.solar_exported_power_kwh
     name: Solar Exported Power Monthly
     cycle: monthly
-    
+
   solar_panel_to_house_yearly:
     source: sensor.solar_panel_to_house_kwh
     name: Solar Panel To House Yearly
@@ -101,11 +101,11 @@ utility_meter:
   solar_imported_power_yearly:
     source: sensor.solar_imported_power_kwh
     name: Solar Imported Power Yearly
-    cycle: yearly 
+    cycle: yearly
   solar_house_consumption_yearly:
     source: sensor.solar_house_consumption_kwh
     name: Solar House Consumption Yearly
-    cycle: yearly 
+    cycle: yearly
   solar_panel_production_yearly:
     source: sensor.solar_panel_production_kwh
     name: Solar Panel Production Yearly
@@ -113,7 +113,7 @@ utility_meter:
   solar_battery_in_yearly:
     source: sensor.solar_battery_in_kwh
     name: Solar Battery In Yearly
-    cycle: yearly 
+    cycle: yearly
   solar_battery_out_yearly:
     source: sensor.solar_battery_out_kwh
     name: Solar Battery Out Yearly
@@ -133,4 +133,8 @@ utility_meter:
   water_heating_pump_daily:
     source: sensor.water_heating_pump_usage
     name: Water Heating Pump Daily
+    cycle: daily
+  regen_heute:
+    source: sensor.barsinghausen_hohenb_niederschlag
+    name: "Niederschlag Heute"
     cycle: daily
