@@ -1,6 +1,5 @@
 platform: integration
 source: sensor.barsinghausen_hohenb_niederschlag
 name: "Rain Amount integral"
-unit_prefix: k # Nicht beachten, wird für mm nicht gebraucht
 round: 2
 method: left # Wichtig für Regenraten
