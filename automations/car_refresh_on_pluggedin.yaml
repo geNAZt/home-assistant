@@ -1,0 +1,19 @@
+- id: car_refresh_on_pluggedin
+  alias: Car Data refresh whilst being plugged in
+  description: "Refresh car state whilst being plugged in"
+  mode: single
+  triggers:
+    - trigger: template
+      value_template: >-
+        {{ (as_timestamp(now()) -
+        as_timestamp(states.sensor.fiat_hexe_last_info_update_at.state)) > 300 }}
+  conditions:
+    - condition: state
+      entity_id: binary_sensor.goe_288025_car_0
+      state:
+        - "on"
+  actions:
+    - action: uconnect.deep_refresh
+      metadata: {}
+      data:
+        device_id: 03f1180be160a028c76ac522814f47be
