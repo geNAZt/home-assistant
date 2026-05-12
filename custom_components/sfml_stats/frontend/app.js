@@ -1,4 +1,4 @@
-// SFML Stats TFS V.20
+// SFML Stats TFS
 // (C) 2026 Zara-Toorox
 
 const { createApp, ref, reactive, computed, onMounted, onUnmounted, watch, nextTick } = Vue;
@@ -10,7 +10,7 @@ const App = {
             <header class="header">
                 <div class="header-brand">
                     <span class="header-icon">☀</span>
-                    <span class="header-title">SFML Stats TFS V.20</span>
+                    <span class="header-title">SFML Stats TFS</span>
                 </div>
                 <div class="header-indicators">
                     <div class="indicator" v-if="liveData.total_price != null">
@@ -24,10 +24,6 @@ const App = {
                     <div class="indicator" v-if="liveData.solar_power != null">
                         <span class="indicator-icon">☀</span>
                         <span class="indicator-value">{{ formatPower(liveData.solar_power) }}</span>
-                    </div>
-                    <div class="indicator status">
-                        <span class="status-dot" :class="{ connected: wsConnected }"></span>
-                        <span>Live</span>
                     </div>
                 </div>
                 <nav class="nav-tabs">

@@ -41,9 +41,6 @@ GATEWAY_SENSORS: Final = {
     "humidityin",  # Indoor humidity
     "baromabsin",  # Absolute pressure
     "baromrelin",  # Relative pressure
-    "3",  # Feels like temperature (gateway sensor)
-    "4",  # Apparent temperature (gateway sensor)
-    "5",  # Vapor Pressure Deficit (gateway sensor)
 }
 
 
@@ -98,12 +95,6 @@ SENSOR_TYPES: Final[Dict[str, Dict[str, Any]]] = {
         "name": "Feels Like Temperature",
         "unit": "°C",
         "device_class": "temperature",
-    },
-    "4": {
-        "name": "Apparent Temperature",
-        "unit": "°C",
-        "device_class": "temperature",
-        "state_class": "measurement",
     },
     "5": {"name": "Vapor Pressure Deficit", "unit": "kPa", "device_class": "pressure"},
     # Humidity sensors
@@ -256,9 +247,76 @@ SENSOR_TYPES: Final[Dict[str, Dict[str, Any]]] = {
     "pm1_24h_co2": {"name": "PM1.0 24h Avg", "unit": "µg/m³", "device_class": "pm1"},
     "pm4_co2": {"name": "PM4.0", "unit": "µg/m³", "device_class": "pm25"},
     "pm4_24h_co2": {"name": "PM4.0 24h Avg", "unit": "µg/m³", "device_class": "pm25"},
+    # WH45/WH46D AQI index fields (dimensionless 0–500). Spec V1.0.6 §1 co2 block.
+    "pm25_realaqi_co2": {
+        "name": "PM2.5 AQI",
+        "unit": "AQI",
+        "icon": "mdi:air-filter",
+        "state_class": "measurement",
+    },
+    "pm25_24haqi_co2": {
+        "name": "PM2.5 24h AQI",
+        "unit": "AQI",
+        "icon": "mdi:air-filter",
+        "state_class": "measurement",
+    },
+    "pm10_realaqi_co2": {
+        "name": "PM10 AQI",
+        "unit": "AQI",
+        "icon": "mdi:air-filter",
+        "state_class": "measurement",
+    },
+    "pm10_24haqi_co2": {
+        "name": "PM10 24h AQI",
+        "unit": "AQI",
+        "icon": "mdi:air-filter",
+        "state_class": "measurement",
+    },
+    "pm1_realaqi_co2": {
+        "name": "PM1.0 AQI",
+        "unit": "AQI",
+        "icon": "mdi:air-filter",
+        "state_class": "measurement",
+    },
+    "pm1_24haqi_co2": {
+        "name": "PM1.0 24h AQI",
+        "unit": "AQI",
+        "icon": "mdi:air-filter",
+        "state_class": "measurement",
+    },
+    "pm4_realaqi_co2": {
+        "name": "PM4.0 AQI",
+        "unit": "AQI",
+        "icon": "mdi:air-filter",
+        "state_class": "measurement",
+    },
+    "pm4_24haqi_co2": {
+        "name": "PM4.0 24h AQI",
+        "unit": "AQI",
+        "icon": "mdi:air-filter",
+        "state_class": "measurement",
+    },
     "co2": {"name": "CO2", "unit": "ppm", "device_class": "carbon_dioxide"},
     "co2_24h": {"name": "CO2 24h Avg", "unit": "ppm", "device_class": "carbon_dioxide"},
-    # WH69 7-in-1 Weather Station hex ID sensors
+    # Hex-ID sensors from common_list (spec V1.0.6 §1)
+    # Indoor sensors — emitted via common_list by some firmware versions
+    "0x01": {
+        "name": "Indoor Temperature",
+        "unit": "°C",
+        "device_class": "temperature",
+    },
+    "0x06": {"name": "Indoor Humidity", "unit": "%", "device_class": "humidity"},
+    "0x08": {
+        "name": "Absolute Pressure",
+        "unit": "hPa",
+        "device_class": "atmospheric_pressure",
+    },
+    "0x09": {
+        "name": "Relative Pressure",
+        "unit": "hPa",
+        "device_class": "atmospheric_pressure",
+    },
+    # Outdoor / weather-station sensors
     "0x02": {
         "name": "Outdoor Temperature",
         "unit": "°C",
@@ -266,6 +324,16 @@ SENSOR_TYPES: Final[Dict[str, Dict[str, Any]]] = {
     },
     "0x03": {
         "name": "Dewpoint Temperature",
+        "unit": "°C",
+        "device_class": "temperature",
+    },
+    "0x04": {
+        "name": "Wind Chill",
+        "unit": "°C",
+        "device_class": "temperature",
+    },
+    "0x05": {
+        "name": "Heat Index",
         "unit": "°C",
         "device_class": "temperature",
     },
@@ -286,6 +354,14 @@ SENSOR_TYPES: Final[Dict[str, Dict[str, Any]]] = {
         "state_class": "measurement_angle",
     },
     "0x15": {"name": "Solar Radiation", "unit": "W/m²", "device_class": "irradiance"},
+    # 0x16 UV irradiance (µW/m²) — raw UV sensor value, distinct from 0x17 UV Index.
+    # No HA device_class for µW/m² so we use a custom icon.
+    "0x16": {
+        "name": "UV Radiation",
+        "unit": "µW/m²",
+        "icon": "mdi:weather-sunny-alert",
+        "state_class": "measurement",
+    },
     "0x17": {"name": "UV Index", "unit": "UV Index", "icon": "mdi:weather-sunny-alert"},
     "0x0D": {
         "name": "Rain Event",
@@ -331,6 +407,14 @@ SENSOR_TYPES: Final[Dict[str, Dict[str, Any]]] = {
     },
     "0x13": {
         "name": "Yearly Rain",
+        "unit": "mm",
+        "device_class": "precipitation",
+        "state_class": "total_increasing",
+        "suggested_display_precision": 1,
+    },
+    # 0x14 Rain Totals — all-time cumulative rain (spec V1.0.6 §1, ITEM_RAINTOTALS)
+    "0x14": {
+        "name": "Total Rain",
         "unit": "mm",
         "device_class": "precipitation",
         "state_class": "total_increasing",
@@ -391,17 +475,65 @@ SENSOR_TYPES.update(
         4,
     )
 )
+# PM2.5 AQI indices (dimensionless 0–500) — distinct from concentrations above.
+# Spec (V1.0.6 §1) ch_pm25 block: PM25_RealAQI, PM25_24HAQI.
 SENSOR_TYPES.update(
     _generate_channel_sensors(
-        "leak_ch", "Leak Sensor CH{ch}", {"device_class": "moisture"}, 4
+        "pm25_aqi_realtime_ch",
+        "PM2.5 AQI CH{ch}",
+        {"unit": "AQI", "icon": "mdi:air-filter", "state_class": "measurement"},
+        4,
     )
 )
+SENSOR_TYPES.update(
+    _generate_channel_sensors(
+        "pm25_aqi_24h_ch",
+        "PM2.5 24h AQI CH{ch}",
+        {"unit": "AQI", "icon": "mdi:air-filter", "state_class": "measurement"},
+        4,
+    )
+)
+SENSOR_TYPES.update(_generate_channel_sensors("leak_ch", "Leak Sensor CH{ch}", {}, 4))
 SENSOR_TYPES.update(
     _generate_channel_sensors(
         "leafwetness_ch",
         "Leaf Wetness CH{ch}",
         {"unit": "%", "device_class": "moisture"},
         8,
+    )
+)
+
+# WH54 liquid depth sensors (4 channels). Spec V1.0.6 §1 ch_lds block:
+# air = distance from sensor to liquid surface; depth = liquid depth; both in
+# mm (gateway always reports mm regardless of unit setting).
+SENSOR_TYPES.update(
+    _generate_channel_sensors(
+        "lds_air_ch",
+        "Liquid Depth Air Gap CH{ch}",
+        {"unit": "mm", "device_class": "distance", "state_class": "measurement"},
+        4,
+    )
+)
+SENSOR_TYPES.update(
+    _generate_channel_sensors(
+        "lds_depth_ch",
+        "Liquid Depth CH{ch}",
+        {"unit": "mm", "device_class": "distance", "state_class": "measurement"},
+        4,
+    )
+)
+SENSOR_TYPES.update(
+    _generate_channel_sensors(
+        "lds_voltage_ch",
+        "Liquid Depth Sensor Voltage CH{ch}",
+        {
+            "unit": "V",
+            "device_class": "voltage",
+            "state_class": "measurement",
+            "entity_category": "diagnostic",
+            "suggested_display_precision": 2,
+        },
+        4,
     )
 )
 
@@ -567,6 +699,11 @@ BATTERY_SENSORS.update(
 BATTERY_SENSORS.update(
     _generate_battery_sensors(
         "leaf_batt", "Leaf Wetness CH{ch} Battery", "leafwetness_ch{ch}", 8
+    )
+)
+BATTERY_SENSORS.update(
+    _generate_battery_sensors(
+        "lds_batt", "Liquid Depth CH{ch} Battery", "lds_depth_ch{ch}", 4
     )
 )
 
