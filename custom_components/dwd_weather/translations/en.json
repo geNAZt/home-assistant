@@ -5,20 +5,20 @@
       "weather_condition": {
         "name": "Weather condition",
         "state": {
-          "clear-night": "[%key:component::weather::entity_component::_::state::clear-night%]",
-          "cloudy": "[%key:component::weather::entity_component::_::state::cloudy%]",
-          "fog": "[%key:component::weather::entity_component::_::state::fog%]",
-          "hail": "[%key:component::weather::entity_component::_::state::hail%]",
-          "lightning": "[%key:component::weather::entity_component::_::state::lightning%]",
-          "lightning-rainy": "[%key:component::weather::entity_component::_::state::lightning-rainy%]",
-          "partlycloudy": "[%key:component::weather::entity_component::_::state::partlycloudy%]",
-          "pouring": "[%key:component::weather::entity_component::_::state::pouring%]",
-          "rainy": "[%key:component::weather::entity_component::_::state::rainy%]",
-          "snowy": "[%key:component::weather::entity_component::_::state::snowy%]",
-          "snowy-rainy": "[%key:component::weather::entity_component::_::state::snowy-rainy%]",
-          "sunny": "[%key:component::weather::entity_component::_::state::sunny%]",
-          "windy": "[%key:component::weather::entity_component::_::state::windy%]",
-          "windy-variant": "[%key:component::weather::entity_component::_::state::windy-variant%]"
+          "clear-night": "Clear night",
+          "cloudy": "Cloudy",
+          "fog": "Fog",
+          "hail": "Hail",
+          "lightning": "Lightning",
+          "lightning-rainy": "Lightning and rain",
+          "partlycloudy": "Partly cloudy",
+          "pouring": "Pouring",
+          "rainy": "Rainy",
+          "snowy": "Snowy",
+          "snowy-rainy": "Snowy and rainy",
+          "sunny": "Sunny",
+          "windy": "Windy",
+          "windy-variant": "Windy"
         }
       },
       "weather_report": {
@@ -142,6 +142,8 @@
           "download_apparent_temperature": "Enable apparent temperature values",
           "download_airquality": "Enable air quality values",
           "download_precipitation_sensors": "Enable radar precipitation sensors",
+          "radar_custom_location": "Use custom location for radar precipitation",
+          "radar_location_coordinates": "Radar precipitation location",
           "sensor_forecast_steps": "Limit available forecast steps in sensor attributes",
           "additional_forecast_attributes": "Activate additional forecast attributes",
           "daily_temp_high_precision": "Use higher display precision for daily temperatures"
@@ -154,9 +156,23 @@
           "download_apparent_temperature": "Downloads apparent temperature values in addition to the standard weather data.",
           "download_airquality": "Downloads air quality values in addition to the standard weather data.",
           "download_precipitation_sensors": "Downloads short-term radar precipitation values and enables dedicated precipitation sensors.",
+          "radar_custom_location": "By default the radar precipitation is fetched for the coordinates of the selected weather station. Enable this to use a custom location instead and configure it on the next step.",
+          "radar_location_coordinates": "Drag the marker to the location for which radar precipitation should be fetched. Pre-filled with your home location.",
           "sensor_forecast_steps": "This can be useful if you only use a limited amount of forecast steps and want to increase the clarity of the sensor attributes.",
           "additional_forecast_attributes": "This will add additional forecast attributes like fog probability, evaporation and sun duration, etc. to the weather object.",
           "daily_temp_high_precision": "This will increase the display precision of the daily maximum and minimum temperature values to a decimal place."
+        }
+      },
+      "station_configure_radar_location": {
+        "title": "Radar location configuration",
+        "description": "Set a custom location for radar precipitation data.",
+        "data": {
+          "radar_custom_location": "Use custom location for radar precipitation",
+          "radar_location_coordinates": "Radar precipitation location"
+        },
+        "data_description": {
+          "radar_custom_location": "By default the radar precipitation is fetched for the coordinates of the selected weather station. Enable this to use a custom location instead.",
+          "radar_location_coordinates": "Drag the marker to the location for which radar precipitation should be fetched. Pre-filled with your home location."
         }
       },
       "select_map_type": {
@@ -219,6 +235,8 @@
           "download_apparent_temperature": "Enable apparent temperature values",
           "download_airquality": "Enable air quality values",
           "download_precipitation_sensors": "Enable radar precipitation sensors",
+          "radar_custom_location": "Use custom location for radar precipitation",
+          "radar_location_coordinates": "Radar precipitation location",
           "sensor_forecast_steps": "Limit available forecast steps in sensor attributes",
           "map_options_message": "Unavailable setting",
           "map_background_type": "What should be displayed in the background?",
@@ -239,12 +257,26 @@
           "download_apparent_temperature": "Downloads apparent temperature values in addition to the standard weather data.",
           "download_airquality": "Downloads air quality values in addition to the standard weather data.",
           "download_precipitation_sensors": "Downloads short-term radar precipitation values and enables dedicated precipitation sensors.",
+          "radar_custom_location": "By default the radar precipitation is fetched for the coordinates of the selected weather station. Enable this to use a custom location instead.",
+          "radar_location_coordinates": "Drag the marker to the location for which radar precipitation should be fetched.",
           "map_options_message": "At the moment it is not possible to configure a chart. Please remove this element and re-add it with your desired settings.",
           "map_loop_count": "A radar image is provided every 5 minutes. So for 30 minutes there will be 6 images shown in the loop. This value refers to the last available image",
           "map_loop_speed": "The value defines, how long every single image is shown before switching to the next one.",
           "sensor_forecast_steps": "This can be useful if you only use a limited amount of forecast steps and want to increase the clarity of the sensor attributes.",
           "additional_forecast_attributes": "This will add additional forecast attributes like fog probability, evaporation and sun duration, etc. to the weather object.",
           "daily_temp_high_precision": "This will increase the display precision of the daily maximum and minimum temperature values to a decimal place."
+        }
+      },
+      "station_radar_location": {
+        "title": "Radar location configuration",
+        "description": "Set a custom location for radar precipitation data.",
+        "data": {
+          "radar_custom_location": "Use custom location for radar precipitation",
+          "radar_location_coordinates": "Radar precipitation location"
+        },
+        "data_description": {
+          "radar_custom_location": "By default the radar precipitation is fetched for the coordinates of the selected weather station. Enable this to use a custom location instead.",
+          "radar_location_coordinates": "Drag the marker to the location for which radar precipitation should be fetched. Pre-filled with your home location."
         }
       },
       "homemarker": {

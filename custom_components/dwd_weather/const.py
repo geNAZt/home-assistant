@@ -14,7 +14,7 @@ PLATFORMS = [
     Platform.SENSOR,
     Platform.WEATHER,
 ]
-INTEGRATION_VERSION = "4.0.0"
+INTEGRATION_VERSION = "4.1.1"
 MIN_REQUIRED_HA_VERSION = "2024.10.0"
 
 ATTR_LATEST_UPDATE = "latest_update"
@@ -55,6 +55,8 @@ CONF_STATION_ID = "station_id"
 CONF_MAP_ID = "map_id"
 CONF_CUSTOM_LOCATION = "custom_location"
 CONF_LOCATION_COORDINATES = "location_type"
+CONF_RADAR_CUSTOM_LOCATION = "radar_custom_location"
+CONF_RADAR_LOCATION_COORDINATES = "radar_location_coordinates"
 CONF_DATA_TYPE = "data_type"
 CONF_DATA_TYPE_MIXED = "mixed_data"
 CONF_DATA_TYPE_REPORT = "report_data"

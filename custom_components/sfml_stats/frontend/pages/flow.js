@@ -4,10 +4,11 @@
 const FlowPage = ((Vue) => {
 const { ref, reactive, computed, onMounted, onUnmounted } = Vue;
 
+// Consumer labels resolve via i18n at render time (`labelKey` -> $t(labelKey)).
 const CONSUMER_META = {
-    heatpump: { label: 'Waermepumpe', icon: 'HP', color: '#fb7185', x: 1040, y: 240 },
-    heatingrod: { label: 'Heizstab', icon: 'HS', color: '#f97316', x: 1040, y: 400 },
-    wallbox: { label: 'Auto', icon: 'EV', color: '#38bdf8', x: 1040, y: 560 },
+    heatpump: { labelKey: 'flow.consumer.heatpump', icon: 'HP', color: '#fb7185', x: 360, y: 574 },
+    heatingrod: { labelKey: 'flow.consumer.heatingrod', icon: 'HS', color: '#f97316', x: 660, y: 606 },
+    wallbox: { labelKey: 'flow.consumer.wallbox', icon: 'EV', color: '#38bdf8', x: 960, y: 574 },
 };
 
 function fmtW(value) {
@@ -23,7 +24,8 @@ function fmtPrice(value) {
 
 function pathWidth(power) {
     const p = Math.max(0, Number(power) || 0);
-    return 4 + Math.min(18, Math.sqrt(p) * 0.38);
+    if (p <= 0) return 6;
+    return 6 + Math.min(6, Math.sqrt(p) * 0.12);
 }
 
 function particleCount(power) {
@@ -56,29 +58,33 @@ const _FlowPage = {
     template: `
         <div class="page page-flow">
             <div class="section-header">
-                <h2 class="section-title">Live Energiefluss</h2>
+                <h2 class="section-title">{{ $t('flow.title') }}</h2>
             </div>
 
             <div class="chart-card flow-hero-card">
                 <div class="flow-hero-head">
                     <div class="flow-hero-title">
-                        <span class="chart-title">Energy Flow</span>
-                        <span class="flow-hero-subtitle">Solar, Haus, Akku, Netz und optionale Verbraucher</span>
+                        <span class="chart-title">{{ $t('flow.heroTitle') }}</span>
+                        <span class="flow-hero-subtitle">{{ $t('flow.subtitle') }}</span>
                     </div>
                     <div class="flow-hero-badges">
                         <span class="flow-badge">{{ currentClock }}</span>
                         <span class="flow-badge" v-if="flowData.current_price">{{ fmtPrice(flowData.current_price.total_price) }}</span>
-                        <span class="flow-badge" :class="{ live: connected }">{{ connected ? 'Live' : 'Offline' }}</span>
+                        <span class="flow-badge" :class="{ live: connected }">{{ connected ? $t('common.live') : $t('flow.offline') }}</span>
                     </div>
                 </div>
 
                 <div class="flow-scene-shell">
                     <svg class="flow-scene" viewBox="0 0 1320 700" preserveAspectRatio="xMidYMid meet">
                         <defs>
-                            <radialGradient id="flowBgGlow" cx="50%" cy="35%" r="70%">
-                                <stop offset="0%" stop-color="rgba(34,197,94,0.12)"/>
-                                <stop offset="35%" stop-color="rgba(6,182,212,0.08)"/>
+                            <radialGradient id="flowBgGlow" cx="50%" cy="42%" r="72%">
+                                <stop offset="0%" stop-color="rgba(250,204,21,0.16)"/>
+                                <stop offset="35%" stop-color="rgba(34,197,94,0.10)"/>
                                 <stop offset="100%" stop-color="rgba(15,23,42,0)"/>
+                            </radialGradient>
+                            <radialGradient id="flowCoreGlow" cx="50%" cy="50%" r="50%">
+                                <stop offset="0%" stop-color="rgba(74,222,128,0.26)"/>
+                                <stop offset="100%" stop-color="rgba(74,222,128,0)"/>
                             </radialGradient>
                             <filter id="flowSoftGlow" x="-50%" y="-50%" width="200%" height="200%">
                                 <feGaussianBlur stdDeviation="8" result="blur"/>
@@ -93,19 +99,23 @@ const _FlowPage = {
                         </defs>
 
                         <rect x="0" y="0" width="1320" height="700" fill="url(#flowBgGlow)"></rect>
-                        <circle cx="170" cy="92" r="48" fill="rgba(250,204,21,0.22)" filter="url(#flowSoftGlow)"></circle>
-                        <circle cx="1110" cy="108" r="42" fill="rgba(192,132,252,0.14)" filter="url(#flowSoftGlow)"></circle>
+                        <rect x="36" y="40" width="1248" height="620" rx="34" class="flow-stage"></rect>
+                        <circle cx="660" cy="366" r="230" class="flow-orbit flow-orbit-1"></circle>
+                        <circle cx="660" cy="366" r="168" class="flow-orbit flow-orbit-2"></circle>
+                        <circle cx="660" cy="366" r="104" class="flow-orbit flow-orbit-3"></circle>
+                        <circle cx="660" cy="366" r="58" fill="url(#flowCoreGlow)"></circle>
+                        <path d="M 660 76 L 660 656" class="flow-axis"></path>
+                        <path d="M 118 366 L 1202 366" class="flow-axis"></path>
+                        <path d="M 232 142 Q 660 366 1088 142" class="flow-axis-soft"></path>
+                        <path d="M 250 582 Q 660 460 1070 582" class="flow-axis-soft"></path>
 
                         <g class="flow-grid-lines">
-                            <path d="M160 130 C 310 180, 455 225, 600 290" class="flow-guide"></path>
-                            <path d="M160 150 C 250 255, 330 395, 430 520" class="flow-guide"></path>
-                            <path d="M220 112 C 560 80, 850 90, 1080 150" class="flow-guide"></path>
-                            <path d="M654 298 C 800 245, 930 205, 1030 210" class="flow-guide"></path>
-                            <path d="M655 350 C 810 350, 930 390, 1030 400" class="flow-guide"></path>
-                            <path d="M650 400 C 790 465, 910 535, 1030 560" class="flow-guide"></path>
-                            <path d="M585 400 C 550 460, 500 500, 446 518" class="flow-guide"></path>
-                            <path d="M1098 176 C 960 178, 810 225, 672 300" class="flow-guide"></path>
-                            <path d="M650 292 C 815 170, 950 136, 1090 152" class="flow-guide"></path>
+                            <path d="M660 98 C 660 182, 660 236, 660 286" class="flow-guide"></path>
+                            <path d="M182 366 C 304 366, 448 366, 540 366" class="flow-guide"></path>
+                            <path d="M780 366 C 872 366, 1010 366, 1134 366" class="flow-guide"></path>
+                            <path d="M604 440 C 540 490, 466 546, 388 596" class="flow-guide"></path>
+                            <path d="M660 448 C 660 512, 660 560, 660 604" class="flow-guide"></path>
+                            <path d="M716 440 C 784 490, 860 546, 934 596" class="flow-guide"></path>
                         </g>
 
                         <g v-for="route in routes" :key="route.id">
@@ -143,45 +153,44 @@ const _FlowPage = {
                             </g>
                         </g>
 
-                        <g class="flow-node solar-node" transform="translate(68 54)">
-                            <rect x="0" y="0" width="202" height="128" rx="30" filter="url(#flowCardShadow)"></rect>
-                            <text x="34" y="38" class="node-icon">☀</text>
-                            <text x="118" y="42" text-anchor="middle" class="node-title">Solar</text>
-                            <text x="118" y="82" text-anchor="middle" class="node-value solar">{{ fmtW(flowData.flows.solar_power) }}</text>
-                            <text x="118" y="108" text-anchor="middle" class="node-sub node-sub-tight">PV-Leistung jetzt</text>
+                        <g class="flow-node solar-node" transform="translate(520 72)">
+                            <rect x="0" y="0" width="280" height="122" rx="30" filter="url(#flowCardShadow)"></rect>
+                            <text x="42" y="40" class="node-icon">☀</text>
+                            <text x="140" y="42" text-anchor="middle" class="node-title">{{ $t('flow.node.pvProduction') }}</text>
+                            <text x="140" y="82" text-anchor="middle" class="node-value solar">{{ fmtW(flowData.flows.solar_power) }}</text>
+                            <text x="140" y="106" text-anchor="middle" class="node-sub node-sub-tight">{{ $t('flow.node.liveSolarPower') }}</text>
                         </g>
 
-                        <g class="flow-node house-node" transform="translate(492 224)">
-                            <rect x="0" y="0" width="312" height="184" rx="38" filter="url(#flowCardShadow)"></rect>
-                            <text x="42" y="46" class="node-icon">⌂</text>
-                            <text x="156" y="48" text-anchor="middle" class="node-title">Haus</text>
-                            <text x="156" y="96" text-anchor="middle" class="node-value house">{{ fmtW(flowData.home.consumption) }}</text>
-                            <text x="156" y="128" text-anchor="middle" class="node-sub node-sub-strong">Aktueller Verbrauch</text>
-                            <text x="156" y="156" text-anchor="middle" class="node-sub node-sub-small" :class="houseMixTextClass">{{ houseMixText }}</text>
+
+                        <g class="flow-node house-node" transform="translate(552 294)">
+                            <circle cx="108" cy="72" r="84" class="house-core-ring"></circle>
+                            <circle cx="108" cy="72" r="68" class="house-core-fill" filter="url(#flowSoftGlow)"></circle>
+                            <text x="108" y="62" text-anchor="middle" class="house-core-icon">⌂</text>
+                            <text x="108" y="98" text-anchor="middle" class="house-core-value">{{ fmtW(flowData.home.consumption) }}</text>
+                            <text x="108" y="124" text-anchor="middle" class="house-core-sub">{{ $t('flow.node.houseConsumption') }}</text>
                         </g>
 
-                        <g v-if="hasBattery" class="flow-node battery-node" transform="translate(270 474)">
-                            <rect x="0" y="0" width="272" height="156" rx="32" filter="url(#flowCardShadow)"></rect>
-                            <text x="40" y="42" class="node-icon">🔋</text>
-                            <text x="136" y="42" text-anchor="middle" class="node-title">Akku</text>
-                            <text x="136" y="88" text-anchor="middle" class="node-value battery" :class="batteryPowerTextClass">{{ batteryPowerText }}</text>
-                            <text x="136" y="116" text-anchor="middle" class="node-status battery" :class="batteryStateTextClass">{{ batteryStateText }}</text>
-                            <text x="136" y="140" text-anchor="middle" class="node-sub">SOC {{ flowData.battery.soc != null ? flowData.battery.soc.toFixed(0) + '%' : '--' }}</text>
+                        <g class="flow-node grid-node" transform="translate(78 286)">
+                            <rect x="0" y="0" width="228" height="144" rx="30" filter="url(#flowCardShadow)"></rect>
+                            <text x="38" y="42" class="node-icon">⚡</text>
+                            <text x="114" y="44" text-anchor="middle" class="node-title">{{ $t('flow.node.grid') }}</text>
+                            <text x="114" y="88" text-anchor="middle" class="node-value grid" :class="gridStatusTextPrimaryClass">{{ gridStatusTextSecondary }}</text>
+                            <text x="114" y="116" text-anchor="middle" class="node-sub node-sub-strong" :class="gridModeTextClass">{{ gridModeText }}</text>
                         </g>
 
-                        <g class="flow-node grid-node" transform="translate(1016 86)">
-                            <rect x="0" y="0" width="248" height="168" rx="32" filter="url(#flowCardShadow)"></rect>
-                            <text x="38" y="44" class="node-icon">⚡</text>
-                            <text x="124" y="42" text-anchor="middle" class="node-title">Netz</text>
-                            <text x="124" y="82" text-anchor="middle" class="node-value grid" :class="gridStatusTextPrimaryClass">{{ gridStatusTextPrimary }}</text>
-                            <text x="124" y="114" text-anchor="middle" class="node-metric grid">{{ gridStatusTextSecondary }}</text>
-                            <text x="124" y="140" text-anchor="middle" class="node-sub node-sub-strong" :class="gridModeTextClass">{{ gridModeText }}</text>
+                        <g v-if="hasBattery" class="flow-node battery-node" transform="translate(1014 286)">
+                            <rect x="0" y="0" width="228" height="144" rx="30" filter="url(#flowCardShadow)"></rect>
+                            <text x="38" y="42" class="node-icon">🔋</text>
+                            <text x="114" y="42" text-anchor="middle" class="node-title">{{ $t('flow.node.battery') }}</text>
+                            <text x="114" y="84" text-anchor="middle" class="node-value battery" :class="batteryPowerTextClass">{{ batteryPowerText }}</text>
+                            <text x="114" y="112" text-anchor="middle" class="node-status battery" :class="batteryStateTextClass">{{ batteryStateText }}</text>
+                            <text x="114" y="136" text-anchor="middle" class="node-sub">SOC {{ flowData.battery.soc != null ? flowData.battery.soc.toFixed(0) + '%' : '--' }}</text>
                         </g>
 
                         <g v-for="consumer in activeConsumers" :key="consumer.id" class="flow-node consumer-node" :transform="'translate(' + (consumer.x - 112) + ' ' + (consumer.y - 48) + ')'">
                             <rect x="0" y="0" width="220" height="96" rx="24" filter="url(#flowCardShadow)"></rect>
                             <text x="34" y="36" class="node-icon" :style="{ fill: consumer.color }">{{ consumer.icon }}</text>
-                            <text x="116" y="34" text-anchor="middle" class="node-title consumer-title" :class="consumer.titleClass">{{ consumer.label }}</text>
+                            <text x="56" y="34" text-anchor="start" class="node-title consumer-title" :class="consumer.titleClass">{{ consumer.label }}</text>
                             <text x="116" y="66" text-anchor="middle" class="node-value" :style="{ fill: consumer.color }">{{ fmtW(consumer.power) }}</text>
                         </g>
                     </svg>
@@ -189,23 +198,23 @@ const _FlowPage = {
 
                 <div class="flow-bottom-stats">
                     <div class="flow-stat">
-                        <span class="flow-stat-label">Solar zu Haus</span>
+                        <span class="flow-stat-label">{{ $t('flow.stat.solarToHouse') }}</span>
                         <span class="flow-stat-value solar">{{ fmtW(flowData.flows.solar_to_house) }}</span>
                     </div>
                     <div class="flow-stat" v-if="hasBattery">
-                        <span class="flow-stat-label">Solar zu Akku</span>
+                        <span class="flow-stat-label">{{ $t('flow.stat.solarToBattery') }}</span>
                         <span class="flow-stat-value battery">{{ fmtW(flowData.flows.solar_to_battery) }}</span>
                     </div>
                     <div class="flow-stat">
-                        <span class="flow-stat-label">Netz zu Haus</span>
+                        <span class="flow-stat-label">{{ $t('flow.stat.gridToHouse') }}</span>
                         <span class="flow-stat-value grid">{{ fmtW(flowData.flows.grid_to_house) }}</span>
                     </div>
                     <div class="flow-stat" v-if="hasBattery">
-                        <span class="flow-stat-label">Akku zu Haus</span>
+                        <span class="flow-stat-label">{{ $t('flow.stat.batteryToHouse') }}</span>
                         <span class="flow-stat-value battery">{{ fmtW(flowData.flows.battery_to_house) }}</span>
                     </div>
                     <div class="flow-stat">
-                        <span class="flow-stat-label">Einspeisung</span>
+                        <span class="flow-stat-label">{{ $t('flow.stat.feedIn') }}</span>
                         <span class="flow-stat-value export">{{ fmtW(flowData.flows.house_to_grid) }}</span>
                     </div>
                 </div>
@@ -214,6 +223,10 @@ const _FlowPage = {
     `,
 
     setup() {
+        const t = window.SFMLI18n ? window.SFMLI18n.t : (key) => key;
+        const locale = window.SFMLI18n ? window.SFMLI18n.current : 'en';
+        const bcp = (value) => ({ de: 'de-DE', en: 'en-US', pl: 'pl-PL' }[value] || 'en-US');
+
         const connected = ref(false);
         const flowData = reactive({
             timestamp: null,
@@ -246,7 +259,7 @@ const _FlowPage = {
         const currentClock = computed(() => {
             if (!flowData.timestamp) return '--:--';
             const dt = new Date(flowData.timestamp);
-            return dt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            return dt.toLocaleTimeString(bcp(locale), { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         });
 
         const hasBattery = computed(() => flowData.battery.soc != null);
@@ -259,25 +272,25 @@ const _FlowPage = {
 
         const batteryStateText = computed(() => {
             const p = Number(flowData.battery.power) || 0;
-            if (p > 0) return 'Laedt';
-            if (p < 0) return 'Entlaedt';
-            return 'Standby';
+            if (p > 0) return t('flow.battery.charging');
+            if (p < 0) return t('flow.battery.discharging');
+            return t('flow.battery.standby');
         });
 
         const batteryPowerTextClass = computed(() => textScaleClass(batteryPowerText.value, 8, 12));
         const batteryStateTextClass = computed(() => textScaleClass(batteryStateText.value, 8, 12));
 
         const houseMixText = computed(() => (
-            `Solar ${fmtW(flowData.flows.solar_to_house)} | Netz ${fmtW(flowData.flows.grid_to_house)}`
+            `${t('flow.short.solar')} ${fmtW(flowData.flows.solar_to_house)} | ${t('flow.short.grid')} ${fmtW(flowData.flows.grid_to_house)}`
         ));
         const houseMixTextClass = computed(() => textScaleClass(houseMixText.value, 24, 34));
 
         const gridModeText = computed(() => {
             const importW = Number(flowData.flows.grid_to_house || 0) + Number(flowData.flows.grid_to_battery || 0);
             const exportW = Number(flowData.flows.house_to_grid || 0);
-            if (exportW > 0) return 'Rueckspeisung';
-            if (importW > 0) return 'Netzbezug';
-            return 'Nahe Null';
+            if (exportW > 0) return t('flow.gridMode.export');
+            if (importW > 0) return t('flow.gridMode.import');
+            return t('flow.gridMode.neutral');
         });
 
         const gridStatusText = computed(() => {
@@ -312,69 +325,71 @@ const _FlowPage = {
                 .map(([id, meta]) => {
                     const raw = flowData.consumers[id];
                     if (!raw || !raw.configured) return null;
+                    const label = t(meta.labelKey);
                     return {
                         id,
                         ...meta,
+                        label,
                         power: Math.max(0, Number(raw.power) || 0),
-                        titleClass: textScaleClass(meta.label, 10, 14),
+                        titleClass: textScaleClass(label, 10, 14),
                     };
                 })
                 .filter(Boolean);
         });
 
         const routes = computed(() => {
-            const houseCenter = { x: 642, y: 314 };
+            const houseCenter = { x: 660, y: 366 };
             const routeList = [
                 {
                     id: 'solar-house',
-                    d: 'M 258 134 C 398 184, 525 240, 600 294',
+                    d: 'M 660 194 C 660 246, 660 292, 660 320',
                     power: flowData.flows.solar_to_house,
                     theme: 'solar',
-                    labelX: 402,
-                    labelY: 206,
+                    labelX: 718,
+                    labelY: 248,
                 },
                 {
                     id: 'solar-battery',
-                    d: 'M 232 154 C 270 272, 332 406, 392 496',
+                    d: 'M 800 133 C 870 170, 970 280, 1014 358',
                     power: flowData.flows.solar_to_battery,
                     theme: 'battery',
-                    labelX: 314,
-                    labelY: 326,
+                    labelX: 920,
+                    labelY: 230,
                 },
                 {
                     id: 'battery-house',
-                    d: 'M 460 494 C 520 452, 572 392, 614 360',
+                    d: 'M 1014 358 C 912 358, 796 362, 740 366',
                     power: flowData.flows.battery_to_house,
                     theme: 'battery',
-                    labelX: 520,
-                    labelY: 436,
+                    labelX: 862,
+                    labelY: 334,
                 },
                 {
                     id: 'solar-grid',
-                    d: 'M 260 124 C 560 74, 855 82, 1102 152',
+                    d: 'M 520 133 C 450 170, 350 280, 306 358',
                     power: flowData.flows.house_to_grid,
                     theme: 'export',
-                    labelX: 722,
-                    labelY: 62,
+                    labelX: 400,
+                    labelY: 238,
                 },
                 {
                     id: 'grid-house',
-                    d: 'M 1098 182 C 930 182, 784 234, 684 298',
+                    d: 'M 306 358 C 404 358, 520 362, 580 366',
                     power: (Number(flowData.flows.grid_to_house) || 0) + (Number(flowData.flows.grid_to_battery) || 0),
                     theme: 'grid',
-                    labelX: 888,
-                    labelY: 224,
+                    labelX: 446,
+                    labelY: 334,
                 },
             ];
 
             activeConsumers.value.forEach((consumer) => {
                 routeList.push({
                     id: `house-${consumer.id}`,
-                    d: `M ${houseCenter.x + 12} ${houseCenter.y + 28} C 780 ${consumer.y - 12}, 900 ${consumer.y}, ${consumer.x - 120} ${consumer.y}`,
+                    d: `M ${houseCenter.x} ${houseCenter.y + 52} C ${houseCenter.x} ${consumer.y - 72}, ${consumer.x} ${consumer.y - 92}, ${consumer.x} ${consumer.y - 48}`,
                     power: consumer.power,
                     theme: consumer.id === 'wallbox' ? 'consumer-ev' : 'consumer',
-                    labelX: 860,
-                    labelY: consumer.y - 16,
+                    labelX: consumer.x,
+                    labelY: consumer.y - 98,
                 });
             });
 
@@ -453,10 +468,10 @@ const _FlowPage = {
             padding: 18px;
             overflow: hidden;
             background:
-                radial-gradient(circle at top left, rgba(250,204,21,0.06), transparent 30%),
-                radial-gradient(circle at top right, rgba(168,85,247,0.08), transparent 28%),
-                radial-gradient(circle at bottom center, rgba(6,182,212,0.08), transparent 34%),
-                linear-gradient(180deg, rgba(15,23,42,0.96), rgba(18,25,39,0.98));
+                radial-gradient(circle at top left, rgba(250,204,21,0.08), transparent 32%),
+                radial-gradient(circle at top right, rgba(168,85,247,0.06), transparent 28%),
+                radial-gradient(circle at bottom center, rgba(74,222,128,0.08), transparent 34%),
+                linear-gradient(180deg, rgba(12,18,28,0.98), rgba(17,24,39,0.99));
         }
         .flow-hero-head {
             display: flex;
@@ -505,9 +520,10 @@ const _FlowPage = {
             border-radius: 28px;
             overflow: hidden;
             background:
-                radial-gradient(circle at top, rgba(34,211,238,0.10), transparent 34%),
-                linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01)),
-                rgba(8,12,20,0.72);
+                radial-gradient(circle at top, rgba(250,204,21,0.10), transparent 28%),
+                radial-gradient(circle at center, rgba(34,197,94,0.08), transparent 34%),
+                linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01)),
+                rgba(8,12,20,0.78);
             border: 1px solid rgba(255,255,255,0.07);
             box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
         }
@@ -519,9 +535,35 @@ const _FlowPage = {
         }
         .flow-guide {
             fill: none;
-            stroke: rgba(148,163,184,0.08);
-            stroke-width: 2;
-            stroke-dasharray: 10 12;
+            stroke: rgba(148,163,184,0.10);
+            stroke-width: 1.5;
+            stroke-dasharray: 8 12;
+        }
+        .flow-stage {
+            fill: rgba(226,232,240,0.06);
+            stroke: rgba(255,255,255,0.08);
+            stroke-width: 1.5;
+        }
+        .flow-orbit {
+            fill: none;
+            stroke: rgba(148,163,184,0.12);
+            stroke-width: 1.4;
+        }
+        .flow-orbit-2 {
+            stroke: rgba(148,163,184,0.09);
+        }
+        .flow-orbit-3 {
+            stroke: rgba(148,163,184,0.07);
+        }
+        .flow-axis {
+            fill: none;
+            stroke: rgba(255,255,255,0.08);
+            stroke-width: 1.2;
+        }
+        .flow-axis-soft {
+            fill: none;
+            stroke: rgba(255,255,255,0.05);
+            stroke-width: 1;
         }
         .flow-route,
         .flow-route-glow {
@@ -551,14 +593,25 @@ const _FlowPage = {
             font-weight: 700;
         }
         .flow-node rect {
-            fill: rgba(15,23,42,0.88);
-            stroke: rgba(148,163,184,0.16);
+            fill: rgba(15,23,42,0.78);
+            stroke: rgba(255,255,255,0.20);
             stroke-width: 1.2;
         }
-        .solar-node rect { fill: rgba(24,24,43,0.90); }
-        .house-node rect { fill: rgba(22,24,44,0.92); }
-        .battery-node rect { fill: rgba(24,24,43,0.92); }
-        .grid-node rect { fill: rgba(24,24,43,0.90); }
+        .solar-node rect {
+            fill: rgba(250,204,21,0.12);
+            stroke: rgba(250,204,21,0.38);
+        }
+        .battery-node rect {
+            fill: rgba(74,222,128,0.12);
+            stroke: rgba(96,165,250,0.36);
+        }
+        .grid-node rect {
+            fill: rgba(251,191,36,0.08);
+            stroke: rgba(251,191,36,0.30);
+        }
+        .consumer-node rect {
+            fill: rgba(255,255,255,0.04);
+        }
         .node-icon {
             font-size: 24px;
             fill: var(--text-primary);
@@ -594,7 +647,7 @@ const _FlowPage = {
         .node-value.solar { fill: #facc15; }
         .node-value.house { fill: #22d3ee; }
         .node-value.battery { fill: #4ade80; }
-        .node-value.grid { fill: #c084fc; }
+        .node-value.grid { fill: #f8fafc; }
         .node-status {
             font-size: 18px;
             font-weight: 700;
@@ -614,6 +667,40 @@ const _FlowPage = {
         .node-sub {
             fill: var(--text-secondary);
             font-size: 13px;
+        }
+        .flow-core-kicker {
+            fill: #fbbf24;
+            font-size: 18px;
+            font-weight: 700;
+        }
+        .house-core-ring {
+            fill: rgba(34,197,94,0.08);
+            stroke: rgba(74,222,128,0.55);
+            stroke-width: 5;
+        }
+        .house-core-fill {
+            fill: rgba(240,253,244,0.92);
+        }
+        .house-core-icon {
+            font-size: 34px;
+            fill: #4ade80;
+            font-weight: 700;
+        }
+        .house-core-value {
+            fill: rgba(15,23,42,0.92);
+            font-size: 28px;
+            font-weight: 800;
+            font-family: var(--font-mono);
+            stroke: rgba(255,255,255,0.28);
+            stroke-width: 0.8px;
+            paint-order: stroke fill;
+        }
+        .house-core-sub {
+            fill: rgba(15,23,42,0.72);
+            font-size: 13px;
+            stroke: rgba(255,255,255,0.22);
+            stroke-width: 0.5px;
+            paint-order: stroke fill;
         }
         .node-sub-tight {
             font-size: 12px;

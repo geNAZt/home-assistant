@@ -21,7 +21,7 @@ Uses TelemetryManager for all containment data operations.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta, date as date_type
+from datetime import datetime, time, timedelta, date as date_type
 from typing import Any, Dict, List, Optional
 
 from homeassistant.core import HomeAssistant
@@ -30,6 +30,9 @@ from ..core.core_helpers import SafeDateTimeUtil as dt_util
 from ..data.db_manager import DatabaseManager
 
 _LOGGER = logging.getLogger(__name__)
+
+_MINIMUM_FINAL_FORECAST_TIME = time(5, 0)
+_FINAL_MORNING_FORECAST_OFFSET = timedelta(minutes=30)
 
 
 class DailyBriefingService:
@@ -76,11 +79,12 @@ class DailyBriefingService:
                     _LOGGER.error(error_msg)
                     return {"success": False, "error": error_msg}
 
-            # Get forecast data from DB
+            # Get final morning forecast data from DB
             forecast_data = await self._get_today_forecast_data()
             if not forecast_data:
-                _LOGGER.error("Failed to retrieve today's forecast data for briefing")
-                return {"success": False, "error": "No forecast data available"}
+                error_msg = "Final morning forecast not ready for daily briefing"
+                _LOGGER.error(error_msg)
+                return {"success": False, "error": error_msg}
 
             # Get yesterday's actual data from DB
             yesterday_data = await self._get_yesterday_actual_data()
@@ -173,40 +177,118 @@ class DailyBriefingService:
 
             today = dt_util.now().date().isoformat()
 
-            # Get today's forecast from daily_forecasts table
+            final_due_at = await self._get_final_morning_forecast_due_at(today)
+
+            # Get today's final forecast from daily_forecasts table
             row = await db.fetchone(
-                """SELECT prediction_kwh, source, locked
+                """SELECT prediction_kwh, source, locked, locked_at
                    FROM daily_forecasts
                    WHERE forecast_date = ? AND forecast_type = 'today'""",
                 (today,),
             )
 
             if row:
-                return {
+                forecast_data = {
                     "date": today,
                     "prediction_kwh": row[0] or 0.0,
                     "source": row[1] or "unknown",
                     "locked": bool(row[2]) if row[2] is not None else False,
+                    "locked_at": row[3],
+                    "final_due_at": final_due_at.isoformat(),
                 }
 
-            # Fallback: calculate from hourly predictions
-            sum_row = await db.fetchone(
-                """SELECT SUM(prediction_kwh)
-                   FROM hourly_predictions
-                   WHERE target_date = ?""",
-                (today,),
-            )
+                if self._is_final_morning_forecast_ready(forecast_data, final_due_at):
+                    return forecast_data
 
-            return {
-                "date": today,
-                "prediction_kwh": sum_row[0] if sum_row and sum_row[0] else 0.0,
-                "source": "hourly_sum",
-                "locked": False,
-            }
+                _LOGGER.warning(
+                    "Daily briefing blocked: today's forecast is not the final morning forecast "
+                    "(source=%s, locked=%s, locked_at=%s, final_due_at=%s)",
+                    forecast_data["source"],
+                    forecast_data["locked"],
+                    forecast_data["locked_at"],
+                    final_due_at.isoformat(),
+                )
+                return None
+
+            _LOGGER.warning(
+                "Daily briefing blocked: no daily_forecasts.today row for %s "
+                "(final_due_at=%s)",
+                today,
+                final_due_at.isoformat(),
+            )
+            return None
 
         except Exception as err:
             _LOGGER.error(f"Error loading today forecast from DB: {err}")
             return None
+
+    async def _get_final_morning_forecast_due_at(self, today: str) -> datetime:
+        """Return the earliest time when the final morning forecast is valid."""
+        now = dt_util.now()
+        fallback_sunrise = datetime.combine(now.date(), time(8, 0))
+        if now.tzinfo:
+            fallback_sunrise = fallback_sunrise.replace(tzinfo=now.tzinfo)
+
+        sunrise = fallback_sunrise
+        db = self.db_manager
+        if db:
+            row = await db.fetchone(
+                """SELECT sunrise FROM astronomy_cache
+                   WHERE cache_date = ? AND hour = 12 LIMIT 1""",
+                (today,),
+            )
+            if row and row[0]:
+                parsed_sunrise = self._parse_datetime(row[0])
+                if parsed_sunrise:
+                    sunrise = parsed_sunrise
+
+        minimum_due_at = datetime.combine(sunrise.date(), _MINIMUM_FINAL_FORECAST_TIME)
+        if sunrise.tzinfo:
+            minimum_due_at = minimum_due_at.replace(tzinfo=sunrise.tzinfo)
+
+        return max(sunrise - _FINAL_MORNING_FORECAST_OFFSET, minimum_due_at)
+
+    def _is_final_morning_forecast_ready(
+        self,
+        forecast_data: Dict[str, Any],
+        final_due_at: datetime,
+    ) -> bool:
+        """Validate that the briefing uses the finalized morning forecast."""
+        if not forecast_data.get("locked"):
+            return False
+
+        locked_at = self._parse_datetime(forecast_data.get("locked_at"))
+        if locked_at is None:
+            return False
+
+        if locked_at.tzinfo is None and final_due_at.tzinfo is not None:
+            locked_at = locked_at.replace(tzinfo=final_due_at.tzinfo)
+        elif locked_at.tzinfo is not None and final_due_at.tzinfo is not None:
+            locked_at = locked_at.astimezone(final_due_at.tzinfo)
+
+        return locked_at >= final_due_at
+
+    def _parse_datetime(self, value: Any) -> Optional[datetime]:
+        """Parse database datetime values into local-aware datetimes when possible."""
+        if value is None:
+            return None
+        if isinstance(value, datetime):
+            parsed = value
+        else:
+            raw = str(value).strip()
+            if not raw:
+                return None
+            try:
+                parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+            except ValueError:
+                return None
+
+        local_tz = dt_util.now().tzinfo
+        if parsed.tzinfo is None and local_tz is not None:
+            parsed = parsed.replace(tzinfo=local_tz)
+        elif parsed.tzinfo is not None and local_tz is not None:
+            parsed = parsed.astimezone(local_tz)
+        return parsed
 
     async def _get_yesterday_actual_data(self) -> Optional[Dict[str, Any]]:
         """Get yesterday's actual production from database. @zara"""
@@ -375,21 +457,113 @@ class DailyBriefingService:
                         else:
                             lines.append(f"   AI model: R²={r2:.3f}")
 
-            # Check exclude_from_learning count yesterday
-            excl_row = await db.fetchone(
-                """SELECT COUNT(*) FROM hourly_predictions
-                   WHERE target_date = ? AND exclude_from_learning = TRUE""",
-                (yesterday,),
-            )
-            if excl_row and excl_row[0] and excl_row[0] > 0:
-                if language == "de":
-                    lines.append(f"   Gestern: {excl_row[0]}h vom Lernen ausgeschlossen (Schnee/Frost)")
-                else:
-                    lines.append(f"   Yesterday: {excl_row[0]}h excluded from learning (snow/frost)")
+            exclusion_summary = await self._get_learning_exclusion_summary(yesterday, language)
+            if exclusion_summary:
+                lines.append(exclusion_summary)
 
         except Exception as e:
             _LOGGER.debug(f"System status info error: {e}")
         return lines
+
+    async def _get_learning_exclusion_summary(self, date_str: str, language: str) -> Optional[str]:
+        """Return a human-readable learning exclusion summary for one day."""
+        db = self.db_manager
+        if not db:
+            return None
+
+        rows = await db.fetchall(
+            """SELECT weather_alert_type, mppt_throttled, mppt_throttle_reason,
+                      inverter_clipped
+               FROM hourly_predictions
+               WHERE target_date = ?
+                 AND COALESCE(exclude_from_learning, 0) = 1
+               ORDER BY target_hour""",
+            (date_str,),
+        )
+        if not rows:
+            return None
+
+        reason_counts: Dict[str, int] = {}
+        for row in rows:
+            reason = self._learning_exclusion_reason(row)
+            reason_counts[reason] = reason_counts.get(reason, 0) + 1
+
+        total = sum(reason_counts.values())
+        if total <= 0:
+            return None
+
+        reason_text = self._format_learning_exclusion_reasons(reason_counts, language)
+        if language == "de":
+            return f"   Gestern: {total}h vom Lernen ausgeschlossen ({reason_text})"
+        return f"   Yesterday: {total}h excluded from learning ({reason_text})"
+
+    def _learning_exclusion_reason(self, row: Any) -> str:
+        """Map an excluded hourly row to its primary exclusion reason."""
+        if self._row_value(row, "inverter_clipped", 3):
+            return "inverter_clipped"
+        if self._row_value(row, "mppt_throttled", 1):
+            return self._row_value(row, "mppt_throttle_reason", 2) or "mppt_throttled"
+        return self._row_value(row, "weather_alert_type", 0) or "exclude_from_learning"
+
+    def _format_learning_exclusion_reasons(self, reason_counts: Dict[str, int], language: str) -> str:
+        """Format compact exclusion reason text for the briefing."""
+        labels_de = {
+            "snow_covered_panels": "Schneebedeckung",
+            "unexpected_snow": "unerwarteter Schnee",
+            "unexpected_clouds": "Wetterabweichung",
+            "unexpected_rain": "unerwarteter Regen",
+            "inverter_clipped": "Inverter-Clipping",
+            "mppt_throttled": "MPPT-Drosselung",
+            "battery_full": "Akku voll / MPPT-Drosselung",
+            "zero_export": "Nulleinspeisung / MPPT-Drosselung",
+            "full_battery_zero_export": "Akku voll / Nulleinspeisung",
+            "zero_export_limited": "Nulleinspeisung / MPPT-Drosselung",
+            "manual_pause": "Lernpause",
+            "manually_excluded": "manuelle Exklusion",
+            "exclude_from_learning": "Schutzfilter",
+            "weather_alert": "Wetterwarnung",
+        }
+        labels_en = {
+            "snow_covered_panels": "snow-covered panels",
+            "unexpected_snow": "unexpected snow",
+            "unexpected_clouds": "weather deviation",
+            "unexpected_rain": "unexpected rain",
+            "inverter_clipped": "inverter clipping",
+            "mppt_throttled": "MPPT throttling",
+            "battery_full": "battery full / MPPT throttling",
+            "zero_export": "zero export / MPPT throttling",
+            "full_battery_zero_export": "battery full / zero export",
+            "zero_export_limited": "zero export / MPPT throttling",
+            "manual_pause": "learning paused",
+            "manually_excluded": "manual exclusion",
+            "exclude_from_learning": "safeguard filter",
+            "weather_alert": "weather alert",
+        }
+        labels = labels_de if language == "de" else labels_en
+
+        sorted_reasons = sorted(reason_counts.items(), key=lambda item: (-item[1], item[0]))
+        if len(sorted_reasons) == 1:
+            return labels.get(sorted_reasons[0][0], sorted_reasons[0][0])
+
+        parts = [
+            f"{labels.get(reason, reason)}: {count}h"
+            for reason, count in sorted_reasons[:3]
+        ]
+        remaining = sum(count for _, count in sorted_reasons[3:])
+        if remaining:
+            parts.append(f"{'weitere' if language == 'de' else 'other'}: {remaining}h")
+        return ", ".join(parts)
+
+    @staticmethod
+    def _row_value(row: Any, key: str, index: int) -> Any:
+        """Read a DB row value by key with tuple-index fallback."""
+        try:
+            return row[key]
+        except (KeyError, TypeError, IndexError):
+            try:
+                return row[index]
+            except (TypeError, IndexError):
+                return None
 
     def _get_daily_quote(self, clouds: Optional[float], prediction_kwh: float, day_of_year: int, language: str) -> str:
         """Get a rotating weather-appropriate daily quote. @zara"""

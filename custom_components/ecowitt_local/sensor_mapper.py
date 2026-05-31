@@ -259,8 +259,9 @@ class SensorMapper:
                     "wh68batt",
                 ]
             )
-        elif sensor_type.lower() in ("wh69", "weather_station_wh69"):
-            # WH69 7-in-1 outdoor sensor array (uses hex IDs in common_list)
+        elif sensor_type.lower() in ("wh69", "wh65", "weather_station_wh69"):
+            # WH69 / WH65 7-in-1 outdoor sensor array (uses hex IDs in common_list)
+            # WH65 shares img="wh69" on most firmware; "wh65" catches firmware variants
             keys.extend(
                 [
                     "0x02",  # Temperature
@@ -456,7 +457,8 @@ class SensorMapper:
                 )
         elif sensor_type.lower() in ("wh54", "lds"):
             # WH54 liquid depth sensor (channels 1-4 = types 66-69).
-            # Data arrives via the ch_lds livedata block.
+            # Data arrives via the ch_lds livedata block; level and total_heat
+            # come from the /get_cli_lds configuration endpoint (spec V1.0.4+).
             if ch_num:
                 keys.extend(
                     [
@@ -464,6 +466,8 @@ class SensorMapper:
                         f"lds_depth_ch{ch_num}",
                         f"lds_voltage_ch{ch_num}",
                         f"lds_batt{ch_num}",
+                        f"lds_level_ch{ch_num}",
+                        f"lds_total_heat_ch{ch_num}",
                     ]
                 )
         elif sensor_type.lower() in ("wn38", "bgt"):
@@ -675,7 +679,7 @@ class SensorMapper:
             if pattern in clean_key.lower():
                 return sensor_type
 
-        return clean_key.lower() or "sensor"
+        return clean_key.lower().strip("_") or "sensor"
 
     def _extract_sensor_type_from_battery(self, battery_key: str) -> str:
         """Extract sensor type name from battery key."""

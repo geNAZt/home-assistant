@@ -74,6 +74,8 @@ from .const import (
     CONF_DATA_TYPE_MIXED,
     CONF_DATA_TYPE_REPORT,
     CONF_INTERPOLATE,
+    CONF_RADAR_CUSTOM_LOCATION,
+    CONF_RADAR_LOCATION_COORDINATES,
     CONF_MAP_BACKGROUND_TYPE,
     CONF_MAP_FOREGROUND_TYPE,
     CONF_MAP_HOMEMARKER_COLOR,
@@ -309,17 +311,33 @@ class DWDWeatherData:
         if not self._config.get(CONF_DOWNLOAD_PRECIPITATION_SENSORS, False):
             return
 
+        lat = None
+        lon = None
+        if self._config.get(CONF_RADAR_CUSTOM_LOCATION, False):
+            coords = self._config.get(CONF_RADAR_LOCATION_COORDINATES, {})
+            if isinstance(coords, dict):
+                lat = coords.get("latitude")
+                lon = coords.get("longitude")
+
         try:
+            kwargs: dict = {"shouldUpdate": True}
+            if lat is not None and lon is not None:
+                kwargs["lat"] = lat
+                kwargs["lon"] = lon
             self._radar_precipitation_forecast = (
-                self.dwd_weather.get_radar_precipitation_forecast(shouldUpdate=True)
+                self.dwd_weather.get_radar_precipitation_forecast(**kwargs)
             )
         except Exception as error:
             _LOGGER.warning("Failed to update radar precipitation forecast: %s", error)
 
         try:
             # Reuse freshly downloaded data from forecast call where possible.
+            kwargs = {"shouldUpdate": False}
+            if lat is not None and lon is not None:
+                kwargs["lat"] = lat
+                kwargs["lon"] = lon
             self._radar_next_precipitation = (
-                self.dwd_weather.get_radar_next_precipitation(shouldUpdate=False)
+                self.dwd_weather.get_radar_next_precipitation(**kwargs)
             )
         except Exception as error:
             _LOGGER.warning(

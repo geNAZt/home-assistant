@@ -5,20 +5,20 @@
       "weather_condition": {
         "name": "Wetterzustand",
         "state": {
-          "clear-night": "[%key:component::weather::entity_component::_::state::clear-night%]",
-          "cloudy": "[%key:component::weather::entity_component::_::state::cloudy%]",
-          "fog": "[%key:component::weather::entity_component::_::state::fog%]",
-          "hail": "[%key:component::weather::entity_component::_::state::hail%]",
-          "lightning": "[%key:component::weather::entity_component::_::state::lightning%]",
-          "lightning-rainy": "[%key:component::weather::entity_component::_::state::lightning-rainy%]",
-          "partlycloudy": "[%key:component::weather::entity_component::_::state::partlycloudy%]",
-          "pouring": "[%key:component::weather::entity_component::_::state::pouring%]",
-          "rainy": "[%key:component::weather::entity_component::_::state::rainy%]",
-          "snowy": "[%key:component::weather::entity_component::_::state::snowy%]",
-          "snowy-rainy": "[%key:component::weather::entity_component::_::state::snowy-rainy%]",
-          "sunny": "[%key:component::weather::entity_component::_::state::sunny%]",
-          "windy": "[%key:component::weather::entity_component::_::state::windy%]",
-          "windy-variant": "[%key:component::weather::entity_component::_::state::windy-variant%]"
+          "clear-night": "Klare Nacht",
+          "cloudy": "Bewölkt",
+          "fog": "Nebel",
+          "hail": "Hagel",
+          "lightning": "Gewitter",
+          "lightning-rainy": "Gewitter und Regen",
+          "partlycloudy": "Teilweise bewölkt",
+          "pouring": "Starkregen",
+          "rainy": "Regnerisch",
+          "snowy": "Schneefall",
+          "snowy-rainy": "Schnee und Regen",
+          "sunny": "Sonnig",
+          "windy": "Windig",
+          "windy-variant": "Windig variant"
         }
       },
       "weather_report": {
@@ -142,6 +142,8 @@
           "download_apparent_temperature": "Aktiviere gefühlte Temperatur",
           "download_airquality": "Aktiviere Luftqualitätswerte",
           "download_precipitation_sensors": "Aktiviere Radar-Niederschlagssensoren",
+          "radar_custom_location": "Eigenen Ort für Radar-Niederschlag verwenden",
+          "radar_location_coordinates": "Ort für Radar-Niederschlag",
           "sensor_forecast_steps": "Begrenze verfügbare Vorhersageschritte in Sensorattributen",
           "additional_forecast_attributes": "Aktiviere zusätzliche Vorhersageattribute",
           "daily_temp_high_precision": "Erhöhe die Anzeigegenauigkeit der täglichen Temperaturvorhersagen"
@@ -152,11 +154,25 @@
           "interpolate": "Da die Daten nur stündlich verfügbar sind, kann es sein, dass 'Sprünge' in den angezeigten Werten auftreten. Mit dieser Option werden die Daten linear interpoliert.",
           "hourly_update": "Normalerweise werden die Wetterdaten alle 6 Stunden aktualisiert. Der DWD bietet aber auch eine stündliche Aktualisierung der Daten an bei denen ein paar Informationen fehlen (Niederschlagswahrscheinlichkeit, Niederschlagsdauer, Verdunstung), allerdings erhöht das die Datennutzung erheblich (~37MB vs. ~0.17MB an Download-Daten), da die Sensorwerte für alle verfügbaren Stationen in der stündlichen Aktualisierung enthalten sind.",
           "download_apparent_temperature": "Lädt zusätzlich zur Standard-Wettervorhersage die Werte der gefühlten Temperatur herunter.",
+          "radar_custom_location": "Standardmäßig werden die Radar-Niederschlagsdaten für die Koordinaten der ausgewählten Wetterstation abgerufen. Aktiviere diese Option, um stattdessen einen eigenen Ort zu verwenden und auf der nächsten Seite zu konfigurieren.",
+          "radar_location_coordinates": "Verschiebe den Marker auf den Ort, für den die Radar-Niederschlagsdaten abgerufen werden sollen. Vorausgefüllt mit dem konfigurierten Heimatort.",
           "download_airquality": "Lädt zusätzlich zur Standard-Wettervorhersage Luftqualitätswerte herunter.",
           "download_precipitation_sensors": "Lädt kurzfristige Radar-Niederschlagswerte und aktiviert dedizierte Niederschlagssensoren.",
           "sensor_forecast_steps": "Dies kann nützlich sein, wenn Sie nur eine begrenzte Anzahl von Vorhersageschritten verwenden und die Übersichtlichkeit der Sensorattribute erhöhen möchten.",
           "additional_forecast_attributes": "Fügt dem Wetterobjekt zusätzliche Vorhersageattribute wie Nebelwahrscheinlichkeit, Verdunstung, Sonnenscheindauer und weitere hinzu.",
           "daily_temp_high_precision": "Die Vorhersage der täglichen Höchst- und Tiefsttemperatur wird auf eine Kommastelle genau angezeigt."
+        }
+      },
+      "station_configure_radar_location": {
+        "title": "Konfiguration Radar-Ort",
+        "description": "Festlegen eines eigenen Ortes für die Radar-Niederschlagsdaten",
+        "data": {
+          "radar_custom_location": "Eigenen Ort für Radar-Niederschlag verwenden",
+          "radar_location_coordinates": "Ort für Radar-Niederschlag"
+        },
+        "data_description": {
+          "radar_custom_location": "Standardmäßig werden die Radar-Niederschlagsdaten für die Koordinaten der ausgewählten Wetterstation abgerufen. Aktiviere diese Option, um stattdessen einen eigenen Ort zu verwenden.",
+          "radar_location_coordinates": "Verschiebe den Marker auf den Ort, für den die Radar-Niederschlagsdaten abgerufen werden sollen. Vorausgefüllt mit dem konfigurierten Heimatort."
         }
       },
       "select_map_type": {
@@ -219,6 +235,8 @@
           "download_apparent_temperature": "Aktiviere gefühlte Temperatur",
           "download_airquality": "Aktiviere Luftqualitätswerte",
           "download_precipitation_sensors": "Aktiviere Radar-Niederschlagssensoren",
+          "radar_custom_location": "Eigenen Ort für Radar-Niederschlag verwenden",
+          "radar_location_coordinates": "Ort für Radar-Niederschlag",
           "map_background_type": "Was soll im Hintergrund angezeigt werden?",
           "map_marker": "Soll die Mitte der Karte markiert werden?",
           "map_homemarker": "Soll die eingestellte Position von HA auf der Karte markiert werden?",
@@ -238,12 +256,26 @@
           "download_apparent_temperature": "Lädt zusätzlich zur Standard-Wettervorhersage die Werte der gefühlten Temperatur herunter.",
           "download_airquality": "Lädt zusätzlich zur Standard-Wettervorhersage Luftqualitätswerte herunter.",
           "download_precipitation_sensors": "Lädt kurzfristige Radar-Niederschlagswerte und aktiviert dedizierte Niederschlagssensoren.",
+          "radar_custom_location": "Standardmäßig werden die Radar-Niederschlagsdaten für die Koordinaten der ausgewählten Wetterstation abgerufen. Aktiviere diese Option, um stattdessen einen eigenen Ort zu verwenden.",
+          "radar_location_coordinates": "Verschiebe den Marker auf den Ort, für den die Radar-Niederschlagsdaten abgerufen werden sollen.",
           "map_options_message": "At the moment it is not possible to configure a chart. Please remove this element and re-add it with your desired settings.",
           "map_loop_count": "Ein neues Radarbild ist alle 5 Minuten verfügbar. Für 30 Minuten gibt es also 6 anzuzeigende Bilder. Der Wert bezieht sich auf das letzte verfügbare Radarbild.",
           "map_loop_speed": "Der Wert definiert, wie lange ein einzelnes Bild angezeigt wird bevor zum naechsten gewechselt wird.",
           "sensor_forecast_steps": "Dies kann nützlich sein, wenn Sie nur eine begrenzte Anzahl von Vorhersageschritten verwenden und die Übersichtlichkeit der Sensorattribute erhöhen möchten.",
           "additional_forecast_attributes": "Fügt dem Wetterobjekt zusätzliche Vorhersageattribute wie Nebelwahrscheinlichkeit, Verdunstung, Sonnenscheindauer und weitere hinzu.",
           "daily_temp_high_precision": "Die Vorhersage der täglichen Höchst- und Tiefsttemperatur wird auf eine Kommastelle genau angezeigt."
+        }
+      },
+      "station_radar_location": {
+        "title": "Konfiguration Radar-Ort",
+        "description": "Festlegen eines eigenen Ortes für die Radar-Niederschlagsdaten",
+        "data": {
+          "radar_custom_location": "Eigenen Ort für Radar-Niederschlag verwenden",
+          "radar_location_coordinates": "Ort für Radar-Niederschlag"
+        },
+        "data_description": {
+          "radar_custom_location": "Standardmäßig werden die Radar-Niederschlagsdaten für die Koordinaten der ausgewählten Wetterstation abgerufen. Aktiviere diese Option, um stattdessen einen eigenen Ort zu verwenden.",
+          "radar_location_coordinates": "Verschiebe den Marker auf den Ort, für den die Radar-Niederschlagsdaten abgerufen werden sollen. Vorausgefüllt mit dem konfigurierten Heimatort."
         }
       },
       "homemarker": {

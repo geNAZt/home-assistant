@@ -4,9 +4,28 @@ import logging
 from custom_components.dwd_weather.connector import DWDWeatherData
 from custom_components.dwd_weather.entity import DWDWeatherEntity
 from homeassistant.components.sensor.const import SensorStateClass
+from homeassistant.components.weather import (
+    ATTR_CONDITION_CLEAR_NIGHT,
+    ATTR_CONDITION_CLOUDY,
+    ATTR_CONDITION_EXCEPTIONAL,
+    ATTR_CONDITION_FOG,
+    ATTR_CONDITION_HAIL,
+    ATTR_CONDITION_LIGHTNING,
+    ATTR_CONDITION_LIGHTNING_RAINY,
+    ATTR_CONDITION_PARTLYCLOUDY,
+    ATTR_CONDITION_POURING,
+    ATTR_CONDITION_RAINY,
+    ATTR_CONDITION_SNOWY,
+    ATTR_CONDITION_SNOWY_RAINY,
+    ATTR_CONDITION_SUNNY,
+    ATTR_CONDITION_WINDY,
+    ATTR_CONDITION_WINDY_VARIANT,
+)
 
 from homeassistant.const import (
     ATTR_ATTRIBUTION,
+    CONCENTRATION_GRAMS_PER_CUBIC_METER,
+    CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
     DEGREE,
     PERCENTAGE,
     UnitOfIrradiance,
@@ -55,16 +74,34 @@ ATTR_SENSOR_ID = "sensor_id"
 ATTR_SITE_ID = "site_id"
 ATTR_SITE_NAME = "site_name"
 
+WEATHER_CONDITION_OPTIONS = [
+    ATTR_CONDITION_CLEAR_NIGHT,
+    ATTR_CONDITION_CLOUDY,
+    ATTR_CONDITION_EXCEPTIONAL,
+    ATTR_CONDITION_FOG,
+    ATTR_CONDITION_HAIL,
+    ATTR_CONDITION_LIGHTNING,
+    ATTR_CONDITION_LIGHTNING_RAINY,
+    ATTR_CONDITION_PARTLYCLOUDY,
+    ATTR_CONDITION_POURING,
+    ATTR_CONDITION_RAINY,
+    ATTR_CONDITION_SNOWY,
+    ATTR_CONDITION_SNOWY_RAINY,
+    ATTR_CONDITION_SUNNY,
+    ATTR_CONDITION_WINDY,
+    ATTR_CONDITION_WINDY_VARIANT,
+]
+
 # Sensor types are defined as:
 #   variable -> [0]title, [1]device_class, [2]units, [3]icon, [4]enabled_by_default, [5]state_class, [6]enabled_in_hourly_update
 SENSOR_TYPES = {
     "weather_condition": [
         "Weather",
-        None,
+        SensorDeviceClass.ENUM,
         None,
         "mdi:weather-partly-cloudy",
         False,
-        SensorStateClass.MEASUREMENT,
+        None,
         True,
     ],
     "weather_report": [
@@ -114,7 +151,7 @@ SENSOR_TYPES = {
     ],
     "wind_speed": [
         "Wind Speed",
-        None,
+        SensorDeviceClass.WIND_SPEED,
         UnitOfSpeed.KILOMETERS_PER_HOUR,
         "mdi:weather-windy",
         False,
@@ -123,7 +160,7 @@ SENSOR_TYPES = {
     ],
     "wind_direction": [
         "Wind Direction",
-        None,
+        SensorDeviceClass.WIND_DIRECTION,
         DEGREE,
         "mdi:compass-outline",
         False,
@@ -132,7 +169,7 @@ SENSOR_TYPES = {
     ],
     "wind_gusts": [
         "Wind Gusts",
-        None,
+        SensorDeviceClass.WIND_SPEED,
         UnitOfSpeed.KILOMETERS_PER_HOUR,
         "mdi:weather-windy",
         False,
@@ -141,7 +178,7 @@ SENSOR_TYPES = {
     ],
     "precipitation": [
         "Precipitation",
-        None,
+        SensorDeviceClass.PRECIPITATION_INTENSITY,
         UnitOfVolumetricFlux.MILLIMETERS_PER_HOUR,
         "mdi:weather-rainy",
         False,
@@ -159,7 +196,7 @@ SENSOR_TYPES = {
     ],
     "precipitation_duration": [
         "Precipitation Duration",
-        None,
+        SensorDeviceClass.DURATION,
         UnitOfTime.SECONDS,
         "mdi:weather-rainy",
         False,
@@ -177,7 +214,7 @@ SENSOR_TYPES = {
     ],
     "visibility": [
         "Visibility",
-        None,
+        SensorDeviceClass.DISTANCE,
         UnitOfLength.KILOMETERS,
         "mdi:eye",
         False,
@@ -186,7 +223,7 @@ SENSOR_TYPES = {
     ],
     "sun_duration": [
         "Sun Duration",
-        None,
+        SensorDeviceClass.DURATION,
         UnitOfTime.SECONDS,
         "mdi:weather-sunset",
         False,
@@ -195,7 +232,7 @@ SENSOR_TYPES = {
     ],
     "sun_irradiance": [
         "Sun Irradiance",
-        None,
+        SensorDeviceClass.IRRADIANCE,
         UnitOfIrradiance.WATTS_PER_SQUARE_METER,
         "mdi:weather-sunny-alert",
         False,
@@ -222,8 +259,8 @@ SENSOR_TYPES = {
     ],
     "humidity_absolute": [
         "Absolute Humidity",
-        None,
-        "g/m³",
+        SensorDeviceClass.ABSOLUTE_HUMIDITY,
+        CONCENTRATION_GRAMS_PER_CUBIC_METER,
         "mdi:water",
         False,
         SensorStateClass.MEASUREMENT,
@@ -231,8 +268,8 @@ SENSOR_TYPES = {
     ],
     "measured_values_time": [
         "Report Time",
-        "",
-        "",
+        SensorDeviceClass.TIMESTAMP,
+        None,
         "mdi:clock-time-four-outline",
         True,
         None,
@@ -240,8 +277,8 @@ SENSOR_TYPES = {
     ],
     "forecast_values_time": [
         "Forecast Time",
-        "",
-        "",
+        SensorDeviceClass.TIMESTAMP,
+        None,
         "mdi:clock-time-four-outline",
         True,
         None,
@@ -249,26 +286,26 @@ SENSOR_TYPES = {
     ],
     "uv_index": [
         "UV-Index",
-        "",
-        "",
+        None,
+        None,
         "mdi:sun-wireless",
         False,
-        None,
+        SensorStateClass.MEASUREMENT,
         True,
     ],
     "evaporation": [
         "Evaporation",
-        "",
+        None,
         "kg/m²",
         "mdi:waves-arrow-up",
         False,
-        None,
+        SensorStateClass.MEASUREMENT,
         False,
     ],
     "airquality_stickstoffdioxid": [
         "Air Quality Stickstoffdioxid",
-        None,
-        "µg/m³",
+        SensorDeviceClass.NITROGEN_DIOXIDE,
+        CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
         "mdi:molecule-co2",
         False,
         SensorStateClass.MEASUREMENT,
@@ -276,8 +313,8 @@ SENSOR_TYPES = {
     ],
     "airquality_ozon": [
         "Air Quality Ozon",
-        None,
-        "µg/m³",
+        SensorDeviceClass.OZONE,
+        CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
         "mdi:molecule-co2",
         False,
         SensorStateClass.MEASUREMENT,
@@ -285,8 +322,8 @@ SENSOR_TYPES = {
     ],
     "airquality_pm2_5": [
         "Air Quality PM2.5",
-        None,
-        "µg/m³",
+        SensorDeviceClass.PM25,
+        CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
         "mdi:molecule-co2",
         False,
         SensorStateClass.MEASUREMENT,
@@ -294,8 +331,8 @@ SENSOR_TYPES = {
     ],
     "airquality_pm10": [
         "Air Quality PM10",
-        None,
-        "µg/m³",
+        SensorDeviceClass.PM10,
+        CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
         "mdi:molecule-co2",
         False,
         SensorStateClass.MEASUREMENT,
@@ -303,7 +340,7 @@ SENSOR_TYPES = {
     ],
     "radar_precipitation_now": [
         "Radar Precipitation Now",
-        None,
+        SensorDeviceClass.PRECIPITATION_INTENSITY,
         UnitOfVolumetricFlux.MILLIMETERS_PER_HOUR,
         "mdi:weather-rainy",
         True,
@@ -495,6 +532,13 @@ class DWDWeatherForecastSensor(DWDWeatherEntity, SensorEntity):
     def state_class(self):
         """Return the state class of the sensor."""
         return SENSOR_TYPES[self._type][5]
+
+    @property
+    def options(self):
+        """Return valid options for enum sensors."""
+        if self._type == "weather_condition":
+            return WEATHER_CONDITION_OPTIONS
+        return None
 
     @property
     def extra_state_attributes(self):

@@ -15,7 +15,7 @@ from homeassistant.const import Platform
 # Warp Core Identity @starfleet-engineering
 DOMAIN = "solar_forecast_ml"
 NAME = "Solar Forecast ML"
-VERSION = "20.4.0"
+VERSION = "26.2.8"
 SOFTWARE_VERSION = VERSION
 AI_VERSION = "8.0 TFS"
 INTEGRATION_MODEL = "Solar Forecast ML V20"
@@ -121,6 +121,18 @@ MPPT_CLEAR_SKY_GHI_THRESHOLD = 400
 MPPT_CLEAR_SKY_CLOUDS_MAX = 30
 THROTTLE_REASON_FULL_BATTERY = "full_battery_zero_export"
 THROTTLE_REASON_ZERO_EXPORT = "zero_export_limited"
+THROTTLE_REASON_SUSPECTED_BATTERY_CURTAILMENT = "suspected_battery_curtailment"
+THROTTLE_REASON_DEMAND_LIMITED_ZERO_EXPORT = "demand_limited_zero_export"
+CURTAILMENT_QUARANTINE_GHI_MIN = 400.0
+CURTAILMENT_QUARANTINE_CLOUDS_MAX = 35.0
+CURTAILMENT_QUARANTINE_RATIO_MAX = 0.75
+CURTAILMENT_TRANSITION_RATIO_MAX = 0.70
+CURTAILMENT_FLOW_LOW_BATTERY_W = 50.0
+CURTAILMENT_FLOW_MIN_HOUSE_W = 50.0
+CURTAILMENT_FLOW_HOUSE_MATCH_RATIO = 0.90
+CURTAILMENT_FLOW_HOUSE_MATCH_SHARE = 0.50
+CURTAILMENT_FLOW_MIN_SAMPLES = 3
+CURTAILMENT_TRANSITION_AVG_BATTERY_W = 200.0
 
 # Meta-Luminal Configuration @starfleet-engineering
 CONF_ML_ALGORITHM = "ml_algorithm"
@@ -218,6 +230,8 @@ SERVICE_RUN_ALL_DAY_END_TASKS = "run_all_day_end_tasks"
 SERVICE_TEST_MORNING_ROUTINE = "test_morning_routine"
 SERVICE_TEST_RETROSPECTIVE_FORECAST = "test_retrospective_forecast"
 SERVICE_RUN_ADAPTIVE_FORECAST = "run_adaptive_forecast"
+SERVICE_RUN_OPERATIONAL_REFORECAST = "run_operational_reforecast"
+SERVICE_SET_OPERATIONAL_REFORECAST_MODE = "set_operational_reforecast_mode"
 
 # Stellar Cartography Services @starfleet-engineering
 SERVICE_BUILD_ASTRONOMY_CACHE = "build_astronomy_cache"
@@ -232,6 +246,14 @@ SERVICE_SEND_DAILY_BRIEFING = "send_daily_briefing"
 
 # Subspace Anomaly Services @starfleet-engineering V16.2
 SERVICE_BACKFILL_SHADOW_DETECTION = "backfill_shadow_detection"
+
+# Repair Services @starfleet-engineering
+SERVICE_REPAIR_TOOL = "repair_tool"
+
+OPERATIONAL_REFORECAST_MODE_STANDARD = "standard"
+OPERATIONAL_REFORECAST_MODE_STANDARD_MIDDAY = "standard_midday"
+OPERATIONAL_REFORECAST_MODE_STANDARD_MIDDAY_AFTERNOON = "standard_midday_afternoon"
+OPERATIONAL_REFORECAST_MODE_CUSTOM_TIME = "custom_time"
 
 
 # Display Icons @starfleet-engineering

@@ -5,20 +5,20 @@
       "weather_condition": {
         "name": "Warunki pogodowe",
         "state": {
-          "clear-night": "[%key:component::weather::entity_component::_::state::clear-night%]",
-          "cloudy": "[%key:component::weather::entity_component::_::state::cloudy%]",
-          "fog": "[%key:component::weather::entity_component::_::state::fog%]",
-          "hail": "[%key:component::weather::entity_component::_::state::hail%]",
-          "lightning": "[%key:component::weather::entity_component::_::state::lightning%]",
-          "lightning-rainy": "[%key:component::weather::entity_component::_::state::lightning-rainy%]",
-          "partlycloudy": "[%key:component::weather::entity_component::_::state::partlycloudy%]",
-          "pouring": "[%key:component::weather::entity_component::_::state::pouring%]",
-          "rainy": "[%key:component::weather::entity_component::_::state::rainy%]",
-          "snowy": "[%key:component::weather::entity_component::_::state::snowy%]",
-          "snowy-rainy": "[%key:component::weather::entity_component::_::state::snowy-rainy%]",
-          "sunny": "[%key:component::weather::entity_component::_::state::sunny%]",
-          "windy": "[%key:component::weather::entity_component::_::state::windy%]",
-          "windy-variant": "[%key:component::weather::entity_component::_::state::windy-variant%]"
+          "clear-night": "Czysta noc",
+          "cloudy": "Pochmurnie",
+          "fog": "Mgła",
+          "hail": "Grad",
+          "lightning": "Błyskawica",
+          "lightning-rainy": "Błyskawica i deszcz",
+          "partlycloudy": "Częściowo pochmurnie",
+          "pouring": "Ulewny deszcz",
+          "rainy": "Deszczowo",
+          "snowy": "Śnieżnie",
+          "snowy-rainy": "Śnieg i deszcz",
+          "sunny": "Słonecznie",
+          "windy": "Wietrznie",
+          "windy-variant": "Wietrznie variant"
         }
       },
       "weather_report": {
@@ -142,6 +142,8 @@
           "download_apparent_temperature": "Pobieraj wartości temperatury odczuwalnej",
           "download_airquality": "Pobieraj wartości jakości powietrza",
           "download_precipitation_sensors": "Włącz radarowe czujniki opadów",
+          "radar_custom_location": "Użyj własnej lokalizacji dla opadów radarowych",
+          "radar_location_coordinates": "Lokalizacja dla opadów radarowych",
           "sensor_forecast_steps": "Ogranicz dostępne kroki prognozy w atrybutach czujnika",
           "additional_forecast_attributes": "Aktywuj dodatkowe atrybuty prognozy",
           "daily_temp_high_precision": "Użyj wyższej precyzji wyświetlania dla dziennych temperatur"
@@ -154,9 +156,23 @@
           "download_apparent_temperature": "Pobiera wartości temperatury odczuwalnej wraz ze standardowymi danymi pogodowymi.",
           "download_airquality": "Pobiera wartości jakości powietrza wraz ze standardowymi danymi pogodowymi.",
           "download_precipitation_sensors": "Pobiera krótkoterminowe radarowe wartości opadów i aktywuje dedykowane czujniki opadów.",
+          "radar_custom_location": "Domyślnie dane opadów radarowych są pobierane dla współrzędnych wybranej stacji pogodowej. Włącz tę opcję, aby zamiast tego użyć własnej lokalizacji.",
+          "radar_location_coordinates": "Przesuń znacznik na lokalizację, dla której mają być pobierane dane opadów radarowych. Wstępnie wypełnione lokalizacją domu.",
           "sensor_forecast_steps": "Może to być przydatne, jeśli używasz tylko ograniczonej liczby kroków prognozowania i chcesz zwiększyć przejrzystość atrybutów czujnika.",
           "additional_forecast_attributes": "Spowoduje to dodanie do obiektu pogodowego dodatkowych atrybutów prognozy, takich jak prawdopodobieństwo wystąpienia mgły, parowania, czasu trwania nasłonecznienia itp.",
           "daily_temp_high_precision": "Zwiększy to dokładność wyświetlania dziennych wartości maksymalnej i minimalnej temperatury do miejsc dziesiętnych."
+        }
+      },
+      "station_configure_radar_location": {
+        "title": "Konfiguracja lokalizacji radaru",
+        "description": "Ustaw własną lokalizację dla danych opadów radarowych.",
+        "data": {
+          "radar_custom_location": "Użyj własnej lokalizacji dla opadów radarowych",
+          "radar_location_coordinates": "Lokalizacja dla opadów radarowych"
+        },
+        "data_description": {
+          "radar_custom_location": "Domyślnie dane opadów radarowych są pobierane dla współrzędnych wybranej stacji pogodowej. Włącz tę opcję, aby zamiast tego użyć własnej lokalizacji.",
+          "radar_location_coordinates": "Przesuń znacznik na lokalizację, dla której mają być pobierane dane opadów radarowych. Wstępnie wypełnione lokalizacją domu."
         }
       },
       "select_map_type": {
@@ -219,6 +235,8 @@
           "download_apparent_temperature": "Pobieraj wartości temperatury odczuwalnej",
           "download_airquality": "Pobieraj wartości jakości powietrza",
           "download_precipitation_sensors": "Włącz radarowe czujniki opadów",
+          "radar_custom_location": "Użyj własnej lokalizacji dla opadów radarowych",
+          "radar_location_coordinates": "Lokalizacja dla opadów radarowych",
           "sensor_forecast_steps": "Ogranicz dostępne kroki prognozy w atrybutach czujnika",
           "map_options_message": "Niedostępne ustawienie",
           "map_background_type": "Co powinno być wyświetlane w tle?",
@@ -239,12 +257,26 @@
           "download_apparent_temperature": "Pobiera wartości temperatury odczuwalnej wraz ze standardowymi danymi pogodowymi.",
           "download_airquality": "Pobiera wartości jakości powietrza wraz ze standardowymi danymi pogodowymi.",
           "download_precipitation_sensors": "Pobiera krótkoterminowe radarowe wartości opadów i aktywuje dedykowane czujniki opadów.",
+          "radar_custom_location": "Domyślnie dane opadów radarowych są pobierane dla współrzędnych wybranej stacji pogodowej. Włącz tę opcję, aby zamiast tego użyć własnej lokalizacji.",
+          "radar_location_coordinates": "Przesuń znacznik na lokalizację, dla której mają być pobierane dane opadów radarowych.",
           "map_options_message": "W tej chwili nie można skonfigurować wykresu. Usuń ten element i dodaj go ponownie z żądanymi ustawieniami.",
           "map_loop_count": "Obraz radarowy jest dostarczany co 5 minut. Oznacza to, że przez 30 minut w pętli będzie wyświetlanych 6 obrazów. Ta wartość odnosi się do ostatniego dostępnego obrazu.",
           "map_loop_speed": "Wartość ta określa, jak długo wyświetlany jest każdy obraz przed przejściem do następnego.",
           "sensor_forecast_steps": "Może to być przydatne, jeśli używasz tylko ograniczonej liczby kroków prognozowania i chcesz zwiększyć przejrzystość atrybutów czujnika.",
           "additional_forecast_attributes": "Spowoduje to dodanie do obiektu pogodowego dodatkowych atrybutów prognozy, takich jak prawdopodobieństwo wystąpienia mgły, parowania, czasu trwania nasłonecznienia itp.",
           "daily_temp_high_precision": "Zwiększy to dokładność wyświetlania dziennych wartości maksymalnej i minimalnej temperatury do miejsc dziesiętnych."
+        }
+      },
+      "station_radar_location": {
+        "title": "Konfiguracja lokalizacji radaru",
+        "description": "Ustaw własną lokalizację dla danych opadów radarowych.",
+        "data": {
+          "radar_custom_location": "Użyj własnej lokalizacji dla opadów radarowych",
+          "radar_location_coordinates": "Lokalizacja dla opadów radarowych"
+        },
+        "data_description": {
+          "radar_custom_location": "Domyślnie dane opadów radarowych są pobierane dla współrzędnych wybranej stacji pogodowej. Włącz tę opcję, aby zamiast tego użyć własnej lokalizacji.",
+          "radar_location_coordinates": "Przesuń znacznik na lokalizację, dla której mają być pobierane dane opadów radarowych. Wstępnie wypełnione lokalizacją domu."
         }
       },
       "homemarker": {

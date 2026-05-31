@@ -34,6 +34,8 @@ from .const import (
     CONF_SENSOR_FORECAST_STEPS,
     CONF_LOCATION_COORDINATES,
     CONF_CUSTOM_LOCATION,
+    CONF_RADAR_CUSTOM_LOCATION,
+    CONF_RADAR_LOCATION_COORDINATES,
     CONF_MAP_BACKGROUND_TYPE,
     CONF_MAP_DARK_MODE,
     CONF_MAP_FOREGROUND_MAXTEMP,
@@ -260,6 +262,11 @@ class DWDWeatherConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors = {"base": "already_configured"}
             else:
                 self.config_data.update(user_input)
+                if user_input[CONF_DOWNLOAD_PRECIPITATION_SENSORS]:
+                    return await self.async_step_station_configure_radar_location()
+
+                self.config_data[CONF_RADAR_CUSTOM_LOCATION] = False
+                self.config_data.pop(CONF_RADAR_LOCATION_COORDINATES, None)
                 # The data is the data which is picked up by the async_setup_entry in sensor or weather
                 return self.async_create_entry(title=station_id, data=self.config_data)
 
@@ -331,6 +338,43 @@ class DWDWeatherConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id="station_configure", data_schema=data_schema, errors=errors
+        )
+
+    async def async_step_station_configure_radar_location(self, user_input=None):
+        """Configure optional custom radar location coordinates."""
+        if user_input is not None:
+            self.config_data.update(user_input)
+            if not user_input[CONF_RADAR_CUSTOM_LOCATION]:
+                self.config_data.pop(CONF_RADAR_LOCATION_COORDINATES, None)
+            station_id = f"{self.config_data[CONF_STATION_ID]}: {self.config_data[CONF_STATION_NAME]}"
+            return self.async_create_entry(title=station_id, data=self.config_data)
+
+        data_schema = vol.Schema(
+            {
+                vol.Required(
+                    CONF_RADAR_CUSTOM_LOCATION,
+                    default=self.config_data.get(
+                        CONF_RADAR_CUSTOM_LOCATION,
+                        False,
+                    ),
+                ): BooleanSelector({}),
+                vol.Optional(
+                    CONF_RADAR_LOCATION_COORDINATES,
+                    default=self.config_data.get(
+                        CONF_RADAR_LOCATION_COORDINATES,
+                        {
+                            "latitude": self.hass.config.latitude,
+                            "longitude": self.hass.config.longitude,
+                        },
+                    ),
+                ): LocationSelector({}),
+            }
+        )
+
+        return self.async_show_form(
+            step_id="station_configure_radar_location",
+            data_schema=data_schema,
+            errors={},
         )
 
     async def async_step_select_map_type(self, user_input=None):
@@ -627,9 +671,17 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 user_input[CONF_STATION_NAME] = self.config_entry.data[
                     CONF_STATION_NAME
                 ]
-                user_input[CONF_CUSTOM_LOCATION] = self.config_entry.data[
-                    CONF_CUSTOM_LOCATION
-                ]
+                user_input[CONF_CUSTOM_LOCATION] = self.config_entry.data.get(
+                    CONF_CUSTOM_LOCATION,
+                    False,
+                )
+
+                if user_input[CONF_DOWNLOAD_PRECIPITATION_SENSORS]:
+                    self.config_data = user_input
+                    return await self.async_step_station_radar_location()
+
+                user_input[CONF_RADAR_CUSTOM_LOCATION] = False
+                user_input.pop(CONF_RADAR_LOCATION_COORDINATES, None)
                 self.hass.config_entries.async_update_entry(
                     self.config_entry,
                     data=user_input,
@@ -827,6 +879,45 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 step_id="init",
                 data_schema=data_schema,
             )
+
+    async def async_step_station_radar_location(self, user_input=None) -> FlowResult:  # type: ignore
+        """Manage optional custom radar location coordinates for station entities."""
+        if user_input is not None:
+            self.config_data.update(user_input)
+            if not user_input[CONF_RADAR_CUSTOM_LOCATION]:
+                self.config_data.pop(CONF_RADAR_LOCATION_COORDINATES, None)
+            self.hass.config_entries.async_update_entry(
+                self.config_entry,
+                data=self.config_data,
+                options=self.config_entry.options,
+            )
+            return self.async_create_entry(title="", data=self.config_data)
+
+        data_schema = vol.Schema(
+            {
+                vol.Required(
+                    CONF_RADAR_CUSTOM_LOCATION,
+                    default=self.config_entry.data.get(
+                        CONF_RADAR_CUSTOM_LOCATION,
+                        False,
+                    ),
+                ): BooleanSelector({}),
+                vol.Optional(
+                    CONF_RADAR_LOCATION_COORDINATES,
+                    default=self.config_entry.data.get(
+                        CONF_RADAR_LOCATION_COORDINATES,
+                        {
+                            "latitude": self.hass.config.latitude,
+                            "longitude": self.hass.config.longitude,
+                        },
+                    ),
+                ): LocationSelector({}),
+            }
+        )
+        return self.async_show_form(
+            step_id="station_radar_location",
+            data_schema=data_schema,
+        )
 
     async def async_step_homemarker(self, user_input=None) -> FlowResult:  # type: ignore
         """Manage the options for the homemarker."""
