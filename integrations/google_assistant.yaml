@@ -1,0 +1,14 @@
+google_assistant:
+  project_id: suthfeld
+  service_account:
+    private_key: !secret google_home_sa_private_key
+    client_email: !secret google_home_sa_email
+  report_state: true
+  exposed_domains:
+    - switch
+    - light
+    - climate
+    - cover
+    - lock
+    - sensor
+    - vacuum
