@@ -243,19 +243,28 @@ class XSenseBase:
             )
 
     def parse_get_state(self, station: Station, data: Dict):
-        if "wifiRSSI" in data:
-            station.data["wifiRSSI"] = data["wifiRSSI"]
+        station_data = data.copy()
+        children = station_data.pop("devs", {}) or {}
 
-        station.has_alarm = data.get("activate") == "1"
+        if _apply_group_light_state(station, station_data, children):
+            return
 
-        for sn, i in data.get("devs", {}).items():
-            if dev := station.get_device_by_sn(sn):
-                dev.set_data(i)
+        has_alarm_status = "alarmStatus" in station_data or "a" in station_data
+        if station_data:
+            station.set_data(station_data)
+
+        station.has_alarm = _is_active_state(data.get("activate")) or (
+            has_alarm_status and _is_active_state(station.data.get("alarmStatus"))
+        )
+        if isinstance(children, dict):
+            for sn, i in children.items():
+                if dev := station.get_device_by_sn(sn):
+                    dev.set_data(i)
 
     def _parse_get_house_state(self, house: House, data: Dict):
         for sn, i in data.items():
             if station := house.get_station_by_sn(sn):
-                station.set_data(i)
+                self.parse_get_state(station, i)
 
     def has_action(self, entity: Entity, action: str):
         if entity_def := entities.get(entity.type):
@@ -265,37 +274,34 @@ class XSenseBase:
         return False
 
 
-def _is_smoke_v9(station: Station) -> bool:
-    try:
-        return int(station.data.get("smokeEdition", 0)) >= 9
-    except (TypeError, ValueError):
+def _apply_group_light_state(station: Station, station_data: Dict, children) -> bool:
+    group_id = station_data.get("groupId")
+    if group_id is None:
         return False
+
+    group = station.get_group_device(group_id)
+    if group is None:
+        return False
+
+    group_data = station_data.copy()
+    if "isOn" in group_data:
+        group_data["on"] = group_data["isOn"]
+    if isinstance(children, list):
+        group_data["devs"] = children
+    group.set_data(group_data)
+    return True
+
+
+def _is_active_state(value) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return value == 1
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "on", "active", "alarm"}
+    return False
 
 
 def _thing_name(station: Station) -> str:
     """Return the AWS IoT thing name used by the X-Sense app."""
-    if station.type == "SBS10":
-        return station.sn
-    if station.type == "XS01-WX":
-        separator = "-" if _is_smoke_v9(station) else ""
-        return f"{station.type}{separator}{station.sn}"
-    if station.type in _DASHED_WIFI_THING_TYPES:
-        return f"{station.type}-{station.sn}"
-    return f"{station.type}{station.sn}"
-
-
-_DASHED_WIFI_THING_TYPES = {
-    "SC06-WX",
-    "SC07-WX",
-    "STH0C",
-    "SWS0A",
-    "SWS0B",
-    "XC04-WX",
-    "XC0C-iA",
-    "XC0C-iR",
-    "XC0M-iR",
-    "XP0A-iR",
-    "XP0H-iR",
-    "XP0J-iA",
-    "XS0R-iA",
-}
+    return station.shadow_name

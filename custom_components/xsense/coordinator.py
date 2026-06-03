@@ -17,6 +17,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from homeassistant.util.logging import catch_log_exception
 
 from .api import AsyncXSense, House
+from .api.async_xsense import is_camera_entity
 from .api.exceptions import APIFailure, AuthFailed, NotFoundError, SessionExpired
 from .const import (
     DEFAULT_SCAN_INTERVAL,
@@ -213,8 +214,9 @@ class XSenseDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 with suppress(NotFoundError):
                     await self.xsense.get_house_state(h)
                 for s in h.stations.values():
-                    await self.xsense.get_station_state(s)
-                    await self.xsense.get_state(s)
+                    if not is_camera_entity(s):
+                        await self.xsense.get_station_state(s)
+                        await self.xsense.get_state(s)
                     if s.type == "SBS50":
                         await self._update_safe_mode(s)
                     devices.update(s.devices.items())
@@ -303,9 +305,12 @@ class XSenseDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         station_data = _mqtt_reported_data(data)
 
-        station = self._get_station_by_id(station_data.get("stationSN"))
+        station_sn = station_data.get("stationSN") or station_data.get("_stationSN")
+        device_sn = station_data.get("deviceSN") or station_data.get("_deviceSN")
+
+        station = self._get_station_by_id(station_sn)
         if station is None:
-            station = self._get_station_by_device_sn(station_data.get("deviceSN"))
+            station = self._get_station_by_device_sn(device_sn)
 
         if station is None and isinstance(topic, str):
             parts = topic.split("/")
@@ -327,15 +332,29 @@ class XSenseDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 topic,
             )
 
-        children = station_data.pop("devs", {})
-        target_device_sn = station_data.get("deviceSN")
-        if target_device_sn and (dev := station.get_device_by_sn(target_device_sn)):
+        if _is_self_test_topic(topic) and "selfTest" in station_data:
+            station_data["lastSelfTest"] = station_data.pop("selfTest")
+            if test_time := station_data.pop("time", None):
+                station_data["lastSelfTestTime"] = test_time
+
+        children = station_data.pop("devs", {}) or {}
+        target_device_sn = station_data.get("deviceSN") or station_data.get(
+            "_deviceSN"
+        )
+        if (
+            target_device_sn
+            and target_device_sn != station.sn
+            and (dev := station.get_device_by_sn(target_device_sn))
+        ):
             dev.set_data(station_data)
         else:
+            if isinstance(children, list):
+                station_data["devs"] = children
             self.xsense.parse_get_state(station, station_data)
-        for k, v in children.items():
-            if dev := station.get_device_by_sn(k):
-                dev.set_data(v)
+        if isinstance(children, dict):
+            for k, v in children.items():
+                if dev := station.get_device_by_sn(k):
+                    dev.set_data(v)
 
         self.async_update_listeners()
 
@@ -405,7 +424,7 @@ class XSenseDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         "reportDst": "1",
                         "timeoutM": str(POLL_INTERVAL_MIN),
                         "userId": self.xsense.userid,
-                        "time": datetime.now().strftime("%Y%m%d%H%M%S"),
+                        "time": datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S"),
                         "stationSN": s.sn,
                     }
                 }
@@ -440,3 +459,15 @@ def _mqtt_reported_data(data: dict[str, Any]) -> dict[str, Any]:
         return result
 
     return {}
+
+
+def _is_self_test_topic(topic: str) -> bool:
+    """Return if an MQTT update is an X-Sense self-test report topic."""
+    return any(
+        marker in topic
+        for marker in (
+            "_testup/update",
+            "selftestup/update",
+            "selftestup_v2/update",
+        )
+    )

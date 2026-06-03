@@ -17,7 +17,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN, MANUFACTURER
-from .coordinator import XSenseDataUpdateCoordinator, _apply_safe_mode
+from .coordinator import XSenseDataUpdateCoordinator
 
 LOGGER = logging.getLogger(__name__)
 
@@ -85,7 +85,6 @@ class XSenseAlarmControlPanel(
             "name": station.name,
             "manufacturer": MANUFACTURER,
             "model": station.type,
-            "serial_number": station.sn,
         }
         self._safemode: str | None = None
 
@@ -96,8 +95,12 @@ class XSenseAlarmControlPanel(
 
     @property
     def available(self) -> bool:
-        """Return if the alarm control panel is available."""
-        return self._station is not None and super().available
+        """Return if the alarm control panel can be used."""
+        station = self._station
+        if station is None:
+            return False
+
+        return station.online is True and super().available
 
     @property
     def alarm_state(self) -> AlarmControlPanelState | None:
@@ -183,7 +186,7 @@ class XSenseAlarmControlPanel(
                 "Station %s cannot set safeMode because MQTT is not connected",
                 station.sn,
             )
-            return
+            raise HomeAssistantError("X-Sense MQTT is not connected")
 
         try:
             await mqtt.async_publish(topic, json.dumps(payload), qos=0, retain=False)
@@ -194,9 +197,6 @@ class XSenseAlarmControlPanel(
                 topic,
             )
 
-            _apply_safe_mode(station, safe_mode)
-            self.async_write_ha_state()
-
         except Exception as ex:  # noqa: BLE001
             LOGGER.exception(
                 "Could not set safeMode %s for station %s: %s",
@@ -204,3 +204,4 @@ class XSenseAlarmControlPanel(
                 station.sn,
                 ex,
             )
+            raise HomeAssistantError("Could not publish X-Sense safe mode command") from ex

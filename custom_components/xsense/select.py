@@ -12,7 +12,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .api.async_xsense import CAMERA_TYPES
+from .api.async_xsense import is_camera_entity
 from .api.device import Device
 from .api.entity import Entity
 from .const import DOMAIN
@@ -23,16 +23,19 @@ from .entity import XSenseEntity
 def has_data(*keys: str) -> Callable[[Entity], bool]:
     """Return an exists function for required X-Sense data keys."""
     return lambda entity: (
-        all(key in entity.data for key in keys) and entity.data.get("isAdmin", True)
+        is_camera_entity(entity)
+        and all(key in entity.data for key in keys)
+        and entity.data.get("isAdmin") is True
     )
 
 
 def has_supported_data(*keys: str, support_key: str) -> Callable[[Entity], bool]:
     """Return if the app exposes a supported camera setting."""
     return lambda entity: (
-        all(key in entity.data for key in keys)
-        and entity.data.get("isAdmin", True)
-        and entity.data.get(support_key, True)
+        is_camera_entity(entity)
+        and all(key in entity.data for key in keys)
+        and entity.data.get("isAdmin") is True
+        and entity.data.get(support_key) is True
     )
 
 
@@ -41,6 +44,24 @@ def option_strings(value) -> list[str]:
     if not isinstance(value, list):
         return []
     return [str(item) for item in value if item is not None]
+
+
+def _required_bool_state(value) -> bool:
+    """Return an explicit X-Sense boolean value or raise if it is unknown."""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, int):
+        if value == 1:
+            return True
+        if value == 0:
+            return False
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"1", "true", "on"}:
+            return True
+        if normalized in {"0", "false", "off"}:
+            return False
+    raise HomeAssistantError("X-Sense cooldown enabled state is unknown")
 
 
 @dataclass(kw_only=True, frozen=True)
@@ -108,9 +129,10 @@ SELECTS: tuple[XSenseSelectEntityDescription, ...] = (
         name="Default Codec",
         icon="mdi:video-settings",
         exists_fn=lambda entity: (
-            "defaultCodec" in entity.data
-            and entity.data.get("isAdmin", True)
-            and entity.data.get("showCodecChange", False)
+            is_camera_entity(entity)
+            and "defaultCodec" in entity.data
+            and entity.data.get("isAdmin") is True
+            and entity.data.get("showCodecChange") is True
         ),
     ),
     XSenseSelectEntityDescription(
@@ -141,11 +163,12 @@ SELECTS: tuple[XSenseSelectEntityDescription, ...] = (
         name="Cooldown",
         icon="mdi:timer-sand",
         exists_fn=lambda entity: (
-            "cooldownValue" in entity.data
-            and entity.data.get("isAdmin", True)
+            is_camera_entity(entity)
+            and "cooldownValue" in entity.data
+            and entity.data.get("isAdmin") is True
             and "cooldownOptions" in entity.data
-            and entity.data.get("cooldownSupported", True)
-            and entity.data.get("supportPirCooldown", True)
+            and entity.data.get("cooldownSupported") is True
+            and entity.data.get("supportPirCooldown") is True
         ),
     ),
     XSenseSelectEntityDescription(
@@ -190,7 +213,7 @@ async def async_setup_entry(
         devices.extend(
             XSenseSelectEntity(coordinator, station, description)
             for description in SELECTS
-            if station.type in CAMERA_TYPES and description.exists_fn(station)
+            if is_camera_entity(station) and description.exists_fn(station)
         )
 
     async_add_entities(devices)
@@ -211,6 +234,11 @@ class XSenseSelectEntity(XSenseEntity, SelectEntity):
         self.entity_description = entity_description
         self._attr_available = False
         super().__init__(coordinator, entity)
+
+    @property
+    def available(self) -> bool:
+        """Return if this control can be used."""
+        return self._current_entity_is_online()
 
     @property
     def options(self) -> list[str]:
@@ -248,7 +276,7 @@ class XSenseSelectEntity(XSenseEntity, SelectEntity):
         elif self.entity_description.addx_key == "cooldown.value":
             await self.coordinator.xsense.update_camera_cooldown(
                 entity,
-                user_enable=bool(entity.data.get("cooldownEnabled")),
+                user_enable=_required_bool_state(entity.data.get("cooldownEnabled")),
                 value=int(_typed_option(option)),
             )
         elif self.entity_description.addx_key.startswith("audio."):

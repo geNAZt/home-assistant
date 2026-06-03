@@ -2,23 +2,24 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from .api.entity import Entity
 
 from homeassistant.const import ATTR_VIA_DEVICE
-from homeassistant.helpers.device_registry import (
-    CONNECTION_BLUETOOTH,
-    CONNECTION_NETWORK_MAC,
-    DeviceInfo,
-)
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN, MANUFACTURER
-from .coordinator import XSenseDataUpdateCoordinator
+
+if TYPE_CHECKING:
+    from .coordinator import XSenseDataUpdateCoordinator
+
 
 OFFLINE_STATES = {False, 0, "0", "false", "False", "offline", "Offline"}
 
 
-class XSenseEntity(CoordinatorEntity[XSenseDataUpdateCoordinator]):
+class XSenseEntity(CoordinatorEntity):
     """Represent a XSense Entity."""
 
     _attr_has_entity_name = True
@@ -40,17 +41,9 @@ class XSenseEntity(CoordinatorEntity[XSenseDataUpdateCoordinator]):
             ).lower()
         )
 
-        connections = set()
-        if "mac" in entity.data and entity.data["mac"]:
-            connections.add((CONNECTION_NETWORK_MAC, entity.data["mac"]))
-        if "macBT" in entity.data and entity.data["macBT"]:
-            connections.add((CONNECTION_BLUETOOTH, entity.data["macBT"]))
-
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, entity.entity_id)},
-            connections=connections,
             manufacturer=MANUFACTURER,
-            serial_number=entity.sn,
             model=entity.type,
             name=entity.name,
         )
@@ -71,11 +64,15 @@ class XSenseEntity(CoordinatorEntity[XSenseDataUpdateCoordinator]):
         self._handle_coordinator_update()
         await super().async_added_to_hass()
 
-    @property
-    def available(self) -> bool:
-        """Return if entity is available."""
+    def _current_entity_is_online(self) -> bool:
+        """Return if the current X-Sense entity is online."""
         entity = self._current_entity()
         if entity is None:
             return False
 
-        return entity.online not in OFFLINE_STATES and super().available
+        return entity.online is True and super().available
+
+    @property
+    def available(self) -> bool:
+        """Return if entity data is available."""
+        return self._current_entity() is not None and super().available

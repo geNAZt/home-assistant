@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 
 from .api.device import Device
 from .api.entity import Entity
-from .api.async_xsense import CAMERA_TYPES
+from .api.async_xsense import _camera_config_write_value, is_camera_entity
 
 from homeassistant import config_entries
 from homeassistant.components.switch import SwitchEntity, SwitchEntityDescription
@@ -22,11 +22,23 @@ from .coordinator import XSenseDataUpdateCoordinator
 from .entity import XSenseEntity
 
 
-def boolean_state(value) -> bool:
-    """Return the normalized bool for common X-Sense boolean payload values."""
+def boolean_state(value) -> bool | None:
+    """Return the normalized state for explicit X-Sense boolean payload values."""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, int):
+        if value == 1:
+            return True
+        if value == 0:
+            return False
+        return None
     if isinstance(value, str):
-        return value == "1"
-    return bool(value)
+        normalized = value.strip().lower()
+        if normalized in {"1", "true", "on"}:
+            return True
+        if normalized in {"0", "false", "off"}:
+            return False
+    return None
 
 
 def on_off_value(value: bool) -> str:
@@ -41,19 +53,24 @@ def has_data(key: str) -> Callable[[Entity], bool]:
 
 def has_camera_data(key: str) -> Callable[[Entity], bool]:
     """Return if the app exposes an admin-only camera setting."""
-    return lambda entity: key in entity.data and entity.data.get("isAdmin", True)
+    return lambda entity: (
+        is_camera_entity(entity)
+        and key in entity.data
+        and entity.data.get("isAdmin") is True
+    )
 
 
 def has_supported_data(key: str, support_key: str) -> Callable[[Entity], bool]:
     """Return if the app exposes a supported camera setting."""
     return lambda entity: (
-        key in entity.data
-        and entity.data.get("isAdmin", True)
-        and entity.data.get(support_key, True)
+        is_camera_entity(entity)
+        and key in entity.data
+        and entity.data.get("isAdmin") is True
+        and entity.data.get(support_key) is True
     )
 
 
-def data_bool(key: str) -> Callable[[Entity], bool]:
+def data_bool(key: str) -> Callable[[Entity], bool | None]:
     """Return a value function for an X-Sense boolean data key."""
     return lambda entity: boolean_state(entity.data[key])
 
@@ -72,7 +89,7 @@ class XSenseSwitchEntityDescription(SwitchEntityDescription):
 
     data_key: str
     exists_fn: Callable[[Entity], bool]
-    value_fn: Callable[[Entity], bool]
+    value_fn: Callable[[Entity], bool | None]
     read_key: str | None = None
     addx_key: str | None = None
     write_value_fn: Callable[[bool], str] = on_off_value
@@ -87,6 +104,18 @@ SWITCHES: tuple[XSenseSwitchEntityDescription, ...] = (
         icon="mdi:led-on",
         exists_fn=has_data("ledLight"),
         value_fn=data_bool("ledLight"),
+    ),
+    XSenseSwitchEntityDescription(
+        key="light_power",
+        data_key="on",
+        name="Light Power",
+        icon="mdi:lightbulb",
+        exists_fn=lambda entity: (
+            entity.entity_type is not None
+            and entity.entity_type.value == "light"
+            and "on" in entity.data
+        ),
+        value_fn=data_bool("on"),
     ),
     XSenseSwitchEntityDescription(
         key="alarm_enabled",
@@ -258,9 +287,12 @@ SWITCHES: tuple[XSenseSwitchEntityDescription, ...] = (
         name="Cooldown",
         icon="mdi:timer-sand",
         exists_fn=lambda entity: (
-            "cooldownEnabled" in entity.data
-            and entity.data.get("cooldownSupported", True)
-            and entity.data.get("supportPirCooldown", True)
+            is_camera_entity(entity)
+            and "cooldownEnabled" in entity.data
+            and "cooldownValue" in entity.data
+            and entity.data.get("isAdmin") is True
+            and entity.data.get("cooldownSupported") is True
+            and entity.data.get("supportPirCooldown") is True
         ),
         value_fn=data_bool("cooldownEnabled"),
     ),
@@ -400,6 +432,11 @@ class XSenseSwitchEntity(XSenseEntity, SwitchEntity):
         super().__init__(coordinator, entity, station_id)
 
     @property
+    def available(self) -> bool:
+        """Return if this control can be used."""
+        return self._current_entity_is_online()
+
+    @property
     def is_on(self) -> bool | None:
         """Return the state of the switch."""
         entity = self._current_entity()
@@ -424,12 +461,18 @@ class XSenseSwitchEntity(XSenseEntity, SwitchEntity):
             raise HomeAssistantError("X-Sense entity is no longer available")
 
         station = getattr(entity, "station", entity)
-        if entity.type in CAMERA_TYPES and self.entity_description.addx_key:
+        if self.entity_description.data_key == "on":
+            await xsense.update_light_power(entity, enabled)
+            entity.data[self.entity_description.data_key] = enabled
+            self.coordinator.async_update_listeners()
+            return
+
+        if is_camera_entity(entity) and self.entity_description.addx_key:
             if self.entity_description.addx_key == "cooldown.userEnable":
                 await xsense.update_camera_cooldown(
                     entity,
                     user_enable=enabled,
-                    value=int(entity.data.get("cooldownValue") or 10),
+                    value=int(entity.data["cooldownValue"]),
                 )
                 self.coordinator.async_update_listeners()
                 return
@@ -458,7 +501,9 @@ class XSenseSwitchEntity(XSenseEntity, SwitchEntity):
                 self.coordinator.async_update_listeners()
                 return
 
-            value = 1 if enabled else 0
+            value = _camera_config_write_value(
+                self.entity_description.addx_key, enabled
+            )
             await xsense.update_camera_config(
                 entity, **{self.entity_description.addx_key: value}
             )
@@ -470,7 +515,7 @@ class XSenseSwitchEntity(XSenseEntity, SwitchEntity):
             "deviceSN": entity.sn,
             "shadow": "infoDev",
             "stationSN": station.sn,
-            "time": datetime.now().strftime("%Y%m%d%H%M%S"),
+            "time": datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S"),
             "userId": xsense.userid,
             self.entity_description.data_key: self.entity_description.write_value_fn(
                 enabled

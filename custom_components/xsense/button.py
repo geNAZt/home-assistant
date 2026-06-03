@@ -4,14 +4,11 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from datetime import datetime
 from functools import partial
 
-from .api.async_xsense import CAMERA_TYPES
+from .api.async_xsense import is_camera_entity
 from .api.device import Device
 from .api.entity import Entity
-from .api.entity_map import entities
-from .api.exceptions import XSenseError
 
 from homeassistant import config_entries
 from homeassistant.components.button import ButtonEntity, ButtonEntityDescription
@@ -28,50 +25,7 @@ from .entity import XSenseEntity
 
 async def run_action(entity: Entity, xsense: AsyncXSense, action: str) -> None:
     """Run an XSense action for either a child device or a station entity."""
-    entity_def = entities.get(entity.type)
-    if not entity_def:
-        raise XSenseError(
-            f"Entity type {entity.type} is unknown, action {action} not possible"
-        )
-
-    action_def = next(
-        (
-            item
-            for item in entity_def.get("actions", [])
-            if item.get("action") == action
-        ),
-        None,
-    )
-    if not action_def:
-        raise XSenseError(
-            f"Action {action} is not supported for entity type {entity.type}"
-        )
-
-    topic = action_def.get("topic")
-    if callable(topic):
-        topic = topic(entity)
-    if not topic:
-        raise XSenseError(f"Action {action} for entity type {entity.type} has no topic")
-
-    shadow = action_def["shadow"]
-    if callable(shadow):
-        shadow = shadow(entity)
-
-    station = getattr(entity, "station", entity)
-    desired = {
-        "deviceSN": entity.sn,
-        "shadow": shadow,
-        "stationSN": station.sn,
-        "time": datetime.now().strftime("%Y%m%d%H%M%S"),
-        "userId": xsense.userid,
-    }
-    desired.update(action_def.get("extra", {}))
-    action_data = action_def.get("data", {})
-    if callable(action_data):
-        action_data = action_data(entity)
-    desired.update(action_data)
-
-    await xsense.do_thing(station, topic, {"state": {"desired": desired}})
+    await xsense.action(entity, action)
 
 
 async def wake_camera(entity: Entity, xsense: AsyncXSense) -> None:
@@ -118,7 +72,7 @@ BUTTONS: tuple[XSenseButtonEntityDescription, ...] = (
         icon="mdi:power-sleep",
         entity_category=EntityCategory.CONFIG,
         exists_fn=lambda entity, xsense: (
-            entity.type in CAMERA_TYPES and entity.data.get("supportSleep", False)
+            is_camera_entity(entity) and entity.data.get("supportSleep") is True
         ),
         press_fn=wake_camera,
     ),
@@ -171,6 +125,11 @@ class XSenseButtonEntity(XSenseEntity, ButtonEntity):
         self._attr_available = False  # This overrides the default
 
         super().__init__(coordinator, entity, station_id)
+
+    @property
+    def available(self) -> bool:
+        """Return if this control can be used."""
+        return self._current_entity_is_online()
 
     async def async_press(self) -> None:
         """Press the button."""

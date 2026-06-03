@@ -82,9 +82,6 @@
           "good": "Good"
         }
       },
-      "serial_number": {
-        "name": "Serial Number"
-      },
       "sw_version": {
         "name": "Software Version"
       },
@@ -96,6 +93,31 @@
       },
       "wifi_sw": {
         "name": "Wifi Module Firmware"
+      },
+      "last_self_test": {
+        "name": "Last Self Test",
+        "state": {
+          "not_run": "Not Run",
+          "success": "Success",
+          "failed": "Failed"
+        }
+      },
+      "last_self_test_time": {
+        "name": "Last Self Test Time"
+      }
+    },
+    "number": {
+      "alarm_volume": {
+        "name": "Alarm Volume"
+      },
+      "voice_volume": {
+        "name": "Voice Volume"
+      },
+      "chirp_volume": {
+        "name": "Chirp Volume"
+      },
+      "reminder_volume": {
+        "name": "Reminder Volume"
       }
     }
   }
