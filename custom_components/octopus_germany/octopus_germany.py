@@ -19,8 +19,9 @@ _LOGGER = logging.getLogger(__name__)
 GRAPH_QL_ENDPOINT = "https://api.oeg-kraken.energy/v1/graphql/"
 ELECTRICITY_LEDGER = "ELECTRICITY_LEDGER"
 
-# Global token manager to prevent multiple instances from making redundant token requests
-_GLOBAL_TOKEN_MANAGER = None
+# Global dictionary to store token managers for each account (email)
+# This prevents redundant logins while supporting multiple accounts
+_TOKEN_MANAGERS = {}
 
 # Comprehensive query that gets all data in one go
 COMPREHENSIVE_QUERY = """
@@ -179,6 +180,28 @@ query ComprehensiveDataQuery($accountNumber: String!) {
       current
       currentState
       isSuspended
+            ... on SmartFlexVehicleStatus {
+                stateOfCharge {
+                    value
+                    timestamp
+                }
+                stateOfChargeLimit {
+                    upperSocLimit
+                    timestamp
+                    isLimitViolated
+                }
+            }
+            ... on SmartFlexChargePointStatus {
+                stateOfCharge {
+                    value
+                    timestamp
+                }
+                stateOfChargeLimit {
+                    upperSocLimit
+                    timestamp
+                    isLimitViolated
+                }
+            }
     }
     provider
     preferences {
@@ -223,6 +246,17 @@ query ComprehensiveDataQuery($accountNumber: String!) {
         current
         currentState
         isSuspended
+                ... on SmartFlexVehicleStatus {
+                    stateOfCharge {
+                        value
+                        timestamp
+                    }
+                    stateOfChargeLimit {
+                        upperSocLimit
+                        timestamp
+                        isLimitViolated
+                    }
+                }
       }
       vehicleVariant {
         model
@@ -233,6 +267,8 @@ query ComprehensiveDataQuery($accountNumber: String!) {
           node {
             start
             end
+                        stateOfChargeChange
+                        stateOfChargeFinal
             energyAdded {
               value
               unit
@@ -258,6 +294,8 @@ query ComprehensiveDataQuery($accountNumber: String!) {
           node {
             start
             end
+                        stateOfChargeChange
+                        stateOfChargeFinal
             energyAdded {
               value
               unit
@@ -557,6 +595,31 @@ query getSmartMeterUsage($accountNumber: String!, $propertyId: ID!, $date: Date!
 }
 """
 
+ELECTRICITY_15MIN_READINGS_QUERY = """
+query getSmartMeter15Min($accountNumber: String!, $propertyId: ID!, $date: Date!) {
+  account(accountNumber: $accountNumber) {
+    property(id: $propertyId) {
+      measurements(
+        utilityFilters: {electricityFilters: {readingFrequencyType: RAW_INTERVAL, readingQuality: COMBINED}}
+        startOn: $date
+        first: 96
+      ) {
+        edges {
+          node {
+            ... on IntervalMeasurementType {
+              endAt
+              startAt
+              unit
+              value
+            }
+          }
+        }
+      }
+    }
+  }
+}
+"""
+
 # Query to get vehicle device details with preference settings
 VEHICLE_DETAILS_QUERY = """
 query Vehicle($accountNumber: String = "") {
@@ -603,6 +666,8 @@ query ChargingSessions($accountNumber: String!) {
           node {
             start
             end
+                        stateOfChargeChange
+                        stateOfChargeFinal
             energyAdded {
               value
               unit
@@ -628,6 +693,8 @@ query ChargingSessions($accountNumber: String!) {
           node {
             start
             end
+                        stateOfChargeChange
+                        stateOfChargeFinal
             energyAdded {
               value
               unit
@@ -791,11 +858,15 @@ class OctopusGermany:
         self._email = email
         self._password = password
 
-        # Use global token manager to prevent redundant login attempts across instances
-        global _GLOBAL_TOKEN_MANAGER
-        if _GLOBAL_TOKEN_MANAGER is None:
-            _GLOBAL_TOKEN_MANAGER = TokenManager()
-        self._token_manager = _GLOBAL_TOKEN_MANAGER
+        # Use shared token manager for this email to prevent redundant login attempts
+        global _TOKEN_MANAGERS
+        if email not in _TOKEN_MANAGERS:
+            _TOKEN_MANAGERS[email] = TokenManager()
+            _LOGGER.debug("Created new TokenManager for %s", email)
+        else:
+            _LOGGER.debug("Reusing existing TokenManager for %s", email)
+
+        self._token_manager = _TOKEN_MANAGERS[email]
 
         # Set up the token manager refresh callback
         self._token_manager.set_refresh_callback(self.login)
@@ -1152,6 +1223,21 @@ class OctopusGermany:
                                 for edge in edges:
                                     session = edge.get("node", {})
                                     if session:
+                                        # Normalize SoC fields to snake_case for internal consumers.
+                                        if (
+                                            "soc_final" not in session
+                                            and "stateOfChargeFinal" in session
+                                        ):
+                                            session["soc_final"] = session.get(
+                                                "stateOfChargeFinal"
+                                            )
+                                        if (
+                                            "soc_change" not in session
+                                            and "stateOfChargeChange" in session
+                                        ):
+                                            session["soc_change"] = session.get(
+                                                "stateOfChargeChange"
+                                            )
                                         # Add device context to session
                                         session["device_id"] = device_id
                                         session["device_name"] = device_name
@@ -1535,6 +1621,21 @@ class OctopusGermany:
                         for edge in edges:
                             session = edge.get("node", {})
                             if session:
+                                # Normalize SoC fields to snake_case for internal consumers.
+                                if (
+                                    "soc_final" not in session
+                                    and "stateOfChargeFinal" in session
+                                ):
+                                    session["soc_final"] = session.get(
+                                        "stateOfChargeFinal"
+                                    )
+                                if (
+                                    "soc_change" not in session
+                                    and "stateOfChargeChange" in session
+                                ):
+                                    session["soc_change"] = session.get(
+                                        "stateOfChargeChange"
+                                    )
                                 # Add device context to session
                                 session["device_id"] = device_id
                                 session["device_name"] = device_name
@@ -2257,6 +2358,79 @@ class OctopusGermany:
 
         except Exception as e:
             _LOGGER.error("Error fetching electricity smart meter readings: %s", e)
+            return None
+
+    async def fetch_electricity_15min_readings(
+        self, account_number: str, property_id: str, date: str
+    ):
+        """Fetch 15-minute interval smart meter readings for a specific date.
+
+        Args:
+            account_number: The account number
+            property_id: The property ID
+            date: Date in YYYY-MM-DD format
+
+        Returns:
+            List of 15-min readings with start_time, end_time, value, unit or None if error
+        """
+        if not await self.ensure_token():
+            _LOGGER.error("Failed to ensure valid token for 15min readings")
+            return None
+
+        variables = {
+            "accountNumber": account_number,
+            "propertyId": property_id,
+            "date": date,
+        }
+
+        client = self._get_graphql_client()
+
+        try:
+            response = await client.execute_async(
+                query=ELECTRICITY_15MIN_READINGS_QUERY, variables=variables
+            )
+
+            if response is None:
+                return None
+
+            if "errors" in response:
+                _LOGGER.error(
+                    "GraphQL errors in 15min readings: %s", response["errors"]
+                )
+                return None
+
+            measurements = (
+                response.get("data", {})
+                .get("account", {})
+                .get("property", {})
+                .get("measurements", {})
+            )
+
+            if measurements and "edges" in measurements and measurements["edges"]:
+                readings = []
+                for edge in measurements["edges"]:
+                    if "node" in edge and edge["node"]:
+                        reading = edge["node"]
+                        readings.append(
+                            {
+                                "start_time": reading.get("startAt"),
+                                "end_time": reading.get("endAt"),
+                                "value": reading.get("value"),
+                                "unit": reading.get("unit"),
+                            }
+                        )
+                _LOGGER.debug(
+                    "Found %d 15-min readings for property %s on %s",
+                    len(readings),
+                    property_id,
+                    date,
+                )
+                return readings
+            else:
+                return []
+
+        except Exception as e:
+            _LOGGER.error("Error fetching 15min readings: %s", e)
             return None
 
     async def fetch_electricity_smart_meter_readings_v2(

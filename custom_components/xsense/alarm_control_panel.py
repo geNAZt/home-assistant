@@ -39,7 +39,7 @@ async def async_setup_entry(
     entities = []
     for house in coordinator.xsense.houses.values():
         for station in house.stations.values():
-            if station.type == "SBS50":
+            if station_supports_alarm_panel(station):
                 LOGGER.debug(
                     "Creating alarm control panel for station %s (%s)",
                     station.sn,
@@ -50,7 +50,23 @@ async def async_setup_entry(
     if entities:
         async_add_entities(entities)
     else:
-        LOGGER.debug("No SBS50 base station found; alarm control panel skipped")
+        LOGGER.debug(
+            "No SBS50 security alarm base station found; alarm control panel skipped"
+        )
+
+
+ALARM_PANEL_SECURITY_DEVICE_TYPES = {"SDS0A", "SMS0A", "SKP0A"}
+
+
+def station_supports_alarm_panel(station) -> bool:
+    """Return whether the APK exposes SBS50 security alarm modes."""
+    if station.type != "SBS50":
+        return False
+
+    return any(
+        device.type in ALARM_PANEL_SECURITY_DEVICE_TYPES
+        for device in station.devices.values()
+    )
 
 
 class XSenseAlarmControlPanel(
@@ -189,7 +205,12 @@ class XSenseAlarmControlPanel(
             raise HomeAssistantError("X-Sense MQTT is not connected")
 
         try:
-            await mqtt.async_publish(topic, json.dumps(payload), qos=0, retain=False)
+            await mqtt.async_publish(
+                topic,
+                json.dumps(payload, ensure_ascii=False, separators=(",", ":")),
+                qos=0,
+                retain=False,
+            )
             LOGGER.debug(
                 "Station %s published appMode command %s on %s",
                 station.sn,

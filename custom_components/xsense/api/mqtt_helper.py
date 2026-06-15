@@ -24,6 +24,7 @@ RECONNECT_RATE = 2
 MAX_RECONNECT_COUNT = 12
 MAX_RECONNECT_DELAY = 60
 DEFAULT_QOS = 0
+DEFAULT_SUBSCRIBE_QOS = 1
 DEFAULT_RETAIN = False
 TEMP_DATA_TYPES = ("STH51", "STH0A", "STH0B")
 
@@ -134,13 +135,13 @@ class MQTTHelper:
         retain: bool = DEFAULT_RETAIN,
     ):
         if not isinstance(payload, str):
-            payload = json.dumps(payload, separators=(",", ":"))
+            payload = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
         return self.client.publish(topic, payload, qos=qos, retain=retain)
 
-    def subscribe(self, topic: str, qos: int = DEFAULT_QOS):
+    def subscribe(self, topic: str, qos: int = DEFAULT_SUBSCRIBE_QOS):
         return self.client.subscribe(topic, qos=qos)
 
-    def subscribe_live_updates(self, qos: int = DEFAULT_QOS) -> List:
+    def subscribe_live_updates(self, qos: int = DEFAULT_SUBSCRIBE_QOS) -> List:
         results = []
         for topic in self.live_update_topics():
             results.append(self.subscribe(topic, qos=qos))

@@ -13,7 +13,7 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.util.dt import as_local, as_utc, parse_datetime, utcnow
 
 from .const import DOMAIN
-from .sensor import get_account_device_info
+from .sensor import get_account_device_info, get_device_specific_device_info
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -57,6 +57,11 @@ async def async_setup_entry(
                 )
                 entities.append(
                     OctopusIntelligentDispatchingBinarySensor(
+                        acc_num, coordinator, device_id, device_name
+                    )
+                )
+                entities.append(
+                    OctopusPluggedInBinarySensor(
                         acc_num, coordinator, device_id, device_name
                     )
                 )
@@ -417,15 +422,30 @@ class OctopusIntelligentDispatchingBinarySensor(CoordinatorEntity, BinarySensorE
         if devices and devices[0].get("status"):
             current_state = devices[0]["status"].get("currentState", "Unknown")
 
-        # Format dispatches for display
+        # Format dispatches for display - nur Dispatches fuer dieses Geraet
+        device_planned = [
+            d
+            for d in planned_dispatches
+            if d.get("deviceId") == self._device_id
+            or d.get("meta", {}).get("deviceId") == self._device_id
+        ]
         formatted_planned_dispatches = []
-        for dispatch in planned_dispatches:
+        for dispatch in device_planned:
             formatted = self._format_dispatch(dispatch)
             if formatted:
                 formatted_planned_dispatches.append(formatted)
 
+        device_completed = [
+            d
+            for d in completed_dispatches
+            if d.get("deviceId") == self._device_id
+            or d.get("meta", {}).get("deviceId") == self._device_id
+        ]
+        # Fallback: completedDispatches kommen ohne deviceId (andere API-Quelle)
+        if not device_completed:
+            device_completed = completed_dispatches
         formatted_completed_dispatches = []
-        for dispatch in completed_dispatches:
+        for dispatch in device_completed:
             formatted = self._format_dispatch(dispatch)
             if formatted:
                 formatted_completed_dispatches.append(formatted)
@@ -534,3 +554,164 @@ class OctopusIntelligentDispatchingBinarySensor(CoordinatorEntity, BinarySensorE
         from .sensor import get_account_device_info
 
         return get_account_device_info(self._account_number)
+
+
+class OctopusPluggedInBinarySensor(CoordinatorEntity, BinarySensorEntity):
+    """Binary sensor for EV plugged-in state derived from SmartFlex device status.
+
+    Uses SmartFlexDeviceState (currentState) enum values from the API.
+    Plugged-in states (device at home and capable of / undergoing smart control):
+      SMART_CONTROL_CAPABLE, SMART_CONTROL_IN_PROGRESS, BOOSTING, SMART_CONTROL_OFF
+    Unplugged / not-available states:
+      SMART_CONTROL_NOT_AVAILABLE, TEST_CHARGE_NOT_AVAILABLE
+    All other states (onboarding, auth, etc.) → None (unknown).
+    """
+
+    # Logic:
+    # isSuspended=True  → unknown  (smart control off, API cannot confirm plug state)
+    # isSuspended=False + SMART_CONTROL_NOT_AVAILABLE → False  (unplugged or away)
+    # isSuspended=False + anything else               → True   (plugged, smart control capable)
+    _NOT_PLUGGED_STATE = "SMART_CONTROL_NOT_AVAILABLE"
+
+    def __init__(self, account_number, coordinator, device_id, device_name) -> None:
+        """Initialize plugged-in binary sensor for a specific device."""
+        super().__init__(coordinator)
+        self._account_number = account_number
+        self._device_id = device_id
+        self._device_name = device_name
+
+        norm_name = device_name.lower().replace(" ", "_")
+        for ch in [
+            "/",
+            "\\",
+            ",",
+            ".",
+            ":",
+            ";",
+            "|",
+            "[",
+            "]",
+            "{",
+            "}",
+            "(",
+            ")",
+            "'",
+            '"',
+            "#",
+            "?",
+            "!",
+            "@",
+            "=",
+            "+",
+            "*",
+            "%",
+            "&",
+            "<",
+            ">",
+        ]:
+            norm_name = norm_name.replace(ch, "_")
+
+        self._attr_name = f"Octopus {account_number} {device_name} Plugged"
+        self._attr_unique_id = f"octopus_{account_number}_{norm_name}_plugged"
+        self._attr_icon = "mdi:power-plug"
+        self._attr_has_entity_name = False
+
+    def _get_device_data(self) -> dict | None:
+        """Return device payload for this sensor's device id."""
+        if (
+            not self.coordinator.data
+            or not isinstance(self.coordinator.data, dict)
+            or self._account_number not in self.coordinator.data
+        ):
+            return None
+
+        devices = self.coordinator.data[self._account_number].get("devices", [])
+        for device in devices:
+            if device.get("id") == self._device_id:
+                return device
+        return None
+
+    def _derive_plugged_state(
+        self, current_state: str | None, is_suspended: bool | None
+    ) -> bool | None:
+        """Derive plugged boolean from isSuspended + currentState.
+
+        - isSuspended=True  → None  (unknown: smart control off, plug state unreliable)
+        - isSuspended=False + SMART_CONTROL_NOT_AVAILABLE → False (unplugged/away)
+        - isSuspended=False + anything else               → True  (plugged, ready)
+        """
+        if is_suspended:
+            return None
+        if not current_state:
+            return None
+        if current_state == self._NOT_PLUGGED_STATE:
+            return False
+        return True
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return True when plugged, False when not, None when unknown."""
+        device = self._get_device_data()
+        if not device:
+            return None
+
+        status = device.get("status", {}) if isinstance(device, dict) else {}
+        if not isinstance(status, dict):
+            return None
+
+        # Only meaningful when the device lifecycle is LIVE
+        lifecycle = status.get("current")
+        if lifecycle and lifecycle not in ("LIVE", "ONBOARDING_TEST_IN_PROGRESS"):
+            return None
+
+        current_state = status.get("currentState")
+        is_suspended = status.get("isSuspended", False)
+        return self._derive_plugged_state(current_state, is_suspended)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return additional state attributes for transparency/debugging."""
+        device = self._get_device_data() or {}
+        status = device.get("status", {}) if isinstance(device, dict) else {}
+
+        current_state = status.get("currentState") if isinstance(status, dict) else None
+        current = status.get("current") if isinstance(status, dict) else None
+
+        return {
+            "device_id": self._device_id,
+            "device_name": self._device_name,
+            "device_type": device.get("deviceType", "Unknown")
+            if isinstance(device, dict)
+            else "Unknown",
+            "current_state": current_state,
+            "current": current,
+            "is_suspended": status.get("isSuspended")
+            if isinstance(status, dict)
+            else None,
+            "plugged_in_inferred": self._derive_plugged_state(
+                current_state,
+                status.get("isSuspended") if isinstance(status, dict) else None,
+            ),
+            "inference_note": (
+                "When isSuspended=True: unknown (smart control off, plug state unreliable). "
+                "When isSuspended=False: off if SMART_CONTROL_NOT_AVAILABLE, on otherwise."
+            ),
+        }
+
+    @property
+    def available(self) -> bool:
+        """Return True if entity is available."""
+        return (
+            self.coordinator is not None
+            and self.coordinator.last_update_success
+            and isinstance(self.coordinator.data, dict)
+            and self._account_number in self.coordinator.data
+            and self._get_device_data() is not None
+        )
+
+    @property
+    def device_info(self) -> DeviceInfo:
+        """Return device information for the specific EV/charger device."""
+        return get_device_specific_device_info(
+            self.coordinator.data, self._account_number, self._device_id
+        )

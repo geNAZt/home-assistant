@@ -6,14 +6,36 @@ from datetime import datetime, timedelta, timezone
 from typing import Dict
 
 import boto3
-from botocore.exceptions import ClientError
+from botocore.config import Config
+from botocore.exceptions import BotoCoreError, ClientError
 from pycognito import AWSSRP
 
 from .entity import Entity
 from .entity_map import entities
-from .exceptions import AuthFailed
+from .exceptions import APIFailure, AuthFailed
 from .station import Station
 from .house import House
+
+
+def _mac_json(value) -> str:
+    """Return compact Gson-style JSON for X-Sense MAC input."""
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+
+
+def _mac_scalar(value) -> str:
+    """Return the Java StringBuilder text used by the APK MAC input."""
+    if value is None:
+        return "null"
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    return str(value)
+
+
+_COGNITO_CLIENT_CONFIG = Config(
+    connect_timeout=15,
+    read_timeout=15,
+    retries={"total_max_attempts": 4, "mode": "standard"},
+)
 
 
 class XSenseBase:
@@ -24,12 +46,12 @@ class XSenseBase:
         "EU": "https://api-eu.vicohome.io",
         "US": "https://api-us.vicohome.io",
     }
-    VERSION = "v1.22.0_20240914.1"
-    APPCODE = "1220"
-    CLIENTYPE = "1"
-    IPC_VERSION = "v1.36.0_20260130"
-    IPC_APPCODE = "1360"
-    IPC_CLIENTTYPE = "2"
+    VERSION = "v1.36.0_20260130"
+    APPCODE = "1360"
+    CLIENTYPE = "2"
+    IPC_VERSION = VERSION
+    IPC_APPCODE = APPCODE
+    IPC_CLIENTTYPE = CLIENTYPE
 
     userid = None
     username = None
@@ -62,7 +84,9 @@ class XSenseBase:
     def sync_login(self, username, password):
         self.username = username
         session = boto3.Session()
-        cognito = session.client("cognito-idp", region_name=self.region)
+        cognito = session.client(
+            "cognito-idp", region_name=self.region, config=_COGNITO_CLIENT_CONFIG
+        )
 
         aws_srp = AWSSRP(
             username=username,
@@ -84,6 +108,8 @@ class XSenseBase:
             )
         except ClientError as e:
             raise AuthFailed(self._parse_client_error(e)) from e
+        except BotoCoreError as e:
+            raise APIFailure(f"Cognito connection failed: {e}") from e
 
         self.userid = response["ChallengeParameters"]["USERNAME"]
 
@@ -113,6 +139,8 @@ class XSenseBase:
 
         except ClientError as e:
             raise AuthFailed(self._parse_client_error(e)) from e
+        except BotoCoreError as e:
+            raise APIFailure(f"Cognito connection failed: {e}") from e
 
     def restore_session(self, username, access_token, refresh_token, id_token):
         self.username = username
@@ -142,14 +170,16 @@ class XSenseBase:
             for key in data:
                 value = data[key]
                 if isinstance(value, list):
-                    if value and isinstance(value[0], str):
-                        values.extend(value)
+                    if not value:
+                        continue
+                    if isinstance(value[0], str):
+                        values.extend(_mac_scalar(item) for item in value)
                     else:
-                        values.append(json.dumps(value))
+                        values.append(_mac_json(value))
                 elif isinstance(value, dict):
-                    values.append(json.dumps(value, separators=(",", ":")))
+                    values.append(_mac_json(value))
                 else:
-                    values.append(str(value))
+                    values.append(_mac_scalar(value))
 
         concatenated_string = "".join(values)
         mac_data = concatenated_string.encode("utf-8") + self.clientsecret
@@ -243,8 +273,12 @@ class XSenseBase:
             )
 
     def parse_get_state(self, station: Station, data: Dict):
-        station_data = data.copy()
-        children = station_data.pop("devs", {}) or {}
+        if isinstance(data, list):
+            station_data = {}
+            children = data
+        else:
+            station_data = data.copy()
+            children = station_data.pop("devs", {}) or {}
 
         if _apply_group_light_state(station, station_data, children):
             return
@@ -253,13 +287,12 @@ class XSenseBase:
         if station_data:
             station.set_data(station_data)
 
-        station.has_alarm = _is_active_state(data.get("activate")) or (
+        station.has_alarm = _is_active_state(station_data.get("activate")) or (
             has_alarm_status and _is_active_state(station.data.get("alarmStatus"))
         )
-        if isinstance(children, dict):
-            for sn, i in children.items():
-                if dev := station.get_device_by_sn(sn):
-                    dev.set_data(i)
+        for child_key, child_state in _child_state_items(children):
+            if dev := _state_child_device(station, child_key, child_state):
+                dev.set_data(child_state)
 
     def _parse_get_house_state(self, house: House, data: Dict):
         for sn, i in data.items():
@@ -272,6 +305,49 @@ class XSenseBase:
                 a for a in entity_def.get("actions", []) if a.get("action") == action
             )
         return False
+
+
+def _state_child_device(station: Station, child_key, child_state):
+    """Return the child device targeted by an APK shadow payload."""
+    for value in _child_state_identifiers(child_key, child_state):
+        if dev := station.get_device_by_sn(value):
+            return dev
+    return None
+
+
+def _child_state_items(children):
+    """Yield child device shadow records in the list/dict forms used by the app."""
+    if isinstance(children, dict):
+        yield from children.items()
+    elif isinstance(children, list):
+        for child_state in children:
+            if isinstance(child_state, dict):
+                yield None, child_state
+
+
+def _child_state_identifiers(child_key, child_state) -> tuple[str, ...]:
+    """Return device serial identifiers used by X-Sense child shadows."""
+    values = [child_key]
+    if isinstance(child_state, dict):
+        values.extend(
+            child_state.get(key)
+            for key in (
+                "deviceSN",
+                "deviceSn",
+                "_deviceSN",
+                "_deviceSn",
+            )
+        )
+    seen = set()
+    result = []
+    for value in values:
+        if value is None:
+            continue
+        text = str(value)
+        if text and text not in seen:
+            seen.add(text)
+            result.append(text)
+    return tuple(result)
 
 
 def _apply_group_light_state(station: Station, station_data: Dict, children) -> bool:
