@@ -60,6 +60,7 @@ class PanelGroupSensorReader(DataManagerIO):
         self._group_learning_disabled_streak: int = 0
         self._consistency_mismatch_streak: int = 0
         self._recorder_backfill_negative_delta_counts: Dict[str, int] = {}
+        self._listener_removers: Dict[str, Any] = {}
 
         _LOGGER.debug(
             "PanelGroupSensorReader initialized with %d groups",
@@ -217,49 +218,62 @@ class PanelGroupSensorReader(DataManagerIO):
         delta: Any,
         source: str,
     ) -> Optional[float]:
-        """Validate one hourly group actual before it can enter persistence."""
+        """Validate one hourly group actual before it can enter persistence. @zara"""
+        from ..core.core_hubble import Hubble
+        from homeassistant.helpers.issue_registry import IssueSeverity as Severity
+
         value = self._safe_float(delta)
         if value is None or not math.isfinite(value):
-            _LOGGER.warning(
-                "Rejected %s production for group '%s': invalid value %r",
-                source,
-                group_name,
-                delta,
+            Hubble.warning(
+                f"Ungültiger Messwert ({delta!r}) von Sensor '{group_name}' ({source}). "
+                f"Ich ignoriere diese Stunde für das Training."
             )
             return None
+
+        issue_id = f"sensor_spike_{group_name}"
 
         if value < -0.001:
             if source == "recorder backfill":
                 self._recorder_backfill_negative_delta_counts[group_name] = (
                     self._recorder_backfill_negative_delta_counts.get(group_name, 0) + 1
                 )
-                _LOGGER.debug(
-                    "Ignored %s production for group '%s': negative delta %.4f kWh",
-                    source,
-                    group_name,
-                    value,
-                )
                 return None
-            _LOGGER.warning(
-                "Rejected %s production for group '%s': negative delta %.4f kWh",
-                source,
-                group_name,
-                value,
+
+            Hubble.warning(
+                f"Negativer Ertrags-Messwert ({value:.4f} kWh) bei Modulgruppe '{group_name}' ({source}). "
+                f"Ich ignoriere diesen Wert zum Schutz der KI."
             )
             return None
 
         value = max(0.0, value)
         max_hourly = self._max_hourly_kwh(group_name)
         if value > max_hourly:
-            _LOGGER.warning(
-                "Rejected %s production for group '%s': %.4f kWh exceeds %.1f kWh",
-                source,
-                group_name,
-                value,
-                max_hourly,
+            error_msg = f"Der Messwert von {value:.4f} kWh überschreitet das physikalische Maximum von {max_hourly:.1f} kWh."
+            Hubble.warning(
+                f"Unerwarteter Ertragssprung bei Modulgruppe '{group_name}' ({source}): {error_msg} "
+                f"Ich filtere diese Stunde aus den Trainingsdaten."
+            )
+
+            title = f"Unerwarteter Ertragssprung bei '{group_name}'"
+            description = (
+                f"Hallo! Hubble hier.\n\n"
+                f"Der Sensor deiner Modulgruppe **{group_name}** hat einen unplausiblen Ertragssprung gemeldet:\n\n"
+                f"**Gemessen:** {value:.4f} kWh\n"
+                f"**Physikalisch maximal möglich:** {max_hourly:.1f} kWh\n\n"
+                f"**Auswirkung:** Um deine KI-Prognose nicht zu vergiften, habe ich diesen Ausreißer aus den Trainingsdaten gefiltert.\n\n"
+                f"**Mögliche Ursache:** Das passiert häufig bei einem plötzlichen Neustart der DTU/des Inverters oder bei einer Verbindungsunterbrechung des Smart Meters. Du musst nichts tun, ich überwache die Werte weiter."
+            )
+            self.hass.add_job(
+                Hubble.async_create_issue,
+                self.hass,
+                issue_id,
+                title,
+                description,
+                Severity.WARNING,
             )
             return None
 
+        self.hass.add_job(Hubble.async_dismiss_issue, self.hass, issue_id)
         return round(value, 4)
 
     async def initialize(self) -> None:
@@ -474,16 +488,17 @@ class PanelGroupSensorReader(DataManagerIO):
         if current_value < last_value:
             _LOGGER.info(
                 "Energy counter reset or discontinuity detected for group '%s': %.4f -> %.4f kWh; "
-                "stored current value as new baseline, no hourly delta learned",
+                "assumed reset to 0.0 and accumulated %.4f kWh",
                 group_name,
                 last_value,
                 current_value,
+                current_value,
             )
+            delta = current_value
             await self._store_baseline(group_name, current_value)
-            return None
-
-        delta = current_value - last_value
-        await self._store_baseline(group_name, current_value)
+        else:
+            delta = current_value - last_value
+            await self._store_baseline(group_name, current_value)
 
         validated_delta = self._validate_hourly_delta(
             group_name,
@@ -561,40 +576,44 @@ class PanelGroupSensorReader(DataManagerIO):
             _LOGGER.debug("Recorder not available for backfill")
             return 0
 
-        from datetime import timedelta
-
         cutoff = (SafeDateTimeUtil.now() - timedelta(days=days)).date().isoformat()
         filled = 0
         self._recorder_backfill_negative_delta_counts = {}
 
-        for group in self.get_groups_with_sensors():
+        # 1. Fetch candidate hours where at least one group has missing actual_kwh or has_panel_group_actuals is False
+        try:
+            candidate_hours = await self.fetch_all(
+                """SELECT DISTINCT hp.prediction_id, hp.target_date, hp.target_hour, hp.actual_kwh
+                   FROM hourly_predictions hp
+                   JOIN prediction_panel_groups ppg ON ppg.prediction_id = hp.prediction_id
+                   WHERE hp.target_date >= ? AND hp.target_date < date('now')
+                     AND (ppg.actual_kwh IS NULL OR hp.has_panel_group_actuals = 0)
+                   ORDER BY hp.target_date ASC, hp.target_hour ASC""",
+                (cutoff,),
+            )
+        except Exception as e:
+            _LOGGER.warning("Failed to fetch candidate hours for backfill: %s", e)
+            return 0
+
+        if not candidate_hours:
+            return 0
+
+        # 2. Determine time window and fetch recorder data
+        first_date = candidate_hours[0][1]
+        start_time = SafeDateTimeUtil.ensure_local(datetime.fromisoformat(f"{first_date}T00:00:00"))
+        end_time = SafeDateTimeUtil.now()
+
+        expected_groups = self.get_groups_with_sensors()
+        group_readings = {}
+        instance = get_instance(self.hass)
+
+        for group in expected_groups:
             group_name = group.get("name", "")
             entity_id = group.get("energy_sensor", "")
             if not entity_id:
                 continue
 
             try:
-                missing = await self.fetch_all(
-                    """SELECT hp.prediction_id, hp.target_date, hp.target_hour
-                       FROM hourly_predictions hp
-                       JOIN prediction_panel_groups ppg
-                         ON ppg.prediction_id = hp.prediction_id
-                       WHERE ppg.group_name = ?
-                         AND ppg.actual_kwh IS NULL
-                         AND hp.target_date >= ?
-                         AND hp.target_date < date('now')
-                       ORDER BY hp.target_date, hp.target_hour""",
-                    (group_name, cutoff),
-                )
-
-                if not missing:
-                    continue
-
-                first_date = missing[0][1]
-                start_time = SafeDateTimeUtil.ensure_local(datetime.fromisoformat(f"{first_date}T00:00:00"))
-                end_time = SafeDateTimeUtil.now()
-
-                instance = get_instance(self.hass)
                 states = await instance.async_add_executor_job(
                     state_changes_during_period,
                     self.hass,
@@ -605,7 +624,6 @@ class PanelGroupSensorReader(DataManagerIO):
                     True,
                     None,
                 )
-
                 entity_states = states.get(entity_id, [])
                 if len(entity_states) < 2:
                     _LOGGER.debug(
@@ -634,59 +652,148 @@ class PanelGroupSensorReader(DataManagerIO):
                     except (ValueError, TypeError):
                         continue
 
-                if len(readings) < 2:
+                if len(readings) >= 2:
+                    readings.sort(key=lambda x: x[0])
+                    group_readings[group_name] = readings
+            except Exception as e:
+                _LOGGER.warning("Failed to fetch states for group %s: %s", group_name, e)
+
+        # 3. Process hour-by-hour across all groups concurrently
+        for prediction_id, target_date, target_hour, total_actual in candidate_hours:
+            hour_start = datetime.fromisoformat(
+                f"{target_date}T{target_hour:02d}:00:00"
+            )
+            hour_end = datetime.fromisoformat(
+                f"{target_date}T{target_hour:02d}:59:59"
+            )
+
+            hour_actuals = {}
+            incomplete = False
+
+            try:
+                db_rows = await self.fetch_all(
+                    """SELECT group_name, actual_kwh, exclude_from_learning_group, exclusion_reason_group
+                       FROM prediction_panel_groups
+                       WHERE prediction_id = ?""",
+                    (prediction_id,)
+                )
+                existing_db_data = {
+                    r[0]: {
+                        "actual_kwh": r[1],
+                        "exclude": r[2],
+                        "reason": r[3]
+                    } for r in db_rows
+                }
+            except Exception as e:
+                _LOGGER.warning("Failed to fetch existing panel groups for %s: %s", prediction_id, e)
+                continue
+
+            for group in expected_groups:
+                g_name = group.get("name", "")
+                if g_name not in existing_db_data:
+                    incomplete = True
                     continue
 
-                readings.sort(key=lambda x: x[0])
+                existing_actual = existing_db_data[g_name]["actual_kwh"]
+                if existing_actual is not None:
+                    hour_actuals[g_name] = existing_actual
+                    continue
 
-                group_filled = 0
-                for prediction_id, target_date, target_hour in missing:
-                    hour_start = datetime.fromisoformat(
-                        f"{target_date}T{target_hour:02d}:00:00"
-                    )
-                    hour_end = datetime.fromisoformat(
-                        f"{target_date}T{target_hour:02d}:59:59"
-                    )
+                readings = group_readings.get(g_name)
+                if not readings:
+                    incomplete = True
+                    continue
 
-                    val_before = None
-                    val_at_end = None
+                baseline_idx = -1
+                for idx, (ts, val) in enumerate(readings):
+                    ts_naive = ts.replace(tzinfo=None) if ts.tzinfo else ts
+                    if ts_naive <= hour_start:
+                        baseline_idx = idx
 
-                    for ts, val in readings:
-                        ts_naive = ts.replace(tzinfo=None) if ts.tzinfo else ts
-                        if ts_naive <= hour_start:
-                            val_before = val
-                        if ts_naive <= hour_end:
-                            val_at_end = val
+                if baseline_idx == -1:
+                    incomplete = True
+                    continue
 
-                    if val_before is None or val_at_end is None:
-                        continue
+                hour_readings = []
+                for idx in range(baseline_idx + 1, len(readings)):
+                    ts, val = readings[idx]
+                    ts_naive = ts.replace(tzinfo=None) if ts.tzinfo else ts
+                    if ts_naive <= hour_end:
+                        hour_readings.append(val)
+                    else:
+                        break
 
-                    delta = self._validate_hourly_delta(
-                        group_name,
-                        val_at_end - val_before,
-                        "recorder backfill",
-                    )
-                    if delta is None:
-                        continue
+                prev_val = readings[baseline_idx][1]
+                accumulated_delta = 0.0
 
+                for val in hour_readings:
+                    if val >= prev_val:
+                        accumulated_delta += (val - prev_val)
+                    else:
+                        accumulated_delta += val
+                    prev_val = val
+
+                delta = self._validate_hourly_delta(
+                    g_name,
+                    accumulated_delta,
+                    "recorder backfill",
+                )
+                if delta is None:
+                    incomplete = True
+                    continue
+
+                hour_actuals[g_name] = delta
+
+            # Determine exclusion reasons
+            exclusion_reason = None
+            if total_actual is None:
+                exclusion_reason = "missing_total_actual"
+            elif incomplete or len(hour_actuals) != len(expected_groups):
+                exclusion_reason = "incomplete_group_data"
+            else:
+                consistency = await self.check_consistency(
+                    total_actual,
+                    hour_actuals,
+                    target_date=target_date,
+                    target_hour=target_hour,
+                )
+                if not consistency.get("consistent"):
+                    exclusion_reason = "consistency_mismatch"
+
+            # Write values and update exclusion flags/reasons
+            wrote_any = False
+            for group in expected_groups:
+                g_name = group.get("name", "")
+                val = hour_actuals.get(g_name)
+
+                if val is not None and existing_db_data.get(g_name, {}).get("actual_kwh") is None:
                     await self.execute_query(
                         """UPDATE prediction_panel_groups
                            SET actual_kwh = ?
                            WHERE prediction_id = ? AND group_name = ?
                              AND actual_kwh IS NULL""",
-                        (round(delta, 4), prediction_id, group_name),
+                        (round(val, 4), prediction_id, g_name),
                     )
-                    group_filled += 1
+                    wrote_any = True
+                    filled += 1
 
-                if group_filled > 0:
-                    _LOGGER.info(
-                        "Backfill %s: %d hours recovered from recorder",
-                        group_name, group_filled,
+                if exclusion_reason:
+                    await self.db.update_prediction_panel_group_flags(
+                        prediction_id,
+                        g_name,
+                        {
+                            "exclude_from_learning_group": True,
+                            "exclusion_reason_group": exclusion_reason,
+                        }
                     )
-                    filled += group_filled
 
-            except Exception as e:
-                _LOGGER.warning("Backfill failed for group %s: %s", group_name, e)
+            if wrote_any or any(value is not None for value in hour_actuals.values()):
+                await self.execute_query(
+                    """UPDATE hourly_predictions
+                       SET has_panel_group_actuals = TRUE
+                       WHERE prediction_id = ?""",
+                    (prediction_id,)
+                )
 
         if filled > 0:
             _LOGGER.info("Backfill: %d per-group actuals recovered from recorder", filled)
@@ -815,9 +922,11 @@ class PanelGroupSensorReader(DataManagerIO):
 
     async def check_consistency(
         self,
-        total_actual: float,
+        total_actual: Optional[float],
         group_actuals: Dict[str, float],
         tolerance_percent: float = 15.0,
+        target_date: Optional[str] = None,
+        target_hour: Optional[int] = None,
     ) -> Dict[str, Any]:
         """Check if sum of group actuals matches total actual. @zara
 
@@ -837,8 +946,21 @@ class PanelGroupSensorReader(DataManagerIO):
                 "reason": "No data to compare",
             }
 
+        if total_actual is None:
+            return {
+                "consistent": False,
+                "reason": "missing_total_actual",
+                "group_sum": round(sum(group_actuals.values()), 4),
+                "total_actual": None,
+                "deviation_percent": None,
+                "tolerance_percent": tolerance_percent,
+                "allowed_diff_kwh": None,
+                "phase_shift_resolved": False,
+            }
+
         group_sum = sum(group_actuals.values())
-        allowed_diff = max(0.05, total_actual * tolerance_percent / 100.0)
+        tolerance_floor = 0.10 if total_actual < 1.0 else 0.05
+        allowed_diff = max(tolerance_floor, total_actual * tolerance_percent / 100.0)
         absolute_diff = abs(group_sum - total_actual)
         deviation = (
             absolute_diff / total_actual * 100
@@ -847,6 +969,34 @@ class PanelGroupSensorReader(DataManagerIO):
         )
 
         consistent = absolute_diff <= allowed_diff
+
+        phase_shift_resolved = False
+        two_hour_allowed_diff = None
+        two_hour_absolute_diff = None
+        if (
+            not consistent
+            and target_date is not None
+            and target_hour is not None
+        ):
+            phase_shift = await self._check_two_hour_consistency(
+                target_date,
+                target_hour,
+                total_actual,
+                group_actuals,
+                tolerance_percent,
+            )
+            if phase_shift and phase_shift.get("consistent"):
+                consistent = True
+                phase_shift_resolved = True
+                two_hour_allowed_diff = phase_shift.get("allowed_diff_kwh")
+                two_hour_absolute_diff = phase_shift.get("absolute_diff_kwh")
+                _LOGGER.info(
+                    "Panel group consistency accepted via 2-hour phase window for %s hour %02d: group_sum_2h=%.3f kWh, total_2h=%.3f kWh",
+                    target_date,
+                    target_hour,
+                    phase_shift.get("group_sum", 0.0),
+                    phase_shift.get("total_actual", 0.0),
+                )
 
         if not consistent:
             self._consistency_mismatch_streak += 1
@@ -875,10 +1025,88 @@ class PanelGroupSensorReader(DataManagerIO):
 
         return {
             "consistent": consistent,
+            "reason": None if consistent else "consistency_mismatch",
             "group_sum": round(group_sum, 4),
             "total_actual": round(total_actual, 4),
             "deviation_percent": round(deviation, 1) if deviation is not None else None,
             "tolerance_percent": tolerance_percent,
+            "allowed_diff_kwh": round(allowed_diff, 4),
+            "phase_shift_resolved": phase_shift_resolved,
+            "two_hour_allowed_diff_kwh": two_hour_allowed_diff,
+            "two_hour_absolute_diff_kwh": two_hour_absolute_diff,
+        }
+
+    async def _check_two_hour_consistency(
+        self,
+        target_date: str,
+        target_hour: int,
+        total_actual: float,
+        group_actuals: Dict[str, float],
+        tolerance_percent: float,
+    ) -> Optional[Dict[str, Any]]:
+        expected_group_names = {
+            group.get("name")
+            for group in self.get_groups_with_sensors()
+            if group.get("name")
+        }
+        if not expected_group_names or set(group_actuals) != expected_group_names:
+            return None
+
+        try:
+            current_date = datetime.fromisoformat(target_date).date()
+        except ValueError:
+            return None
+
+        if target_hour <= 0:
+            previous_date = (current_date - timedelta(days=1)).isoformat()
+            previous_hour = 23
+        else:
+            previous_date = target_date
+            previous_hour = target_hour - 1
+
+        previous_prediction_id = f"{previous_date}_{previous_hour:02d}"
+        rows = await self.fetch_all(
+            """SELECT ppg.group_name,
+                      ppg.actual_kwh,
+                      ppg.exclusion_reason_group,
+                      hp.actual_kwh
+               FROM prediction_panel_groups ppg
+               JOIN hourly_predictions hp
+                 ON hp.prediction_id = ppg.prediction_id
+               WHERE ppg.prediction_id = ?""",
+            (previous_prediction_id,),
+        )
+        if len(rows) < len(expected_group_names):
+            return None
+
+        previous_total = None
+        previous_group_actuals: Dict[str, float] = {}
+        blocking_reasons = {"missing_total_actual", "incomplete_group_data"}
+
+        for group_name, actual_kwh, exclusion_reason, previous_hour_total in rows:
+            if group_name not in expected_group_names:
+                continue
+            if actual_kwh is None or exclusion_reason in blocking_reasons:
+                return None
+            if previous_hour_total is None:
+                return None
+            previous_total = float(previous_hour_total)
+            previous_group_actuals[group_name] = float(actual_kwh)
+
+        if previous_total is None or set(previous_group_actuals) != expected_group_names:
+            return None
+
+        two_hour_group_sum = sum(previous_group_actuals.values()) + sum(group_actuals.values())
+        two_hour_total = previous_total + total_actual
+        tolerance_floor = 0.10 if two_hour_total < 1.0 else 0.05
+        allowed_diff = max(tolerance_floor, two_hour_total * tolerance_percent / 100.0)
+        absolute_diff = abs(two_hour_group_sum - two_hour_total)
+
+        return {
+            "consistent": absolute_diff <= allowed_diff,
+            "group_sum": round(two_hour_group_sum, 4),
+            "total_actual": round(two_hour_total, 4),
+            "absolute_diff_kwh": round(absolute_diff, 4),
             "allowed_diff_kwh": round(allowed_diff, 4),
         }
 
@@ -980,3 +1208,94 @@ class PanelGroupSensorReader(DataManagerIO):
                 for g in self.panel_groups
             ],
         }
+
+    async def async_perform_sensor_audit(self) -> None:
+        """Perform a complete audit of configured sensors and report issues via Hubble. @zara"""
+        from ..core.core_hubble import Hubble
+        from homeassistant.helpers.issue_registry import IssueSeverity as Severity
+
+        groups_with_sensors = self.get_groups_with_sensors()
+        if not groups_with_sensors:
+            Hubble.info("Keine Modulgruppen-Energiesensoren konfiguriert. Ich überspringe das Sensor-Audit.")
+            return
+
+        validation_results = await self.validate_sensors()
+
+        for group_name, validation in validation_results.items():
+            entity_id = validation.get("entity_id")
+            issue_id = f"sensor_config_{group_name}_{entity_id}"
+
+            if not validation.get("valid", False):
+                error_msg = validation.get("error", "Unbekannter Konfigurationsfehler.")
+
+                # Hubble meldet den Fehler verständlich im Log
+                Hubble.error(
+                    f"Sensor-Problem bei Modulgruppe '{group_name}' (Sensor: {entity_id}): {error_msg} "
+                    f"Ich deaktiviere das Lernen für diese Modulgruppe zum Schutz deiner Datenbank."
+                )
+
+                # Repairs Issue anlegen
+                title = f"PV-Sensorfehler bei Gruppe '{group_name}'"
+                description = (
+                    f"Hallo! Hubble hier.\n\n"
+                    f"Ich habe ein Problem mit dem Sensor **{entity_id}** der Modulgruppe **{group_name}** festgestellt:\n\n"
+                    f"**Fehler:** {error_msg}\n\n"
+                    f"**Auswirkung:** Um deine Datenbank vor fehlerhaften Trainingsdaten zu schützen, habe ich das "
+                    f"Lernen für diese Gruppe vorübergehend deaktiviert.\n\n"
+                    f"**Lösung:** Bitte überprüfe in den Einstellungen der Integration oder in deinen Home Assistant "
+                    f"Entitäten, ob der Sensor existiert und kumulierte kWh-Werte liefert."
+                )
+                await Hubble.async_create_issue(
+                    self.hass,
+                    issue_id=issue_id,
+                    title=title,
+                    description=description,
+                    severity=Severity.ERROR,
+                )
+                self._setup_sensor_recovery_listener(group_name, entity_id)
+            else:
+                # Sensor ist gültig: eventuell altes Problem löschen
+                await Hubble.async_dismiss_issue(self.hass, issue_id)
+                self._remove_sensor_recovery_listener(entity_id)
+
+    def _setup_sensor_recovery_listener(self, group_name: str, entity_id: str) -> None:
+        """Register a state change listener to automatically recover when sensor is back online."""
+        if entity_id in self._listener_removers:
+            return
+
+        from homeassistant.helpers.event import async_track_state_change_event
+
+        async def async_state_changed_listener(event: Any) -> None:
+            new_state = event.data.get("new_state")
+            if new_state is None or new_state.state in (None, "unavailable", "unknown"):
+                return
+
+            try:
+                float(new_state.state)
+            except (ValueError, TypeError):
+                return
+
+            _LOGGER.info(
+                "Sensor '%s' for panel group '%s' came online. Re-running sensor audit...",
+                entity_id,
+                group_name,
+            )
+            self.hass.add_job(self.async_perform_sensor_audit)
+
+        _LOGGER.debug("Registering recovery listener for sensor '%s'", entity_id)
+        remove_listener = async_track_state_change_event(
+            self.hass, [entity_id], async_state_changed_listener
+        )
+        self._listener_removers[entity_id] = remove_listener
+
+    def _remove_sensor_recovery_listener(self, entity_id: str) -> None:
+        """Remove recovery listener for a sensor if active."""
+        remove_listener = self._listener_removers.pop(entity_id, None)
+        if remove_listener:
+            _LOGGER.debug("Removing recovery listener for sensor '%s'", entity_id)
+            remove_listener()
+
+    def cleanup(self) -> None:
+        """Cleanup all active event listeners to prevent memory leaks."""
+        for entity_id in list(self._listener_removers.keys()):
+            self._remove_sensor_recovery_listener(entity_id)

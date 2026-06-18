@@ -65,15 +65,16 @@ class GridPriceMonitorCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         )
 
         self.entry = entry
-        self._country = entry.data.get(CONF_COUNTRY, DEFAULT_COUNTRY)
-        self._grid_fee = entry.data.get(CONF_GRID_FEE, DEFAULT_GRID_FEE)
-        self._taxes_fees = entry.data.get(CONF_TAXES_FEES, DEFAULT_TAXES_FEES)
-        self._provider_markup = entry.data.get(CONF_PROVIDER_MARKUP, DEFAULT_PROVIDER_MARKUP)
-        self._max_price = entry.data.get(CONF_MAX_PRICE, DEFAULT_MAX_PRICE)
+        config = self._entry_config()
+        self._country = config.get(CONF_COUNTRY, DEFAULT_COUNTRY)
+        self._grid_fee = config.get(CONF_GRID_FEE, DEFAULT_GRID_FEE)
+        self._taxes_fees = config.get(CONF_TAXES_FEES, DEFAULT_TAXES_FEES)
+        self._provider_markup = config.get(CONF_PROVIDER_MARKUP, DEFAULT_PROVIDER_MARKUP)
+        self._max_price = config.get(CONF_MAX_PRICE, DEFAULT_MAX_PRICE)
 
         # Get VAT rate from config, fallback to country default
         default_vat = VAT_RATE_AT if self._country == "AT" else VAT_RATE_DE
-        self._vat_rate = entry.data.get(CONF_VAT_RATE, default_vat)
+        self._vat_rate = config.get(CONF_VAT_RATE, default_vat)
 
         # Initialize price calculator
         self._calculator = PriceCalculator(
@@ -87,15 +88,15 @@ class GridPriceMonitorCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._last_price_fetch: datetime | None = None
 
         # Battery tracker
-        self._battery_power_sensor = entry.data.get(CONF_BATTERY_POWER_SENSOR, "")
+        self._battery_power_sensor = config.get(CONF_BATTERY_POWER_SENSOR, "")
         self._battery_tracker: BatteryTracker | None = None
 
         # Smart charging
-        self._smart_charging_enabled = entry.data.get(CONF_SMART_CHARGING_ENABLED, False)
-        self._battery_capacity = entry.data.get(CONF_BATTERY_CAPACITY, 0)
-        self._battery_soc_sensor = entry.data.get(CONF_BATTERY_SOC_SENSOR, "")
-        self._max_soc = entry.data.get(CONF_MAX_SOC, DEFAULT_MAX_SOC)
-        self._min_soc = entry.data.get(CONF_MIN_SOC, DEFAULT_MIN_SOC)
+        self._smart_charging_enabled = config.get(CONF_SMART_CHARGING_ENABLED, False)
+        self._battery_capacity = config.get(CONF_BATTERY_CAPACITY, 0)
+        self._battery_soc_sensor = config.get(CONF_BATTERY_SOC_SENSOR, "")
+        self._max_soc = config.get(CONF_MAX_SOC, DEFAULT_MAX_SOC)
+        self._min_soc = config.get(CONF_MIN_SOC, DEFAULT_MIN_SOC)
         self._smart_charging_manager: SmartChargingManager | None = None
         self._solar_forecast_reader: SolarForecastReader | None = None
 
@@ -107,6 +108,9 @@ class GridPriceMonitorCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._statistics_store: StatisticsStore | None = None
         self._gpm_logger: GPMLogger | None = None
         self._storage_initialized = False
+
+    def _entry_config(self) -> dict[str, Any]:
+        return {**self.entry.data, **self.entry.options}
 
     @property
     def vat_factor(self) -> float:
@@ -162,7 +166,8 @@ class GridPriceMonitorCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         gpm_path = config_path / "grid_price_monitor"
 
         # Initialize database connector
-        self._db_connector = GPMDatabaseConnector(DB_PATH)
+        db_path = self.hass.config.path("solar_forecast_ml/solar_forecast.db")
+        self._db_connector = GPMDatabaseConnector(db_path)
         await self._db_connector.connect()
 
         # Initialize data validator (for logs directory + legacy cleanup)
@@ -273,16 +278,17 @@ class GridPriceMonitorCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     def update_config(self) -> None:
         """Update configuration values from entry @zara"""
-        self._country = self.entry.data.get(CONF_COUNTRY, DEFAULT_COUNTRY)
-        self._grid_fee = self.entry.data.get(CONF_GRID_FEE, DEFAULT_GRID_FEE)
-        self._taxes_fees = self.entry.data.get(CONF_TAXES_FEES, DEFAULT_TAXES_FEES)
-        self._provider_markup = self.entry.data.get(CONF_PROVIDER_MARKUP, DEFAULT_PROVIDER_MARKUP)
-        self._max_price = self.entry.data.get(CONF_MAX_PRICE, DEFAULT_MAX_PRICE)
-        self._battery_power_sensor = self.entry.data.get(CONF_BATTERY_POWER_SENSOR, "")
+        config = self._entry_config()
+        self._country = config.get(CONF_COUNTRY, DEFAULT_COUNTRY)
+        self._grid_fee = config.get(CONF_GRID_FEE, DEFAULT_GRID_FEE)
+        self._taxes_fees = config.get(CONF_TAXES_FEES, DEFAULT_TAXES_FEES)
+        self._provider_markup = config.get(CONF_PROVIDER_MARKUP, DEFAULT_PROVIDER_MARKUP)
+        self._max_price = config.get(CONF_MAX_PRICE, DEFAULT_MAX_PRICE)
+        self._battery_power_sensor = config.get(CONF_BATTERY_POWER_SENSOR, "")
 
         # Get VAT rate from config, fallback to country default
         default_vat = VAT_RATE_AT if self._country == "AT" else VAT_RATE_DE
-        self._vat_rate = self.entry.data.get(CONF_VAT_RATE, default_vat)
+        self._vat_rate = config.get(CONF_VAT_RATE, default_vat)
 
         # Update calculator
         self._calculator.update_config(
@@ -293,11 +299,11 @@ class GridPriceMonitorCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         )
 
         # Update smart charging config
-        self._smart_charging_enabled = self.entry.data.get(CONF_SMART_CHARGING_ENABLED, False)
-        self._battery_capacity = self.entry.data.get(CONF_BATTERY_CAPACITY, 0)
-        self._battery_soc_sensor = self.entry.data.get(CONF_BATTERY_SOC_SENSOR, "")
-        self._max_soc = self.entry.data.get(CONF_MAX_SOC, DEFAULT_MAX_SOC)
-        self._min_soc = self.entry.data.get(CONF_MIN_SOC, DEFAULT_MIN_SOC)
+        self._smart_charging_enabled = config.get(CONF_SMART_CHARGING_ENABLED, False)
+        self._battery_capacity = config.get(CONF_BATTERY_CAPACITY, 0)
+        self._battery_soc_sensor = config.get(CONF_BATTERY_SOC_SENSOR, "")
+        self._max_soc = config.get(CONF_MAX_SOC, DEFAULT_MAX_SOC)
+        self._min_soc = config.get(CONF_MIN_SOC, DEFAULT_MIN_SOC)
 
         if self._smart_charging_manager:
             self._smart_charging_manager.update_config(
@@ -652,15 +658,15 @@ class GridPriceMonitorCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             # Calculate total price: (Spot x VAT) + Grid + Taxes + Provider
             enriched_entry["total_price"] = self.calculate_total_price(spot_net)
 
-            # Convert timestamp to LOCAL time for cache
+            # Convert timestamp to naive LOCAL time for cache
             # This is critical for automation triggers!
             ts = entry.get("timestamp")
             if ts is not None:
                 if isinstance(ts, str):
                     ts = datetime.fromisoformat(ts)
-                # Convert UTC to local timezone
+                # Convert UTC to local timezone and strip offset
                 local_ts = ts.astimezone()
-                enriched_entry["timestamp"] = local_ts.isoformat()
+                enriched_entry["timestamp"] = local_ts.replace(tzinfo=None).isoformat()
 
             enriched.append(enriched_entry)
         return enriched
@@ -697,19 +703,25 @@ class GridPriceMonitorCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     def _find_next_cheap_hour(self) -> dict[str, Any] | None:
         """Find the next hour where total price is below max threshold @zara"""
-        now = datetime.now(timezone.utc)
+        now = datetime.now()
 
         # Use public method instead of private _price_cache
         for entry in self._price_service.get_all_prices():
             entry_ts = entry["timestamp"]
             if isinstance(entry_ts, str):
                 entry_ts = datetime.fromisoformat(entry_ts)
-            if entry_ts >= now:
+            
+            if entry_ts.tzinfo is not None:
+                entry_ts_naive = entry_ts.astimezone().replace(tzinfo=None)
+            else:
+                entry_ts_naive = entry_ts
+
+            if entry_ts_naive >= now:
                 total = self.calculate_total_price(entry["price"])
                 if total < self._max_price:
                     return {
                         "hour": entry["hour"],
-                        "timestamp": entry_ts,
+                        "timestamp": entry_ts_naive,
                         "total_price": total,
                     }
         return None

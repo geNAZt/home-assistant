@@ -9,19 +9,20 @@ const App = {
             <!-- Sticky Header -->
             <header class="header">
                 <div class="header-brand">
+                    <span class="status-dot" :class="{ 'connected': wsConnected }" :title="wsConnected ? 'Verbunden' : 'Verbindung unterbrochen'"></span>
                     <span class="header-icon">☀</span>
                     <span class="header-title">SFML Stats TFS</span>
                 </div>
                 <div class="header-indicators">
-                    <div class="indicator" v-if="liveData.total_price != null">
+                    <div class="indicator-badge price-badge" v-if="liveData.total_price != null" :class="priceClass">
                         <span class="indicator-icon">⚡</span>
-                        <span class="indicator-value" :class="priceClass">{{ formatPrice(liveData.total_price) }} ct</span>
+                        <span class="indicator-value">{{ formatPrice(liveData.total_price) }} ct</span>
                     </div>
-                    <div class="indicator" v-if="liveData.battery_soc != null">
+                    <div class="indicator-badge battery-badge" v-if="liveData.battery_soc != null">
                         <span class="indicator-icon">🔋</span>
                         <span class="indicator-value">{{ liveData.battery_soc }}%</span>
                     </div>
-                    <div class="indicator" v-if="liveData.solar_power != null">
+                    <div class="indicator-badge solar-badge" v-if="liveData.solar_power != null">
                         <span class="indicator-icon">☀</span>
                         <span class="indicator-value">{{ formatPower(liveData.solar_power) }}</span>
                     </div>
@@ -43,7 +44,8 @@ const App = {
                     <component :is="currentPageComponent"
                                :live-data="liveData"
                                :config="appConfig"
-                               @navigate="navigate" />
+                               @navigate="navigate"
+                               @change-theme="changeTheme" />
                 </transition>
             </main>
 
@@ -80,28 +82,39 @@ const App = {
             grid_export: 0,
         });
 
+        const initialTheme = localStorage.getItem('sfml-stats-theme') || 'dark';
         const appConfig = reactive({
-            theme: 'dark',
+            theme: initialTheme,
             country: 'DE',
         });
 
+        function applyTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+        }
+
+        function changeTheme(theme) {
+            appConfig.theme = theme;
+            localStorage.setItem('sfml-stats-theme', theme);
+            applyTheme(theme);
+        }
+
         const tabs = computed(() => [
-            { id: 'home',     label: t('nav.home'),     icon: '🏠' },
-            { id: 'flow',     label: t('nav.flow'),     icon: '🔀' },
-            { id: 'solar',    label: t('nav.solar'),    icon: '☀' },
-            { id: 'weather',  label: t('nav.weather'),  icon: '🌤' },
-            { id: 'energy',   label: t('nav.energy'),   icon: '⚡' },
-            { id: 'settings', label: t('nav.settings'), icon: '⚙' },
+            { id: 'home',           label: t('nav.home'),           icon: '🏠' },
+            { id: 'solar',          label: t('nav.solar'),          icon: '☀' },
+            { id: 'weather',        label: t('nav.weather'),        icon: '🌤' },
+            { id: 'energy',         label: t('nav.energy'),         icon: '⚡' },
+            { id: 'smart_charging', label: t('nav.smartCharging'),  icon: '🔌' },
+            { id: 'settings',       label: t('nav.settings'),       icon: '⚙' },
         ]);
 
         // Pages (lazy loaded). Loading placeholders are intentionally minimal —
         // page components own their own headings once mounted.
         const pages = {
             home: window.HomePage || { template: '<div class="page page-home"><h2>Loading...</h2></div>' },
-            flow: window.FlowPage || { template: '<div class="page page-flow"><h2>Loading...</h2></div>' },
             solar: window.SolarPage || { template: '<div class="page page-solar"><h2>Loading...</h2></div>' },
             weather: window.WeatherPage || { template: '<div class="page page-weather"><h2>Loading...</h2></div>' },
             energy: window.EnergyPage || { template: '<div class="page page-energy"><h2>⚡ ' + t('nav.energyAndFinances') + '</h2><p>Loading...</p></div>' },
+            smart_charging: window.SmartChargingPage || { template: '<div class="page page-smart-charging"><h2>🔌 ' + t('nav.smartCharging') + '</h2><p>Loading...</p></div>' },
             settings: window.SettingsPage || { template: '<div class="page page-settings"><h2>⚙ ' + t('nav.settings') + '</h2><p>Loading...</p></div>' },
         };
 
@@ -181,6 +194,7 @@ const App = {
         }
 
         onMounted(() => {
+            applyTheme(appConfig.theme);
             handleHashChange();
             window.addEventListener('hashchange', handleHashChange);
             window.addEventListener('resize', () => { isMobile.value = window.innerWidth < 768; });
@@ -197,6 +211,7 @@ const App = {
             currentPage, currentPageComponent, wsConnected, isMobile,
             liveData, appConfig, tabs,
             navigate, formatPrice, formatPower, priceClass,
+            changeTheme,
         };
     }
 };
