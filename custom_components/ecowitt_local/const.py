@@ -378,6 +378,13 @@ SENSOR_TYPES: Final[Dict[str, Dict[str, Any]]] = {
         "state_class": "measurement",
         "suggested_display_precision": 1,
     },
+    "0x7D": {
+        "name": "Hourly Rain",
+        "unit": "mm",
+        "device_class": "precipitation",
+        "state_class": "total_increasing",
+        "suggested_display_precision": 1,
+    },
     "0x7C": {
         "name": "24-Hour Rain",
         "unit": "mm",
@@ -681,6 +688,7 @@ BATTERY_SENSORS: Final = {
     # Fixed battery sensors
     "wh57batt": {"name": "Lightning Sensor Battery", "sensor_key": "lightning"},
     "wh40batt": {"name": "Rain Sensor Battery", "sensor_key": "rainratein"},
+    "wn20batt": {"name": "Rain Gauge Battery", "sensor_key": "rainratein"},
     "wh68batt": {"name": "Weather Station Battery", "sensor_key": "tempf"},
     "wh25batt": {"name": "Indoor Station Battery", "sensor_key": "tempinf"},
     "wh26batt": {"name": "Outdoor Sensor Battery", "sensor_key": "0x02"},

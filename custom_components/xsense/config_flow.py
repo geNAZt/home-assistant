@@ -37,6 +37,11 @@ def credentials_schema(default_email: str | None = None) -> vol.Schema:
     )
 
 
+def options_schema(options: dict[str, Any] | None = None) -> vol.Schema:
+    """Return the options schema."""
+    return vol.Schema({})
+
+
 async def _async_init_and_login(session: AsyncXSense, email, password) -> None:
     """Initialize the X-Sense client and log in."""
     await session.init()
@@ -68,6 +73,13 @@ class XSenseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for X-Sense Home Security."""
 
     VERSION = 1
+
+    @staticmethod
+    def async_get_options_flow(
+        config_entry: config_entries.ConfigEntry,
+    ) -> XSenseOptionsFlow:
+        """Return the options flow."""
+        return XSenseOptionsFlow(config_entry)
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -177,3 +189,23 @@ class CannotConnect(HomeAssistantError):
 
 class InvalidAuth(HomeAssistantError):
     """Error to indicate there is invalid auth."""
+
+
+class XSenseOptionsFlow(config_entries.OptionsFlow):
+    """Handle X-Sense options."""
+
+    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
+        """Set up the options flow."""
+        self._options = dict(config_entry.options)
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Manage X-Sense options."""
+        if user_input is not None:
+            return self.async_create_entry(title="", data=user_input)
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=options_schema(self._options),
+        )

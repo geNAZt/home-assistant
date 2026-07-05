@@ -208,7 +208,7 @@ const SmartChargingPage = ((Vue) => {
                                         {{ dashboardData.advisor.has_battery ? fmtEur(dashboardData.advisor.potential_savings_eur) : localText('noBattery') }}
                                     </span>
                                 </div>
-                                <div class="metric-help-text" v-if="dashboardData.advisor.has_battery">{{ localText('potentialSavingsSub') }}</div>
+                                <div class="metric-help-text" v-if="dashboardData.advisor.has_battery">{{ formatPotentialSavingsSub() }}</div>
                                 
                                 <div class="advisor-recommendation-box">
                                     <span class="recommendation-badge">{{ localText('sizingRecommendation') }}</span>
@@ -395,29 +395,51 @@ const SmartChargingPage = ((Vue) => {
 
                 const data = dashboardData.history;
                 const times = data.map(h => {
-                    const dt = new Date(h.hour_key);
-                    return dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + (h.is_future ? ' 🔮' : '');
+                    const label = typeof h.hour_key === 'string' && h.hour_key.length >= 16
+                        ? h.hour_key.slice(11, 16)
+                        : '';
+                    return label + (h.is_future ? ' 🔮' : '');
                 });
 
                 const prices = data.map(h => h.price_ct_kwh);
                 const charging = data.map(h => h.grid_to_battery_kwh);
                 const solar = data.map(h => h.solar_yield_kwh);
+                const priceLegend = t('smart_charging.chartLegendPrice');
+                const chargingLegend = t('smart_charging.chartLegendCharging');
+                const solarLegend = t('smart_charging.chartLegendSolar');
+                const recommendedLegend = t('smart_charging.chartLegendRecommended');
+                const recommendationPoints = data.map(h => h.grid_charge_recommended ? h.price_ct_kwh : null);
 
-                // Highlight active windows
-                const pieces = [];
+                const actualPieces = [];
+                const recommendationPieces = [];
                 let activeStart = null;
                 for (let i = 0; i < data.length; i++) {
                     if (data[i].grid_to_battery_kwh > 0.005) {
                         if (activeStart === null) activeStart = i;
                     } else {
                         if (activeStart !== null) {
-                            pieces.push({ gt: activeStart - 1, lte: i, color: 'rgba(34, 197, 94, 0.15)' });
+                            actualPieces.push({ gt: activeStart - 1, lte: i, color: 'rgba(34, 197, 94, 0.15)' });
                             activeStart = null;
                         }
                     }
                 }
                 if (activeStart !== null) {
-                    pieces.push({ gt: activeStart - 1, lte: data.length - 1, color: 'rgba(34, 197, 94, 0.15)' });
+                    actualPieces.push({ gt: activeStart - 1, lte: data.length - 1, color: 'rgba(34, 197, 94, 0.15)' });
+                }
+
+                activeStart = null;
+                for (let i = 0; i < data.length; i++) {
+                    if (data[i].grid_charge_recommended) {
+                        if (activeStart === null) activeStart = i;
+                    } else {
+                        if (activeStart !== null) {
+                            recommendationPieces.push({ gt: activeStart - 1, lte: i, color: 'rgba(168, 85, 247, 0.13)' });
+                            activeStart = null;
+                        }
+                    }
+                }
+                if (activeStart !== null) {
+                    recommendationPieces.push({ gt: activeStart - 1, lte: data.length - 1, color: 'rgba(168, 85, 247, 0.13)' });
                 }
 
                 const option = {
@@ -431,8 +453,16 @@ const SmartChargingPage = ((Vue) => {
                             let html = '<b>' + params[0].axisValue + '</b>';
                             params.forEach(function(p) {
                                 if (p.value != null) {
-                                    const valStr = p.seriesName.includes('Preis') ? p.value.toFixed(2) + ' ct/kWh' : p.value.toFixed(3) + ' kWh';
+                                    let valStr;
+                                    if (p.seriesName === priceLegend || p.seriesName === recommendedLegend) {
+                                        valStr = p.value.toFixed(2) + ' ct/kWh';
+                                    } else {
+                                        valStr = p.value.toFixed(3) + ' kWh';
+                                    }
                                     html += '<br/><span style="color:' + p.color + '">● ' + p.seriesName + ': <b>' + valStr + '</b></span>';
+                                    if (p.seriesName === recommendedLegend) {
+                                        html += '<br/><span style="color: var(--text-muted);">' + t('smart_charging.chartTooltipRecommended') + '</span>';
+                                    }
                                 }
                             });
                             return html;
@@ -440,9 +470,10 @@ const SmartChargingPage = ((Vue) => {
                     },
                     legend: {
                         data: [
-                            { name: t('smart_charging.chartLegendPrice'), icon: 'line', itemStyle: { color: '#00d2ff' } },
-                            { name: t('smart_charging.chartLegendCharging'), icon: 'bar', itemStyle: { color: '#22c55e' } },
-                            { name: t('smart_charging.chartLegendSolar'), icon: 'bar', itemStyle: { color: '#f59e0b' } },
+                            { name: priceLegend, icon: 'line', itemStyle: { color: '#00d2ff' } },
+                            { name: chargingLegend, icon: 'bar', itemStyle: { color: '#22c55e' } },
+                            { name: solarLegend, icon: 'bar', itemStyle: { color: '#f59e0b' } },
+                            { name: recommendedLegend, icon: 'triangle', itemStyle: { color: '#a855f7' } },
                         ],
                         bottom: 0,
                         textStyle: { color: getThemeColor('--text-secondary', '#8b949e'), fontSize: 11 },
@@ -472,7 +503,7 @@ const SmartChargingPage = ((Vue) => {
                     ],
                     series: [
                         {
-                            name: t('smart_charging.chartLegendPrice'),
+                            name: priceLegend,
                             type: 'line',
                             yAxisIndex: 1,
                             data: prices,
@@ -480,14 +511,14 @@ const SmartChargingPage = ((Vue) => {
                             showSymbol: false,
                             lineStyle: { width: 3, color: '#00d2ff' },
                             itemStyle: { color: '#00d2ff' },
-                            markArea: pieces.length > 0 ? {
+                            markArea: actualPieces.length > 0 ? {
                                 silent: true,
-                                data: pieces.map(p => [{ xAxis: times[p.gt >= 0 ? p.gt : 0] }, { xAxis: times[p.lte] }]),
+                                data: actualPieces.map(p => [{ xAxis: times[p.gt >= 0 ? p.gt : 0] }, { xAxis: times[p.lte] }]),
                                 itemStyle: { color: 'rgba(0, 210, 255, 0.06)' }
                             } : undefined
                         },
                         {
-                            name: t('smart_charging.chartLegendCharging'),
+                            name: chargingLegend,
                             type: 'bar',
                             data: charging,
                             stack: 'energy',
@@ -500,7 +531,7 @@ const SmartChargingPage = ((Vue) => {
                             }
                         },
                         {
-                            name: t('smart_charging.chartLegendSolar'),
+                            name: solarLegend,
                             type: 'bar',
                             data: solar,
                             stack: 'energy',
@@ -511,6 +542,20 @@ const SmartChargingPage = ((Vue) => {
                                 ]),
                                 borderRadius: [3, 3, 0, 0]
                             }
+                        },
+                        {
+                            name: recommendedLegend,
+                            type: 'scatter',
+                            yAxisIndex: 1,
+                            data: recommendationPoints,
+                            symbol: 'triangle',
+                            symbolSize: 12,
+                            itemStyle: { color: '#a855f7' },
+                            markArea: recommendationPieces.length > 0 ? {
+                                silent: true,
+                                data: recommendationPieces.map(p => [{ xAxis: times[p.gt >= 0 ? p.gt : 0] }, { xAxis: times[p.lte] }]),
+                                itemStyle: { color: 'rgba(168, 85, 247, 0.10)' }
+                            } : undefined
                         }
                     ]
                 };
@@ -529,9 +574,9 @@ const SmartChargingPage = ((Vue) => {
                         fullDays: "Vollladungs-Tage",
                         fullDaysSub: "Akku an {days} von {total} Tagen voll geladen ({pct}%)",
                         unboundPotential: "Ungenutzter Überschuss",
-                        unboundPotentialSub: "Eingespeist bei vollem Akku, das nachts bezogen wurde",
-                        potentialSavings: "Ersparnis-Potenzial",
-                        potentialSavingsSub: "Mögliche Mehrersparnis durch größeren Akku",
+                        unboundPotentialSub: "Speicherbarer Export bei vollem Akku, begrenzt auf späteren Netzbezug",
+                        potentialSavings: "Netto-Potenzial",
+                        potentialSavingsSub: "Bewertet mit {value} ct/kWh nach Einspeisevergütung ({feed} ct/kWh) und Speicherverlusten",
                         sizingRecommendation: "Empfehlung",
                         solarPerformance: "Solar-Jahresbilanz",
                         performanceDesc: "Solar-Kennzahlen seit Jahresbeginn",
@@ -549,8 +594,8 @@ const SmartChargingPage = ((Vue) => {
                         totalChargedSub: "Geladene Energie (PV: {pv}%, Netz: {grid}%)",
                         batteryCycles: "Vollzyklen-Äquivalent",
                         batteryCyclesSub: "Entspricht ca. {cycles} Zyklen pro Tag",
-                        sizingGood: "Dein Akku ({cap} kWh) ist optimal dimensioniert. Eine Vergrößerung hätte bisher nur {savings} zusätzliche Ersparnis gebracht.",
-                        sizingNeedMore: "Ein größerer Akku könnte sich lohnen! Du hättest in diesem Jahr bereits {savings} sparen können.",
+                        sizingGood: "Dein Akku ({cap} kWh) ist optimal dimensioniert. Eine Vergrößerung hätte bisher nur {savings} Netto-Ersparnis gebracht.",
+                        sizingNeedMore: "Ein größerer Akku könnte sich lohnen! Du hättest in diesem Jahr bereits {savings} netto sparen können.",
                         noBattery: "Kein Akku",
                         noBatteryDesc: "Keine Akku-Optimierung möglich, da kein Akku konfiguriert ist.",
                     },
@@ -561,9 +606,9 @@ const SmartChargingPage = ((Vue) => {
                         fullDays: "Full Charge Days",
                         fullDaysSub: "Battery fully charged on {days} of {total} days ({pct}%)",
                         unboundPotential: "Unused Solar Potential",
-                        unboundPotentialSub: "Exported while battery full and later imported",
-                        potentialSavings: "Potential Savings",
-                        potentialSavingsSub: "Possible additional savings with larger battery",
+                        unboundPotentialSub: "Storable export while battery was full, capped by later grid import",
+                        potentialSavings: "Net Potential",
+                        potentialSavingsSub: "Valued at {value} ct/kWh after feed-in tariff ({feed} ct/kWh) and storage losses",
                         sizingRecommendation: "Recommendation",
                         solarPerformance: "Annual Solar Yield",
                         performanceDesc: "Solar metrics since beginning of year",
@@ -581,8 +626,8 @@ const SmartChargingPage = ((Vue) => {
                         totalChargedSub: "Charged energy (PV: {pv}%, Netz: {grid}%)",
                         batteryCycles: "Full Cycle Equivalent",
                         batteryCyclesSub: "Equivalent to approx. {cycles} cycles per day",
-                        sizingGood: "Your battery ({cap} kWh) is optimally sized. A larger battery would have only saved an additional {savings} so far.",
-                        sizingNeedMore: "A larger battery could be worth it! You could have saved an additional {savings} so far this year.",
+                        sizingGood: "Your battery ({cap} kWh) is optimally sized. A larger battery would have only added {savings} net savings so far.",
+                        sizingNeedMore: "A larger battery could be worth it! You could have saved an additional {savings} net so far this year.",
                         noBattery: "No Battery",
                         noBatteryDesc: "No battery optimization possible because no battery is configured.",
                     }
@@ -603,6 +648,15 @@ const SmartChargingPage = ((Vue) => {
                     return localText('sizingNeedMore')
                         .replace('{savings}', fmtEur(potential_savings_eur));
                 }
+            }
+
+            function formatPotentialSavingsSub() {
+                if (!dashboardData.advisor) return localText('potentialSavingsSub');
+                const netValue = Number(dashboardData.advisor.net_value_ct_kwh || 0).toFixed(1);
+                const feedIn = Number(dashboardData.advisor.feed_in_tariff_ct || 0).toFixed(1);
+                return localText('potentialSavingsSub')
+                    .replace('{value}', netValue)
+                    .replace('{feed}', feedIn);
             }
 
             function getPvChargePercent() {
@@ -638,17 +692,19 @@ const SmartChargingPage = ((Vue) => {
             }
 
             let pollInterval = null;
+            const handleResize = () => {
+                if (chartInstance) chartInstance.resize();
+            };
 
             onMounted(() => {
                 loadData();
                 pollInterval = setInterval(loadData, 5000);
-                window.addEventListener('resize', () => {
-                    if (chartInstance) chartInstance.resize();
-                });
+                window.addEventListener('resize', handleResize);
             });
 
             onUnmounted(() => {
                 if (pollInterval) clearInterval(pollInterval);
+                window.removeEventListener('resize', handleResize);
                 if (chartInstance) {
                     chartInstance.dispose();
                     chartInstance = null;
@@ -672,6 +728,7 @@ const SmartChargingPage = ((Vue) => {
                 fmtEur,
                 localText,
                 getSizingRecommendation,
+                formatPotentialSavingsSub,
                 getPvChargePercent,
                 getGridChargePercent,
             };

@@ -21,6 +21,10 @@ const _EnergyPage = {
                 <h2 class="section-title">{{ $t('nav.energyAndFinances') }}</h2>
             </div>
 
+            <div class="chart-card error-state" style="margin-bottom: var(--space-lg);" v-if="billingError">
+                {{ billingError }}
+            </div>
+
             <!-- ========== KARTE 1: ABRECHNUNGSZEITRAUM + FORTSCHRITT ========== -->
             <div class="chart-card" style="margin-bottom: var(--space-lg);" v-if="billing">
                 <div class="chart-header" style="margin-bottom: var(--space-sm);">
@@ -33,7 +37,7 @@ const _EnergyPage = {
                 <div style="margin-bottom: var(--space-lg);">
                     <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--text-muted); margin-bottom: 4px;">
                         <span>{{ $t('energy.dayOf', { current: billing.period.days_elapsed, total: billing.period.days_total }) }}</span>
-                        <span>{{ $t('energy.periodProgress', { pct: billing.period.progress_percent?.toFixed(0) || 0 }) }}</span>
+                        <span>{{ $t('energy.periodProgress', { pct: billing.period.progress_percent != null ? billing.period.progress_percent.toFixed(0) : 0 }) }}</span>
                     </div>
                     <div style="height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden;">
                         <div :style="{width: billing.period.progress_percent + '%', height: '100%', background: 'linear-gradient(90deg, #22c55e, #06b6d4)', borderRadius: '3px', transition: 'width 0.6s'}"></div>
@@ -123,12 +127,12 @@ const _EnergyPage = {
                                     :stroke="autarkieColor"
                                     stroke-width="10" stroke-linecap="round"
                                     :stroke-dasharray="314.16"
-                                    :stroke-dashoffset="314.16 - (314.16 * (billing.autarkie_percent || 0) / 100)"
+                                    :stroke-dashoffset="314.16 - (314.16 * ((billing.autarkie_percent ?? 0)) / 100)"
                                     transform="rotate(-90 60 60)"
                                     style="transition: stroke-dashoffset 1s ease;"/>
                             </svg>
                             <div class="autarkie-text">
-                                <div class="autarkie-value" :style="{color: autarkieColor}">{{ billing.autarkie_percent?.toFixed(0) || 0 }}%</div>
+                                <div class="autarkie-value" :style="{color: autarkieColor}">{{ billing.autarkie_percent != null ? billing.autarkie_percent.toFixed(0) : 0 }}%</div>
                                 <div class="autarkie-label">{{ $t('energy.autarky') }}</div>
                             </div>
                         </div>
@@ -136,13 +140,16 @@ const _EnergyPage = {
 
                     <div class="eb-item">
                         <div class="eb-icon">💰</div>
-                        <div class="eb-value" style="color: #ef4444;">{{ billing.finance.grid_cost_eur?.toFixed(2) || '0.00' }}</div>
+                        <div class="eb-value" style="color: #ef4444;">{{ billing.finance.grid_cost_eur != null ? billing.finance.grid_cost_eur.toFixed(2) : '0.00' }}</div>
                         <div class="eb-label">{{ $t('energy.electricityCosts') }}</div>
-                        <div class="eb-sub">Ø {{ billing.finance.avg_price_ct?.toFixed(1) || '35.0' }} ct/kWh</div>
+                        <div class="eb-sub">
+                            Ø {{ billing.finance.avg_price_ct != null ? billing.finance.avg_price_ct.toFixed(1) : '35.0' }} ct/kWh
+                            <template v-if="billing.finance.base_fee_eur"> · +{{ billing.finance.base_fee_eur.toFixed(2) }} €</template>
+                        </div>
                     </div>
                     <div class="eb-item">
                         <div class="eb-icon">💚</div>
-                        <div class="eb-value" style="color: #22c55e;">{{ billing.finance.savings_eur?.toFixed(2) || '0.00' }}</div>
+                        <div class="eb-value" style="color: #22c55e;">{{ (billing.finance.total_savings_eur ?? billing.finance.savings_eur)?.toFixed(2) || '0.00' }}</div>
                         <div class="eb-label">{{ $t('energy.saved') }}</div>
                         <div class="eb-sub">{{ $t('energy.savedSubtitle', { kwh: savedKwh }) }}</div>
                     </div>
@@ -158,14 +165,27 @@ const _EnergyPage = {
                 <div class="breakdown-section" v-if="billing.household.total_kwh > 0" style="margin-top: var(--space-lg);">
                     <div class="eb-sub" style="margin-bottom: 6px;">{{ $t('energy.electricitySource') }}</div>
                     <div class="breakdown-bar">
-                        <div class="breakdown-seg solar" :style="{width: breakdownPct.solar + '%'}" v-if="breakdownPct.solar > 3">{{ breakdownPct.solar }}%</div>
-                        <div class="breakdown-seg battery" :style="{width: breakdownPct.battery + '%'}" v-if="breakdownPct.battery > 3">{{ breakdownPct.battery }}%</div>
-                        <div class="breakdown-seg grid" :style="{width: breakdownPct.grid + '%'}" v-if="breakdownPct.grid > 3">{{ breakdownPct.grid }}%</div>
+                        <div class="breakdown-seg solar" :style="{width: breakdownPct.solar + '%'}" v-if="breakdownPct.solar > 0">
+                            <span v-if="breakdownPct.solar >= 3">{{ breakdownPct.solar }}%</span>
+                        </div>
+                        <div class="breakdown-seg battery" :style="{width: breakdownPct.battery + '%'}" v-if="breakdownPct.battery > 0">
+                            <span v-if="breakdownPct.battery >= 3">{{ breakdownPct.battery }}%</span>
+                        </div>
+                        <div class="breakdown-seg grid" :style="{width: breakdownPct.grid + '%'}" v-if="breakdownPct.grid > 0">
+                            <span v-if="breakdownPct.grid >= 3">{{ breakdownPct.grid }}%</span>
+                        </div>
+                        <div class="breakdown-seg unknown" :style="{width: breakdownPct.unknown + '%'}" v-if="breakdownPct.unknown > 0">
+                            <span v-if="breakdownPct.unknown >= 3">{{ breakdownPct.unknown }}%</span>
+                        </div>
                     </div>
                     <div class="breakdown-legend">
                         <span><span class="breakdown-dot solar"></span> {{ $t('energy.solarDirect') }}</span>
                         <span><span class="breakdown-dot battery"></span> {{ $t('energy.viaBattery') }}</span>
                         <span><span class="breakdown-dot grid"></span> {{ $t('energy.fromGrid') }}</span>
+                        <span v-if="balanceUnknownKwh > 0.05"><span class="breakdown-dot unknown"></span> {{ $t('energy.fromUnknown') }}</span>
+                    </div>
+                    <div class="breakdown-warning" v-if="balanceUnknownKwh > 0.05">
+                        {{ $t('energy.unclassifiedEnergy', { kwh: fmt(balanceUnknownKwh) }) }}
                     </div>
                 </div>
 
@@ -192,6 +212,7 @@ const _EnergyPage = {
                             <th style="text-align:right">Ø ct/kWh</th>
                             <th style="text-align:right">{{ $t('energy.costs') }}</th>
                             <th style="text-align:right">{{ $t('energy.savedShort') }}</th>
+                            <th style="text-align:right"></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -217,6 +238,9 @@ const _EnergyPage = {
                             </td>
                             <td style="text-align:right; font-family:var(--font-mono); color:#ef4444;">{{ m.cost }} €</td>
                             <td style="text-align:right; font-family:var(--font-mono); color:#22c55e;">{{ m.saved }} €</td>
+                            <td style="text-align:right;">
+                                <button v-if="m.canEditPrice" class="price-edit-btn" @click="openPriceModal(m)">Preis ändern</button>
+                            </td>
                         </tr>
                     </tbody>
                     <tfoot>
@@ -233,6 +257,7 @@ const _EnergyPage = {
                             <td></td>
                             <td style="text-align:right; font-family:var(--font-mono); color:#ef4444;">{{ monthlyTotals.cost }} €</td>
                             <td style="text-align:right; font-family:var(--font-mono); color:#22c55e;">{{ monthlyTotals.saved }} €</td>
+                            <td></td>
                         </tr>
                     </tfoot>
                 </table>
@@ -285,6 +310,52 @@ const _EnergyPage = {
                         <span class="consumer-kwh">{{ billing.consumers.wallbox.total_kwh.toFixed(1) }} kWh</span>
                         <span class="consumer-cost">{{ billing.consumers.wallbox.cost_eur.toFixed(2) }} €</span>
                         <span class="consumer-arrow">›</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ========== MONTHLY PRICE MODAL ========== -->
+            <div class="modal-overlay" v-if="priceModal" @click.self="closePriceModal">
+                <div class="modal-content price-modal">
+                    <button class="modal-close" @click="closePriceModal">✕</button>
+                    <h3 style="margin:0 0 var(--space-md);">Strompreis für {{ priceModal.label }}</h3>
+                    <p class="price-current">Aktuell verwendet: <strong>{{ formatCt(priceModal.currentPrice) }} ct/kWh</strong></p>
+                    <label class="price-input-label" for="monthly-price-input">Neuer Preis</label>
+                    <div class="price-input-row">
+                        <input
+                            id="monthly-price-input"
+                            type="number"
+                            min="0.01"
+                            max="200"
+                            step="0.01"
+                            v-model="priceInput"
+                            @input="previewPriceChange"
+                        >
+                        <span>ct/kWh</span>
+                    </div>
+                    <div v-if="priceError" class="price-error">{{ priceError }}</div>
+                    <div v-if="pricePreview" class="price-preview-grid">
+                        <div class="price-preview-item">
+                            <span>Bisherige Kosten</span>
+                            <strong>{{ formatEuro(pricePreview.before?.cost_eur) }} €</strong>
+                        </div>
+                        <div class="price-preview-item">
+                            <span>Neue Kosten</span>
+                            <strong>{{ formatEuro(pricePreview.after?.cost_eur) }} €</strong>
+                        </div>
+                        <div class="price-preview-item">
+                            <span>Stromkosten</span>
+                            <strong>{{ formatEuro(pricePreview.after?.energy_cost_eur) }} €</strong>
+                        </div>
+                        <div class="price-preview-item">
+                            <span>Anteilige Grundgebühr</span>
+                            <strong>{{ formatEuro(pricePreview.after?.base_fee_eur) }} €</strong>
+                        </div>
+                    </div>
+                    <div class="price-modal-actions">
+                        <button class="price-primary-btn" @click="savePriceChange" :disabled="priceSaving || !pricePreview">Speichern</button>
+                        <button class="price-secondary-btn" @click="resetMonthPrice" :disabled="priceSaving || !priceModal.canReset">Monatspreis zurücksetzen</button>
+                        <button class="price-cancel-btn" @click="closePriceModal" :disabled="priceSaving">Abbrechen</button>
                     </div>
                 </div>
             </div>
@@ -419,13 +490,27 @@ const _EnergyPage = {
         const bcp = (l) => ({ de: 'de-DE', en: 'en-US', pl: 'pl-PL' }[l] || 'en-US');
 
         const billing = ref(null);
+        const billingError = ref(null);
         const priceData = ref(null);
         const sourcesData = ref(null);
         const monthlyData = ref([]);
+        const priceModal = ref(null);
+        const priceInput = ref('');
+        const pricePreview = ref(null);
+        const priceError = ref(null);
+        const priceSaving = ref(false);
         const consumerModal = ref(null);
         const consumerDetail = ref(null);
+        const timeContext = reactive({
+            timezone: null,
+            today: null,
+            current_hour: null,
+            current_month: null,
+            current_year: null,
+        });
         let priceChart = null;
         let sourcesChart = null;
+        let pricePreviewTimer = null;
 
         // Localized via months.shortJan/shortFeb/... at use-site.
         const MONTH_SHORT_KEYS = [
@@ -435,7 +520,69 @@ const _EnergyPage = {
         ];
         const MONTH_NAMES = MONTH_SHORT_KEYS.map(k => t(k));
 
+        function num(v, fallback = 0) { return v ?? fallback; }
         function fmt(v) { return v != null ? v.toFixed(1) : '0.0'; }
+        function formatEuro(v) {
+            const n = Number(v ?? 0);
+            return Number.isFinite(n) ? n.toFixed(2) : '0.00';
+        }
+        function formatCt(v) {
+            const n = Number(v ?? 0);
+            return Number.isFinite(n) ? n.toFixed(2).replace('.', ',') : '0,00';
+        }
+        function syncTimeContext(payload) {
+            const ctx = payload?.time_context;
+            if (!ctx || typeof ctx !== 'object') return;
+            Object.assign(timeContext, ctx);
+        }
+        function haCurrentHour() {
+            const hour = Number(timeContext.current_hour);
+            return Number.isFinite(hour) ? hour : new Date().getHours();
+        }
+        function currentYearMonthKey() {
+            const year = Number(timeContext.current_year) || new Date().getFullYear();
+            const month = Number(timeContext.current_month) || (new Date().getMonth() + 1);
+            return `${year}-${String(month).padStart(2, '0')}`;
+        }
+        function formatHaTime(value) {
+            if (!value) return '';
+            const date = value instanceof Date ? value : new Date(value);
+            if (Number.isNaN(date.getTime())) return '';
+            return new Intl.DateTimeFormat(bcp(locale.value), {
+                hour: '2-digit',
+                minute: '2-digit',
+                timeZone: timeContext.timezone || undefined,
+            }).format(date);
+        }
+        function priceEndpoint(monthRow, suffix = '') {
+            return `/api/sfml_stats/energy/monthly_price/${monthRow.year}/${monthRow.monthNumber}${suffix}`;
+        }
+        function validatePriceInput(value) {
+            const price = Number(String(value).replace(',', '.'));
+            if (!Number.isFinite(price)) return null;
+            if (price <= 0 || price > 200) return null;
+            return price;
+        }
+        async function postJson(url, body) {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+            });
+            const payload = await response.json().catch(() => null);
+            if (!response.ok || payload?.success === false) {
+                throw new Error(payload?.error?.message || payload?.error || 'Der Vorgang konnte nicht ausgeführt werden.');
+            }
+            return payload;
+        }
+        async function deleteJson(url) {
+            const response = await fetch(url, { method: 'DELETE' });
+            const payload = await response.json().catch(() => null);
+            if (!response.ok || payload?.success === false) {
+                throw new Error(payload?.error?.message || payload?.error || 'Der Vorgang konnte nicht ausgeführt werden.');
+            }
+            return payload;
+        }
 
         const monthlyTotals = computed(() => {
             const d = monthlyData.value;
@@ -458,7 +605,7 @@ const _EnergyPage = {
         });
 
         const autarkieColor = computed(() => {
-            const p = billing.value?.autarkie_percent || 0;
+            const p = billing.value?.autarkie_percent ?? 0;
             if (p >= 70) return '#22c55e';
             if (p >= 40) return '#eab308';
             return '#a855f7';
@@ -468,34 +615,81 @@ const _EnergyPage = {
             const b = billing.value;
             if (!b) return '0.0';
             const days = b.period?.days_elapsed || 1;
-            return (b.solar?.total_kwh / days).toFixed(1);
+            return (num(b.solar?.total_kwh) / days).toFixed(1);
         });
 
         const savedKwh = computed(() => {
             const b = billing.value;
             if (!b) return '0';
-            return ((b.solar?.to_house_kwh || 0) + (b.household?.from_battery_kwh || 0)).toFixed(0);
+            if (b.household?.self_supplied_kwh != null) {
+                return b.household.self_supplied_kwh.toFixed(0);
+            }
+            return (num(b.solar?.to_house_kwh) + num(b.household?.from_battery_kwh)).toFixed(0);
         });
 
         const projectedSavings = computed(() => {
             const b = billing.value;
-            if (!b || !b.finance?.savings_eur || !b.period?.days_elapsed) return null;
+            const savings = b?.finance?.total_savings_eur ?? b?.finance?.savings_eur;
+            if (!b || savings == null || !b.period?.days_elapsed) return null;
             const factor = b.period.days_total / b.period.days_elapsed;
-            return (b.finance.savings_eur * factor).toFixed(0);
+            return (savings * factor).toFixed(0);
         });
+
+        const balanceUnknownKwh = computed(() => {
+            const value = Number(billing.value?.household?.from_unknown_kwh ?? 0);
+            return Number.isFinite(value) ? Math.max(0, value) : 0;
+        });
+
+        function wholePercentages(values) {
+            const cleaned = values.map(value => {
+                const number = Number(value ?? 0);
+                return Number.isFinite(number) ? Math.max(0, number) : 0;
+            });
+            const total = cleaned.reduce((sum, value) => sum + value, 0);
+            if (total <= 0) return cleaned.map(() => 0);
+            const raw = cleaned.map(value => value / total * 100);
+            const rounded = raw.map(value => Math.round(value));
+            let diff = 100 - rounded.reduce((sum, value) => sum + value, 0);
+            while (diff !== 0) {
+                const direction = diff > 0 ? 1 : -1;
+                let bestIndex = -1;
+                let bestScore = -Infinity;
+                raw.forEach((value, index) => {
+                    if (cleaned[index] <= 0) return;
+                    if (direction < 0 && rounded[index] <= 0) return;
+                    const score = direction > 0
+                        ? value - rounded[index]
+                        : rounded[index] - value;
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestIndex = index;
+                    }
+                });
+                if (bestIndex < 0) break;
+                rounded[bestIndex] += direction;
+                diff -= direction;
+            }
+            return rounded;
+        }
 
         const breakdownPct = computed(() => {
             const b = billing.value;
-            if (!b || !b.household?.total_kwh) return { solar: 0, battery: 0, grid: 0 };
-            const solarRaw = b.solar?.to_house_kwh || 0;
-            const batteryRaw = b.household?.from_battery_kwh || 0;
-            const gridRaw = b.household?.from_grid_kwh || 0;
-            const sum = solarRaw + batteryRaw + gridRaw;
-            if (sum <= 0) return { solar: 0, battery: 0, grid: 0 };
+            if (!b) return { solar: 0, battery: 0, grid: 0, unknown: 0 };
+            const solarRaw = Math.max(0, num(b.solar?.to_house_kwh));
+            const batteryRaw = Math.max(0, b.household?.from_battery_kwh ?? 0);
+            const gridRaw = Math.max(0, num(b.household?.from_grid_kwh));
+            const unknownRaw = balanceUnknownKwh.value;
+            const [solar, battery, grid, unknown] = wholePercentages([
+                solarRaw,
+                batteryRaw,
+                gridRaw,
+                unknownRaw,
+            ]);
             return {
-                solar: (solarRaw / sum * 100).toFixed(0),
-                battery: (batteryRaw / sum * 100).toFixed(0),
-                grid: (gridRaw / sum * 100).toFixed(0),
+                solar,
+                battery,
+                grid,
+                unknown,
             };
         });
 
@@ -522,40 +716,63 @@ const _EnergyPage = {
         async function loadData() {
             try {
                 const [bill, prices, sources] = await Promise.all([
-                    SFMLApi.fetch('/api/sfml_stats/billing', { forceRefresh: true }),
+                    SFMLApi.fetch('/api/sfml_stats/billing', { forceRefresh: true }).catch(err => ({
+                        success: false,
+                        error: {
+                            code: 'billing_request_failed',
+                            message: err?.message || t('energy.billingUnavailable'),
+                        },
+                    })),
                     SFMLApi.fetch('/api/sfml_stats/gpm_prices', { forceRefresh: true }),
                     SFMLApi.fetch('/api/sfml_stats/power_sources_history?hours=24', { forceRefresh: true }),
                 ]);
-                if (bill?.data_available !== false) billing.value = bill;
+                syncTimeContext(bill);
+                syncTimeContext(prices);
+                syncTimeContext(sources);
+                if (bill?.success === false || bill?.error) {
+                    billing.value = null;
+                    billingError.value = bill?.error?.message || bill?.error || t('energy.billingUnavailable');
+                } else if (bill?.data_available !== false) {
+                    billing.value = bill;
+                    billingError.value = null;
+                }
                 priceData.value = prices;
                 sourcesData.value = sources;
 
                 // Build monthly cost table from real DB data
                 try {
                     const summary = await SFMLApi.fetch('/api/sfml_stats/summary', { forceRefresh: false });
+                    syncTimeContext(summary);
                     const monthlyRaw = summary?.monthly_energy || [];
-                    const avgPrice = bill?.finance?.avg_price_ct || 35.0;
+                    const avgPrice = bill?.finance?.avg_price_ct ?? 35.0;
 
-                    const nowKey = new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0');
+                    const nowKey = currentYearMonthKey();
 
                     const rows = monthlyRaw.map(m => {
                         const parts = m.month.split('-');
                         const year = parseInt(parts[0]);
                         const month = parseInt(parts[1]);
-                        const consumption = m.consumption_kwh || 0;
-                        const solar = m.solar_kwh || 0;
-                        const gridImport = m.grid_import_kwh || 0;
-                        const gridExport = m.grid_export_kwh || 0;
-                        const autarkie = m.autarkie_percent || 0;
+                        const consumption = m.consumption_kwh ?? 0;
+                        const solar = m.solar_kwh ?? 0;
+                        const gridImport = m.grid_import_kwh ?? 0;
+                        const gridExport = m.grid_export_kwh ?? 0;
+                        const autarkie = m.autarkie_percent ?? 0;
 
                         // Kosten: echte stündliche Kosten aus DB (dynamisch) oder Fallback
-                        const cost = m.cost_eur || (gridImport * avgPrice / 100);
-                        const priceUsed = m.avg_price_ct || avgPrice;
-                        const selfCons = (m.solar_to_house_kwh || 0) + (m.battery_to_house_kwh || 0);
-                        const saved = (selfCons * priceUsed / 100);
-                        const isDynamic = m.cost_source === 'dynamic';
+                        const cost = m.cost_eur ?? (gridImport * avgPrice / 100);
+                        const priceUsed = m.avg_price_ct ?? avgPrice;
+                        const selfCons = m.self_consumption_kwh ?? (
+                            (m.solar_to_house_kwh ?? 0)
+                            + Math.max(0, (m.battery_to_house_kwh ?? 0) - (m.grid_to_battery_kwh ?? 0))
+                        );
+                        const saved = m.total_savings_eur ?? m.savings_eur ?? (selfCons * priceUsed / 100);
+                        const isDynamic = m.cost_source === 'dynamic' || m.cost_source === 'hybrid';
+                        const priceMode = m.price_mode || (isDynamic ? 'dynamic' : null);
 
                         return {
+                            monthKey: m.month,
+                            year,
+                            monthNumber: month,
                             label: MONTH_NAMES[month - 1] + ' ' + year,
                             consumption: consumption.toFixed(0),
                             solar: solar.toFixed(0),
@@ -564,7 +781,13 @@ const _EnergyPage = {
                             selfCons,
                             cost: cost.toFixed(2),
                             avgPrice: priceUsed.toFixed(1),
-                            saved: saved.toFixed(2),
+                            avgPriceValue: Number(priceUsed ?? 0),
+                            energyCost: Number(m.energy_cost_eur ?? 0),
+                            baseFee: Number(m.base_fee_eur ?? 0),
+                            saved: Number(saved ?? 0).toFixed(2),
+                            priceMode,
+                            canEditPrice: m.price_mode === 'fixed',
+                            canReset: m.tariff_source === 'manual',
                             isDynamic,
                             isCurrent: m.month === nowKey,
                         };
@@ -610,7 +833,7 @@ const _EnergyPage = {
             const todayData = labels.map((_, i) => todayMap[i] != null ? todayMap[i] : null);
             const tomorrowData = labels.map((_, i) => tomorrowMap[i] != null ? tomorrowMap[i] : null);
 
-            const nowHour = new Date().getHours();
+            const nowHour = haCurrentHour();
 
             priceChart.setOption({
                 backgroundColor: 'transparent',
@@ -686,8 +909,10 @@ const _EnergyPage = {
             const data = sources.data;
             if (!data.length) return true;
             const times = data.map(d => {
-                const dt = new Date(d.timestamp || d.time);
-                return dt.toLocaleTimeString(bcp(locale.value), { hour: '2-digit', minute: '2-digit' });
+                if (typeof d.hour_key === 'string' && d.hour_key.length >= 16) {
+                    return d.hour_key.slice(11, 16);
+                }
+                return formatHaTime(d.local_timestamp || d.timestamp || d.time);
             });
 
             sourcesChart.setOption({
@@ -698,14 +923,109 @@ const _EnergyPage = {
                 xAxis: { type: 'category', data: times, axisLabel: { color: getThemeColor('--text-muted', '#6e7681'), fontSize: 10, interval: Math.floor(times.length / 12) }, axisLine: { lineStyle: { color: getThemeColor('--border-default', 'rgba(255,255,255,0.1)') } } },
                 yAxis: { type: 'value', name: 'W', nameTextStyle: { color: getThemeColor('--text-secondary', '#6e7681') }, splitLine: { lineStyle: { color: getThemeColor('--border-default', 'rgba(255,255,255,0.05)') } }, axisLabel: { color: getThemeColor('--text-muted', '#6e7681') } },
                 series: [
-                    { name: t('flow.stat.solarToHouse'), type: 'line', stack: 'pos', areaStyle: { color: 'rgba(251,191,36,0.3)' }, lineStyle: { color: '#fbbf24', width: 1.5 }, itemStyle: { color: '#fbbf24' }, symbol: 'none', smooth: true, data: data.map(d => d.solar_to_house || 0) },
-                    { name: t('flow.stat.batteryToHouse'), type: 'line', stack: 'pos', areaStyle: { color: 'rgba(34,197,94,0.2)' }, lineStyle: { color: '#22c55e', width: 1.5 }, itemStyle: { color: '#22c55e' }, symbol: 'none', smooth: true, data: data.map(d => d.battery_to_house || 0) },
-                    { name: t('flow.stat.gridToHouse'), type: 'line', stack: 'pos', areaStyle: { color: 'rgba(139,92,246,0.2)' }, lineStyle: { color: '#a855f7', width: 1.5 }, itemStyle: { color: '#a855f7' }, symbol: 'none', smooth: true, data: data.map(d => d.grid_to_house || 0) },
-                    { name: t('flow.node.houseConsumption'), type: 'line', lineStyle: { color: getThemeColor('--text-primary', '#f0f6fc'), width: 2, type: 'dashed' }, itemStyle: { color: getThemeColor('--text-primary', '#f0f6fc') }, symbol: 'none', smooth: true, data: data.map(d => d.home_consumption || 0) },
+                    { name: t('flow.stat.solarToHouse'), type: 'line', stack: 'pos', areaStyle: { color: 'rgba(251,191,36,0.3)' }, lineStyle: { color: '#fbbf24', width: 1.5 }, itemStyle: { color: '#fbbf24' }, symbol: 'none', smooth: true, data: data.map(d => d.solar_to_house ?? 0) },
+                    { name: t('flow.stat.batteryToHouse'), type: 'line', stack: 'pos', areaStyle: { color: 'rgba(34,197,94,0.2)' }, lineStyle: { color: '#22c55e', width: 1.5 }, itemStyle: { color: '#22c55e' }, symbol: 'none', smooth: true, data: data.map(d => d.battery_to_house ?? 0) },
+                    { name: t('flow.stat.gridToHouse'), type: 'line', stack: 'pos', areaStyle: { color: 'rgba(139,92,246,0.2)' }, lineStyle: { color: '#a855f7', width: 1.5 }, itemStyle: { color: '#a855f7' }, symbol: 'none', smooth: true, data: data.map(d => d.grid_to_house ?? 0) },
+                    { name: t('flow.node.houseConsumption'), type: 'line', lineStyle: { color: getThemeColor('--text-primary', '#f0f6fc'), width: 2, type: 'dashed' }, itemStyle: { color: getThemeColor('--text-primary', '#f0f6fc') }, symbol: 'none', smooth: true, data: data.map(d => d.home_consumption ?? 0) },
                 ],
                 animationDuration: 1000,
             }, true);
             return true;
+        }
+
+        async function openPriceModal(monthRow) {
+            priceModal.value = {
+                ...monthRow,
+                currentPrice: monthRow.avgPriceValue,
+            };
+            priceInput.value = formatCt(monthRow.avgPriceValue).replace(',', '.');
+            pricePreview.value = null;
+            priceError.value = null;
+            priceSaving.value = false;
+            try {
+                const response = await fetch(priceEndpoint(monthRow), { cache: 'no-store' });
+                const payload = await response.json();
+                if (!response.ok || payload?.success === false) {
+                    throw new Error(payload?.error?.message || payload?.error || 'Der Preis konnte nicht geladen werden.');
+                }
+                priceModal.value = {
+                    ...priceModal.value,
+                    currentPrice: payload.current_price_ct,
+                    canReset: payload.can_reset,
+                };
+                priceInput.value = formatCt(payload.current_price_ct).replace(',', '.');
+                pricePreview.value = payload;
+            } catch (err) {
+                priceError.value = err?.message || 'Der Preis konnte nicht geladen werden.';
+            }
+        }
+
+        function closePriceModal() {
+            if (pricePreviewTimer) {
+                clearTimeout(pricePreviewTimer);
+                pricePreviewTimer = null;
+            }
+            priceModal.value = null;
+            priceInput.value = '';
+            pricePreview.value = null;
+            priceError.value = null;
+            priceSaving.value = false;
+        }
+
+        function previewPriceChange() {
+            if (!priceModal.value) return;
+            if (pricePreviewTimer) clearTimeout(pricePreviewTimer);
+            const price = validatePriceInput(priceInput.value);
+            if (price == null) {
+                pricePreview.value = null;
+                priceError.value = 'Bitte geben Sie einen Preis zwischen 0 und 200 ct/kWh ein.';
+                return;
+            }
+            priceError.value = null;
+            pricePreviewTimer = setTimeout(async () => {
+                try {
+                    pricePreview.value = await postJson(
+                        priceEndpoint(priceModal.value, '/preview'),
+                        { price_ct: price },
+                    );
+                } catch (err) {
+                    pricePreview.value = null;
+                    priceError.value = err?.message || 'Die Vorschau konnte nicht berechnet werden.';
+                }
+            }, 250);
+        }
+
+        async function savePriceChange() {
+            if (!priceModal.value) return;
+            const price = validatePriceInput(priceInput.value);
+            if (price == null) {
+                priceError.value = 'Bitte geben Sie einen Preis zwischen 0 und 200 ct/kWh ein.';
+                return;
+            }
+            priceSaving.value = true;
+            priceError.value = null;
+            try {
+                await postJson(priceEndpoint(priceModal.value), { price_ct: price });
+                closePriceModal();
+                await loadData();
+            } catch (err) {
+                priceError.value = err?.message || 'Der Preis konnte nicht gespeichert werden.';
+                priceSaving.value = false;
+            }
+        }
+
+        async function resetMonthPrice() {
+            if (!priceModal.value || !priceModal.value.canReset) return;
+            priceSaving.value = true;
+            priceError.value = null;
+            try {
+                await deleteJson(priceEndpoint(priceModal.value));
+                closePriceModal();
+                await loadData();
+            } catch (err) {
+                priceError.value = err?.message || 'Der Monatspreis konnte nicht zurückgesetzt werden.';
+                priceSaving.value = false;
+            }
         }
 
         async function openConsumerModal(type) {
@@ -741,7 +1061,10 @@ const _EnergyPage = {
         });
 
         return {
-            billing, priceData, priceRanges, monthlyData, monthlyTotals, fmt,
+            billing, billingError, priceData, priceRanges, monthlyData, monthlyTotals, fmt,
+            priceModal, priceInput, pricePreview, priceError, priceSaving,
+            formatEuro, formatCt, openPriceModal, closePriceModal,
+            previewPriceChange, savePriceChange, resetMonthPrice,
             autarkieColor, avgDaily, savedKwh, projectedSavings,
             breakdownPct, hasConsumers,
             consumerModal, consumerDetail, openConsumerModal,
@@ -843,6 +1166,7 @@ const _EnergyPage = {
         .breakdown-seg.solar { background: linear-gradient(90deg, #fbbf24, #f59e0b); }
         .breakdown-seg.battery { background: linear-gradient(90deg, #22c55e, #16a34a); }
         .breakdown-seg.grid { background: linear-gradient(90deg, #a855f7, #7c3aed); }
+        .breakdown-seg.unknown { background: linear-gradient(90deg, #94a3b8, #64748b); }
 
         .breakdown-legend {
             display: flex;
@@ -864,6 +1188,14 @@ const _EnergyPage = {
         .breakdown-dot.solar { background: #fbbf24; }
         .breakdown-dot.battery { background: #22c55e; }
         .breakdown-dot.grid { background: #a855f7; }
+        .breakdown-dot.unknown { background: #94a3b8; }
+
+        .breakdown-warning {
+            margin-top: 6px;
+            font-size: 0.68rem;
+            color: var(--text-muted);
+            text-align: center;
+        }
 
         /* Smart Charging Badge */
         .smart-badge {
@@ -902,6 +1234,22 @@ const _EnergyPage = {
         .consumer-kwh { font-family: var(--font-mono); font-size: 0.85rem; text-align: right; color: var(--text-secondary); }
         .consumer-cost { font-family: var(--font-mono); font-size: 0.85rem; text-align: right; color: #ef4444; }
 
+        .price-edit-btn {
+            background: rgba(0,212,255,0.12);
+            border: 1px solid rgba(0,212,255,0.35);
+            border-radius: var(--radius-sm);
+            color: var(--accent);
+            cursor: pointer;
+            font-size: 0.72rem;
+            font-weight: 600;
+            padding: 5px 9px;
+            white-space: nowrap;
+        }
+        .price-edit-btn:hover {
+            background: rgba(0,212,255,0.2);
+            border-color: var(--accent);
+        }
+
         /* Consumer Detail Modal */
         .modal-overlay {
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
@@ -922,6 +1270,104 @@ const _EnergyPage = {
             font-size: 1.5rem; cursor: pointer; padding: 0; line-height: 1;
         }
         .modal-close:hover { color: #ef4444; }
+
+        .price-modal { max-width: 520px; }
+        .price-current {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin: 0 0 var(--space-lg);
+        }
+        .price-current strong {
+            color: var(--text-primary);
+            font-family: var(--font-mono);
+        }
+        .price-input-label {
+            color: var(--text-secondary);
+            display: block;
+            font-size: 0.78rem;
+            margin-bottom: 6px;
+        }
+        .price-input-row {
+            align-items: center;
+            background: var(--bg-card);
+            border: 1px solid var(--border-default);
+            border-radius: var(--radius-sm);
+            display: flex;
+            gap: 8px;
+            padding: 8px 10px;
+        }
+        .price-input-row input {
+            background: transparent;
+            border: 0;
+            color: var(--text-primary);
+            flex: 1;
+            font-family: var(--font-mono);
+            font-size: 1rem;
+            min-width: 0;
+            outline: none;
+        }
+        .price-input-row span {
+            color: var(--text-secondary);
+            font-size: 0.82rem;
+            white-space: nowrap;
+        }
+        .price-error {
+            color: #ef4444;
+            font-size: 0.78rem;
+            margin-top: 8px;
+        }
+        .price-preview-grid {
+            display: grid;
+            gap: var(--space-sm);
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            margin-top: var(--space-lg);
+        }
+        .price-preview-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border-default);
+            border-radius: var(--radius-sm);
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding: var(--space-md);
+        }
+        .price-preview-item span {
+            color: var(--text-secondary);
+            font-size: 0.72rem;
+        }
+        .price-preview-item strong {
+            color: var(--text-primary);
+            font-family: var(--font-mono);
+            font-size: 1rem;
+        }
+        .price-modal-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--space-sm);
+            justify-content: flex-end;
+            margin-top: var(--space-lg);
+        }
+        .price-modal-actions button {
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-weight: 600;
+            padding: 8px 12px;
+        }
+        .price-modal-actions button:disabled {
+            cursor: not-allowed;
+            opacity: 0.45;
+        }
+        .price-primary-btn {
+            background: var(--accent);
+            border: 1px solid var(--accent);
+            color: #001018;
+        }
+        .price-secondary-btn,
+        .price-cancel-btn {
+            background: var(--bg-card);
+            border: 1px solid var(--border-default);
+            color: var(--text-primary);
+        }
 
         .cd-grid { display: flex; flex-wrap: wrap; gap: var(--space-sm); margin-bottom: var(--space-lg); }
         .cd-badge {
@@ -953,6 +1399,9 @@ const _EnergyPage = {
             .eb-value { font-size: 1.1rem; }
             .consumer-row { grid-template-columns: 30px 1fr 80px 60px 20px; }
             .cd-stats { grid-template-columns: repeat(2, 1fr); }
+            .price-preview-grid { grid-template-columns: 1fr; }
+            .price-modal-actions { justify-content: stretch; }
+            .price-modal-actions button { flex: 1 1 100%; }
         }
     `;
     document.head.appendChild(style);

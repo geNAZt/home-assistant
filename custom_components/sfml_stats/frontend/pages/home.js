@@ -45,6 +45,12 @@ function forecastBandColorFromAccuracy(accuracyPercent) {
     return forecastBandColor(100 - accuracyPercent);
 }
 
+function yieldDeviationColor(deviation) {
+    if (deviation == null || Number.isNaN(deviation)) return '#8b949e';
+    if (deviation >= 0) return deviation > 0 ? '#22c55e' : '#38bdf8';
+    return forecastBandColor(deviation);
+}
+
 const STATUS_TRANSLATIONS = {
     de: {
         producing: 'Erzeugt',
@@ -75,10 +81,10 @@ const STATUS_TRANSLATIONS = {
         grid_neutral: 'Neutral',
         home_desc: 'House Consumption',
         solar: 'SOLAR',
-        home: 'BEDARF',
-        battery: 'AKKU',
-        grid: 'NETZ',
-        car: 'AUTO',
+        home: 'DEMAND',
+        battery: 'BATTERY',
+        grid: 'GRID',
+        car: 'CAR',
         peakToday: 'PEAK TODAY',
         alltime: 'ALLTIME',
     },
@@ -93,9 +99,9 @@ const STATUS_TRANSLATIONS = {
         grid_neutral: 'Neutralny',
         home_desc: 'Zużycie domu',
         solar: 'SOLAR',
-        home: 'BEDARF',
-        battery: 'AKKU',
-        grid: 'NETZ',
+        home: 'POBÓR',
+        battery: 'AKU',
+        grid: 'SIEĆ',
         car: 'AUTO',
         peakToday: 'SZCZYT DZIŚ',
         alltime: 'ALLTIME',
@@ -151,6 +157,16 @@ const _HomePage = {
                         </div>
                         <div class="weather-badge source-badge" v-if="infoData.outdoorSource === 'forecast'">
                             <span class="badge-val">{{ $t('common.forecast') }}</span>
+                        </div>
+                        <div
+                            v-for="chip in flowStatusChips"
+                            :key="chip.entity_id"
+                            class="weather-badge flow-status-chip"
+                            :class="statusChipClass(chip)"
+                            :title="statusChipTitle(chip)"
+                        >
+                            <span class="badge-val">{{ chip.label }}</span>
+                            <span class="badge-chip-value">{{ chip.display }}</span>
                         </div>
                     </div>
                 </div>
@@ -341,8 +357,13 @@ const _HomePage = {
                     </svg>
                 </div>
                 <div class="hubble-heading">
-                    <span class="hubble-kicker">{{ $t('home.hubble.agent') }} · {{ hubbleView.moment }}</span>
+                    <span class="hubble-kicker">{{ $t('home.hubble.agent') }}</span>
                     <span class="chart-title">{{ hubbleView.title }}</span>
+                    <span class="hubble-moment">{{ hubbleView.moment }}</span>
+                </div>
+                <div v-if="hubbleView.systemStatus" class="hubble-system-status" :class="hubbleView.systemStatus.variant">
+                    <span class="hubble-system-title">{{ hubbleView.systemStatus.title }}</span>
+                    <span class="hubble-system-meta">{{ hubbleView.systemStatus.meta }}</span>
                 </div>
                 <button type="button" class="hubble-toggle" @click="hubbleExpanded = !hubbleExpanded">
                     {{ hubbleExpanded ? $t('common.collapse') : $t('common.details') }}
@@ -372,7 +393,7 @@ const _HomePage = {
                     {{ action.label }}
                 </button>
                 <a
-                    href="/api/sfml_stats/static/docs.html?v=28.0.6"
+                    href="/api/sfml_stats/static/docs.html?v=32.0.0"
                     target="_blank"
                     class="hubble-action docs-link"
                     style="text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 4px;"
@@ -439,9 +460,9 @@ const _HomePage = {
                         </div>
                     </div>
                     <div v-if="todayForecastErrorLabel" class="metric-badge-card">
-                        <span class="metric-badge-icon">⚠️</span>
+                        <span class="metric-badge-icon">{{ todayForecastErrorIcon }}</span>
                         <div class="metric-badge-info">
-                            <span class="metric-badge-value" :style="{ color: forecastBandColor(todayForecastErrorPercent) }">{{ todayForecastErrorLabel }}</span>
+                            <span class="metric-badge-value" :style="{ color: yieldDeviationColor(todayForecastErrorPercent) }">{{ todayForecastErrorLabel }}</span>
                             <span class="metric-badge-label">{{ $t('home.todayError') }}</span>
                         </div>
                     </div>
@@ -473,20 +494,20 @@ const _HomePage = {
                         <span class="metric-badge-icon">📉</span>
                         <div class="metric-badge-info">
                             <span class="metric-badge-value" style="color: #fbbf24">{{ forecastTotal }} <span class="unit">kWh</span></span>
-                            <span class="metric-badge-label">{{ $t('common.forecast') }}</span>
+                            <span class="metric-badge-label">{{ $t('home.forecastDayKpi') }}</span>
                         </div>
                     </div>
                     <div v-if="hasHybridForecast" class="metric-badge-card">
                         <span class="metric-badge-icon">🔀</span>
                         <div class="metric-badge-info">
                             <span class="metric-badge-value" style="color: #38bdf8">{{ hybridForecastTotal }} <span class="unit">kWh</span></span>
-                            <span class="metric-badge-label">{{ $t('home.hybrid') }}</span>
+                            <span class="metric-badge-label">{{ $t('home.hybridDayKpi') }}</span>
                         </div>
                     </div>
                     <div class="metric-badge-card">
                         <span class="metric-badge-icon">↕️</span>
                         <div class="metric-badge-info">
-                            <span class="metric-badge-value" :style="{ color: forecastBandColor(todayForecastErrorPercent) }">{{ forecastDeviationKwhLabel }}</span>
+                            <span class="metric-badge-value" :style="{ color: yieldDeviationColor(forecastDeviationKwh) }">{{ forecastDeviationKwhLabel }}</span>
                             <span class="metric-badge-label">{{ $t('home.deviation') }}</span>
                         </div>
                     </div>
@@ -554,23 +575,30 @@ const _HomePage = {
             <div class="chart-header" style="margin-bottom: var(--space-md);">
                 <span class="chart-title">☀ {{ $t('settings.panelGroups') }}</span>
             </div>
-            <div class="panel-groups-grid">
+            <div class="panel-groups-grid" :class="'count-' + Object.keys(panelGroupsData.groups || {}).length">
                 <div class="chart-card panel-group-chart-card" v-for="(group, groupName) in panelGroupsData.groups" :key="groupName">
                     <div class="chart-header" style="flex-wrap:wrap; gap:6px; margin-bottom: 8px;">
                         <span class="chart-title" style="font-size:0.92rem; font-weight: 700;">☀ {{ groupName }}</span>
                         <div class="pg-stats">
                             <span class="pg-badge actual">
-                                {{ (group.actual_total_kwh || 0).toFixed(2) }} kWh
+                                {{ fmtKwh(group.actual_total_kwh, 2) }} kWh
                             </span>
                             <span class="pg-badge forecast">
-                                {{ ((group.prediction_day_kwh ?? group.prediction_total_kwh) || 0).toFixed(2) }} kWh
+                                {{ fmtKwh(group.prediction_day_kwh ?? group.prediction_total_kwh, 2) }} kWh
                             </span>
-                            <span v-if="group.accuracy_percent != null" class="pg-badge accuracy" :style="{ color: forecastBandColorFromAccuracy(group.accuracy_percent), borderColor: forecastBandColorFromAccuracy(group.accuracy_percent) + '22' }">
-                                {{ group.accuracy_percent.toFixed(0) }}%
+                            <span v-if="group.live_only" class="pg-badge neutral">
+                                {{ $t('home.panelGroups.liveOnly') }}
+                            </span>
+                            <span v-if="panelDayProgressPercent(group) != null" class="pg-badge progress" :style="{ color: panelDayProgressColor(group), borderColor: panelDayProgressColor(group) + '33' }" :title="panelDayProgressTitle(group)">
+                                {{ panelDayProgressPercent(group).toFixed(0) }}%
                             </span>
                         </div>
                     </div>
-                    <div :ref="el => { if (el) pgChartRefs[groupName] = el }" style="height: 220px; width: 100%;"></div>
+                    <div v-if="groupHasHourly(group)" class="panel-group-chart" :ref="el => { if (el) pgChartRefs[groupName] = el }"></div>
+                    <div v-else class="empty-state">{{ $t('home.panelGroups.liveOnlyText') }}</div>
+                    <div v-if="panelGroupMetaLine(group)" class="pg-meta-line" :title="panelGroupMetaTitle(group)">
+                        {{ panelGroupMetaLine(group) }}
+                    </div>
                 </div>
             </div>
         </div>
@@ -611,6 +639,25 @@ const _HomePage = {
             </div>
         </div>
 
+        <div class="chart-card" v-show="hasBatteryChart" style="margin-top: var(--space-lg)">
+            <div class="chart-header" style="flex-wrap:wrap; gap:6px;">
+                <div style="display:flex; align-items:center; gap:var(--space-md)">
+                    <span class="chart-title">🔋 Akku-Ladestand</span>
+                    <span style="color:#38bdf8; font-size:1.3rem; font-weight:700; font-family:var(--font-mono)">
+                        {{ batteryChartStats.socText }}
+                    </span>
+                </div>
+                <div class="battery-chart-stats">
+                    <span>Tief <strong>{{ batteryChartStats.minSocText }}</strong></span>
+                    <span>Hoch <strong>{{ batteryChartStats.maxSocText }}</strong></span>
+                    <span>Laden <strong class="charge">{{ batteryChartStats.chargeKwh }}</strong></span>
+                    <span>Entladen <strong class="discharge">{{ batteryChartStats.dischargeKwh }}</strong></span>
+                    <span class="battery-mode" :class="batteryStateClass">{{ batteryStateTextLocal }}</span>
+                </div>
+            </div>
+            <div ref="batteryChartEl" class="chart-container battery-chart-container"></div>
+        </div>
+
     </div>
     `,
 
@@ -622,9 +669,11 @@ const _HomePage = {
         // Refs
         const forecastChartEl = ref(null);
         const powerChartEl = ref(null);
+        const batteryChartEl = ref(null);
         const sparklineRefs = reactive({});
         let forecastChartInstance = null;
         let powerChartInstance = null;
+        let batteryChartInstance = null;
         let resizeHandler = null;
 
         // Reactive state
@@ -649,14 +698,16 @@ const _HomePage = {
 
         const panels = ref([]);
         const panelHistory = reactive({});
+        const flowStatusChips = ref([]);
 
         // Panel Groups (IST vs Prognose pro Gruppe)
         const panelGroupsData = reactive({ available: false, groups: {} });
         const pgChartRefs = reactive({});
         const pgChartInstances = {};
-        const forecastData = reactive({ hours: [], forecast: [], forecastRaw: [], hybrid: [], actual: [], actualRaw: [], confidence: [], ml_pct: [], method: [], temperature: [], radiation: [], clouds: [], tfs: [], tfs_weight: [], ai: [], physics: [], lstm: [], ridge: [] });
+        const forecastData = reactive({ hours: [], forecast: [], forecastRaw: [], hybrid: [], operationalTotal: null, actual: [], actualRaw: [], cleanEligible: [], confidence: [], ml_pct: [], method: [], temperature: [], radiation: [], clouds: [], tfs: [], tfs_weight: [], ai: [], physics: [], lstm: [], ridge: [] });
         const weatherTrace = ref([]);
         const powerData = ref([]);
+        const batterySocSensorConfigured = ref(false);
         const dailyForecasts = ref([]);
         const hubble = ref(null);
 
@@ -665,6 +716,135 @@ const _HomePage = {
             const lang = locale.value;
             const dict = STATUS_TRANSLATIONS[lang] || STATUS_TRANSLATIONS['en'];
             return dict[key] || key;
+        };
+        const timeContext = reactive({
+            timezone: null,
+            now: null,
+            today: null,
+            tomorrow: null,
+            current_hour: null,
+            current_minute: null,
+            current_month: null,
+            current_year: null,
+            syncedAt: 0,
+        });
+        function syncTimeContext(payload) {
+            const ctx = payload?.time_context;
+            if (!ctx) return;
+            Object.assign(timeContext, ctx, { syncedAt: Date.now() });
+        }
+        const localDateKey = (date = null) => {
+            if (!date && timeContext.today) return timeContext.today;
+            date = date || new Date();
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        };
+        const haCurrentHour = () => {
+            const hour = Number(timeContext.current_hour);
+            return Number.isFinite(hour) ? hour : new Date().getHours();
+        };
+        function formatHaTime(value, options = { hour: '2-digit', minute: '2-digit' }) {
+            if (!value) return '';
+            const date = value instanceof Date ? value : new Date(value);
+            if (Number.isNaN(date.getTime())) return '';
+            return new Intl.DateTimeFormat(bcp(locale.value), {
+                ...options,
+                timeZone: timeContext.timezone || undefined,
+            }).format(date);
+        }
+        function formatHaDateOnly(value, options = { day: '2-digit', month: '2-digit' }) {
+            if (!value) return '';
+            const date = value instanceof Date ? value : new Date(String(value).length === 10 ? `${value}T12:00:00` : value);
+            if (Number.isNaN(date.getTime())) return '';
+            return new Intl.DateTimeFormat(bcp(locale.value), {
+                ...options,
+                timeZone: timeContext.timezone || undefined,
+            }).format(date);
+        }
+        function currentHaInstant() {
+            if (!timeContext.now) return new Date();
+            const base = new Date(timeContext.now);
+            if (Number.isNaN(base.getTime())) return new Date();
+            const elapsed = timeContext.syncedAt ? Date.now() - timeContext.syncedAt : 0;
+            return new Date(base.getTime() + elapsed);
+        }
+        const valueOrZero = (value) => value ?? 0;
+        const fmtKwh = (value, digits = 2) => Number(valueOrZero(value)).toFixed(digits);
+        const groupHasHourly = (group) => Array.isArray(group?.hourly) && group.hourly.length > 0;
+        const finiteNumber = (value) => {
+            const number = Number(value);
+            return Number.isFinite(number) ? number : null;
+        };
+        const formatPanelPercent = (value, digits = 0) => {
+            const number = finiteNumber(value);
+            return number == null ? null : number.toFixed(digits);
+        };
+        const panelDayProgressPercent = (group) => {
+            const provided = finiteNumber(group?.day_progress_percent);
+            if (provided != null) return provided;
+            const actual = finiteNumber(group?.actual_total_kwh);
+            const forecast = finiteNumber(group?.prediction_day_kwh ?? group?.prediction_total_kwh);
+            if (actual == null || forecast == null || forecast <= 0) return null;
+            return (actual / forecast) * 100;
+        };
+        const panelDayProgressColor = (group) => {
+            const progress = panelDayProgressPercent(group);
+            if (progress == null) return '#8b949e';
+            if (progress >= 100) return '#22c55e';
+            if (progress >= 70) return '#fbbf24';
+            if (progress >= 35) return '#38bdf8';
+            return '#8b949e';
+        };
+        const panelDayProgressTitle = (group) => {
+            const actual = fmtKwh(group?.actual_total_kwh, 2);
+            const forecast = fmtKwh(group?.prediction_day_kwh ?? group?.prediction_total_kwh, 2);
+            return t('home.panelGroups.dayProgressTitle', { actual, forecast });
+        };
+        const panelGroupMetaParts = (group) => {
+            if (!group || group.live_only) return [];
+            const parts = [];
+            const forecastUntilNow = finiteNumber(group.prediction_until_now_kwh);
+            if (forecastUntilNow != null && forecastUntilNow > 0) {
+                parts.push(t('home.panelGroups.forecastSoFarShort', {
+                    value: fmtKwh(forecastUntilNow, 2),
+                }));
+            }
+            const hitUntilNow = formatPanelPercent(group.forecast_until_now_accuracy_percent);
+            if (hitUntilNow != null) {
+                parts.push(t('home.panelGroups.hitSoFarShort', { value: hitUntilNow }));
+            }
+            const cleanAccuracy = formatPanelPercent(group.clean_accuracy_percent ?? group.accuracy_percent);
+            if (cleanAccuracy != null) {
+                parts.push(t('home.panelGroups.cleanAccuracyShort', { value: cleanAccuracy }));
+            }
+            const cleanHours = finiteNumber(group.clean_hours_count);
+            const elapsedHours = finiteNumber(group.elapsed_hours_count);
+            if (cleanHours != null && elapsedHours != null && elapsedHours > 0) {
+                parts.push(t('home.panelGroups.learningBasisShort', {
+                    clean: cleanHours.toFixed(0),
+                    elapsed: elapsedHours.toFixed(0),
+                }));
+            }
+            const excludedHours = finiteNumber(group.excluded_hours_count);
+            if (excludedHours != null && excludedHours > 0) {
+                parts.push(t('home.panelGroups.discardedShort', { value: excludedHours.toFixed(0) }));
+            }
+            return parts;
+        };
+        const panelGroupMetaLine = (group) => panelGroupMetaParts(group).join(' · ');
+        const panelGroupMetaTitle = (group) => panelGroupMetaLine(group);
+        const statusChipClass = (chip) => {
+            if (!chip?.available) return 'unavailable';
+            if (chip.active === true) return 'active';
+            if (chip.active === false) return 'inactive';
+            return chip.source === 'SFML' ? 'sfml' : 'stats';
+        };
+        const statusChipTitle = (chip) => {
+            if (!chip) return '';
+            const parts = [chip.label, chip.source, chip.entity_id].filter(Boolean);
+            return parts.join(' · ');
         };
 
         const batteryPowerText = computed(() => {
@@ -685,6 +865,63 @@ const _HomePage = {
             if (p > 10) return 'charging';
             if (p < -10) return 'discharging';
             return 'idle';
+        });
+
+        const hasBatteryChart = computed(() => (
+            batterySocSensorConfigured.value
+            && (
+                flow.battery_soc != null
+                || powerData.value.some((point) => point.battery_soc != null)
+            )
+        ));
+
+        function powerPointTimeMs(point) {
+            const raw = point?.local_timestamp || point?.timestamp || point?.time;
+            if (!raw) return null;
+            const timestamp = new Date(raw).getTime();
+            return Number.isFinite(timestamp) ? timestamp : null;
+        }
+
+        function integratePowerKwh(data, selector) {
+            let total = 0;
+            for (let i = 1; i < data.length; i += 1) {
+                const previousTime = powerPointTimeMs(data[i - 1]);
+                const currentTimeMs = powerPointTimeMs(data[i]);
+                if (previousTime == null || currentTimeMs == null || currentTimeMs <= previousTime) continue;
+                const hours = Math.min((currentTimeMs - previousTime) / 3600000, 0.5);
+                total += Math.max(0, Number(selector(data[i - 1])) || 0) * hours / 1000;
+            }
+            return total;
+        }
+
+        const batteryChartStats = computed(() => {
+            const data = powerData.value || [];
+            const charge = integratePowerKwh(
+                data,
+                (point) => (Number(point.solar_to_battery) || 0) + (Number(point.grid_to_battery) || 0),
+            );
+            const discharge = integratePowerKwh(data, (point) => point.battery_to_house);
+            const socPoint = [...data].reverse().find((point) => point.battery_soc != null);
+            const soc = flow.battery_soc ?? socPoint?.battery_soc ?? null;
+            const socValues = data
+                .map((point) => Number(point.battery_soc))
+                .filter((value) => Number.isFinite(value) && value >= 0 && value <= 100);
+            if (flow.battery_soc != null) {
+                const currentSoc = Number(flow.battery_soc);
+                if (Number.isFinite(currentSoc) && currentSoc >= 0 && currentSoc <= 100) {
+                    socValues.push(currentSoc);
+                }
+            }
+            const minSoc = socValues.length ? Math.min(...socValues) : null;
+            const maxSoc = socValues.length ? Math.max(...socValues) : null;
+
+            return {
+                socText: soc == null ? '--' : `${Number(soc).toFixed(0)}%`,
+                minSocText: minSoc == null ? '--' : `${minSoc.toFixed(0)}%`,
+                maxSocText: maxSoc == null ? '--' : `${maxSoc.toFixed(0)}%`,
+                chargeKwh: `${charge.toFixed(2)} kWh`,
+                dischargeKwh: `${discharge.toFixed(2)} kWh`,
+            };
         });
 
         const gridPowerAbsText = computed(() => {
@@ -773,6 +1010,7 @@ const _HomePage = {
         const hubbleExpanded = ref(false);
         const hubbleQuestion = ref(null);
         const currentTime = ref('');
+        const workflowClockNow = ref(Date.now());
         const lastPowerUpdate = ref('');
         const cleanEvalStats = reactive({
             today: {
@@ -782,8 +1020,11 @@ const _HomePage = {
                 excludedHours: null,
                 evaluationHours: null,
                 productionCandidates: null,
+                completedCandidates: null,
+                pendingCandidates: null,
                 missingActualHours: null,
                 excludedWeatherAlertHours: null,
+                weatherAlertHours: null,
                 excludedInverterClippedHours: null,
                 learningHours: null,
                 learningCandidates: null,
@@ -791,7 +1032,10 @@ const _HomePage = {
                 discardedLearningReasonBreakdown: null,
                 evaluationActual: null,
                 evaluationPredicted: null,
+                evaluationCutoffHour: null,
+                evaluationScope: null,
                 yieldDelta: null,
+                liveDayYieldDelta: null,
                 forecastError: null,
                 forecastAccuracy: null,
             },
@@ -813,6 +1057,7 @@ const _HomePage = {
             outdoorClouds: null,
             outdoorCondition: null,
             outdoorSource: null,
+            solarYieldToday: null,
         });
         const FORECAST_LEGEND_STORAGE_KEY = 'sfml_stats_home_forecast_legend_selected';
         const forecastLegendSelected = reactive({
@@ -825,24 +1070,86 @@ const _HomePage = {
 
         // Computed
         const isNightTime = computed(() => {
-            const h = new Date().getHours();
+            const h = haCurrentHour();
             return h < 6 || h > 20;
         });
 
+        function actualRowsWithLiveDelta({ includeCurrentPartial = false } = {}) {
+            const rows = (forecastData.actualRaw || []).slice();
+            if (!includeCurrentPartial) {
+                return rows;
+            }
+            const liveYield = Number(infoData.solarYieldToday);
+            if (!Number.isFinite(liveYield) || liveYield <= 0 || !forecastData.hours.length) {
+                return rows;
+            }
+
+            const knownYield = rows.reduce((sum, value) => sum + (Number(value) || 0), 0);
+            const delta = liveYield - knownYield;
+            if (delta <= 0.01) {
+                return rows;
+            }
+
+            const nowHour = haCurrentHour();
+            let idx = forecastData.hours.findIndex(hour => Number(hour) === nowHour);
+            if (idx < 0) {
+                for (let i = rows.length - 1; i >= 0; i--) {
+                    if (rows[i] != null) {
+                        idx = i;
+                        break;
+                    }
+                }
+            }
+            if (idx >= 0) {
+                rows[idx] = (Number(rows[idx]) || 0) + delta;
+            }
+            return rows;
+        }
+
+        function actualChartRows() {
+            const rows = actualRowsWithLiveDelta();
+            const nowHour = haCurrentHour();
+            let lastActualIndex = -1;
+
+            rows.forEach((value, index) => {
+                const hour = Number(forecastData.hours[index]);
+                if (hour <= nowHour && value != null) {
+                    lastActualIndex = index;
+                }
+            });
+
+            return rows.map((value, index) => {
+                const hour = Number(forecastData.hours[index]);
+                if (hour > nowHour) return null;
+                const fallback = forecastData.actual[index];
+                if (value != null) return value;
+                if (fallback != null) return fallback;
+                if (lastActualIndex >= 0 && index > lastActualIndex) return 0;
+                return null;
+            });
+        }
+
         const forecastTotal = computed(() => {
+            if (Number.isFinite(forecastData.operationalTotal)) {
+                return forecastData.operationalTotal.toFixed(1);
+            }
             const source = forecastData.forecastRaw.length ? forecastData.forecastRaw : forecastData.forecast;
-            const sum = source.reduce((s, v) => s + (v || 0), 0);
+            const sum = source.reduce((s, v) => s + valueOrZero(v), 0);
             return sum.toFixed(1);
         });
 
         const actualTotal = computed(() => {
-            const source = forecastData.actualRaw.length ? forecastData.actualRaw : forecastData.actual;
-            const sum = source.reduce((s, v) => s + (v || 0), 0);
+            const liveYield = Number(infoData.solarYieldToday);
+            if (Number.isFinite(liveYield) && liveYield >= 0) {
+                return liveYield.toFixed(1);
+            }
+            const source = forecastData.actualRaw.length ? actualRowsWithLiveDelta() : forecastData.actual;
+            const sum = source.reduce((s, v) => s + valueOrZero(v), 0);
             return sum.toFixed(1);
         });
 
         const hybridForecastTotal = computed(() => {
-            const sum = forecastData.hybrid.reduce((s, v) => s + (v || 0), 0);
+            const sum = forecastData.hybrid.reduce((s, v) => s + valueOrZero(v), 0);
             return sum.toFixed(1);
         });
 
@@ -853,8 +1160,8 @@ const _HomePage = {
         const hasWeatherTrace = computed(() => weatherTrace.value.length > 0);
 
         const deviationPercent = computed(() => {
-            const act = cleanEvalStats.today.evaluationActual ?? parseFloat(actualTotal.value);
-            const pred = cleanEvalStats.today.evaluationPredicted ?? parseFloat(forecastTotal.value);
+            const act = parseFloat(actualTotal.value);
+            const pred = parseFloat(forecastTotal.value);
             if (pred === 0) return 0;
             return ((act - pred) / pred) * 100;
         });
@@ -871,13 +1178,7 @@ const _HomePage = {
         });
 
         const todayForecastErrorPercent = computed(() => {
-            if (cleanEvalStats.today.forecastError != null) {
-                return cleanEvalStats.today.forecastError;
-            }
-            const act = cleanEvalStats.today.evaluationActual ?? parseFloat(actualTotal.value);
-            const pred = cleanEvalStats.today.evaluationPredicted ?? parseFloat(forecastTotal.value);
-            if (!act || act <= 0) return null;
-            return ((pred - act) / act) * 100;
+            return cleanEvalStats.today.forecastError;
         });
 
         const todayForecastAccuracyPercent = computed(() => {
@@ -896,6 +1197,14 @@ const _HomePage = {
             return `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`;
         });
 
+        const todayForecastErrorIcon = computed(() => {
+            const value = todayForecastErrorPercent.value;
+            if (value == null || Number.isNaN(value)) return '↕️';
+            if (value > 0) return '↗️';
+            if (value < 0) return '⚠️';
+            return '✓';
+        });
+
         const forecastDeviationKwh = computed(() => {
             const act = parseFloat(actualTotal.value);
             const pred = parseFloat(forecastTotal.value);
@@ -910,24 +1219,30 @@ const _HomePage = {
         });
 
         const hybridDeviationPercent = computed(() => {
-            const actualRows = forecastData.actualRaw || [];
+            const actualRows = actualRowsWithLiveDelta();
             const hybridRows = forecastData.hybrid || [];
+            const cleanEligible = forecastData.cleanEligible || [];
             const evaluated = actualRows
-                .map((actual, idx) => ({ actual, hybrid: hybridRows[idx] }))
-                .filter(row => row.actual != null && (row.actual > 0.01 || (row.hybrid || 0) > 0.01));
-            const act = evaluated.length
-                ? evaluated.reduce((sum, row) => sum + (row.actual || 0), 0)
-                : parseFloat(actualTotal.value);
-            const pred = evaluated.length
-                ? evaluated.reduce((sum, row) => sum + (row.hybrid || 0), 0)
-                : parseFloat(hybridForecastTotal.value);
-            if (pred === 0) return 0;
+                .map((actual, idx) => ({
+                    actual,
+                    hybrid: hybridRows[idx],
+                    clean: cleanEligible[idx],
+                }))
+                .filter(row => row.clean !== false)
+                .filter(row => row.actual != null && row.hybrid != null)
+                .filter(row => (Number(row.actual) || 0) > 0.01 || (Number(row.hybrid) || 0) > 0.01);
+            if (!evaluated.length) return null;
+            const act = evaluated.reduce((sum, row) => sum + (Number(row.actual) || 0), 0);
+            const pred = evaluated.reduce((sum, row) => sum + (Number(row.hybrid) || 0), 0);
+            if (pred <= 0) return null;
             return ((act - pred) / pred) * 100;
         });
 
         const hybridDeviationLabel = computed(() => {
+            const value = hybridDeviationPercent.value;
+            if (value == null || Number.isNaN(value)) return '--';
             const prefix = isTodayPartial.value ? (t('common.live') + ' ') : '';
-            return `${prefix}${hybridDeviationPercent.value >= 0 ? '+' : ''}${hybridDeviationPercent.value.toFixed(0)}%`;
+            return `${prefix}${value >= 0 ? '+' : ''}${value.toFixed(0)}%`;
         });
 
         const todayLearningBasisLabel = computed(() => {
@@ -950,6 +1265,15 @@ const _HomePage = {
                 demand_limited_zero_export: t('solar.discarded.demandLimitedZeroExport'),
                 excluded_from_clean_evaluation: t('solar.discarded.excludedFromCleanEvaluation'),
                 excluded: t('solar.discarded.excluded'),
+                weather_alert: t('solar.discarded.weatherAlert'),
+                snow: t('solar.discarded.snow'),
+                fog: t('solar.discarded.fog'),
+                grid_failure: t('solar.discarded.gridFailure'),
+                external_limit: t('solar.discarded.externalLimit'),
+                inverter_limit: t('solar.discarded.inverterLimit'),
+                manual_limit: t('solar.discarded.manualLimit'),
+                battery_full: t('solar.discarded.batteryFull'),
+                curtailment: t('solar.discarded.curtailment'),
             };
             const breakdown = cleanEvalStats.today.discardedLearningReasonBreakdown || {};
             const parts = Object.entries(breakdown)
@@ -967,10 +1291,12 @@ const _HomePage = {
             const missingActual = cleanEvalStats.today.missingActualHours || 0;
             const excludedMppt = cleanEvalStats.today.excludedMppt || 0;
             const excludedClipped = cleanEvalStats.today.excludedInverterClippedHours || 0;
+            const weatherAlerts = cleanEvalStats.today.weatherAlertHours || 0;
             const parts = [];
             if (missingActual > 0) parts.push(t('home.coverage.missingActual', { hours: missingActual }));
             if (excludedMppt > 0) parts.push(t('home.coverage.excludedMppt', { hours: excludedMppt }));
             if (excludedClipped > 0) parts.push(t('home.coverage.excludedClipped', { hours: excludedClipped }));
+            if (weatherAlerts > 0) parts.push(t('home.coverage.weatherAlertsIncluded', { hours: weatherAlerts }));
 
             if (evaluated != null && candidates != null && candidates > 0) {
                 if (parts.length > 0) {
@@ -1014,6 +1340,7 @@ const _HomePage = {
                 : t('home.hubble.noDecline');
             const variantSeed = payload.variant_seed != null ? payload.variant_seed : 0;
             const yesterday = payload.yesterday || null;
+            const workflowStatus = payload.signals?.workflow_status || null;
 
             const storyParams = {
                 hasWindow: Boolean(bestWindow),
@@ -1068,8 +1395,17 @@ const _HomePage = {
                 { key: 'quality', label: t('home.hubble.chip.quality'), value: metrics.forecast_quality_percent != null ? `${quality}%` : t('common.noData') },
                 { key: 'window', label: t('home.hubble.chip.window'), value: windowLabel },
             ];
+            if (workflowStatus?.is_running) {
+                chips.unshift({
+                    key: 'workflow',
+                    label: t('home.hubble.chip.system'),
+                    value: t('home.hubble.state.active'),
+                    title: workflowStatus.current_step || null,
+                });
+            }
 
-            const story = buildHubbleStory(moment, storyParams, variantSeed, yesterday);
+            const systemStatus = buildHubbleSystemStatus(workflowStatus);
+            const story = buildHubbleStory(moment, storyParams, variantSeed, yesterday, payload.signals || {});
             const hasMemory = payload.memory?.available === true
                 && Array.isArray(payload.memory.matches)
                 && payload.memory.matches.length >= 2;
@@ -1085,10 +1421,11 @@ const _HomePage = {
             const answer = buildHubbleAnswer(hubbleQuestion.value, payload, storyParams);
 
             return {
-                title: t('home.hubble.title'),
+                title: systemStatus?.title || t('home.hubble.title'),
                 moment: t(`home.hubble.moment.${moment}`),
                 moment_key: moment,
                 is_pulsing: moment !== 'evening',
+                systemStatus,
                 chips,
                 lead: t(leadKey, storyParams),
                 tip: buildHubbleTip(payload, windowLabel),
@@ -1100,6 +1437,95 @@ const _HomePage = {
                 }),
             };
         });
+
+        function buildHubbleSystemStatus(workflowStatus) {
+            if (!workflowStatus) {
+                return {
+                    variant: 'ready',
+                    title: t('home.hubble.state.ready'),
+                    meta: t('home.hubble.system.readyMeta'),
+                };
+            }
+
+            const workflowName = formatWorkflowName(workflowStatus.workflow);
+            const step = formatWorkflowStepLabel(workflowStatus.current_step);
+            const progress = workflowStatus.progress || '--';
+            const duration = formatHubbleDuration(getLiveWorkflowDurationSeconds(workflowStatus));
+
+            if (workflowStatus.is_running) {
+                return {
+                    variant: 'active',
+                    title: t('home.hubble.state.active'),
+                    meta: t('home.hubble.system.runningMeta', { workflow: workflowName, step, progress, duration }),
+                };
+            }
+
+            if (workflowStatus.status === 'error' || workflowStatus.status === 'partial') {
+                return {
+                    variant: 'attention',
+                    title: t('home.hubble.state.attention'),
+                    meta: workflowStatus.last_error || t('home.hubble.system.attentionMeta', { workflow: workflowName }),
+                };
+            }
+
+            return null;
+        }
+
+        function formatWorkflowName(workflow) {
+            const key = `home.hubble.workflow.${workflow || 'idle'}`;
+            const translated = t(key);
+            return translated !== key ? translated : (workflow || t('home.hubble.workflow.idle'));
+        }
+
+        function getLiveWorkflowDurationSeconds(workflowStatus) {
+            if (!workflowStatus) return null;
+
+            const fallback = Number(workflowStatus.duration_seconds);
+            if (!workflowStatus.is_running || !workflowStatus.started_at) {
+                return Number.isFinite(fallback) ? fallback : null;
+            }
+
+            const startedAt = Date.parse(workflowStatus.started_at);
+            if (!Number.isFinite(startedAt)) {
+                return Number.isFinite(fallback) ? fallback : null;
+            }
+
+            const elapsed = Math.max(0, Math.floor((workflowClockNow.value - startedAt) / 1000));
+            return Number.isFinite(fallback) ? Math.max(fallback, elapsed) : elapsed;
+        }
+
+        function formatWorkflowStepLabel(step) {
+            if (!step) return t('home.hubble.workflowStep.unknown');
+
+            const normalized = String(step).toLowerCase();
+            const matchers = [
+                ['weather model', 'weatherModel'],
+                ['main ai model', 'forecastModel'],
+                ['drift detection', 'driftDetection'],
+                ['daily summary', 'dailySummary'],
+                ['archive', 'archive'],
+                ['weather precision', 'weatherPrecision'],
+                ['method performance', 'methodPerformance'],
+                ['panel-group efficiency', 'panelGroups'],
+                ['group method', 'panelGroups'],
+                ['physics engine', 'physicsCalibration'],
+                ['weather expert', 'weatherExpert'],
+                ['shadow patterns', 'shadowPatterns'],
+                ['night cleanup', 'cleanup'],
+                ['finalizing day', 'finalizeDay'],
+                ['completed with issues', 'completedWithIssues'],
+                ['completed', 'completed'],
+                ['failed', 'failed'],
+                ['preparing', 'preparing'],
+            ];
+
+            const found = matchers.find(([needle]) => normalized.includes(needle));
+            if (!found) return step;
+
+            const key = `home.hubble.workflowStep.${found[1]}`;
+            const translated = t(key);
+            return translated !== key ? translated : step;
+        }
 
         const hubbleMemoryView = computed(() => {
             const memory = hubble.value?.memory || null;
@@ -1236,16 +1662,12 @@ const _HomePage = {
 
         function formatHubbleTime(value) {
             if (!value) return currentTime.value || '--';
-            const dateValue = new Date(value);
-            if (Number.isNaN(dateValue.getTime())) return currentTime.value || '--';
-            return dateValue.toLocaleTimeString(bcp(locale.value), { hour: '2-digit', minute: '2-digit' });
+            return formatHaTime(value) || currentTime.value || '--';
         }
 
         function formatHubbleDate(value) {
             if (!value) return '--';
-            const dateValue = new Date(`${value}T00:00:00`);
-            if (Number.isNaN(dateValue.getTime())) return value;
-            return dateValue.toLocaleDateString(bcp(locale.value), { day: '2-digit', month: '2-digit' });
+            return formatHaDateOnly(value) || value;
         }
 
         function formatHubbleWindow(bestWindow) {
@@ -1253,6 +1675,14 @@ const _HomePage = {
             const start = String(bestWindow.start_hour).padStart(2, '0') + ':00';
             const end = String(bestWindow.end_hour).padStart(2, '0') + ':00';
             return bestWindow.start_hour === bestWindow.end_hour ? start : `${start}-${end}`;
+        }
+
+        function formatHubbleDuration(seconds) {
+            const value = Number(seconds);
+            if (!Number.isFinite(value) || value < 0) return '--';
+            const minutes = Math.floor(value / 60);
+            const rest = Math.floor(value % 60);
+            return `${minutes}:${String(rest).padStart(2, '0')} min`;
         }
 
         function buildHubbleTip(payload, windowLabel) {
@@ -1346,7 +1776,7 @@ const _HomePage = {
             };
         }
 
-        function buildHubbleStory(moment, params, variantSeed, yesterday) {
+        function buildHubbleStory(moment, params, variantSeed, yesterday, signals = {}) {
             const storyMoment = ['morning', 'midday', 'evening'].includes(moment) ? moment : 'midday';
             
             const getVar = (name) => {
@@ -1356,6 +1786,53 @@ const _HomePage = {
             };
 
             const tiles = [];
+
+            const insightParas = [];
+            const recordSignal = signals.record_signal || null;
+            if (recordSignal) {
+                insightParas.push(t(`home.hubble.special.record.${recordSignal.level}`, {
+                    solar: formatHubbleNumber(recordSignal.solar_kwh, 1),
+                    record: formatHubbleNumber(recordSignal.record_kwh, 1),
+                }));
+            }
+            const forecastIssue = signals.forecast_issue || null;
+            if (forecastIssue) {
+                insightParas.push(t('home.hubble.special.forecastIssue', {
+                    error: formatHubbleSigned(forecastIssue.error_percent, 0),
+                    reason: forecastIssue.reason || t('home.hubble.special.unknownReason'),
+                }));
+            }
+            const helperFeedback = signals.helper_feedback || null;
+            if (helperFeedback) {
+                insightParas.push(t(`home.hubble.special.${helperFeedback.type}`, {
+                    hpPvPercent: formatHubbleNumber(helperFeedback.hp_pv_percent, 0),
+                    window: formatHubbleWindow(helperFeedback.window),
+                }));
+            }
+            const negativePrice = signals.negative_price_signal || null;
+            if (negativePrice) {
+                insightParas.push(t('home.hubble.special.negativePrice', {
+                    price: formatHubbleNumber(negativePrice.price_ct, 2),
+                }));
+            }
+            const workflowStatus = signals.workflow_status || null;
+            if (workflowStatus?.is_running) {
+                insightParas.push(t('home.hubble.special.workflowRunning', {
+                    workflow: formatWorkflowName(workflowStatus.workflow),
+                    step: formatWorkflowStepLabel(workflowStatus.current_step),
+                    progress: workflowStatus.progress || '--',
+                    duration: formatHubbleDuration(getLiveWorkflowDurationSeconds(workflowStatus)),
+                }));
+            }
+            if (insightParas.length) {
+                tiles.push({
+                    key: 'special-tile',
+                    type: 'tile',
+                    icon: '◦',
+                    title: t('home.hubble.special.title'),
+                    paragraphs: insightParas.filter(p => p && !p.startsWith('home.hubble.special.')),
+                });
+            }
 
             // 1. Status-Kachel
             const statusParas = [];
@@ -1455,11 +1932,24 @@ const _HomePage = {
         }
 
         function getTimestampMinutes(entry) {
-            const ts = entry?.timestamp || entry?.time;
+            const hourKey = entry?.hour_key;
+            if (typeof hourKey === 'string' && hourKey.length >= 16) {
+                return parseTimeToMinutes(hourKey.slice(11, 16));
+            }
+            const ts = entry?.local_timestamp || entry?.timestamp || entry?.time;
             if (!ts) return null;
             const dt = new Date(ts);
             if (Number.isNaN(dt.getTime())) return null;
-            return (dt.getHours() * 60) + dt.getMinutes();
+            const parts = new Intl.DateTimeFormat('en-GB', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false,
+                timeZone: timeContext.timezone || undefined,
+            }).formatToParts(dt);
+            const hh = Number(parts.find(part => part.type === 'hour')?.value);
+            const mm = Number(parts.find(part => part.type === 'minute')?.value);
+            if (!Number.isFinite(hh) || !Number.isFinite(mm)) return null;
+            return (hh * 60) + mm;
         }
 
         function getSolarWindowedPowerData(data) {
@@ -1506,8 +1996,9 @@ const _HomePage = {
 
         // Clock
         function updateClock() {
-            const d = new Date();
-            currentTime.value = d.toLocaleTimeString(bcp(locale.value), { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            const d = currentHaInstant();
+            currentTime.value = formatHaTime(d, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            workflowClockNow.value = d.getTime();
         }
 
         // ========== DATA LOADING ==========
@@ -1516,25 +2007,30 @@ const _HomePage = {
             try {
                 const data = await SFMLApi.fetch('/api/sfml_stats/energy_flow');
                 if (!data) return;
+                syncTimeContext(data);
 
                 const f = data.flows || data;
                 const b = data.battery || {};
                 const h = data.home || {};
+                batterySocSensorConfigured.value = Boolean(data.configured_sensors?.battery_soc);
 
-                flow.solar_power = f.solar_power || 0;
-                flow.home_consumption = h.consumption || f.home_consumption || 0;
+                flow.solar_power = f.solar_power ?? 0;
+                flow.home_consumption = h.consumption ?? f.home_consumption ?? 0;
                 flow.battery_soc = b.soc ?? f.battery_soc ?? null;
                 flow.battery_power = b.power ?? f.battery_power ?? 0;
-                flow.solar_to_house = f.solar_to_house || 0;
-                flow.solar_to_battery = f.solar_to_battery || 0;
-                flow.battery_to_house = f.battery_to_house || 0;
-                flow.grid_to_house = f.grid_to_house || 0;
-                flow.house_to_grid = f.house_to_grid || 0;
-                flow.grid_to_battery = f.grid_to_battery || 0;
+                flow.solar_to_house = f.solar_to_house ?? 0;
+                flow.solar_to_battery = f.solar_to_battery ?? 0;
+                flow.battery_to_house = f.battery_to_house ?? 0;
+                flow.grid_to_house = f.grid_to_house ?? 0;
+                flow.house_to_grid = f.house_to_grid ?? 0;
+                flow.grid_to_battery = f.grid_to_battery ?? 0;
 
                 if (data.consumers) {
                     Object.assign(consumers, data.consumers);
                 }
+                flowStatusChips.value = Array.isArray(data.status_chips)
+                    ? data.status_chips.filter(chip => chip && chip.label)
+                    : [];
 
                 // Panel data
                 if (data.panels && Array.isArray(data.panels)) {
@@ -1542,7 +2038,7 @@ const _HomePage = {
                     // Build sparkline history
                     data.panels.forEach(p => {
                         if (!panelHistory[p.id]) panelHistory[p.id] = [];
-                        panelHistory[p.id].push(p.power || 0);
+                        panelHistory[p.id].push(p.power ?? 0);
                         // Keep last 24 points (~2h at 5min intervals)
                         if (panelHistory[p.id].length > 24) {
                             panelHistory[p.id] = panelHistory[p.id].slice(-24);
@@ -1554,10 +2050,21 @@ const _HomePage = {
             }
         }
 
+        let summaryRequest = null;
+
+        async function loadSummaryData() {
+            if (!summaryRequest) {
+                summaryRequest = SFMLApi.fetch('/api/sfml_stats/summary')
+                    .finally(() => { summaryRequest = null; });
+            }
+            return summaryRequest;
+        }
+
         async function loadInfoPanel() {
             try {
-                const data = await SFMLApi.fetch('/api/sfml_stats/summary');
+                const data = await loadSummaryData();
                 if (!data) return;
+                syncTimeContext(data);
 
                 // Produktionszeit
                 if (data.sun_times) {
@@ -1575,8 +2082,11 @@ const _HomePage = {
                 cleanEvalStats.today.excludedHours = today?.excluded_hours_count ?? null;
                 cleanEvalStats.today.evaluationHours = today?.evaluation_hours_count ?? null;
                 cleanEvalStats.today.productionCandidates = today?.production_candidate_hours_count ?? null;
+                cleanEvalStats.today.completedCandidates = today?.completed_candidate_hours_count ?? null;
+                cleanEvalStats.today.pendingCandidates = today?.pending_candidate_hours_count ?? null;
                 cleanEvalStats.today.missingActualHours = today?.missing_actual_hours_count ?? null;
                 cleanEvalStats.today.excludedWeatherAlertHours = today?.excluded_weather_alert_hours_count ?? null;
+                cleanEvalStats.today.weatherAlertHours = today?.weather_alert_hours_count ?? null;
                 cleanEvalStats.today.excludedInverterClippedHours = today?.excluded_inverter_clipped_hours_count ?? null;
                 cleanEvalStats.today.learningHours = today?.learning_hours_count ?? null;
                 cleanEvalStats.today.learningCandidates = today?.learning_candidate_hours_count ?? null;
@@ -1584,9 +2094,21 @@ const _HomePage = {
                 cleanEvalStats.today.discardedLearningReasonBreakdown = today?.discarded_learning_reason_breakdown ?? null;
                 cleanEvalStats.today.evaluationActual = today?.evaluation_actual_kwh ?? null;
                 cleanEvalStats.today.evaluationPredicted = today?.evaluation_predicted_kwh ?? null;
+                cleanEvalStats.today.evaluationCutoffHour = today?.evaluation_cutoff_hour ?? null;
+                cleanEvalStats.today.evaluationScope = today?.evaluation_scope ?? null;
                 cleanEvalStats.today.yieldDelta = today?.yield_delta_vs_forecast_percent ?? null;
-                cleanEvalStats.today.forecastError = today?.forecast_error_vs_actual_percent ?? null;
-                cleanEvalStats.today.forecastAccuracy = today?.forecast_accuracy_vs_actual_percent ?? null;
+                cleanEvalStats.today.liveDayYieldDelta = today?.live_day_yield_delta_vs_forecast_percent ?? null;
+                cleanEvalStats.today.forecastError = (
+                    today?.forecast_error_vs_sot_percent
+                    ?? today?.yield_delta_vs_forecast_percent
+                    ?? today?.forecast_error_vs_actual_percent
+                    ?? null
+                );
+                cleanEvalStats.today.forecastAccuracy = (
+                    today?.forecast_accuracy_vs_sot_percent
+                    ?? today?.forecast_accuracy_vs_actual_percent
+                    ?? null
+                );
 
                 const outdoor = data.outdoor_temperature || {};
                 const outdoorTemperature = outdoor.temperature_c;
@@ -1624,6 +2146,7 @@ const _HomePage = {
                 if (ds) {
                     infoData.peakTodayW = ds.peak_solar_w || null;
                     infoData.peakTodayTime = ds.peak_solar_time || null;
+                    infoData.solarYieldToday = ds.solar_yield_kwh ?? null;
                 }
 
                 hubble.value = data.hubble || null;
@@ -1641,10 +2164,9 @@ const _HomePage = {
                     const items = [];
                     for (const [type, val] of Object.entries(dfc)) {
                         if (type === 'today') continue;
-                        const d = new Date(val.date + 'T12:00:00');
                         const label = type === 'tomorrow'
                             ? t('common.tomorrow')
-                            : d.toLocaleDateString(bcp(locale.value), { weekday: 'short', day: '2-digit', month: '2-digit' });
+                            : formatHaDateOnly(val.date, { weekday: 'short', day: '2-digit', month: '2-digit' });
                         items.push({ type, kwh: val.kwh, date: val.date, label, sortDate: val.date });
                     }
                     items.sort((a, b) => a.sortDate.localeCompare(b.sortDate));
@@ -1818,7 +2340,7 @@ const _HomePage = {
 
         async function loadPanelGroups() {
             try {
-                const res = await SFMLApi.fetch('/api/sfml_stats/statistics');
+                const res = await loadSummaryData();
                 const stats = res?.statistics || {};
                 const last7 = stats.last_7_days || {};
                 const last30 = stats.last_30_days || {};
@@ -1828,7 +2350,7 @@ const _HomePage = {
                 cleanEvalStats.last30.accuracy = last30.avg_accuracy ?? null;
                 cleanEvalStats.last30.coverage = last30.avg_evaluation_coverage_percent ?? null;
                 cleanEvalStats.last30.excludedMppt = last30.avg_excluded_mppt_hours ?? null;
-                const pg = res?.data?.panel_groups || res?.panel_groups;
+                const pg = res?.panel_groups || res?.data?.panel_groups;
                 if (!pg || !pg.available) return;
 
                 panelGroupsData.available = true;
@@ -1836,7 +2358,7 @@ const _HomePage = {
 
                 // Render charts after Vue updates DOM
                 await nextTick();
-                const nowHour = new Date().getHours();
+                const nowHour = haCurrentHour();
 
                 for (const [groupName, groupData] of Object.entries(panelGroupsData.groups)) {
                     const chartEl = pgChartRefs[groupName];
@@ -1847,6 +2369,7 @@ const _HomePage = {
                     }
                     const chart = pgChartInstances[groupName];
                     const hourly = groupData.hourly || [];
+                    if (!hourly.length) continue;
                     const hours = hourly.map(h => h.hour);
                     const rawActual = hourly.map(h => h.actual_kwh ?? 0);
                     const rawForecast = hourly.map(h => h.prediction_kwh ?? 0);
@@ -1879,13 +2402,21 @@ const _HomePage = {
                                         : '<span style="display:inline-block;margin-right:4px;border-radius:10px;width:8px;height:8px;background-color:#fbbf24;"></span>';
                                     s += '<div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;gap:12px">'
                                       + '<span>' + dot + p.seriesName + ':</span>'
-                                      + '<span style="font-weight:700;font-family:var(--font-mono)">' + p.value.toFixed(3) + ' kWh</span></div>';
+                                      + '<span style="font-weight:700;font-family:var(--font-mono)">' + (p.value == null ? '--' : p.value.toFixed(3)) + ' kWh</span></div>';
                                 });
                                 s += '</div>';
                                 return s;
                             }
                         },
-                        legend: { data: [t('common.actual'), t('common.forecast')], textStyle: { color: getThemeColor('--text-secondary', '#8b949e'), fontSize: 10 }, top: 0, right: 5 },
+                        legend: {
+                            data: [t('common.actual'), t('common.forecast')],
+                            textStyle: { color: getThemeColor('--text-secondary', '#8b949e'), fontSize: 10 },
+                            top: 0,
+                            right: 0,
+                            itemGap: 12,
+                            itemWidth: 22,
+                            itemHeight: 10,
+                        },
                         xAxis: {
                             type: 'category',
                             data: hours.map(h => String(h).padStart(2, '0') + ':00'),
@@ -1936,24 +2467,29 @@ const _HomePage = {
             try {
                 const res = await SFMLApi.fetch('/api/sfml_stats/solar?days=1', { forceRefresh: true });
                 if (!res || !res.data) return;
+                syncTimeContext(res);
 
                 const hourly = res.data.hourly || [];
                 if (!hourly.length) return;
 
                 // Filter to today only
-                const today = new Date().toISOString().slice(0, 10);
+                const today = localDateKey();
                 const todayData = hourly.filter(h => h.target_date === today);
                 if (!todayData.length) return;
 
                 forecastData.hours = todayData.map(h => h.target_hour);
-                const rawFc = todayData.map(h => h.prediction_kwh || 0);
-                const rawAc = todayData.map(h => h.actual_kwh || 0);
+                const rawFc = todayData.map(h => h.prediction_kwh ?? 0);
+                const rawAc = todayData.map(h => h.actual_kwh ?? null);
                 const trimmed = trimSolarWindow(rawAc, rawFc);
                 forecastData.forecastRaw = rawFc;
-                forecastData.actualRaw = todayData.map(h => h.actual_kwh ?? null);
+                forecastData.actualRaw = rawAc;
                 forecastData.forecast = trimmed.forecast;
                 forecastData.actual = trimmed.actual;
                 const hybridPayload = res.data.hybrid || {};
+                const operationalTotal = Number(hybridPayload.total_kwh);
+                forecastData.operationalTotal = Number.isFinite(operationalTotal)
+                    ? operationalTotal
+                    : null;
                 const hybridHours = Array.isArray(hybridPayload.hourly) ? hybridPayload.hourly : [];
                 const hybridByHour = new Map(
                     hybridHours.map(h => [Number(h.target_hour), h.prediction_kwh ?? null])
@@ -1963,18 +2499,19 @@ const _HomePage = {
                         ? hybridByHour.get(Number(h.target_hour))
                         : null
                 ));
-                forecastData.confidence = todayData.map(h => h.confidence || 50);
-                forecastData.ml_pct = todayData.map(h => h.ml_contribution_percent || 0);
+                forecastData.cleanEligible = todayData.map(h => h.clean_evaluation_eligible !== false);
+                forecastData.confidence = todayData.map(h => h.confidence ?? 50);
+                forecastData.ml_pct = todayData.map(h => h.ml_contribution_percent ?? 0);
                 forecastData.method = todayData.map(h => h.prediction_method || '');
-                forecastData.temperature = todayData.map(h => h.temperature || null);
-                forecastData.radiation = todayData.map(h => h.solar_radiation || null);
-                forecastData.clouds = todayData.map(h => h.clouds || null);
-                forecastData.tfs = todayData.map(h => h.tfs_kwh || null);
-                forecastData.tfs_weight = todayData.map(h => h.tfs_weight || null);
-                forecastData.ai = todayData.map(h => h.ai_kwh || null);
-                forecastData.physics = todayData.map(h => h.physics_kwh || null);
-                forecastData.lstm = todayData.map(h => h.lstm_kwh || null);
-                forecastData.ridge = todayData.map(h => h.ridge_kwh || null);
+                forecastData.temperature = todayData.map(h => h.temperature ?? null);
+                forecastData.radiation = todayData.map(h => h.solar_radiation ?? null);
+                forecastData.clouds = todayData.map(h => h.clouds ?? null);
+                forecastData.tfs = todayData.map(h => h.tfs_kwh ?? null);
+                forecastData.tfs_weight = todayData.map(h => h.tfs_weight ?? null);
+                forecastData.ai = todayData.map(h => h.ai_kwh ?? null);
+                forecastData.physics = todayData.map(h => h.physics_kwh ?? null);
+                forecastData.lstm = todayData.map(h => h.lstm_kwh ?? null);
+                forecastData.ridge = todayData.map(h => h.ridge_kwh ?? null);
                 weatherTrace.value = buildWeatherTrace(
                     forecastData.hours,
                     today,
@@ -1991,17 +2528,19 @@ const _HomePage = {
 
         async function loadPowerHistory() {
             try {
-                const hoursToday = new Date().getHours() + 1;
-                const res = await SFMLApi.fetch('/api/sfml_stats/power_sources_history?hours=' + Math.max(hoursToday, 1));
+                const res = await SFMLApi.fetch('/api/sfml_stats/power_sources_history?today=true&hours=24');
                 if (!res || !res.data) return;
+                syncTimeContext(res);
+                batterySocSensorConfigured.value = batterySocSensorConfigured.value || Boolean(res.sensors?.battery_soc);
 
-                const todayStr = new Date().toISOString().slice(0, 10);
+                const todayStr = localDateKey();
                 powerData.value = res.data.filter(d => {
-                    const ts = d.timestamp || d.time || '';
-                    return ts.startsWith(todayStr);
+                    const localDate = d.local_date || (typeof d.hour_key === 'string' ? d.hour_key.slice(0, 10) : null);
+                    return localDate === todayStr;
                 });
-                lastPowerUpdate.value = new Date().toLocaleTimeString(bcp(locale.value), { hour: '2-digit', minute: '2-digit' });
+                lastPowerUpdate.value = formatHaTime(currentHaInstant(), { hour: '2-digit', minute: '2-digit' });
                 updatePowerChart();
+                updateBatteryChart();
             } catch (err) {
                 console.error('[Home] Power history error:', err);
             }
@@ -2011,7 +2550,7 @@ const _HomePage = {
 
         function updateForecastChart() {
             if (!forecastChartInstance || !forecastData.hours.length) return;
-            const nowHour = new Date().getHours();
+            const nowHour = haCurrentHour();
 
             // Calculate P90 / P10 bands (respect null from trimming)
             const p90 = forecastData.forecast.map((v, i) => {
@@ -2024,6 +2563,7 @@ const _HomePage = {
                 const conf = forecastData.confidence[i] || 50;
                 return Math.max(0, v * (1 - (100 - conf) / 150));
             });
+            const actualRows = actualChartRows();
 
             forecastChartInstance.setOption({
                 backgroundColor: 'transparent',
@@ -2041,25 +2581,26 @@ const _HomePage = {
                         const idx = params[0]?.dataIndex;
                         if (idx == null) return '';
                         const hour = forecastData.hours[idx];
-                        const pred = forecastData.forecast[idx] || 0;
+                        const pred = forecastData.forecast[idx] ?? 0;
                         const hybrid = forecastData.hybrid[idx];
-                        const act = forecastData.actual[idx] || 0;
-                        const conf = forecastData.confidence[idx] || 0;
-                        const mlPct = forecastData.ml_pct[idx] || 0;
+                        const actValue = actualRows[idx] ?? null;
+                        const act = actValue == null ? null : Number(actValue);
+                        const conf = forecastData.confidence[idx] ?? 0;
+                        const mlPct = forecastData.ml_pct[idx] ?? 0;
                         const method = forecastData.method[idx] || '--';
                         const temp = forecastData.temperature[idx];
                         const rad = forecastData.radiation[idx];
                         const clouds = forecastData.clouds[idx];
-                        const delta = pred > 0 ? (((act - pred) / pred) * 100).toFixed(1) : '0.0';
-                        const forecastError = act > 0 ? (((pred - act) / act) * 100).toFixed(1) : null;
+                        const delta = act != null && pred > 0 ? (((act - pred) / pred) * 100).toFixed(1) : null;
+                        const forecastError = delta;
 
                         let s = '<div style="min-width:180px">';
                         s += '<div style="font-weight:700;font-size:13px;margin-bottom:6px">' + String(hour).padStart(2,'0') + ':00 ' + t('home.oClock') + '</div>';
                         s += '<div style="border-top:1px solid rgba(255,255,255,0.15);margin:4px 0 6px"></div>';
                         s += '<div style="display:flex;justify-content:space-between"><span style="color:#fbbf24">' + t('common.forecast') + ':</span><span>' + pred.toFixed(2) + ' kWh</span></div>';
                         if (hybrid != null) s += '<div style="display:flex;justify-content:space-between"><span style="color:#38bdf8">' + t('home.hybrid') + ':</span><span>' + hybrid.toFixed(2) + ' kWh</span></div>';
-                        s += '<div style="display:flex;justify-content:space-between"><span style="color:#22c55e">' + t('common.actual') + ':</span><span>' + act.toFixed(2) + ' kWh</span></div>';
-                        s += '<div style="display:flex;justify-content:space-between"><span style="color:#94a3b8">' + t('common.yield') + ' &Delta;:</span><span style="color:' + forecastBandColor(parseFloat(delta)) + '">' + (parseFloat(delta) >= 0 ? '+' : '') + delta + '%</span></div>';
+                        s += '<div style="display:flex;justify-content:space-between"><span style="color:#22c55e">' + t('common.actual') + ':</span><span>' + (act == null ? '--' : act.toFixed(2) + ' kWh') + '</span></div>';
+                        if (delta != null) s += '<div style="display:flex;justify-content:space-between"><span style="color:#94a3b8">' + t('common.yield') + ' &Delta;:</span><span style="color:' + forecastBandColor(parseFloat(delta)) + '">' + (parseFloat(delta) >= 0 ? '+' : '') + delta + '%</span></div>';
                         if (forecastError != null) s += '<div style="display:flex;justify-content:space-between"><span style="color:#94a3b8">' + t('solar.weeklyTable.forecastError') + ':</span><span style="color:' + forecastBandColor(parseFloat(forecastError)) + '">' + (parseFloat(forecastError) >= 0 ? '+' : '') + forecastError + '%</span></div>';
                         s += '<div style="border-top:1px solid rgba(255,255,255,0.15);margin:6px 0 4px"></div>';
                         s += '<div style="font-size:11px;color:#8b949e;margin-bottom:3px">AI Stack:</div>';
@@ -2096,7 +2637,6 @@ const _HomePage = {
                     type: 'category',
                     data: forecastData.hours.map(h => String(h).padStart(2, '0')),
                     axisLine: { show: false },
-                    axisTick: { show: false },
                     axisLabel: { color: getThemeColor('--text-secondary', '#8b949e'), fontSize: 11, margin: 12 },
                 },
                 yAxis: {
@@ -2158,12 +2698,7 @@ const _HomePage = {
                     {
                         name: 'IST',
                         type: 'line',
-                        data: forecastData.actual.map((v, i) => {
-                            if (v == null) return null;
-                            const h = forecastData.hours[i];
-                            if (h > nowHour) return null;
-                            return v;
-                        }),
+                        data: actualRows,
                         lineStyle: { color: '#22c55e', width: 3, shadowColor: 'rgba(34,197,94,0.3)', shadowBlur: 12, shadowOffsetY: 3 },
                         itemStyle: { color: '#22c55e' },
                         symbol: 'none',
@@ -2236,11 +2771,13 @@ const _HomePage = {
 
             const data = getSolarWindowedPowerData(powerData.value);
             const times = data.map(d => {
-                const dt = new Date(d.timestamp || d.time);
-                return dt.toLocaleTimeString(bcp(locale.value), { hour: '2-digit', minute: '2-digit' });
+                if (typeof d.hour_key === 'string' && d.hour_key.length >= 16) {
+                    return d.hour_key.slice(11, 16);
+                }
+                return formatHaTime(d.local_timestamp || d.timestamp || d.time, { hour: '2-digit', minute: '2-digit' });
             });
 
-            const solarPower = data.map(d => d.solar_power || 0);
+            const solarPower = data.map(d => d.solar_power ?? 0);
 
             powerChartInstance.setOption({
                 backgroundColor: 'transparent',
@@ -2255,7 +2792,7 @@ const _HomePage = {
                     extraCssText: 'backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); box-shadow: 0 8px 32px 0 rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.06)',
                     textStyle: { color: getThemeColor('--text-primary', '#f0f6fc'), fontSize: 12, fontFamily: 'var(--font-sans)' },
                     formatter: function(params) {
-                        const val = params[0]?.value || 0;
+                        const val = params[0]?.value ?? 0;
                         const formattedVal = val >= 1000 ? (val/1000).toFixed(2) + ' kW' : Math.round(val) + ' W';
                         return '<div style="font-family:var(--font-sans)">'
                              + '<div style="font-weight:700;font-size:12px;margin-bottom:4px">' + params[0].axisValue + '</div>'
@@ -2269,7 +2806,6 @@ const _HomePage = {
                     type: 'category',
                     data: times,
                     axisLine: { show: false },
-                    axisTick: { show: false },
                     axisLabel: {
                         color: getThemeColor('--text-secondary', '#8b949e'),
                         fontSize: 10,
@@ -2310,6 +2846,131 @@ const _HomePage = {
             });
         }
 
+        function updateBatteryChart() {
+            if (!batteryChartInstance && batteryChartEl.value && typeof echarts !== 'undefined') {
+                batteryChartInstance = echarts.init(batteryChartEl.value, null, { renderer: 'canvas' });
+            }
+            if (!batteryChartInstance || !batterySocSensorConfigured.value) return;
+
+            const data = powerData.value;
+            const dayStart = new Date(`${localDateKey()}T00:00:00`);
+            const dayEnd = new Date(dayStart.getTime() + 24 * 3600000);
+            const toTimeValue = (point) => {
+                const raw = point.local_timestamp || point.timestamp || point.time;
+                if (!raw) return null;
+                const timestamp = new Date(raw).getTime();
+                return Number.isFinite(timestamp) ? timestamp : null;
+            };
+            const socSeries = data
+                .map((point) => {
+                    if (point.battery_soc == null) return null;
+                    const timestamp = toTimeValue(point);
+                    const soc = Number(point.battery_soc);
+                    return timestamp == null || !Number.isFinite(soc) ? null : [timestamp, soc];
+                })
+                .filter(Boolean);
+            if (!socSeries.length && flow.battery_soc != null) {
+                const soc = Number(flow.battery_soc);
+                if (Number.isFinite(soc)) {
+                    socSeries.push([currentHaInstant().getTime(), soc]);
+                }
+            }
+            if (!socSeries.length) return;
+
+            batteryChartInstance.setOption({
+                backgroundColor: 'transparent',
+                grid: { top: 52, right: 24, bottom: 44, left: 56 },
+                tooltip: {
+                    trigger: 'axis',
+                    backgroundColor: getThemeColor('--bg-card', 'rgba(21, 28, 44, 0.85)'),
+                    borderColor: 'rgba(255, 255, 255, 0.08)',
+                    borderWidth: 1,
+                    borderRadius: 12,
+                    padding: [10, 14],
+                    extraCssText: 'backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); box-shadow: 0 8px 32px 0 rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.06)',
+                    textStyle: { color: getThemeColor('--text-primary', '#f0f6fc'), fontSize: 12, fontFamily: 'var(--font-sans)' },
+                    formatter: function(params) {
+                        const axisTime = Number(params[0]?.axisValue);
+                        let point = params[0]?.data;
+                        if (Number.isFinite(axisTime)) {
+                            let bestDistance = Infinity;
+                            socSeries.forEach((candidate) => {
+                                const distance = Math.abs(candidate[0] - axisTime);
+                                if (distance < bestDistance) {
+                                    bestDistance = distance;
+                                    point = candidate;
+                                }
+                            });
+                        }
+                        if (!point) return '';
+                        const soc = Number(point[1]);
+                        let html = '<div style="font-family:var(--font-sans);min-width:170px">';
+                        html += '<div style="font-weight:700;font-size:12px;margin-bottom:6px">' + formatHaTime(point[0], { hour: '2-digit', minute: '2-digit' }) + '</div>';
+                        html += '<div style="display:flex;justify-content:space-between;gap:14px"><span style="color:#38bdf8">Akkuladung:</span><span style="font-family:var(--font-mono);font-weight:700">' + soc.toFixed(0) + '%</span></div>';
+                        html += '</div>';
+                        return html;
+                    }
+                },
+                xAxis: {
+                    type: 'time',
+                    min: dayStart.getTime(),
+                    max: dayEnd.getTime(),
+                    interval: 3600000,
+                    minInterval: 3600000,
+                    maxInterval: 3600000,
+                    splitNumber: 24,
+                    axisLine: { show: false },
+                    axisTick: { show: true, alignWithLabel: true },
+                    axisLabel: {
+                        color: getThemeColor('--text-secondary', '#8b949e'),
+                        fontSize: 9,
+                        margin: 10,
+                        hideOverlap: false,
+                        showMinLabel: true,
+                        showMaxLabel: true,
+                        formatter: value => formatHaTime(value, { hour: '2-digit' })
+                    },
+                },
+                yAxis: {
+                    type: 'value',
+                    min: 0,
+                    max: 100,
+                    interval: 20,
+                    axisLine: { show: false },
+                    axisTick: { show: false },
+                    splitLine: { lineStyle: { color: getThemeColor('--border-default', 'rgba(255,255,255,0.02)'), type: 'dashed' } },
+                    axisLabel: { color: getThemeColor('--text-secondary', '#8b949e'), fontSize: 11, formatter: v => `${Math.round(v)}%` },
+                },
+                series: [
+                    {
+                        name: 'Akkuladung',
+                        type: 'line',
+                        data: socSeries,
+                        lineStyle: { color: '#38bdf8', width: 2.5, shadowColor: 'rgba(56,189,248,0.18)', shadowBlur: 8 },
+                        itemStyle: { color: '#38bdf8' },
+                        symbol: socSeries.length > 1 ? 'none' : 'circle',
+                        symbolSize: 6,
+                        smooth: true,
+                        connectNulls: true,
+                        areaStyle: {
+                            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                { offset: 0, color: 'rgba(56,189,248,0.18)' },
+                                { offset: 1, color: 'rgba(56,189,248,0)' }
+                            ])
+                        },
+                    },
+                ],
+                legend: {
+                    show: false,
+                    data: ['Akkuladung'],
+                    top: 8,
+                    left: 16,
+                    textStyle: { color: getThemeColor('--text-secondary', '#8b949e'), fontSize: 11 },
+                },
+            });
+            batteryChartInstance.resize();
+        }
+
         // Sync from parent liveData
         watch(() => props.liveData, (ld) => {
             if (ld.solar_power != null) flow.solar_power = ld.solar_power;
@@ -2328,6 +2989,7 @@ const _HomePage = {
             nextTick(() => {
                 updateForecastChart();
                 updatePowerChart();
+                updateBatteryChart();
                 for (const chart of Object.values(pgChartInstances)) {
                     if (chart) chart.dispose();
                 }
@@ -2341,6 +3003,7 @@ const _HomePage = {
         let flowTimer = null;
         let powerTimer = null;
         let forecastTimer = null;
+        let infoTimer = null;
 
         onMounted(async () => {
             updateClock();
@@ -2366,10 +3029,14 @@ const _HomePage = {
             if (powerChartEl.value && typeof echarts !== 'undefined') {
                 powerChartInstance = echarts.init(powerChartEl.value, null, { renderer: 'canvas' });
             }
+            if (batteryChartEl.value && typeof echarts !== 'undefined') {
+                batteryChartInstance = echarts.init(batteryChartEl.value, null, { renderer: 'canvas' });
+            }
 
             resizeHandler = () => {
                 if (forecastChartInstance) forecastChartInstance.resize();
                 if (powerChartInstance) powerChartInstance.resize();
+                if (batteryChartInstance) batteryChartInstance.resize();
             };
             window.addEventListener('resize', resizeHandler);
 
@@ -2386,7 +3053,7 @@ const _HomePage = {
             flowTimer = setInterval(loadEnergyFlow, 15000);
             powerTimer = setInterval(loadPowerHistory, 60000);
             forecastTimer = setInterval(loadForecastData, 60000);
-            setInterval(loadInfoPanel, 60000); // Info panel refresh every 60s
+            infoTimer = setInterval(loadInfoPanel, 60000);
         });
 
         const getConsumerName = (key) => {
@@ -2403,8 +3070,14 @@ const _HomePage = {
             if (flowTimer) clearInterval(flowTimer);
             if (powerTimer) clearInterval(powerTimer);
             if (forecastTimer) clearInterval(forecastTimer);
+            if (infoTimer) clearInterval(infoTimer);
             if (forecastChartInstance) { forecastChartInstance.dispose(); forecastChartInstance = null; }
             if (powerChartInstance) { powerChartInstance.dispose(); powerChartInstance = null; }
+            if (batteryChartInstance) { batteryChartInstance.dispose(); batteryChartInstance = null; }
+            for (const chart of Object.values(pgChartInstances)) {
+                if (chart) chart.dispose();
+            }
+            pgChartInstances = {};
             if (resizeHandler) window.removeEventListener('resize', resizeHandler);
         });
 
@@ -2415,9 +3088,11 @@ const _HomePage = {
         };
 
         return {
-            forecastChartEl, powerChartEl, sparklineRefs,
-            flow, panels, panelHistory, infoData, panelGroupsData, pgChartRefs,
+            forecastChartEl, powerChartEl, batteryChartEl, sparklineRefs,
+            flow, panels, panelHistory, infoData, flowStatusChips, panelGroupsData, pgChartRefs,
             forecastData, powerData, dailyForecasts,
+            fmtKwh, groupHasHourly, panelDayProgressPercent, panelDayProgressColor,
+            panelDayProgressTitle, panelGroupMetaLine, panelGroupMetaTitle,
             weatherTrace, hasWeatherTrace,
             currentTime, lastPowerUpdate,
             isNightTime, forecastTotal, hybridForecastTotal, hasHybridForecast,
@@ -2425,15 +3100,17 @@ const _HomePage = {
             hybridDeviationLabel, cleanEvalStats, todayLearningBasisLabel,
             todayDiscardedLearningLabel, todayCoverageExplanation,
             todayForecastErrorPercent, todayForecastAccuracyPercent, todayForecastErrorLabel,
+            todayForecastErrorIcon,
             forecastDeviationKwh, forecastDeviationKwhLabel,
             hubbleView, hubbleExpanded, hubbleQuestion,
             getGridPower, getGridLabel, fmtKw, fmtW,
-            forecastBandColor, forecastBandColorFromAccuracy,
+            forecastBandColor, forecastBandColorFromAccuracy, yieldDeviationColor,
             getSparklinePath, getSparklineAreaPath,
-            getWeatherSymbol,
+            getWeatherSymbol, statusChipClass, statusChipTitle,
             consumers, routes, batteryPowerText, batteryStateTextLocal,
             batteryStateClass, gridPowerAbsText, gridStateTextLocal,
             gridStateColorClass, localText,
+            hasBatteryChart, batteryChartStats,
             getConsumerName,
         };
     }
@@ -2462,6 +3139,7 @@ const _HomePage = {
             display: flex;
             align-items: center;
             justify-content: flex-start;
+            flex-wrap: wrap;
             gap: var(--space-md);
             margin-bottom: var(--space-md);
         }
@@ -2490,28 +3168,20 @@ const _HomePage = {
             stroke-dashoffset: 80;
             animation: hubble-ring-rotate 6s linear infinite;
         }
-        .hubble-sensor-ring .ring-active.morning {
-            stroke: #f59e0b;
-        }
-        .hubble-sensor-ring .ring-active.midday {
-            stroke: #10b981;
-        }
+        .hubble-sensor-ring .ring-active.morning,
+        .hubble-sensor-ring .ring-active.midday,
         .hubble-sensor-ring .ring-active.evening {
-            stroke: #8b5cf6;
+            stroke: var(--accent);
         }
         
         .hubble-sensor-ring .hubble-face {
             transform-origin: center;
             transition: color 0.5s ease;
         }
-        .hubble-sensor-ring .hubble-face.morning {
-            color: #f59e0b;
-        }
-        .hubble-sensor-ring .hubble-face.midday {
-            color: #10b981;
-        }
+        .hubble-sensor-ring .hubble-face.morning,
+        .hubble-sensor-ring .hubble-face.midday,
         .hubble-sensor-ring .hubble-face.evening {
-            color: #8b5cf6;
+            color: var(--text-primary);
         }
         .hubble-sensor-ring .hubble-face.pulse {
             animation: hubble-core-pulse 2s ease-in-out infinite;
@@ -2558,6 +3228,47 @@ const _HomePage = {
             font-weight: 700;
             letter-spacing: 0.08em;
             text-transform: uppercase;
+        }
+        .hubble-moment {
+            color: var(--text-muted);
+            font-size: 0.78rem;
+            font-weight: 600;
+        }
+        .hubble-system-status {
+            flex: 1 1 260px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: min(100%, 190px);
+            padding: 8px 12px;
+            border: 1px solid rgba(255, 255, 255, 0.10);
+            border-radius: var(--radius-md);
+            background: rgba(255, 255, 255, 0.03);
+        }
+        .hubble-system-status.ready {
+            border-color: rgba(255, 255, 255, 0.12);
+            background: rgba(255, 255, 255, 0.035);
+        }
+        .hubble-system-status.active {
+            border-color: rgba(0, 212, 255, 0.28);
+            background: rgba(0, 212, 255, 0.06);
+        }
+        .hubble-system-status.attention {
+            border-color: rgba(239, 68, 68, 0.30);
+            background: rgba(239, 68, 68, 0.06);
+        }
+        .hubble-system-title {
+            color: var(--text-primary);
+            font-size: 0.82rem;
+            font-weight: 800;
+        }
+        .hubble-system-meta {
+            color: var(--text-secondary);
+            font-size: 0.74rem;
+            line-height: 1.35;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         .hubble-toggle {
             flex: 0 0 auto;
@@ -2620,7 +3331,7 @@ const _HomePage = {
         }
         .hubble-tip {
             margin-top: var(--space-xs);
-            color: #fbbf24;
+            color: var(--text-primary);
             font-weight: 600;
         }
         
@@ -2655,14 +3366,14 @@ const _HomePage = {
         .hubble-answer {
             margin-top: var(--space-md);
             padding: var(--space-md);
-            border: 1px solid rgba(251, 191, 36, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.10);
             border-radius: var(--radius-md);
-            background: rgba(251, 191, 36, 0.03);
+            background: rgba(255, 255, 255, 0.03);
         }
         .hubble-answer-label {
             display: block;
             margin-bottom: 6px;
-            color: #fbbf24;
+            color: var(--text-primary);
             font-size: 0.75rem;
             font-weight: 700;
             text-transform: uppercase;
@@ -2930,8 +3641,23 @@ const _HomePage = {
         /* ===== Panel Groups ===== */
         .panel-groups-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: var(--space-md);
+            align-items: stretch;
+        }
+        .panel-groups-grid.count-4 {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .panel-groups-grid.count-2 {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .panel-groups-grid.count-1 {
+            grid-template-columns: minmax(0, 720px);
+        }
+        .panel-group-chart {
+            height: 220px;
+            width: 100%;
+            min-width: 0;
         }
         .panel-group-card {
             background: var(--card-bg, rgba(255,255,255,0.03));
@@ -3011,8 +3737,17 @@ const _HomePage = {
             background: rgba(251, 191, 36, 0.08);
         }
 
-        .pg-badge.accuracy {
+        .pg-badge.progress {
             background: rgba(255, 255, 255, 0.02);
+        }
+
+        .pg-meta-line {
+            margin-top: 8px;
+            color: var(--text-muted);
+            font-size: 0.68rem;
+            line-height: 1.35;
+            font-family: var(--font-mono);
+            white-space: normal;
         }
 
         .forecast-card-title-row {
@@ -3329,6 +4064,8 @@ const _HomePage = {
             border: 1px solid var(--border-default);
             border-radius: var(--radius-lg);
             padding: var(--space-md);
+            min-width: 0;
+            overflow: hidden;
             backdrop-filter: var(--glass-blur);
             -webkit-backdrop-filter: var(--glass-blur);
             transition: border-color var(--transition-normal);
@@ -3343,6 +4080,76 @@ const _HomePage = {
         }
         .chart-card:hover {
             border-color: var(--border-hover);
+        }
+
+        .battery-chart-container {
+            height: 28vh;
+            min-height: 220px;
+        }
+
+        .battery-chart-stats {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            column-gap: 18px;
+            row-gap: 8px;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+            font-size: 0.78rem;
+        }
+
+        .battery-chart-stats span {
+            display: inline-flex;
+            align-items: baseline;
+            gap: 6px;
+            white-space: nowrap;
+        }
+
+        .battery-chart-stats strong {
+            color: var(--text-primary);
+            font-weight: 700;
+        }
+
+        .battery-chart-stats strong.charge {
+            color: #22c55e;
+        }
+
+        .battery-chart-stats strong.discharge {
+            color: #f97316;
+        }
+
+        .battery-chart-stats .battery-mode {
+            padding: 2px 7px;
+            border-radius: 999px;
+            border: 1px solid var(--border-default);
+            color: var(--text-secondary);
+            font-family: var(--font-sans);
+            font-size: 0.72rem;
+            font-weight: 700;
+        }
+
+        .battery-chart-stats .battery-mode.charging {
+            border-color: rgba(34, 197, 94, 0.28);
+            color: #22c55e;
+        }
+
+        .battery-chart-stats .battery-mode.discharging {
+            border-color: rgba(249, 115, 22, 0.28);
+            color: #f97316;
+        }
+
+        @media (max-width: 1180px) {
+            .panel-groups-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 760px) {
+            .panel-groups-grid,
+            .panel-groups-grid.count-4,
+            .panel-groups-grid.count-2 {
+                grid-template-columns: minmax(0, 1fr);
+            }
         }
 
         /* === FLOW LAYOUT (SVG + Info Panel under SVG) === */
@@ -3425,6 +4232,7 @@ const _HomePage = {
             align-items: center;
             gap: var(--space-sm);
             margin-left: var(--space-md);
+            flex-wrap: wrap;
         }
         .weather-badge {
             display: inline-flex;
@@ -3459,6 +4267,49 @@ const _HomePage = {
             letter-spacing: 0.05em;
             font-weight: 600;
             color: var(--text-muted);
+        }
+        .flow-status-chip {
+            gap: 6px;
+            white-space: nowrap;
+            max-width: 180px;
+        }
+        .flow-status-chip.sfml {
+            border-color: rgba(56, 189, 248, 0.24);
+            color: #38bdf8;
+        }
+        .flow-status-chip.stats {
+            border-color: rgba(168, 85, 247, 0.24);
+            color: #a855f7;
+        }
+        .flow-status-chip.active {
+            border-color: rgba(34, 197, 94, 0.32);
+            background: rgba(34, 197, 94, 0.11);
+            color: #22c55e;
+        }
+        .flow-status-chip.inactive {
+            border-color: rgba(148, 163, 184, 0.18);
+            color: var(--text-muted);
+        }
+        .flow-status-chip.unavailable {
+            border-color: rgba(239, 68, 68, 0.24);
+            color: #ef4444;
+            opacity: 0.82;
+        }
+        .badge-chip-value {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-family: var(--font-mono);
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        .flow-status-chip.active .badge-chip-value {
+            color: #22c55e;
+        }
+        .flow-status-chip.inactive .badge-chip-value {
+            color: var(--text-muted);
+        }
+        .flow-status-chip.unavailable .badge-chip-value {
+            color: #ef4444;
         }
         .time-badge {
             display: inline-flex;

@@ -46,6 +46,7 @@ from .sensors.sensor_base import (
     ForecastDayAfterTomorrowSensor,
     ExcludedMpptHours7DaysSensor,
     ExcludedMpptHours30DaysSensor,
+    HybridForecastStatusSensor,
     MaxPeakAllTimeSensor,
     MaxPeakTodaySensor,
     MonthlyConsumptionSensor,
@@ -57,6 +58,15 @@ from .sensors.sensor_base import (
     SolarForecastSensor,
     WeeklyConsumptionSensor,
     WeeklyYieldSensor,
+)
+
+from .sensors.sensor_actual_sot import (
+    ActualLiveStateManager,
+    SFMLPanelGroupActualTodaySensor,
+    SFMLPanelGroupPowerSensor,
+    SFMLTotalActualTodaySensor,
+    SFMLTotalPowerSensor,
+    SFMLTotalYieldSensor,
 )
 
 from .sensors.sensor_diagnostic import (
@@ -74,13 +84,12 @@ from .sensors.sensor_diagnostic import (
     NextProductionStartSensor,
     NextScheduledUpdateSensor,
     PhysicsSamplesSensor,
+    WorkflowStatusSensor,
     YesterdayDeviationSensor,
 )
 
 from .sensors.sensor_states import (
     ExternalSensorsStatusSensor,
-    PowerSensorStateSensor,
-    YieldSensorStateSensor,
 )
 
 from .sensors.sensor_system_status import SystemStatusSensor
@@ -124,11 +133,29 @@ async def async_setup_entry(
     system_status_sensor = SystemStatusSensor(coordinator, entry.entry_id)
     coordinator.system_status_sensor = system_status_sensor
 
+    actual_live_manager = getattr(coordinator, "actual_live_state_manager", None)
+    if actual_live_manager is None:
+        actual_live_manager = ActualLiveStateManager(hass, coordinator, entry)
+        coordinator.actual_live_state_manager = actual_live_manager
+        await actual_live_manager.async_start()
+        entry.async_on_unload(actual_live_manager.async_stop)
+
+    panel_group_sot_entities = []
+    for idx, group in enumerate(getattr(coordinator, "panel_groups", []) or []):
+        group_name = str(group.get("name") or f"Group {idx + 1}") if isinstance(group, dict) else str(getattr(group, "name", None) or f"Group {idx + 1}")
+        panel_group_sot_entities.extend(
+            [
+                SFMLPanelGroupPowerSensor(actual_live_manager, entry, group_name, idx),
+                SFMLPanelGroupActualTodaySensor(actual_live_manager, entry, group_name, idx),
+            ]
+        )
+
     # Essential production sensors (always created) @zara
     essential_production_entities = [
         system_status_sensor,
         ExpectedDailyProductionSensor(coordinator, entry),
         ConservativePlanningForecastSensor(coordinator, entry),
+        HybridForecastStatusSensor(coordinator, entry),
         OperationalHybridForecastSensor(coordinator, entry),
         SolarForecastSensor(coordinator, entry, "remaining"),
         SolarForecastSensor(coordinator, entry, "tomorrow"),
@@ -137,10 +164,12 @@ async def async_setup_entry(
         ProductionTimeSensor(coordinator, entry),
         MaxPeakTodaySensor(coordinator, entry),
         MaxPeakAllTimeSensor(coordinator, entry),
-        PowerSensorStateSensor(hass, entry),
-        YieldSensorStateSensor(hass, entry),
+        SFMLTotalPowerSensor(actual_live_manager, entry),
+        SFMLTotalActualTodaySensor(actual_live_manager, entry),
+        SFMLTotalYieldSensor(actual_live_manager, entry),
         NextHourSensor(coordinator, entry),
     ]
+    essential_production_entities.extend(panel_group_sot_entities)
 
     entities_to_add = essential_production_entities
 
@@ -164,6 +193,7 @@ async def async_setup_entry(
     # Essential diagnostic entities (always created) @zara
     essential_diagnostic_entities = [
         DataFilesStatusSensor(coordinator, entry),
+        WorkflowStatusSensor(coordinator, entry),
     ]
     entities_to_add.extend(essential_diagnostic_entities)
 
@@ -234,6 +264,11 @@ async def _cleanup_orphaned_entities(
     """
     ent_reg = er.async_get(hass)
 
+    legacy_entity_patterns = [
+        "power_sensor_state",
+        "yield_sensor_state",
+    ]
+
     # Patterns for diagnostic entities to remove when diagnostic mode is disabled @zara
     diagnostic_patterns = [
         "diagnostic_status",
@@ -254,6 +289,7 @@ async def _cleanup_orphaned_entities(
         "coordinator_health",
         "ai_rmse",
         "eod_duration",
+        "workflow_status",
     ]
 
     entities_removed = 0
@@ -264,6 +300,14 @@ async def _cleanup_orphaned_entities(
             continue
 
         unique_id_lower = str(entity_entry.unique_id).lower()
+
+        if any(pattern in unique_id_lower for pattern in legacy_entity_patterns):
+            _LOGGER.debug(
+                f"Removing legacy SOT entity: {entity_entry.entity_id}"
+            )
+            ent_reg.async_remove(entity_entry.entity_id)
+            entities_removed += 1
+            continue
 
         if not diagnostic_enabled:
             # Remove diagnostic entities when diagnostic mode is disabled @zara

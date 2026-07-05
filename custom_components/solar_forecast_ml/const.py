@@ -15,17 +15,15 @@ from homeassistant.const import Platform
 # Warp Core Identity @starfleet-engineering
 DOMAIN = "solar_forecast_ml"
 NAME = "Solar Forecast ML"
-VERSION = "28.0.8"
+VERSION = "32.0.6"
 SOFTWARE_VERSION = VERSION
-AI_VERSION = "8.0 TFS"
+AI_VERSION = "10.0 TFS"
 INTEGRATION_MODEL = f"Solar Forecast ML V{VERSION}"
 
 PLATFORMS = [Platform.SENSOR, Platform.SWITCH]
 
 # Containment Configuration Keys @starfleet-engineering
 CONF_WEATHER_ENTITY = "weather_entity"
-CONF_POWER_ENTITY = "power_entity"
-CONF_SOLAR_YIELD_TODAY = "solar_yield_today"
 CONF_SOLAR_CAPACITY = "solar_capacity"
 
 # Auxiliary Subspace Sensors @starfleet-engineering
@@ -46,7 +44,7 @@ CONF_PANEL_GROUP_POWER = "power_wp"
 CONF_PANEL_GROUP_AZIMUTH = "azimuth"
 CONF_PANEL_GROUP_TILT = "tilt"
 CONF_PANEL_GROUP_NAME = "name"
-CONF_PANEL_GROUP_ENERGY_SENSOR = "energy_sensor"
+CONF_PANEL_GROUP_POWER_SENSOR = "power_sensor"
 
 # Plasma Injector Clipping @starfleet-engineering
 CONF_INVERTER_MAX_POWER = "inverter_max_power"
@@ -113,8 +111,10 @@ WINTER_MIN_BUCKET_SAMPLES = 5
 CONF_ZERO_EXPORT_MODE = "zero_export_mode"
 CONF_HAS_BATTERY = "has_battery"
 CONF_SOLAR_TO_BATTERY_SENSOR = "solar_to_battery_sensor"
+CONF_MAX_GRID_EXPORT_W = "max_grid_export_w"
 DEFAULT_ZERO_EXPORT_MODE = False
 DEFAULT_HAS_BATTERY = False
+DEFAULT_MAX_GRID_EXPORT_W = 800.0
 MPPT_THROTTLE_BATTERY_POWER_THRESHOLD = 50.0
 MPPT_THROTTLE_PRODUCTION_RATIO = 0.5
 MPPT_CLEAR_SKY_GHI_THRESHOLD = 400
@@ -123,6 +123,8 @@ THROTTLE_REASON_FULL_BATTERY = "full_battery_zero_export"
 THROTTLE_REASON_ZERO_EXPORT = "zero_export_limited"
 THROTTLE_REASON_SUSPECTED_BATTERY_CURTAILMENT = "suspected_battery_curtailment"
 THROTTLE_REASON_DEMAND_LIMITED_ZERO_EXPORT = "demand_limited_zero_export"
+THROTTLE_REASON_EXPORT_LIMIT = "full_battery_export_limit"
+THROTTLE_REASON_TRANSITION_CURTAILMENT = "transition_curtailment"
 CURTAILMENT_QUARANTINE_GHI_MIN = 400.0
 CURTAILMENT_QUARANTINE_CLOUDS_MAX = 35.0
 CURTAILMENT_QUARANTINE_RATIO_MAX = 0.75
@@ -133,6 +135,14 @@ CURTAILMENT_FLOW_HOUSE_MATCH_RATIO = 0.90
 CURTAILMENT_FLOW_HOUSE_MATCH_SHARE = 0.50
 CURTAILMENT_FLOW_MIN_SAMPLES = 3
 CURTAILMENT_TRANSITION_AVG_BATTERY_W = 200.0
+CURTAILMENT_FLOW_HARD_MIN_SAMPLES = 30
+CURTAILMENT_FLOW_HARD_SHARE = 0.60
+CURTAILMENT_FLOW_TRANSITION_SHARE = 0.25
+CURTAILMENT_CAP_RATIO_MAX = 0.70
+CURTAILMENT_CAP_TRANSITION_RATIO_MAX = 0.75
+CURTAILMENT_CAP_TOLERANCE_W = 80.0
+CURTAILMENT_CAP_TOLERANCE_RATIO = 0.08
+CURTAILMENT_CAP_POTENTIAL_MARGIN = 1.15
 
 # Meta-Luminal Configuration @starfleet-engineering
 CONF_ML_ALGORITHM = "ml_algorithm"
@@ -225,6 +235,7 @@ MIN_GRID_SEARCH_INTERVAL_DAYS = 14
 
 # Red Alert Services @starfleet-engineering
 SERVICE_RUN_ALL_DAY_END_TASKS = "run_all_day_end_tasks"
+SERVICE_EMERGENCY_OUTAGE_QUARANTINE = "emergency_outage_quarantine"
 
 # Simulation Diagnostic Services @starfleet-engineering
 SERVICE_TEST_MORNING_ROUTINE = "test_morning_routine"
@@ -313,7 +324,6 @@ DATA_KEY_CURRENT_WEATHER = "current_weather"
 DATA_KEY_EXTERNAL_SENSORS = "external_sensors"
 DATA_KEY_PRODUCTION_TIME = "production_time"
 DATA_KEY_PEAK_TODAY = "peak_today"
-DATA_KEY_YIELD_TODAY = "yield_today"
 DATA_KEY_EXPECTED_DAILY_PRODUCTION = "expected_daily_production"
 DATA_KEY_STATISTICS = "statistics"
 
@@ -334,8 +344,6 @@ PEAK_TODAY_AT = "at"
 # ============================================
 # Daily Yield Sub-Keys @starfleet-engineering
 # ============================================
-YIELD_TODAY_KWH = "kwh"
-YIELD_TODAY_SENSOR = "sensor"
 
 # ============================================
 # Telemetry Statistics Sub-Keys @starfleet-engineering
@@ -370,7 +378,6 @@ PRED_PREDICTED_KWH = "predicted_kwh"
 # ============================================
 # External Subspace Sensor Keys @starfleet-engineering
 # ============================================
-EXT_SENSOR_SOLAR_YIELD_TODAY = "solar_yield_today"
 EXT_SENSOR_TOTAL_CONSUMPTION_TODAY = "total_consumption_today"
 EXT_SENSOR_GRID_IMPORT_TODAY = "grid_import_today"
 EXT_SENSOR_GRID_EXPORT_TODAY = "grid_export_today"

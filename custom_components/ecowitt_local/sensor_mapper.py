@@ -10,6 +10,22 @@ from .const import BATTERY_SENSORS, SENSOR_TYPES
 
 _LOGGER = logging.getLogger(__name__)
 
+# Ecowitt-documented priority order for outdoor measurements when multiple sensors
+# share the same common_list hex keys (e.g. 0x02/0x07/0x03 for temp/humidity/dewpoint).
+# Higher value = preferred. Only applied when signal strengths are equal and both sensors
+# are active (signal > 0); a stronger signal always wins regardless of priority.
+# Source: Ecowitt sensor priority docs referenced in issue #203.
+_SENSOR_PRIORITY: Dict[str, int] = {
+    "wh26": 4,  # WH26/WN32 outdoor T/H — highest priority per Ecowitt docs
+    "wn32": 4,
+    "ws90": 3,
+    "wh90": 3,
+    "ws80": 2,
+    "wh80": 2,
+    "wh69": 1,
+    "wh65": 1,
+}
+
 
 class SensorMapper:
     """Handle mapping between sensor data and hardware IDs.
@@ -32,18 +48,29 @@ class SensorMapper:
         Args:
             sensor_mappings: List of sensor mapping dictionaries from API
         """
+        # Snapshot the previous poll's winners before clearing. Two sensors
+        # with genuinely equal signal (e.g. a WH90 and a WH32/WN32 both
+        # reporting outdoor temp/humidity/dewpoint) can appear in a different
+        # order in get_sensors_info from one poll to the next, which would
+        # otherwise flip key ownership every poll and starve both entities
+        # of continuous data (issue #197).
+        previous_mapping: Dict[str, str] = dict(self._hardware_mapping)
+
         self._hardware_mapping.clear()
         self._sensor_info.clear()
 
-        # Tracks the signal strength of the sensor that currently owns each
-        # mapping key. When two sensor types share live-data keys — most often
-        # WH65 (img=wh69) and WH90 both claiming common_list 0x02–0x13 because
-        # the gateway still has a stale slot from a previously paired WH65 —
-        # the dict-overwrite "last wins" picked an arbitrary owner depending on
-        # iteration order, splitting entities across two phantom devices. By
-        # preferring the entry with the stronger signal we let the active
-        # sensor win (stale slots typically degrade to signal=0).
+        # Tracks the signal strength and device priority of the sensor that
+        # currently owns each mapping key. When two sensor types share live-data
+        # keys — most often WH65 (img=wh69) and WH90 both claiming common_list
+        # 0x02–0x13 because the gateway still has a stale slot from a previously
+        # paired WH65 — the dict-overwrite "last wins" picked an arbitrary owner
+        # depending on iteration order, splitting entities across two phantom
+        # devices. By preferring the entry with the stronger signal we let the
+        # active sensor win (stale slots typically degrade to signal=0). When
+        # signals are equal and both are active, Ecowitt's documented priority
+        # order (WN32 > WS90 > WS80 > WS69) determines the winner (issue #203).
         key_signal: Dict[str, int] = {}
+        key_priority: Dict[str, int] = {}
 
         for sensor in sensor_mappings:
             try:
@@ -73,6 +100,8 @@ class SensorMapper:
                 except (TypeError, ValueError):
                     signal_int = -1
 
+                device_priority = _SENSOR_PRIORITY.get(img.lower(), 0)
+
                 # Store sensor information
                 self._sensor_info[hardware_id] = {
                     "hardware_id": hardware_id,
@@ -87,35 +116,74 @@ class SensorMapper:
                 # Map live data keys to hardware IDs
                 live_keys = self._generate_live_data_keys(sensor_type, channel)
                 _LOGGER.debug(
-                    "Mapping for hardware_id %s (type=%s, channel=%s, signal=%s): keys=%s",
+                    "Mapping for hardware_id %s (type=%s, channel=%s, signal=%s, priority=%d): keys=%s",
                     hardware_id,
                     sensor_type,
                     channel,
                     signal,
+                    device_priority,
                     live_keys,
                 )
                 for key in live_keys:
                     existing_signal = key_signal.get(key)
-                    if existing_signal is None or signal_int > existing_signal:
+                    existing_priority = key_priority.get(key, 0)
+                    # Stable tie-break: previous owner keeps the key when
+                    # signals and priorities are both equal (issue #197).
+                    is_stable_tie = (
+                        existing_signal is not None
+                        and signal_int == existing_signal
+                        and device_priority == existing_priority
+                        and previous_mapping.get(key) == hardware_id
+                        and self._hardware_mapping.get(key) != hardware_id
+                    )
+                    # Priority win: higher-priority sensor claims the key when
+                    # signals are equal and both are active (issue #203).
+                    is_priority_win = (
+                        existing_signal is not None
+                        and signal_int == existing_signal
+                        and signal_int > 0
+                        and device_priority > existing_priority
+                    )
+                    if (
+                        existing_signal is None
+                        or signal_int > existing_signal
+                        or is_priority_win
+                        or is_stable_tie
+                    ):
                         if existing_signal is not None:
+                            reason = (
+                                "higher sensor priority"
+                                if is_priority_win
+                                else (
+                                    "previous stable owner"
+                                    if is_stable_tie
+                                    else "stronger signal"
+                                )
+                            )
                             _LOGGER.info(
-                                "Live-data key %s claimed by both %s (signal=%d) and %s (signal=%d); preferring stronger signal",
+                                "Live-data key %s claimed by both %s (signal=%d, priority=%d) and %s (signal=%d, priority=%d); preferring %s",
                                 key,
                                 self._hardware_mapping[key],
                                 existing_signal,
+                                existing_priority,
                                 hardware_id,
                                 signal_int,
+                                device_priority,
+                                reason,
                             )
                         self._hardware_mapping[key] = hardware_id
                         key_signal[key] = signal_int
+                        key_priority[key] = device_priority
                     else:
                         _LOGGER.info(
-                            "Live-data key %s claimed by both %s (signal=%d) and %s (signal=%d); keeping stronger signal",
+                            "Live-data key %s claimed by both %s (signal=%d, priority=%d) and %s (signal=%d, priority=%d); keeping current owner",
                             key,
                             self._hardware_mapping[key],
                             existing_signal,
+                            existing_priority,
                             hardware_id,
                             signal_int,
+                            device_priority,
                         )
 
             except Exception as err:
@@ -285,6 +353,20 @@ class SensorMapper:
                     "wh40batt",
                 ]
             )
+        elif sensor_type.lower() in ("wn20", "rain mini"):
+            # WN20 tipping-bucket rain gauge — same "rain" array hex IDs as WH40
+            keys.extend(
+                [
+                    "0x0D",  # Rain event total
+                    "0x0E",  # Rain rate
+                    "0x7C",  # 24-hour rain
+                    "0x10",  # Daily rain
+                    "0x11",  # Weekly rain
+                    "0x12",  # Monthly rain
+                    "0x13",  # Yearly rain
+                    "wn20batt",
+                ]
+            )
         elif (
             sensor_type.lower() in ("wh68", "weather_station")
             or "solar & wind" in sensor_type.lower()
@@ -357,6 +439,7 @@ class SensorMapper:
                     "0x17",  # UV index
                     "0x0D",  # Rain event
                     "0x0E",  # Rain rate
+                    "0x7D",  # Hourly rain (vendor, piezoRain)
                     "0x7C",  # 24-hour rolling rain
                     "0x10",  # Rain daily
                     "0x11",  # Rain weekly
@@ -418,6 +501,7 @@ class SensorMapper:
                     "0x17",  # UV index
                     "0x0D",  # Rain event
                     "0x0E",  # Rain rate
+                    "0x7D",  # Hourly rain (vendor, piezoRain)
                     "0x7C",  # 24-hour rolling rain
                     "0x10",  # Rain daily
                     "0x11",  # Rain weekly
@@ -532,6 +616,7 @@ class SensorMapper:
                     "0x6D",  # Wind direction avg 10min
                     "0x0D",  # Rain event
                     "0x0E",  # Rain rate
+                    "0x7D",  # Hourly rain (vendor, piezoRain)
                     "0x7C",  # 24-hour rolling rain
                     "0x10",  # Rain daily
                     "0x11",  # Rain weekly
@@ -683,6 +768,7 @@ class SensorMapper:
                 "0x19": "max_daily_gust",
                 "0x6D": "wind_direction_avg",
                 "0x7C": "24h_rain",
+                "0x7D": "hourly_rain",
                 "0xA1": "bgt",
                 "0xA2": "wbgt",
             }
@@ -740,6 +826,8 @@ class SensorMapper:
         elif "wh57" in battery_key:
             return "lightning_battery"
         elif "wh40" in battery_key:
+            return "rain_battery"
+        elif "wn20" in battery_key:
             return "rain_battery"
         elif "wh69" in battery_key:
             return "wh69_weather_station_battery"

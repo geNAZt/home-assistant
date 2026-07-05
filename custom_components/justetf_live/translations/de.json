@@ -1,0 +1,115 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "justETF live - Echtzeit ETF Börsendaten via WebSocket",
+        "description": "Füge eine ISIN hinzu, um Kursdaten und optionale Kennzahlen zu erhalten.",
+        "data": {
+          "isin": "ISIN",
+          "name": "Name (optional)",
+          "scan_interval": "Update-Intervall (Minuten)",
+          "position_value_price": "Preis für Positionswertberechnung",
+          "day_month_start_price": "Preis für Tages- & Monatsstartwerte",
+          "quantity": "Stückzahl (Anteile)",
+          "invest": "Investition in € für die o.g. Anteile"
+        },
+        "data_description": {
+          "position_value_price": "Wenn Du für einen ETF einen Positions-Wert berechnen möchtest, gib den Basis-Preis für eine Einheit an. Dieser Preis wird für die Positions-Wert-Berechnung verwendet.",
+          "day_month_start_price": "Dieser Preis wird für die Berechnung der Tages- und Monatsstartwerte verwendet.",
+          "scan_interval": "Das Aktualisierungsintervall spielt normalerweise keine Rolle, da diese Integration eine WebSocket verbindung verwendet. Sollte diese Verbindung allerdings für eine längere Zeit ausfallen, greift das Aktualisierungsintervall."
+        }
+      },
+      "select_isin": {
+        "title": "ISINs verwalten",
+        "description": "Wähle eine ISIN zum Bearbeiten oder füge eine neue hinzu.",
+        "data": {
+          "selected_isin": "Wähle eine Option",
+          "scan_interval": "Update-Intervall (Minuten)",
+          "position_value_price": "Preis für Positionswertberechnung",
+          "day_month_start_price": "Preis für Tages- & Monatsstartwerte"
+        },
+        "data_description": {
+          "position_value_price": "Wenn Du für einen ETF einen Positions-Wert berechnen möchtest, gib den Basis-Preis für eine Einheit an. Dieser Preis wird für die Positions-Wert-Berechnung verwendet.",
+          "day_month_start_price": "Dieser Preis wird für die Berechnung der Tages- und Monatsstartwerte verwendet.",
+          "scan_interval": "Das Aktualisierungsintervall spielt normalerweise keine Rolle, da diese Integration eine WebSocket verbindung verwendet. Sollte diese Verbindung allerdings für eine längere Zeit ausfallen, greift das Aktualisierungsintervall."
+        }
+      },
+      "add_isin": {
+        "title": "ISIN Hinzufügen",
+        "description": "Neue ISIN zum Tracken eingeben.",
+        "data": {
+          "isin": "ISIN",
+          "name": "Name (optional)",
+          "quantity": "Stückzahl (Deine Anteile)",
+          "invest": "Investition in € für die o.g. Anteile"
+        }
+      },
+      "edit_isin": {
+        "title": "ISIN Bearbeiten",
+        "description": "Einstellungen für ISIN bearbeiten: **{isin}**",
+        "data": {
+          "name": "Name (optional)",
+          "quantity": "Stückzahl (Deine Anteile)",
+          "invest": "Investition in € für die o.g. Anteile"
+        }
+      },
+      "delete_isin": {
+        "title": "ISIN Löschen",
+        "description": "Wähle die zu löschende ISIN aus",
+        "data": {
+          "selected_isin": "Zu löschende ISIN auswählen"
+        }
+      }
+    },
+    "error": {
+      "isin_already_configured": "Diese ISIN ist bereits konfiguriert.",
+      "invalid_isin": "Ungültige ISIN"
+    },
+    "abort": {
+      "reconfigured": "Konfiguration erfolgreich aktualisiert."
+    }
+  },
+  "selector": {
+    "position_value_price": {
+      "options": {
+        "bid": "Geldkurs (Verkaufspreis)",
+        "ask": "Briefkurs (Kaufpreis)",
+        "mid": "Mittelkurs (Durchschnitt)"
+      }
+    },
+    "actions": {
+      "options": {
+        "add_new": "➕ Neue ISIN hinzufügen",
+        "delete_isin": "🗑️ ISIN löschen",
+        "edit_isin": "✏\uFE0F {label} bearbeiten",
+        "save_close": "💾 Nur 'Update-Intervall' oder 'Preis für Positionswertberechnung' aktualisieren & schließen"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "mid":  { "name": "Preis" },
+      "bid":  { "name": "Preis (Geldkurs)" },
+      "ask":  { "name": "Preis (Briefkurs)" },
+      "dtdprc": { "name": "Änderung Day2Day %" },
+      "dtdamt": { "name": "Änderung Day2Day" },
+      "position_value": { "name": "Positionswert" },
+      "position_change": { "name": "Positionswert Entwicklung" },
+      "quote52weeklow": { "name": "52W Tief" },
+      "quote52weekhigh": { "name": "52W Hoch" },
+      "start_price_day": { "name": "Startpreis Tag" },
+      "start_price_month": { "name": "Startpreis Monat" },
+      "change_day_amt": { "name": "Änderung Tag" },
+      "change_day_prc": { "name": "Änderung Tag %" },
+      "change_day_position_value": { "name": "Änderung Tag Positionswert" },
+      "change_month_amt": { "name": "Änderung Monat" },
+      "change_month_prc": { "name": "Änderung Monat %" },
+      "change_month_position_value": { "name": "Änderung Monat Positionswert" },
+      "timestamp": { "name": "Letztes Update" },
+      "total_invest": { "name": "Investiertes Kapital" },
+      "total_value": { "name": "Depotwert" },
+      "total_change": { "name": "Depot Entwicklung" },
+      "total_return": { "name": "Depot Rendite" }
+    }
+  }
+}

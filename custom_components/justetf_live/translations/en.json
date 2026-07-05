@@ -1,0 +1,115 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "justETF live - Realtime ETF stock data via WebSocket",
+        "description": "Add your first ISIN to track price and optional key figures.",
+        "data": {
+          "isin": "ISIN",
+          "name": "Name (optional)",
+          "scan_interval": "Update interval (minutes)",
+          "position_value_price": "Price used for positions value calculation",
+          "day_month_start_price": "Price for the day & month start values",
+          "quantity": "Quantity (shares/units)",
+          "invest": "Invest in € for the amount of shares above"
+        },
+        "data_description": {
+          "position_value_price": "If you wish to calculate the position value for an ETF, specify the base price per unit. This price is used for the position value calculation.",
+          "day_month_start_price": "This price is used for the calculation of the day & month start values.",
+          "scan_interval": "The update interval typically does not matter, as this integration uses a WebSocket connection. However, should this connection fail for an extended period, the update interval will take effect."
+        }
+      },
+      "select_isin": {
+        "title": "Manage ISINs",
+        "description": "Select an ISIN to edit or add a new one.",
+        "data": {
+          "selected_isin": "Select your action",
+          "scan_interval": "Update interval (minutes)",
+          "position_value_price": "Price used for positions value",
+          "day_month_start_price": "Price for the day & month start values"
+        },
+        "data_description": {
+          "position_value_price": "If you wish to calculate the position value for an ETF, specify the base price per unit. This price is used for the position value calculation.",
+          "day_month_start_price": "This price is used for the calculation of the day & month start values.",
+          "scan_interval": "The update interval typically does not matter, as this integration uses a WebSocket connection. However, should this connection fail for an extended period, the update interval will take effect."
+        }
+      },
+      "add_isin": {
+        "title": "Add ISIN",
+        "description": "Enter a new ISIN to track.",
+        "data": {
+          "isin": "ISIN",
+          "name": "Name (optional)",
+          "quantity": "Quantity (your shares/units)",
+          "invest": "Invest in € for the amount of shares above"
+        }
+      },
+      "edit_isin": {
+        "title": "Edit ISIN",
+        "description": "Editing settings for ISIN: **{isin}**",
+        "data": {
+          "name": "Name (optional)",
+          "quantity": "Quantity (your shares/units)",
+          "invest": "Invest in € for the amount of shares above"
+        }
+      },
+      "delete_isin": {
+        "title": "Delete ISIN",
+        "description": "Please select the ISIN that should be deleted",
+        "data": {
+          "selected_isin": "Select the ISIN to be deleted"
+        }
+      }
+    },
+    "error": {
+      "isin_already_configured": "This ISIN is already configured.",
+      "invalid_isin": "ISIN is invalid"
+    },
+    "abort": {
+      "reconfigured": "Configuration updated successfully."
+    }
+  },
+  "selector": {
+    "position_value_price": {
+      "options": {
+        "bid": "Bid (selling)",
+        "ask": "Ask (buying)",
+        "mid": "Mid (average)"
+      }
+    },
+    "actions": {
+      "options": {
+        "add_new": "➕ Add new ISIN",
+        "delete_isin": "🗑️ Delete ISIN",
+        "edit_isin": "✏\uFE0F edit {label}",
+        "save_close": "💾 Only save 'Update interval' or 'Price used for positions/start values' & close"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "dtdprc": { "name": "Change Day2Day %" },
+      "dtdamt": { "name": "Change Day2Day" },
+      "mid":  { "name": "Price" },
+      "bid":  { "name": "Price (bid)" },
+      "ask":  { "name": "Price (ask)" },
+      "position_value": { "name": "Position value" },
+      "position_change": { "name": "Position development" },
+      "quote52weeklow": { "name": "52W low" },
+      "quote52weekhigh": { "name": "52W high" },
+      "start_price_day": { "name": "Day start price" },
+      "start_price_month": { "name": "Month start price" },
+      "change_day_amt": { "name": "Change Day" },
+      "change_day_prc": { "name": "Change Day %" },
+      "change_day_position_value": { "name": "Change Day value"},
+      "change_month_amt": { "name": "Change Month" },
+      "change_month_prc": { "name": "Change Month %" },
+      "change_month_position_value": { "name": "Change Month value" },
+      "timestamp": { "name": "Last update" },
+      "total_invest": { "name": "Total Investment" },
+      "total_value": { "name": "Total Value" },
+      "total_change": { "name": "Overall Development" },
+      "total_return": { "name": "Overall Return" }
+    }
+  }
+}
