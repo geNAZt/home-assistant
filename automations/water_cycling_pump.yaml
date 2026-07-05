@@ -8,7 +8,10 @@
         - binary_sensor.presence_bad
       to:
         - "on"
-  conditions: []
+  conditions:
+    - condition: state
+      entity_id: binary_sensor.vacation_mode
+      state: "off"
   actions:
     - action: switch.turn_on
       metadata: {}

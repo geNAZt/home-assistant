@@ -166,3 +166,25 @@
         entity_id:
           - switch.water_heater_pv_switch_powerr_usage_stage_1
           - switch.water_heater_pv_switch_powerr_usage_stage_2
+
+- id: 'vacation_mode_water_cycling'
+  alias: "Vacation Mode: Water Cycling Pump"
+  mode: single
+  triggers:
+    - trigger: time_pattern
+      hours: "/3"
+      minutes: 0
+      seconds: 0
+  conditions:
+    - condition: state
+      entity_id: binary_sensor.vacation_mode
+      state: "on"
+  actions:
+    - action: switch.turn_on
+      target:
+        entity_id: switch.water_cycling_pump
+    - delay: "00:10:00"
+    - action: switch.turn_off
+      target:
+        entity_id: switch.water_cycling_pump
+
