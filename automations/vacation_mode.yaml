@@ -1,0 +1,168 @@
+- id: 'vacation_mode_keep_lights_off'
+  alias: "Vacation Mode: Keep Lights Off"
+  mode: parallel
+  triggers:
+    - trigger: state
+      entity_id:
+        - light.licht_bad_virtuell
+        - light.licht_buero_fabian_virtuell
+        - light.licht_buero_merja_virtuell
+        - light.licht_flur_virtuell
+        - light.licht_kueche_virtuell
+        - light.licht_schlafzimmer_virtuell
+        - light.licht_speisekammer_virtuell
+        - light.licht_wohnzimmer_virtuell
+    - trigger: state
+      entity_id: binary_sensor.vacation_mode
+      to: "on"
+    - trigger: time
+      at: "00:00:05"
+    - trigger: homeassistant
+      event: start
+  conditions:
+    - condition: state
+      entity_id: binary_sensor.vacation_mode
+      state: "on"
+    - condition: template
+      value_template: >-
+        {{ trigger.platform != 'state' or trigger.entity_id == 'binary_sensor.vacation_mode' or not is_state(trigger.entity_id, 'off') }}
+  actions:
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.licht_bad_virtuell
+          - light.licht_buero_fabian_virtuell
+          - light.licht_buero_merja_virtuell
+          - light.licht_flur_virtuell
+          - light.licht_kueche_virtuell
+          - light.licht_schlafzimmer_virtuell
+          - light.licht_speisekammer_virtuell
+          - light.licht_wohnzimmer_virtuell
+
+- id: 'vacation_mode_keep_lock_locked'
+  alias: "Vacation Mode: Keep Lock Locked"
+  mode: single
+  triggers:
+    - trigger: state
+      entity_id: lock.home
+    - trigger: state
+      entity_id: binary_sensor.vacation_mode
+      to: "on"
+    - trigger: time
+      at: "00:00:05"
+    - trigger: homeassistant
+      event: start
+  conditions:
+    - condition: state
+      entity_id: binary_sensor.vacation_mode
+      state: "on"
+    - condition: template
+      value_template: >-
+        {{ trigger.platform != 'state' or trigger.entity_id == 'binary_sensor.vacation_mode' or not is_state(trigger.entity_id, 'locked') }}
+  actions:
+    - action: lock.lock
+      target:
+        entity_id: lock.home
+
+- id: 'vacation_mode_keep_poe_off'
+  alias: "Vacation Mode: Keep PoE Off"
+  mode: parallel
+  triggers:
+    - trigger: state
+      entity_id:
+        - switch.usw_lite_16_poe_port_6_poe
+        - switch.usw_lite_16_poe_port_7_poe
+    - trigger: state
+      entity_id: binary_sensor.vacation_mode
+      to: "on"
+    - trigger: time
+      at: "00:00:05"
+    - trigger: homeassistant
+      event: start
+  conditions:
+    - condition: state
+      entity_id: binary_sensor.vacation_mode
+      state: "on"
+    - condition: template
+      value_template: >-
+        {{ trigger.platform != 'state' or trigger.entity_id == 'binary_sensor.vacation_mode' or not is_state(trigger.entity_id, 'off') }}
+  actions:
+    - action: switch.turn_off
+      target:
+        entity_id:
+          - switch.usw_lite_16_poe_port_6_poe
+          - switch.usw_lite_16_poe_port_7_poe
+
+- id: 'vacation_mode_keep_covers_closed'
+  alias: "Vacation Mode: Keep Covers Closed"
+  mode: parallel
+  triggers:
+    - trigger: state
+      entity_id:
+        - cover.rollade_bad
+        - cover.rollade_buero_fabian
+        - cover.rollade_buero_merja
+        - cover.rollade_hwr
+        - cover.rollade_kueche_links
+        - cover.rollade_kueche_rechts
+        - cover.rollade_schlafzimmer
+        - cover.rollade_speisekammer
+        - cover.rollade_wohnzimmer_links
+        - cover.rollade_wohnzimmer_rechts
+    - trigger: state
+      entity_id: binary_sensor.vacation_mode
+      to: "on"
+    - trigger: time
+      at: "00:00:05"
+    - trigger: homeassistant
+      event: start
+  conditions:
+    - condition: state
+      entity_id: binary_sensor.vacation_mode
+      state: "on"
+    - condition: template
+      value_template: >-
+        {{ trigger.platform != 'state' or trigger.entity_id == 'binary_sensor.vacation_mode' or not is_state(trigger.entity_id, 'closed') }}
+  actions:
+    - action: cover.close_cover
+      target:
+        entity_id:
+          - cover.rollade_bad
+          - cover.rollade_buero_fabian
+          - cover.rollade_buero_merja
+          - cover.rollade_hwr
+          - cover.rollade_kueche_links
+          - cover.rollade_kueche_rechts
+          - cover.rollade_schlafzimmer
+          - cover.rollade_speisekammer
+          - cover.rollade_wohnzimmer_links
+          - cover.rollade_wohnzimmer_rechts
+
+- id: 'vacation_mode_keep_water_heater_off'
+  alias: "Vacation Mode: Keep Water Heater Off"
+  mode: parallel
+  triggers:
+    - trigger: state
+      entity_id:
+        - switch.water_heater_pv_switch_powerr_usage_stage_1
+        - switch.water_heater_pv_switch_powerr_usage_stage_2
+    - trigger: state
+      entity_id: binary_sensor.vacation_mode_water_heater
+      to: "on"
+    - trigger: time
+      at: "00:00:05"
+    - trigger: homeassistant
+      event: start
+  conditions:
+    - condition: state
+      entity_id: binary_sensor.vacation_mode_water_heater
+      state: "on"
+    - condition: template
+      value_template: >-
+        {{ trigger.platform != 'state' or trigger.entity_id == 'binary_sensor.vacation_mode_water_heater' or not is_state(trigger.entity_id, 'off') }}
+  actions:
+    - action: switch.turn_off
+      target:
+        entity_id:
+          - switch.water_heater_pv_switch_powerr_usage_stage_1
+          - switch.water_heater_pv_switch_powerr_usage_stage_2

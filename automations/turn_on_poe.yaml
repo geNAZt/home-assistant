@@ -4,7 +4,10 @@
   triggers:
     - trigger: time
       at: "08:00:00"
-  conditions: []
+  conditions:
+    - condition: state
+      entity_id: binary_sensor.vacation_mode
+      state: "off"
   actions:
     - action: script.turn_on_poe
       metadata: {}
@@ -17,7 +20,10 @@
     entity_id:
     - lock.home
     to: unlocked
-  conditions: []
+  conditions:
+  - condition: state
+    entity_id: binary_sensor.vacation_mode
+    state: "off"
   actions:
     - action: script.turn_on_poe
       metadata: {}

@@ -5,7 +5,10 @@
   - trigger: state
     entity_id:
     - input_button.snapper_door
-  conditions: []
+  conditions:
+  - condition: state
+    entity_id: binary_sensor.vacation_mode
+    state: "off"
   actions:
   - choose:
     - conditions:

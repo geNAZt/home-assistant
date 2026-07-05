@@ -7,6 +7,9 @@
     - lock.home
     to: unlocked
   conditions:
+  - condition: state
+    entity_id: binary_sensor.vacation_mode
+    state: "off"
   - condition: time
     after: "10:00:10"
     before: "21:59:50"

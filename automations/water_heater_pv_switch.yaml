@@ -100,7 +100,10 @@
         or (not should_stage_1 and not should_stage_2)
       }}
 
-  condition: []
+  condition:
+    - condition: state
+      entity_id: binary_sensor.vacation_mode_water_heater
+      state: "off"
   action:
     - choose:
         # All off has highest priority
