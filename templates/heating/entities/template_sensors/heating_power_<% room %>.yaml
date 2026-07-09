@@ -5,10 +5,7 @@ sensor:
   device_class: power
   state_class: measurement
   state: >
-    {% set climate_state = states('climate.climate_room_[[room]]') %}
-    {% if climate_state == 'off' %}
-      0
-    {% else %}
+    {% if is_state('switch.heating_[[room]]', 'on') %}
       [[% if phase == 1 %]]
       {% set voltage = states('sensor.pv_m1_ac_voltage_an') | float(230) %}
       [[% elif phase == 2 %]]
@@ -19,5 +16,7 @@ sensor:
 
       {% set current = states('input_number.heater_[[room]]_rated_a') | float(0) %}
       {{ current * voltage | round(0) }}
+    {% else %}
+      0
     {% endif %}
     
