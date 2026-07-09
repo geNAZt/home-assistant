@@ -8,6 +8,7 @@ sensor:
     {% set rad = states('sensor.barsinghausen_hohenb_sonneneinstrahlung') | float(0) %}
     {% set ele = state_attr('sun.sun', 'elevation') | float(0) %}
     {% set azi = state_attr('sun.sun', 'azimuth') | float(0) %}
+    {% set cloud = (states('sensor.barsinghausen_hohenb_bewolkungsgrad') | float(0)) / 100 %}
     {% set ns = namespace(total=0) %}
 
 
@@ -19,6 +20,16 @@ sensor:
       {% set cos_factor = ((azi - 270) * 0.0174532925) | cos | abs %}
       {% set rel_azi = ((azi - 270 + 180) % 360 - 180) %}
       
+      {# Glazingeigenschaften mit Winkelabhängigkeit (Karlsson & Roos Modell für Dreifachverglasung) #}
+      {% set cos_aoi = ((ele * 0.0174532925) | cos) * cos_factor %}
+      {% set term = 1.0 - cos_aoi %}
+      {% set g_modifier = 1.0 - term * term * term %}
+      {% set g_dir = 0.53 * g_modifier %}
+      {% set g_diff = 0.53 * 0.87 %}
+      
+      {# Bewölkungsabhängiger Diffusanteil #}
+      {% set s_factor = 0.15 + (1.0 - 0.15) * cloud %}
+      
       {% set direct_factor = 1.0 %}
           {% set shadow_h = 2.9 - (4.5 * ((ele * 0.0174532925) | tan)) %}
           {% set win_top = 1.94 %}
@@ -27,10 +38,14 @@ sensor:
           {% set direct_factor = [direct_factor, sun_h / 1.94] | min %}
 
       {% set sun_part = [pos, direct_factor]|min %}
-      {% set shade_part = [0, pos - direct_factor]|max %}
       
-      {% set sun_factor = sun_part + (shade_part * 0.15) %}
-      {% set ns.total = ns.total + (1.5423 * rad * cos_factor * sun_factor) %}
+      {# Gesamtleistung inkl. Direkt-, Diffus- und Bodenreflexionsanteil #}
+      {% set direct_part_gain = sun_part * (1.0 - s_factor) * g_dir %}
+      {% set diffuse_part_gain = pos * s_factor * g_diff %}
+      {% set ground_ref_gain = 0.10 * pos * g_diff %}
+      
+      {% set total_gain_factor = cos_factor * (direct_part_gain + diffuse_part_gain) + ground_ref_gain %}
+      {% set ns.total = ns.total + (2.91 * rad * total_gain_factor) %}
     {% endif %}
 
 
@@ -42,16 +57,33 @@ sensor:
       {% set cos_factor = ((azi - 180) * 0.0174532925) | cos | abs %}
       {% set rel_azi = ((azi - 180 + 180) % 360 - 180) %}
       
+      {# Glazingeigenschaften mit Winkelabhängigkeit (Karlsson & Roos Modell für Dreifachverglasung) #}
+      {% set cos_aoi = ((ele * 0.0174532925) | cos) * cos_factor %}
+      {% set term = 1.0 - cos_aoi %}
+      {% set g_modifier = 1.0 - term * term * term %}
+      {% set g_dir = 0.53 * g_modifier %}
+      {% set g_diff = 0.53 * 0.87 %}
+      
+      {# Bewölkungsabhängiger Diffusanteil #}
+      {% set s_factor = 0.15 + (1.0 - 0.15) * cloud %}
+      
       {% set direct_factor = 1.0 %}
-          {% if ele < 49.97 %}
-            {% set direct_factor = 0.0 %}
-          {% endif %}
+          {# Hier berechnen wir die kontinuierliche Verschattung von unten #}
+          {% set shadow_h = 5.0 - (4.2 * ((ele * 0.0174532925) | tan)) %}
+          {% set win_top = 2.09 %}
+          {% set win_bottom = 0.0 %}
+          {% set sun_h = [0, win_top - [win_bottom, shadow_h]|max]|max %}
+          {% set direct_factor = [direct_factor, sun_h / 2.09] | min %}
 
       {% set sun_part = [pos, direct_factor]|min %}
-      {% set shade_part = [0, pos - direct_factor]|max %}
       
-      {% set sun_factor = sun_part + (shade_part * 0.15) %}
-      {% set ns.total = ns.total + (1.7059 * rad * cos_factor * sun_factor) %}
+      {# Gesamtleistung inkl. Direkt-, Diffus- und Bodenreflexionsanteil #}
+      {% set direct_part_gain = sun_part * (1.0 - s_factor) * g_dir %}
+      {% set diffuse_part_gain = pos * s_factor * g_diff %}
+      {% set ground_ref_gain = 0.10 * pos * g_diff %}
+      
+      {% set total_gain_factor = cos_factor * (direct_part_gain + diffuse_part_gain) + ground_ref_gain %}
+      {% set ns.total = ns.total + (3.2186 * rad * total_gain_factor) %}
     {% endif %}
 
     {{ ns.total | round(0) }}
