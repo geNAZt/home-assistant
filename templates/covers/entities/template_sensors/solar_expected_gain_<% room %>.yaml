@@ -27,6 +27,7 @@ sensor:
       
       {# Manuelle Umrechnung von Grad in Bogenmaß: Grad * (Pi / 180) #}
       {% set cos_factor = ((azi - [[ target_azi ]]) * 0.0174532925) | cos | abs %}
+      {% set rel_azi = ((azi - [[ target_azi ]] + 180) % 360 - 180) %}
       
       {% set direct_factor = 1.0 %}
       [[% if window.shading %]]
@@ -42,6 +43,16 @@ sensor:
           {% set win_bottom = [[ window.position.bottom ]] %}
           {% set sun_h = [0, [shadow_h, win_top]|min - win_bottom]|max %}
           {% set direct_factor = [direct_factor, sun_h / [[ window.area.height ]]] | min %}
+        [[% elif shade.direction == 'left' %]]
+          {% if rel_azi < 0 %}
+            {% set shadow_w = [[ shade.distance ]] * ((-rel_azi * 0.0174532925) | tan) %}
+            {% set direct_factor = [direct_factor, [0, 1 - (shadow_w / [[ window.area.width ]])] | max] | min %}
+          {% endif %}
+        [[% elif shade.direction == 'right' %]]
+          {% if rel_azi > 0 %}
+            {% set shadow_w = [[ shade.distance ]] * ((rel_azi * 0.0174532925) | tan) %}
+            {% set direct_factor = [direct_factor, [0, 1 - (shadow_w / [[ window.area.width ]])] | max] | min %}
+          {% endif %}
         [[% endif %]]
       [[% endfor %]]
       [[% endif %]]

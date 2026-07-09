@@ -33,6 +33,9 @@
           distance: 3.0
           height: 2.9
           direction: top
+        - name: Mauer links
+          distance: 4.0
+          direction: left
       cover: cover.rollade_wohnzimmer_links
     - position:
         bottom: 0.0

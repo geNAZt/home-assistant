@@ -17,6 +17,7 @@ sensor:
       
       {# Manuelle Umrechnung von Grad in Bogenmaß: Grad * (Pi / 180) #}
       {% set cos_factor = ((azi - 270) * 0.0174532925) | cos | abs %}
+      {% set rel_azi = ((azi - 270 + 180) % 360 - 180) %}
       
       {% set direct_factor = 1.0 %}
           {% if ele < 56.31 %}
