@@ -7,10 +7,10 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
-from .api.async_xsense import is_camera_entity
-from .api.device import Device
-from .api.entity import Entity
-from .api.entity_map import EntityType, entities
+from .python_xsense.async_xsense import is_camera_entity
+from .python_xsense.device import Device
+from .python_xsense.entity import Entity
+from .python_xsense.entity_map import EntityType, entities
 
 from homeassistant import config_entries
 from homeassistant.components.sensor import (
@@ -155,7 +155,7 @@ def has_report_time(entity: Entity) -> bool:
 def has_self_test_report(entity: Entity) -> bool:
     """Return whether the entity can report an app-style self-test result."""
     entity_def = entities.get(entity.type, {})
-    return entity.type == "XS01-WX" or "lastSelfTest" in entity.data or any(
+    return "lastSelfTest" in entity.data or any(
         action.get("action") == "test" for action in entity_def.get("actions", [])
     )
 

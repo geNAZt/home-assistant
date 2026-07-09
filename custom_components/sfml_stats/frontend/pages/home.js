@@ -448,6 +448,12 @@ const _HomePage = {
         <div class="chart-card" style="margin-top: var(--space-lg)">
             <div class="chart-header forecast-card-title-row">
                 <span class="chart-title">{{ $t('home.dayForecastVsActual') }}</span>
+                <div class="day-history-nav">
+                    <button class="day-nav-button" type="button" @click="selectPreviousDay" :title="$t('home.previousDay')">&lsaquo;</button>
+                    <span class="day-nav-label">{{ selectedDayLabel }}</span>
+                    <button class="day-nav-button" type="button" @click="selectNextDay" :disabled="!canSelectNextDay" :title="$t('home.nextDay')">&rsaquo;</button>
+                    <button v-if="!isSelectedToday" class="day-nav-today" type="button" @click="selectToday">{{ $t('common.today') }}</button>
+                </div>
             </div>
             <div class="forecast-metrics-wrapper">
                 <!-- Links: Qualitätsmetriken (Evaluierung) -->
@@ -456,28 +462,28 @@ const _HomePage = {
                         <span class="metric-badge-icon">🎯</span>
                         <div class="metric-badge-info">
                             <span class="metric-badge-value" :style="{ color: forecastBandColorFromAccuracy(todayForecastAccuracyPercent) }">{{ todayForecastAccuracyPercent.toFixed(1) }}%</span>
-                            <span class="metric-badge-label">{{ $t('home.todayQuality') }}</span>
+                            <span class="metric-badge-label">{{ dayQualityLabel }}</span>
                         </div>
                     </div>
                     <div v-if="todayForecastErrorLabel" class="metric-badge-card">
                         <span class="metric-badge-icon">{{ todayForecastErrorIcon }}</span>
                         <div class="metric-badge-info">
                             <span class="metric-badge-value" :style="{ color: yieldDeviationColor(todayForecastErrorPercent) }">{{ todayForecastErrorLabel }}</span>
-                            <span class="metric-badge-label">{{ $t('home.todayError') }}</span>
+                            <span class="metric-badge-label">{{ dayErrorLabel }}</span>
                         </div>
                     </div>
                     <div v-if="todayLearningBasisLabel" class="metric-badge-card">
                         <span class="metric-badge-icon">⏱️</span>
                         <div class="metric-badge-info">
                             <span class="metric-badge-value" style="color: #fbbf24">{{ todayLearningBasisLabel }}</span>
-                            <span class="metric-badge-label">{{ $t('home.todayLearningBasis') }}</span>
+                            <span class="metric-badge-label">{{ dayLearningBasisLabel }}</span>
                         </div>
                     </div>
                     <div v-if="todayDiscardedLearningLabel" class="metric-badge-card">
                         <span class="metric-badge-icon">🗑️</span>
                         <div class="metric-badge-info">
                             <span class="metric-badge-value" style="color: #f87171">{{ todayDiscardedLearningLabel }}</span>
-                            <span class="metric-badge-label">{{ $t('home.todayDiscarded') }}</span>
+                            <span class="metric-badge-label">{{ dayDiscardedLabel }}</span>
                         </div>
                     </div>
                 </div>
@@ -497,11 +503,11 @@ const _HomePage = {
                             <span class="metric-badge-label">{{ $t('home.forecastDayKpi') }}</span>
                         </div>
                     </div>
-                    <div v-if="hasHybridForecast" class="metric-badge-card">
+                    <div v-if="hasConservativeForecast" class="metric-badge-card">
                         <span class="metric-badge-icon">🔀</span>
                         <div class="metric-badge-info">
-                            <span class="metric-badge-value" style="color: #38bdf8">{{ hybridForecastTotal }} <span class="unit">kWh</span></span>
-                            <span class="metric-badge-label">{{ $t('home.hybridDayKpi') }}</span>
+                            <span class="metric-badge-value" style="color: #2dd4bf">{{ conservativeForecastTotal }} <span class="unit">kWh</span></span>
+                            <span class="metric-badge-label">{{ $t('home.conservativeDayKpi') }}</span>
                         </div>
                     </div>
                     <div class="metric-badge-card">
@@ -704,7 +710,7 @@ const _HomePage = {
         const panelGroupsData = reactive({ available: false, groups: {} });
         const pgChartRefs = reactive({});
         const pgChartInstances = {};
-        const forecastData = reactive({ hours: [], forecast: [], forecastRaw: [], hybrid: [], operationalTotal: null, actual: [], actualRaw: [], cleanEligible: [], confidence: [], ml_pct: [], method: [], temperature: [], radiation: [], clouds: [], tfs: [], tfs_weight: [], ai: [], physics: [], lstm: [], ridge: [] });
+        const forecastData = reactive({ hours: [], forecast: [], forecastRaw: [], hybrid: [], conservative: [], operationalTotal: null, conservativeTotal: null, actual: [], actualRaw: [], cleanEligible: [], confidence: [], ml_pct: [], method: [], temperature: [], radiation: [], clouds: [], tfs: [], tfs_weight: [], ai: [], physics: [], lstm: [], ridge: [] });
         const weatherTrace = ref([]);
         const powerData = ref([]);
         const batterySocSensorConfigured = ref(false);
@@ -769,6 +775,52 @@ const _HomePage = {
             if (Number.isNaN(base.getTime())) return new Date();
             const elapsed = timeContext.syncedAt ? Date.now() - timeContext.syncedAt : 0;
             return new Date(base.getTime() + elapsed);
+        }
+        const selectedDate = ref(null);
+        const selectedDateKey = computed(() => selectedDate.value || localDateKey());
+        const isSelectedToday = computed(() => selectedDateKey.value === localDateKey());
+        const canSelectNextDay = computed(() => selectedDateKey.value < localDateKey());
+        const dateKeyToLocalNoon = (dateKey) => new Date(`${dateKey}T12:00:00`);
+        const shiftDateKey = (dateKey, days) => {
+            const date = dateKeyToLocalNoon(dateKey);
+            date.setDate(date.getDate() + days);
+            return localDateKey(date);
+        };
+        const selectedDayLabel = computed(() => {
+            const key = selectedDateKey.value;
+            if (key === localDateKey()) return t('common.today');
+            if (key === shiftDateKey(localDateKey(), -1)) return t('common.yesterday');
+            return formatHaDateOnly(key, { weekday: 'short', day: '2-digit', month: '2-digit' });
+        });
+        const selectedDayCurrentHour = () => (isSelectedToday.value ? haCurrentHour() : 23);
+        async function reloadSelectedDayData() {
+            forecastChartInstance?.clear();
+            powerChartInstance?.clear();
+            batteryChartInstance?.clear();
+            for (const chart of Object.values(pgChartInstances)) {
+                if (chart) chart.dispose();
+            }
+            Object.keys(pgChartInstances).forEach((key) => { delete pgChartInstances[key]; });
+            panelGroupsData.available = false;
+            panelGroupsData.groups = {};
+            await Promise.all([
+                loadForecastData(),
+                loadPowerHistory(),
+                loadPanelGroups(),
+            ]);
+        }
+        function selectPreviousDay() {
+            selectedDate.value = shiftDateKey(selectedDateKey.value, -1);
+            reloadSelectedDayData();
+        }
+        function selectNextDay() {
+            if (!canSelectNextDay.value) return;
+            selectedDate.value = shiftDateKey(selectedDateKey.value, 1);
+            reloadSelectedDayData();
+        }
+        function selectToday() {
+            selectedDate.value = localDateKey();
+            reloadSelectedDayData();
         }
         const valueOrZero = (value) => value ?? 0;
         const fmtKwh = (value, digits = 2) => Number(valueOrZero(value)).toFixed(digits);
@@ -870,7 +922,7 @@ const _HomePage = {
         const hasBatteryChart = computed(() => (
             batterySocSensorConfigured.value
             && (
-                flow.battery_soc != null
+                (isSelectedToday.value && flow.battery_soc != null)
                 || powerData.value.some((point) => point.battery_soc != null)
             )
         ));
@@ -902,11 +954,13 @@ const _HomePage = {
             );
             const discharge = integratePowerKwh(data, (point) => point.battery_to_house);
             const socPoint = [...data].reverse().find((point) => point.battery_soc != null);
-            const soc = flow.battery_soc ?? socPoint?.battery_soc ?? null;
+            const soc = isSelectedToday.value
+                ? (flow.battery_soc ?? socPoint?.battery_soc ?? null)
+                : (socPoint?.battery_soc ?? null);
             const socValues = data
                 .map((point) => Number(point.battery_soc))
                 .filter((value) => Number.isFinite(value) && value >= 0 && value <= 100);
-            if (flow.battery_soc != null) {
+            if (isSelectedToday.value && flow.battery_soc != null) {
                 const currentSoc = Number(flow.battery_soc);
                 if (Number.isFinite(currentSoc) && currentSoc >= 0 && currentSoc <= 100) {
                     socValues.push(currentSoc);
@@ -1043,6 +1097,44 @@ const _HomePage = {
             last30: { accuracy: null, coverage: null, excludedMppt: null },
         });
 
+        function applyDayEvaluationMetrics(day) {
+            cleanEvalStats.today.accuracy = day?.accuracy ?? null;
+            cleanEvalStats.today.coverage = day?.evaluation_coverage_percent ?? null;
+            cleanEvalStats.today.excludedMppt = day?.excluded_mppt_hours_count ?? null;
+            cleanEvalStats.today.excludedHours = day?.excluded_hours_count ?? null;
+            cleanEvalStats.today.evaluationHours = day?.evaluation_hours_count ?? null;
+            cleanEvalStats.today.productionCandidates = day?.production_candidate_hours_count ?? null;
+            cleanEvalStats.today.completedCandidates = day?.completed_candidate_hours_count ?? null;
+            cleanEvalStats.today.pendingCandidates = day?.pending_candidate_hours_count ?? null;
+            cleanEvalStats.today.missingActualHours = day?.missing_actual_hours_count ?? null;
+            cleanEvalStats.today.excludedWeatherAlertHours = day?.excluded_weather_alert_hours_count ?? null;
+            cleanEvalStats.today.weatherAlertHours = day?.weather_alert_hours_count ?? null;
+            cleanEvalStats.today.excludedInverterClippedHours = day?.excluded_inverter_clipped_hours_count ?? null;
+            cleanEvalStats.today.learningHours = day?.learning_hours_count ?? null;
+            cleanEvalStats.today.learningCandidates = day?.learning_candidate_hours_count ?? null;
+            cleanEvalStats.today.discardedLearningHours = day?.discarded_learning_hours_count ?? null;
+            cleanEvalStats.today.discardedLearningReasonBreakdown = day?.discarded_learning_reason_breakdown ?? null;
+            cleanEvalStats.today.evaluationActual = day?.evaluation_actual_kwh ?? null;
+            cleanEvalStats.today.evaluationPredicted = day?.evaluation_predicted_kwh ?? null;
+            cleanEvalStats.today.evaluationCutoffHour = day?.evaluation_cutoff_hour ?? null;
+            cleanEvalStats.today.evaluationScope = day?.evaluation_scope ?? null;
+            cleanEvalStats.today.yieldDelta = day?.yield_delta_vs_forecast_percent ?? null;
+            cleanEvalStats.today.liveDayYieldDelta = isSelectedToday.value
+                ? (day?.live_day_yield_delta_vs_forecast_percent ?? null)
+                : null;
+            cleanEvalStats.today.forecastError = (
+                day?.forecast_error_vs_sot_percent
+                ?? day?.yield_delta_vs_forecast_percent
+                ?? day?.forecast_error_vs_actual_percent
+                ?? null
+            );
+            cleanEvalStats.today.forecastAccuracy = (
+                day?.forecast_accuracy_vs_sot_percent
+                ?? day?.forecast_accuracy_vs_actual_percent
+                ?? null
+            );
+        }
+
         // Info Panel Data
         const infoData = reactive({
             productionHours: null,
@@ -1062,6 +1154,7 @@ const _HomePage = {
         const FORECAST_LEGEND_STORAGE_KEY = 'sfml_stats_home_forecast_legend_selected';
         const forecastLegendSelected = reactive({
             Prognose: true,
+            P10: true,
             Hybrid: false,
             IST: true,
             TFS: false,
@@ -1079,6 +1172,9 @@ const _HomePage = {
             if (!includeCurrentPartial) {
                 return rows;
             }
+            if (!isSelectedToday.value) {
+                return rows;
+            }
             const liveYield = Number(infoData.solarYieldToday);
             if (!Number.isFinite(liveYield) || liveYield <= 0 || !forecastData.hours.length) {
                 return rows;
@@ -1090,7 +1186,7 @@ const _HomePage = {
                 return rows;
             }
 
-            const nowHour = haCurrentHour();
+            const nowHour = selectedDayCurrentHour();
             let idx = forecastData.hours.findIndex(hour => Number(hour) === nowHour);
             if (idx < 0) {
                 for (let i = rows.length - 1; i >= 0; i--) {
@@ -1108,7 +1204,7 @@ const _HomePage = {
 
         function actualChartRows() {
             const rows = actualRowsWithLiveDelta();
-            const nowHour = haCurrentHour();
+            const nowHour = selectedDayCurrentHour();
             let lastActualIndex = -1;
 
             rows.forEach((value, index) => {
@@ -1140,7 +1236,7 @@ const _HomePage = {
 
         const actualTotal = computed(() => {
             const liveYield = Number(infoData.solarYieldToday);
-            if (Number.isFinite(liveYield) && liveYield >= 0) {
+            if (isSelectedToday.value && Number.isFinite(liveYield) && liveYield >= 0) {
                 return liveYield.toFixed(1);
             }
             const source = forecastData.actualRaw.length ? actualRowsWithLiveDelta() : forecastData.actual;
@@ -1153,8 +1249,25 @@ const _HomePage = {
             return sum.toFixed(1);
         });
 
+        const conservativeForecastTotal = computed(() => {
+            if (Number.isFinite(forecastData.conservativeTotal)) {
+                const forecastCap = Number(forecastTotal.value);
+                const capped = Number.isFinite(forecastCap)
+                    ? Math.min(forecastData.conservativeTotal, forecastCap)
+                    : forecastData.conservativeTotal;
+                return capped.toFixed(1);
+            }
+            const sum = forecastData.conservative.reduce((s, v) => s + valueOrZero(v), 0);
+            const forecastCap = Number(forecastTotal.value);
+            return (Number.isFinite(forecastCap) ? Math.min(sum, forecastCap) : sum).toFixed(1);
+        });
+
         const hasHybridForecast = computed(() => {
             return forecastData.hybrid.some(v => v != null);
+        });
+
+        const hasConservativeForecast = computed(() => {
+            return forecastData.conservative.some(v => v != null);
         });
 
         const hasWeatherTrace = computed(() => weatherTrace.value.length > 0);
@@ -1169,8 +1282,12 @@ const _HomePage = {
         const isTodayPartial = computed(() => {
             const evaluated = cleanEvalStats.today.evaluationHours;
             const candidates = cleanEvalStats.today.productionCandidates;
-            return evaluated != null && candidates != null && candidates > 0 && evaluated < candidates;
+            return isSelectedToday.value && evaluated != null && candidates != null && candidates > 0 && evaluated < candidates;
         });
+        const dayQualityLabel = computed(() => isSelectedToday.value ? t("home.todayQuality") : t("home.dayQuality"));
+        const dayErrorLabel = computed(() => isSelectedToday.value ? t("home.todayError") : t("home.dayError"));
+        const dayLearningBasisLabel = computed(() => isSelectedToday.value ? t("home.todayLearningBasis") : t("home.dayLearningBasis"));
+        const dayDiscardedLabel = computed(() => isSelectedToday.value ? t("home.todayDiscarded") : t("home.dayDiscarded"));
 
         const deviationLabel = computed(() => {
             const prefix = isTodayPartial.value ? (t('common.live') + ' ') : '';
@@ -2075,40 +2192,9 @@ const _HomePage = {
                     updatePowerChart();
                 }
 
-                const today = data.today;
-                cleanEvalStats.today.accuracy = today?.accuracy ?? null;
-                cleanEvalStats.today.coverage = today?.evaluation_coverage_percent ?? null;
-                cleanEvalStats.today.excludedMppt = today?.excluded_mppt_hours_count ?? null;
-                cleanEvalStats.today.excludedHours = today?.excluded_hours_count ?? null;
-                cleanEvalStats.today.evaluationHours = today?.evaluation_hours_count ?? null;
-                cleanEvalStats.today.productionCandidates = today?.production_candidate_hours_count ?? null;
-                cleanEvalStats.today.completedCandidates = today?.completed_candidate_hours_count ?? null;
-                cleanEvalStats.today.pendingCandidates = today?.pending_candidate_hours_count ?? null;
-                cleanEvalStats.today.missingActualHours = today?.missing_actual_hours_count ?? null;
-                cleanEvalStats.today.excludedWeatherAlertHours = today?.excluded_weather_alert_hours_count ?? null;
-                cleanEvalStats.today.weatherAlertHours = today?.weather_alert_hours_count ?? null;
-                cleanEvalStats.today.excludedInverterClippedHours = today?.excluded_inverter_clipped_hours_count ?? null;
-                cleanEvalStats.today.learningHours = today?.learning_hours_count ?? null;
-                cleanEvalStats.today.learningCandidates = today?.learning_candidate_hours_count ?? null;
-                cleanEvalStats.today.discardedLearningHours = today?.discarded_learning_hours_count ?? null;
-                cleanEvalStats.today.discardedLearningReasonBreakdown = today?.discarded_learning_reason_breakdown ?? null;
-                cleanEvalStats.today.evaluationActual = today?.evaluation_actual_kwh ?? null;
-                cleanEvalStats.today.evaluationPredicted = today?.evaluation_predicted_kwh ?? null;
-                cleanEvalStats.today.evaluationCutoffHour = today?.evaluation_cutoff_hour ?? null;
-                cleanEvalStats.today.evaluationScope = today?.evaluation_scope ?? null;
-                cleanEvalStats.today.yieldDelta = today?.yield_delta_vs_forecast_percent ?? null;
-                cleanEvalStats.today.liveDayYieldDelta = today?.live_day_yield_delta_vs_forecast_percent ?? null;
-                cleanEvalStats.today.forecastError = (
-                    today?.forecast_error_vs_sot_percent
-                    ?? today?.yield_delta_vs_forecast_percent
-                    ?? today?.forecast_error_vs_actual_percent
-                    ?? null
-                );
-                cleanEvalStats.today.forecastAccuracy = (
-                    today?.forecast_accuracy_vs_sot_percent
-                    ?? today?.forecast_accuracy_vs_actual_percent
-                    ?? null
-                );
+                if (isSelectedToday.value) {
+                    applyDayEvaluationMetrics(data.today);
+                }
 
                 const outdoor = data.outdoor_temperature || {};
                 const outdoorTemperature = outdoor.temperature_c;
@@ -2340,7 +2426,8 @@ const _HomePage = {
 
         async function loadPanelGroups() {
             try {
-                const res = await loadSummaryData();
+                const targetDate = selectedDateKey.value;
+                const res = await SFMLApi.fetch(`/api/sfml_stats/statistics?date=${encodeURIComponent(targetDate)}`, { forceRefresh: true });
                 const stats = res?.statistics || {};
                 const last7 = stats.last_7_days || {};
                 const last30 = stats.last_30_days || {};
@@ -2358,7 +2445,7 @@ const _HomePage = {
 
                 // Render charts after Vue updates DOM
                 await nextTick();
-                const nowHour = haCurrentHour();
+                const nowHour = selectedDayCurrentHour();
 
                 for (const [groupName, groupData] of Object.entries(panelGroupsData.groups)) {
                     const chartEl = pgChartRefs[groupName];
@@ -2465,17 +2552,38 @@ const _HomePage = {
 
         async function loadForecastData() {
             try {
-                const res = await SFMLApi.fetch('/api/sfml_stats/solar?days=1', { forceRefresh: true });
+                const targetDate = selectedDateKey.value;
+                const res = await SFMLApi.fetch(`/api/sfml_stats/solar?days=1&date=${encodeURIComponent(targetDate)}`, { forceRefresh: true });
                 if (!res || !res.data) return;
                 syncTimeContext(res);
 
                 const hourly = res.data.hourly || [];
-                if (!hourly.length) return;
+                if (!hourly.length) {
+                    forecastData.hours = [];
+                    forecastData.forecast = [];
+                    forecastData.forecastRaw = [];
+                    forecastData.actual = [];
+                    forecastData.actualRaw = [];
+                    weatherTrace.value = [];
+                    forecastChartInstance?.clear();
+                    return;
+                }
 
-                // Filter to today only
-                const today = localDateKey();
-                const todayData = hourly.filter(h => h.target_date === today);
-                if (!todayData.length) return;
+                const todayData = hourly.filter(h => h.target_date === targetDate);
+                if (!todayData.length) {
+                    forecastData.hours = [];
+                    forecastData.forecast = [];
+                    forecastData.forecastRaw = [];
+                    forecastData.actual = [];
+                    forecastData.actualRaw = [];
+                    weatherTrace.value = [];
+                    forecastChartInstance?.clear();
+                    return;
+                }
+                const selectedDaily = (res.data.daily || []).find(day => day.date === targetDate)?.overall || null;
+                if (!isSelectedToday.value) {
+                    applyDayEvaluationMetrics(selectedDaily);
+                }
 
                 forecastData.hours = todayData.map(h => h.target_hour);
                 const rawFc = todayData.map(h => h.prediction_kwh ?? 0);
@@ -2499,6 +2607,21 @@ const _HomePage = {
                         ? hybridByHour.get(Number(h.target_hour))
                         : null
                 ));
+                const conservativePayload = res.data.conservative || {};
+                const conservativeTotal = Number(conservativePayload.total_kwh);
+                forecastData.conservativeTotal = Number.isFinite(conservativeTotal)
+                    ? Math.min(conservativeTotal, rawFc.reduce((s, v) => s + valueOrZero(v), 0))
+                    : null;
+                const conservativeHours = Array.isArray(conservativePayload.hourly) ? conservativePayload.hourly : [];
+                const conservativeByHour = new Map(
+                    conservativeHours.map(h => [Number(h.target_hour), h.prediction_kwh ?? null])
+                );
+                forecastData.conservative = todayData.map((h, idx) => {
+                    if (!conservativeByHour.has(Number(h.target_hour))) return null;
+                    const value = Number(conservativeByHour.get(Number(h.target_hour)));
+                    if (!Number.isFinite(value)) return null;
+                    return Math.min(Math.max(0, value), Math.max(0, rawFc[idx] ?? 0));
+                });
                 forecastData.cleanEligible = todayData.map(h => h.clean_evaluation_eligible !== false);
                 forecastData.confidence = todayData.map(h => h.confidence ?? 50);
                 forecastData.ml_pct = todayData.map(h => h.ml_contribution_percent ?? 0);
@@ -2514,7 +2637,7 @@ const _HomePage = {
                 forecastData.ridge = todayData.map(h => h.ridge_kwh ?? null);
                 weatherTrace.value = buildWeatherTrace(
                     forecastData.hours,
-                    today,
+                    targetDate,
                     res.data.weather_corrected || {},
                     res.data.weather || {},
                     todayData,
@@ -2528,12 +2651,13 @@ const _HomePage = {
 
         async function loadPowerHistory() {
             try {
-                const res = await SFMLApi.fetch('/api/sfml_stats/power_sources_history?today=true&hours=24');
+                const targetDate = selectedDateKey.value;
+                const res = await SFMLApi.fetch(`/api/sfml_stats/power_sources_history?date=${encodeURIComponent(targetDate)}&hours=24`);
                 if (!res || !res.data) return;
                 syncTimeContext(res);
                 batterySocSensorConfigured.value = batterySocSensorConfigured.value || Boolean(res.sensors?.battery_soc);
 
-                const todayStr = localDateKey();
+                const todayStr = selectedDateKey.value;
                 powerData.value = res.data.filter(d => {
                     const localDate = d.local_date || (typeof d.hour_key === 'string' ? d.hour_key.slice(0, 10) : null);
                     return localDate === todayStr;
@@ -2558,7 +2682,7 @@ const _HomePage = {
                 const conf = forecastData.confidence[i] || 50;
                 return v * (1 + (100 - conf) / 150);
             });
-            const p10 = forecastData.forecast.map((v, i) => {
+            const uncertaintyP10 = forecastData.forecast.map((v, i) => {
                 if (v == null) return null;
                 const conf = forecastData.confidence[i] || 50;
                 return Math.max(0, v * (1 - (100 - conf) / 150));
@@ -2582,6 +2706,7 @@ const _HomePage = {
                         if (idx == null) return '';
                         const hour = forecastData.hours[idx];
                         const pred = forecastData.forecast[idx] ?? 0;
+                        const conservative = forecastData.conservative[idx];
                         const hybrid = forecastData.hybrid[idx];
                         const actValue = actualRows[idx] ?? null;
                         const act = actValue == null ? null : Number(actValue);
@@ -2598,6 +2723,7 @@ const _HomePage = {
                         s += '<div style="font-weight:700;font-size:13px;margin-bottom:6px">' + String(hour).padStart(2,'0') + ':00 ' + t('home.oClock') + '</div>';
                         s += '<div style="border-top:1px solid rgba(255,255,255,0.15);margin:4px 0 6px"></div>';
                         s += '<div style="display:flex;justify-content:space-between"><span style="color:#fbbf24">' + t('common.forecast') + ':</span><span>' + pred.toFixed(2) + ' kWh</span></div>';
+                        if (conservative != null) s += '<div style="display:flex;justify-content:space-between"><span style="color:#2dd4bf">' + t('home.p10') + ':</span><span>' + conservative.toFixed(2) + ' kWh</span></div>';
                         if (hybrid != null) s += '<div style="display:flex;justify-content:space-between"><span style="color:#38bdf8">' + t('home.hybrid') + ':</span><span>' + hybrid.toFixed(2) + ' kWh</span></div>';
                         s += '<div style="display:flex;justify-content:space-between"><span style="color:#22c55e">' + t('common.actual') + ':</span><span>' + (act == null ? '--' : act.toFixed(2) + ' kWh') + '</span></div>';
                         if (delta != null) s += '<div style="display:flex;justify-content:space-between"><span style="color:#94a3b8">' + t('common.yield') + ' &Delta;:</span><span style="color:' + forecastBandColor(parseFloat(delta)) + '">' + (parseFloat(delta) >= 0 ? '+' : '') + delta + '%</span></div>';
@@ -2650,9 +2776,9 @@ const _HomePage = {
                 series: [
                     // P10 lower boundary (invisible, stacked base)
                     {
-                        name: 'P10',
+                        name: '__P10BandBase',
                         type: 'line',
-                        data: p10,
+                        data: uncertaintyP10,
                         lineStyle: { opacity: 0 },
                         itemStyle: { opacity: 0 },
                         symbol: 'none',
@@ -2664,7 +2790,7 @@ const _HomePage = {
                     {
                         name: 'Unsicherheit',
                         type: 'line',
-                        data: p90.map((v, i) => (v == null || p10[i] == null) ? null : Math.max(0, v - p10[i])),
+                        data: p90.map((v, i) => (v == null || uncertaintyP10[i] == null) ? null : Math.max(0, v - uncertaintyP10[i])),
                         lineStyle: { opacity: 0 },
                         itemStyle: { opacity: 0 },
                         symbol: 'none',
@@ -2683,6 +2809,17 @@ const _HomePage = {
                         smooth: true, connectNulls: false,
                         z: 5,
                     },
+                    ...(hasConservativeForecast.value ? [{
+                        name: 'P10',
+                        type: 'line',
+                        data: forecastData.conservative,
+                        lineStyle: { color: '#2dd4bf', width: 2, type: 'dashed', shadowColor: 'rgba(45,212,191,0.18)', shadowBlur: 6 },
+                        itemStyle: { color: '#2dd4bf' },
+                        symbol: 'none',
+                        smooth: true,
+                        connectNulls: false,
+                        z: 5,
+                    }] : []),
                     ...(hasHybridForecast.value ? [{
                         name: 'Hybrid',
                         type: 'line',
@@ -2725,7 +2862,7 @@ const _HomePage = {
                         z: 4,
                     },
                     // Now marker
-                    ...(forecastData.hours.includes(nowHour) ? [{
+                    ...(isSelectedToday.value && forecastData.hours.includes(nowHour) ? [{
                         type: 'line',
                         markLine: {
                             silent: true,
@@ -2745,9 +2882,10 @@ const _HomePage = {
                     // Series names are stable internal identifiers ("Prognose"/"IST"/…)
                     // so legend selection state survives across locale changes;
                     // formatter renders the localized label.
-                    data: ['Prognose', ...(hasHybridForecast.value ? ['Hybrid'] : []), 'IST', 'TFS', 'Unsicherheit'],
+                    data: ['Prognose', ...(hasConservativeForecast.value ? ['P10'] : []), ...(hasHybridForecast.value ? ['Hybrid'] : []), 'IST', 'TFS', 'Unsicherheit'],
                     formatter: (name) => ({
                         Prognose: t('common.forecast'),
+                        P10: t('home.p10'),
                         Hybrid: t('home.hybrid'),
                         IST: t('common.actual'),
                         TFS: 'TFS',
@@ -2755,6 +2893,7 @@ const _HomePage = {
                     }[name] || name),
                     selected: {
                         Prognose: forecastLegendSelected.Prognose,
+                        P10: forecastLegendSelected.P10,
                         Hybrid: forecastLegendSelected.Hybrid,
                         IST: forecastLegendSelected.IST,
                         TFS: forecastLegendSelected.TFS,
@@ -2853,7 +2992,7 @@ const _HomePage = {
             if (!batteryChartInstance || !batterySocSensorConfigured.value) return;
 
             const data = powerData.value;
-            const dayStart = new Date(`${localDateKey()}T00:00:00`);
+            const dayStart = new Date(`${selectedDateKey.value}T00:00:00`);
             const dayEnd = new Date(dayStart.getTime() + 24 * 3600000);
             const toTimeValue = (point) => {
                 const raw = point.local_timestamp || point.timestamp || point.time;
@@ -3091,13 +3230,17 @@ const _HomePage = {
             forecastChartEl, powerChartEl, batteryChartEl, sparklineRefs,
             flow, panels, panelHistory, infoData, flowStatusChips, panelGroupsData, pgChartRefs,
             forecastData, powerData, dailyForecasts,
+            selectedDayLabel, isSelectedToday, canSelectNextDay,
+            selectPreviousDay, selectNextDay, selectToday,
             fmtKwh, groupHasHourly, panelDayProgressPercent, panelDayProgressColor,
             panelDayProgressTitle, panelGroupMetaLine, panelGroupMetaTitle,
             weatherTrace, hasWeatherTrace,
             currentTime, lastPowerUpdate,
-            isNightTime, forecastTotal, hybridForecastTotal, hasHybridForecast,
+            isNightTime, forecastTotal, hybridForecastTotal, conservativeForecastTotal, hasHybridForecast,
+            hasConservativeForecast,
             actualTotal, deviationPercent, deviationLabel, hybridDeviationPercent,
             hybridDeviationLabel, cleanEvalStats, todayLearningBasisLabel,
+            dayQualityLabel, dayErrorLabel, dayLearningBasisLabel, dayDiscardedLabel,
             todayDiscardedLearningLabel, todayCoverageExplanation,
             todayForecastErrorPercent, todayForecastAccuracyPercent, todayForecastErrorLabel,
             todayForecastErrorIcon,
@@ -3134,6 +3277,45 @@ const _HomePage = {
         }
         .hubble-card:hover {
             border-color: var(--border-hover);
+        }
+        .day-history-nav {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-left: auto;
+            padding: 3px;
+            border: 1px solid var(--border-default);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.03);
+        }
+        .day-nav-button,
+        .day-nav-today {
+            min-width: 30px;
+            height: 28px;
+            border: 0;
+            border-radius: 6px;
+            color: var(--text-primary);
+            background: transparent;
+            font: 700 0.85rem var(--font-sans);
+            cursor: pointer;
+        }
+        .day-nav-button:hover:not(:disabled),
+        .day-nav-today:hover {
+            background: rgba(255, 255, 255, 0.08);
+        }
+        .day-nav-button:disabled {
+            opacity: 0.35;
+            cursor: default;
+        }
+        .day-nav-label {
+            min-width: 74px;
+            text-align: center;
+            color: var(--text-secondary);
+            font: 700 0.78rem var(--font-mono);
+        }
+        .day-nav-today {
+            padding: 0 9px;
+            color: var(--accent);
         }
         .hubble-header {
             display: flex;

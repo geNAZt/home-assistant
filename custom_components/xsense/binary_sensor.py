@@ -5,10 +5,11 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from .api.async_xsense import is_camera_entity
-from .api.device import Device
-from .api.entity import Entity
-from .api.station import Station
+from .python_xsense.async_xsense import is_camera_entity
+from .python_xsense.device import Device
+from .python_xsense.entity import Entity
+from .python_xsense.entity_map import entities
+from .python_xsense.station import Station
 
 from homeassistant import config_entries
 from homeassistant.components.binary_sensor import (
@@ -62,6 +63,14 @@ def alarm_device_class(entity: Entity) -> BinarySensorDeviceClass | None:
 def has_alarm_status(entity: Entity) -> bool:
     """Return if an XSense entity should expose an alarm status sensor."""
     return "alarmStatus" in entity.data or alarm_device_class(entity) is not None
+
+
+def has_mute_status(entity: Entity) -> bool:
+    """Return if an X-Sense entity should expose mute status."""
+    entity_def = entities.get(entity.type) or {}
+    return "muteStatus" in entity.data or any(
+        action.get("action") == "mute" for action in entity_def.get("actions", ())
+    )
 
 
 def alarm_status(entity: Entity) -> bool | None:
@@ -136,8 +145,8 @@ SENSORS: tuple[XSenseBinarySensorEntityDescription, ...] = (
         key="mute_status",
         translation_key="mute_status",
         icon="mdi:alarm-light-off",
-        exists_fn=lambda entity: "muteStatus" in entity.data,
-        value_fn=lambda entity: boolean_state(entity.data["muteStatus"]),
+        exists_fn=has_mute_status,
+        value_fn=lambda entity: boolean_state(entity.data.get("muteStatus")),
     ),
     XSenseBinarySensorEntityDescription(
         key="activate",
