@@ -111,15 +111,14 @@
         - sensor.temperature_wohnzimmer_mean
     - trigger: state
       entity_id:
-        - climate.climate_room_bad
-        - climate.climate_room_buero_fabian
-        - climate.climate_room_buero_merja
-        - climate.climate_room_flur
-        - climate.climate_room_kueche
-        - climate.climate_room_schlafzimmer
-        - climate.climate_room_speisekammer
-        - climate.climate_room_wohnzimmer
-      attribute: temperature
+        - input_number.heating_base_bad
+        - input_number.heating_base_buero_fabian
+        - input_number.heating_base_buero_merja
+        - input_number.heating_base_flur
+        - input_number.heating_base_kueche
+        - input_number.heating_base_schlafzimmer
+        - input_number.heating_base_speisekammer
+        - input_number.heating_base_wohnzimmer
     - trigger: state
       entity_id:
         - sensor.solar_expected_gain_bad
@@ -167,7 +166,7 @@
           {% set ns = namespace(any=false) %}
           {% for r in temp_rooms %}
             {% set cur_state = states('sensor.temperature_' ~ r ~ '_mean') %}
-            {% set tgt_state = state_attr('climate.climate_room_' ~ r, 'temperature') %}
+            {% set tgt_state = states('input_number.heating_base_' ~ r) %}
             {% if cur_state not in ['unknown', 'unavailable', 'None', ''] and tgt_state not in ['unknown', 'unavailable', 'None', ''] and cur_state is not none and tgt_state is not none %}
               {% if tgt_state | float - cur_state | float <= 0.5 %}
                 {% set ns.any = true %}
@@ -179,7 +178,7 @@
           {% set ns = namespace(all=true, count=0) %}
           {% for r in temp_rooms %}
             {% set cur_state = states('sensor.temperature_' ~ r ~ '_mean') %}
-            {% set tgt_state = state_attr('climate.climate_room_' ~ r, 'temperature') %}
+            {% set tgt_state = states('input_number.heating_base_' ~ r) %}
             {% if cur_state not in ['unknown', 'unavailable', 'None', ''] and tgt_state not in ['unknown', 'unavailable', 'None', ''] and cur_state is not none and tgt_state is not none %}
               {% set cur = cur_state | float %}
               {% set tgt = tgt_state | float %}
