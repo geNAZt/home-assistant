@@ -23,20 +23,29 @@
     pgrid_value: >-
       {% set exp = (exported_power | float(0)) %}
       {% if pv_battery_soc < 90 %}
+        {# Only use discharge power (negative values) for battery when under 90% to count it as import #}
+        {% if battery_export_power < 0 %}
+          {% set exp = exp + battery_export_power %}
+        {% endif %}
+
         {% if exp < 100 %}
           15000
         {% else %}
           {{ exp * -1 }}
         {% endif %}
       {% else %}
-        {% set exp = (exported_power | float(0)) %}
-        {# Only use discharge power (negative values) for battery #}
-        {% if battery_export_power < 0 %}
-          {% set exp = exp + battery_export_power %}
+        {# When battery is >= 90% #}
+        {% if exported_power > 0 %}
+          {# PV surplus is available, add 5000W to the PV surplus #}
+          {% set surplus = exported_power + 5000 %}
+        {% else %}
+          {# ONLY the battery is over 90% and NO PV surplus is available #}
+          {% set house_usage = (states('sensor.solar_house_consumption_w') | float(0)) - car_charge_power %}
+          {% set surplus = 5000 - house_usage %}
         {% endif %}
 
         {# The charger expects a positive value for import, negative for export #}
-        {{ exp * -1 }}
+        {{ surplus * -1 }}
       {% endif %}
   action:
     - service: goecharger_api2.set_pv_data
