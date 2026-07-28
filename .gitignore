@@ -37,3 +37,6 @@ file_notifications/*.txt
 solar_forecast_ml/
 
 www/ha_washdata/feedback/
+
+# Debug
+debug/
