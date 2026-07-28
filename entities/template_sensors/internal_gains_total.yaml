@@ -1,3 +1,6 @@
+triggers:
+- trigger: time_pattern
+  minutes: "/1"  # Evaluates and updates exactly once per minute
 sensor:
 - name: "Internal Gains Total"
   unique_id: internal_gains_total
@@ -5,19 +8,19 @@ sensor:
   device_class: power
   state: >
     {# A: Technik-Gewinne mit Wirkungsgraden #}
-    {% set tech = states('sensor.internal_gains_trockner') | float(0) + 
+    {% set tech = states('sensor.internal_gains_trockner') | float(0) +
                         states('sensor.internal_gains_waschmaschine') | float(0) +
                         states('sensor.internal_gains_dishwasher') | float(0) +
                         states('sensor.internal_gains_heating_pump') | float(0) %}
-          
+
     {# B: 100% Gewinne (Misc) #}
     {% set full_gains = states('sensor.internal_gains_misc') | float(0) %}
-    
+
     {# C: System-Gewinne (PV-Wechselrichter & HRV Lüftung) #}
-    {% set system = states('sensor.internal_gains_pv') | float(0) + 
+    {% set system = states('sensor.internal_gains_pv') | float(0) +
                     states('sensor.internal_gains_hrv') | float(0) %}
-    
+
     {# D: Personen-Gewinne #}
     {% set persons = states('sensor.internal_gains_persons') | float(0) %}
-    
+
     {{ (tech + full_gains + system + persons) | round(0) }}
