@@ -3,7 +3,7 @@ sensor:
   unit_of_measurement: "K"
   availability: >
     {% set rooms = states.input_number
-        | selectattr('entity_id', 'search', '^input_number.heating_base_')
+        | selectattr('entity_id', 'match', 'input_number.heating_base_')
         | map(attribute='state') | list %}
     {{ states('sensor.H_kW_per_K_effective') | is_number
        and states('input_number.building_heat_capacity') | is_number
@@ -15,8 +15,8 @@ sensor:
   state: >
     {% set h_wind = states('sensor.H_kW_per_K_effective') | float %}
     {% set c_real = states('input_number.building_heat_capacity') | float %}
-    {% set rooms = states.input_number 
-                | selectattr('entity_id', 'search', '^input_number.heating_base_') 
+    {% set rooms = states.input_number
+                | selectattr('entity_id', 'match', 'input_number.heating_base_')
                 | map(attribute='state') | map('float') | list %}
     {% set delta_t = ((rooms | sum / rooms | count) | round(2) if rooms | count > 0 else 0) - (states('sensor.outside_temperature') | float) %}
     {% set hours_to_bridge = 24 - 5 %}

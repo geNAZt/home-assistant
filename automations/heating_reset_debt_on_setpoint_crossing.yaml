@@ -3,32 +3,32 @@
   description: >
     Berechnet den mittleren Sollwert aller Räume und nullt das Konto bei Übereinstimmung.
   mode: single
-  
+
   trigger:
     - platform: state
       entity_id: sensor.inside_temp_mean_now
     - platform: time_pattern
       minutes: "/1"
-  
+
   condition:
     - condition: state
       entity_id: input_boolean.debt_reset_on_setpoint_hit
       state: "on"
-  
+
   action:
     - variables:
         # Wir suchen alle Entitäten, die mit heating_base_ beginnen und berechnen den Schnitt
         mean_setpoint: >
-          {% set rooms = states.input_number 
-            | selectattr('entity_id', 'search', '^input_number.heating_base_') 
+          {% set rooms = states.input_number
+            | selectattr('entity_id', 'match', 'input_number.heating_base_')
             | map(attribute='state') | map('float') | list %}
           {{ (rooms | sum / rooms | count) | round(2) if rooms | count > 0 else 0 }}
-        
+
         current_temp: "{{ states('sensor.inside_temp_mean_now') | float(0) }}"
-        
+
         # Prüfung auf Übereinstimmung mit 0.05K Toleranz
         is_at_setpoint: "{{ (current_temp - mean_setpoint) | abs <= 0.05 }}"
-  
+
     - if:
         - condition: template
           value_template: "{{ is_at_setpoint }}"
@@ -38,12 +38,12 @@
           data:
             entity_id: sensor.heating_energy_debt_tracker
             state: 0
-        
+
         # 2. Den Reset-Schalter wieder auf aus stellen
         - service: input_boolean.turn_off
           target:
             entity_id: input_boolean.debt_reset_on_setpoint_hit
-            
+
         - service: notify.persistent_notification
           data:
             title: "Heizungskonto kalibriert"

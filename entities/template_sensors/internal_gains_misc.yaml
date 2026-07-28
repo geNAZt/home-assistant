@@ -5,13 +5,13 @@ sensor:
   device_class: power
   state: >
     {% set total_load = states('sensor.solar_house_consumption_w') | float(0) %}
-    
+
     {# Energie die konsumiert wurde von internen gewinnen #}
-    {% set gain_consumes = states.sensor 
-              | selectattr('entity_id', 'search', '^sensor.internal_gains_') | expand 
-              | selectattr('attributes.consumes', 'defined') | map(attribute='attributes.consumes') 
+    {% set gain_consumes = states.sensor
+              | selectattr('entity_id', 'match', 'sensor.internal_gains_') | expand
+              | selectattr('attributes.consumes', 'defined') | map(attribute='attributes.consumes')
               | map('float') | list | sum %}
-    
+
     {# Heizung betrachten wir separat #}
     {% set ir_heating_w = states('sensor.heating_power') | float(0) %}
 
@@ -20,16 +20,16 @@ sensor:
 
     {# Alles was übrig bleibt, wird zu 100% als Wärme gewertet #}
     {% set diffuse = total_load - gain_consumes - ir_heating_w - outside_kitchen_w %}
-    
+
     {{ [0, diffuse] | max | round(1) }}
   attributes:
     bill: >
       {% set total = states('sensor.solar_house_consumption_w') | float(0) %}
-      {% set gains = states.sensor 
-              | selectattr('entity_id', 'search', '^sensor.internal_gains_') 
-              | selectattr('attributes.consumes', 'defined') 
+      {% set gains = states.sensor
+              | selectattr('entity_id', 'match', 'sensor.internal_gains_')
+              | selectattr('attributes.consumes', 'defined')
               | list %}
-        
+
       Total House: {{ total }} W
       ---
       {% for gain in gains %}

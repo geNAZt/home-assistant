@@ -57,7 +57,7 @@
     heating_need_next_day_kwh: >-
       {% set c = states('input_number.building_heat_capacity') | float(0) %}
       {% set rooms = states.input_number
-             | selectattr('entity_id', 'search', '^input_number\\.heating_base_')
+             | selectattr('entity_id', 'match', 'input_number.heating_base_')
              | map(attribute='state') | map('float') | list %}
       {% set setpoint_mean = (rooms | sum / rooms | count) if (rooms | count > 0) else 0 %}
       {% set inside_now = states('sensor.inside_temp_mean_now') | float(0) %}
