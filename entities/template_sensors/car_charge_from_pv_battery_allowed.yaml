@@ -1,0 +1,13 @@
+binary_sensor:
+- name: "Car Charge from PV Battery Allowed"
+  unique_id: car_charge_from_pv_battery_allowed
+  state: >-
+    {% set soc = states('sensor.pv_battery1_state_of_charge') | float(0) %}
+    {% set prev = this.state if this is defined and this.state is not none else 'off' %}
+    {% if soc >= 95 %}
+      true
+    {% elif soc <= 85 %}
+      false
+    {% else %}
+      {{ prev == 'on' }}
+    {% endif %}

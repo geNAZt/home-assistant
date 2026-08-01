@@ -16,14 +16,14 @@
     # Current state (will be negative for import, positive for export)
     exported_power: "{{ states('sensor.pv_m1_ac_power') | float(0) }}"
     battery_export_power: "{{ states('sensor.pv_battery1_power') | float(0) }}"
-    pv_battery_soc: "{{ states('sensor.pv_battery1_state_of_charge') | float(0) }}"
+    car_charge_from_pv_battery_allowed: "{{ is_state('binary_sensor.car_charge_from_pv_battery_allowed', 'on') }}"
     car_charge_power: "{{ states('sensor.goe_288025_nrg_11') | float(0) }}"
 
     # Calculate pgrid value
     pgrid_value: >-
       {% set exp = (exported_power | float(0)) %}
-      {% if pv_battery_soc < 90 %}
-        {# Only use discharge power (negative values) for battery when under 90% to count it as import #}
+      {% if not car_charge_from_pv_battery_allowed %}
+        {# Only use discharge power (negative values) for battery when discharging is not allowed to count it as import #}
         {% if battery_export_power < 0 %}
           {% set exp = exp + battery_export_power %}
         {% endif %}
@@ -34,12 +34,12 @@
           {{ exp * -1 }}
         {% endif %}
       {% else %}
-        {# When battery is >= 90% #}
+        {# When discharging the battery to charge the car is allowed #}
         {% if exported_power > 0 %}
           {# PV surplus is available, add 5000W to the PV surplus #}
           {% set surplus = exported_power + 5000 %}
         {% else %}
-          {# ONLY the battery is over 90% and NO PV surplus is available #}
+          {# ONLY the battery is over the threshold and NO PV surplus is available #}
           {% set house_usage = (states('sensor.solar_house_consumption_w') | float(0)) - car_charge_power %}
           {% set surplus = 5000 - house_usage %}
         {% endif %}
