@@ -53,7 +53,7 @@ function yieldDeviationColor(deviation) {
 
 const STATUS_TRANSLATIONS = {
     de: {
-        producing: 'Erzeugt',
+        producing: 'Aktiv',
         idle: 'Inaktiv',
         charging: 'Laden',
         discharging: 'Entladen',
@@ -71,8 +71,8 @@ const STATUS_TRANSLATIONS = {
         alltime: 'ALLTIME',
     },
     en: {
-        producing: 'Producing',
-        idle: 'Idle',
+        producing: 'Active',
+        idle: 'Inactive',
         charging: 'Charging',
         discharging: 'Discharging',
         standby: 'Standby',
@@ -89,8 +89,8 @@ const STATUS_TRANSLATIONS = {
         alltime: 'ALLTIME',
     },
     pl: {
-        producing: 'Produkcja',
-        idle: 'Brak',
+        producing: 'Aktywna',
+        idle: 'Nieaktywna',
         charging: 'Ładowanie',
         discharging: 'Rozładowywanie',
         standby: 'Czuwanie',
@@ -400,9 +400,73 @@ const _HomePage = {
                     <span class="hubble-system-title">{{ hubbleView.systemStatus.title }}</span>
                     <span class="hubble-system-meta">{{ hubbleView.systemStatus.meta }}</span>
                 </div>
-                <button type="button" class="hubble-toggle" @click="hubbleExpanded = !hubbleExpanded">
-                    {{ hubbleExpanded ? $t('common.collapse') : $t('common.details') }}
-                </button>
+            </div>
+            <div
+                v-if="hubbleView.energyChain"
+                class="hubble-energy-chain"
+                :class="hubbleView.energyChain.dataQuality"
+                :aria-label="$t('home.hubble.energyChain.aria')"
+            >
+                <div class="hubble-energy-chain-heading">
+                    <div>
+                        <span class="hubble-energy-chain-kicker">{{ $t('home.hubble.energyChain.title') }}</span>
+                        <span class="hubble-energy-chain-subtitle">{{ $t('home.hubble.energyChain.subtitle') }}</span>
+                    </div>
+                    <span class="hubble-energy-chain-status">{{ hubbleView.energyChain.qualityLabel }}</span>
+                </div>
+                <div class="hubble-energy-chain-focus">
+                    <div class="hubble-energy-chain-converter">
+                        <span class="hubble-energy-chain-converter-label">{{ $t('home.hubble.energyChain.conversion') }}</span>
+                        <div
+                            class="hubble-energy-chain-ring"
+                            :style="{ '--chain-progress': hubbleView.energyChain.progress + 'deg' }"
+                        >
+                            <strong>{{ hubbleView.energyChain.systemEfficiency }}</strong>
+                        </div>
+                    </div>
+                </div>
+                <div class="hubble-energy-chain-summary">
+                    <div class="hubble-energy-chain-branches">
+                        <span class="hubble-energy-chain-branch solar" :class="{ pending: !hubbleView.energyChain.pv.available }">
+                            <span>{{ $t('home.hubble.energyChain.pvPath') }}</span>
+                            <strong>{{ hubbleView.energyChain.pv.label }}</strong>
+                        </span>
+                        <span
+                            v-if="hubbleView.energyChain.battery"
+                            class="hubble-energy-chain-branch battery"
+                            :class="{ pending: !hubbleView.energyChain.battery.available }"
+                        >
+                            <span>{{ $t('home.hubble.energyChain.batteryPath') }}</span>
+                            <strong>{{ hubbleView.energyChain.battery.label }}</strong>
+                        </span>
+                        <span
+                            v-if="hubbleView.energyChain.mixed"
+                            class="hubble-energy-chain-branch mixed"
+                            :class="{ pending: !hubbleView.energyChain.mixed.available }"
+                        >
+                            <span>{{ $t('home.hubble.energyChain.mixedPath') }}</span>
+                            <strong>{{ hubbleView.energyChain.mixed.label }}</strong>
+                        </span>
+                    </div>
+                    <div class="hubble-energy-chain-kpis">
+                        <span>
+                            <small>{{ $t('home.hubble.energyChain.netAutarky') }}</small>
+                            <strong>{{ hubbleView.energyChain.netAutarky }}</strong>
+                        </span>
+                        <span>
+                            <small>
+                                {{ $t('home.hubble.energyChain.adjustedAutarky') }}
+                                <button
+                                    type="button"
+                                    class="hubble-metric-help"
+                                    :aria-label="$t('home.hubble.energyChain.adjustedAutarkyHelp')"
+                                    :data-tooltip="$t('home.hubble.energyChain.adjustedAutarkyHelp')"
+                                >i</button>
+                            </small>
+                            <strong>{{ hubbleView.energyChain.adjustedAutarky }}</strong>
+                        </span>
+                    </div>
+                </div>
             </div>
             <div class="hubble-chip-row">
                 <span v-for="chip in hubbleView.chips" :key="chip.key" class="hubble-chip" :title="chip.title || null">
@@ -428,8 +492,8 @@ const _HomePage = {
                     {{ action.label }}
                 </button>
                 <a
-                    href="/api/sfml_stats/static/docs.html?v=32.0.0"
-                    target="_blank"
+                    href="static/docs.html"
+                    target="_self"
                     class="hubble-action docs-link"
                     style="text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 4px;"
                 >
@@ -460,6 +524,11 @@ const _HomePage = {
                     </div>
                 </div>
                 <p v-else>{{ hubbleView.answer.text }}</p>
+            </div>
+            <div class="hubble-report-toggle-row">
+                <button type="button" class="hubble-toggle" @click="hubbleExpanded = !hubbleExpanded">
+                    {{ hubbleExpanded ? $t('home.hubble.reportClose') : $t('home.hubble.reportOpen') }}
+                </button>
             </div>
             <div v-if="hubbleExpanded" class="hubble-details">
                 <div class="hubble-story-grid">
@@ -1493,6 +1562,7 @@ const _HomePage = {
             const variantSeed = payload.variant_seed != null ? payload.variant_seed : 0;
             const yesterday = payload.yesterday || null;
             const workflowStatus = payload.signals?.workflow_status || null;
+            const learnedShadow = payload.signals?.learned_shadow || null;
             const balancePayload = payload.day_balance;
             let dayBalance = null;
             if (balancePayload?.available === true) {
@@ -1521,6 +1591,44 @@ const _HomePage = {
                         : dataQuality === 'warning'
                             ? t('home.hubble.dayBalance.incomplete')
                             : null,
+                };
+            }
+
+            const chainPayload = payload.energy_chain;
+            let energyChain = null;
+            if (chainPayload?.available === true) {
+                const system = chainPayload.system || {};
+                const dataQuality = ['good', 'partial', 'pending', 'inconsistent'].includes(chainPayload.data_quality)
+                    ? chainPayload.data_quality
+                    : 'pending';
+                const systemEfficiency = Number(system.efficiency_percent);
+                const systemAvailable = system.available === true && Number.isFinite(systemEfficiency);
+                const branchView = (branch, pendingKey) => {
+                    const efficiency = Number(branch?.efficiency_percent);
+                    const available = branch?.available === true && Number.isFinite(efficiency);
+                    return {
+                        available,
+                        label: available ? `${formatHubbleNumber(efficiency, 1)}%` : t(pendingKey),
+                    };
+                };
+                energyChain = {
+                    dataQuality,
+                    qualityLabel: t(`home.hubble.energyChain.status.${dataQuality}`),
+                    systemEfficiency: systemAvailable ? `${formatHubbleNumber(systemEfficiency, 1)}%` : '--',
+                    progress: systemAvailable ? Math.max(0, Math.min(360, systemEfficiency * 3.6)) : 0,
+                    netAutarky: chainPayload.net_autarky_percent != null
+                        ? `${formatHubbleNumber(chainPayload.net_autarky_percent, 1)}%`
+                        : '--',
+                    adjustedAutarky: chainPayload.loss_adjusted_autarky_percent != null
+                        ? `${formatHubbleNumber(chainPayload.loss_adjusted_autarky_percent, 1)}%`
+                        : '--',
+                    pv: branchView(chainPayload.pv, 'home.hubble.energyChain.noPvWindow'),
+                    battery: chainPayload.battery
+                        ? branchView(chainPayload.battery, 'home.hubble.energyChain.noBatteryWindow')
+                        : null,
+                    mixed: chainPayload.mixed
+                        ? branchView(chainPayload.mixed, 'home.hubble.energyChain.noMixedWindow')
+                        : null,
                 };
             }
 
@@ -1559,6 +1667,15 @@ const _HomePage = {
                 peakTime,
                 price: currentPrice,
                 priceAverage: avgPrice,
+                shadowWindow: learnedShadow
+                    ? formatHubbleWindow(learnedShadow)
+                    : t('home.hubble.noWindow'),
+                shadowOccurrence: learnedShadow
+                    ? formatHubbleNumber(learnedShadow.occurrence_percent, 0)
+                    : '--',
+                shadowStrength: learnedShadow
+                    ? formatHubbleNumber(learnedShadow.conditional_loss_percent, 0)
+                    : '--',
             };
 
             const leadKeySpec = `home.hubble.lead.${moment}_v${variantSeed}`;
@@ -1577,6 +1694,14 @@ const _HomePage = {
                 { key: 'quality', label: t('home.hubble.chip.quality'), value: metrics.forecast_quality_percent != null ? `${quality}%` : t('common.noData') },
                 { key: 'window', label: t('home.hubble.chip.window'), value: windowLabel },
             ];
+            if (learnedShadow?.available) {
+                chips.push({
+                    key: 'shadow',
+                    label: t('home.hubble.chip.shadow'),
+                    value: formatHubbleWindow(learnedShadow),
+                    title: t('home.hubble.chip.shadowTitle', storyParams),
+                });
+            }
             if (workflowStatus?.is_running) {
                 chips.unshift({
                     key: 'workflow',
@@ -1609,6 +1734,7 @@ const _HomePage = {
                 is_pulsing: moment !== 'evening',
                 systemStatus,
                 dayBalance,
+                energyChain,
                 chips,
                 lead: t(leadKey, storyParams),
                 tip: buildHubbleTip(payload, windowLabel),
@@ -1870,6 +1996,7 @@ const _HomePage = {
 
         function buildHubbleTip(payload, windowLabel) {
             const metrics = payload.metrics || {};
+            const learnedShadow = payload.signals?.learned_shadow || null;
             const hasBattery = metrics.battery_available === true;
             const type = payload.tip_type || 'flex_load_window';
             const params = {
@@ -1878,7 +2005,25 @@ const _HomePage = {
                 average: formatHubbleNumber(metrics.avg_battery_charge_7d_kwh, 1),
                 price: formatHubbleNumber(metrics.price_current_ct, 2),
                 priceAverage: formatHubbleNumber(metrics.price_avg_ct, 2),
+                shadowWindow: learnedShadow
+                    ? formatHubbleWindow(learnedShadow)
+                    : t('home.hubble.noWindow'),
+                shadowOccurrence: learnedShadow
+                    ? formatHubbleNumber(learnedShadow.occurrence_percent, 0)
+                    : '--',
+                shadowStrength: learnedShadow
+                    ? formatHubbleNumber(learnedShadow.conditional_loss_percent, 0)
+                    : '--',
             };
+            if (learnedShadow?.available && payload.best_window) {
+                const beforeShadow = Number(payload.best_window.end_hour) < Number(learnedShadow.start_hour);
+                return t(
+                    beforeShadow
+                        ? 'home.hubble.tip.shadowBefore'
+                        : 'home.hubble.tip.shadowKnown',
+                    params,
+                );
+            }
             if (hasBattery && type === 'battery_served') return t('home.hubble.tip.batteryServed', params);
             if (type === 'cheap_price_plus_solar') return t('home.hubble.tip.cheapPricePlusSolar', params);
             if (type === 'evening_review') return t('home.hubble.tip.eveningReview', params);
@@ -3198,7 +3343,9 @@ const _HomePage = {
                 for (const chart of Object.values(pgChartInstances)) {
                     if (chart) chart.dispose();
                 }
-                pgChartInstances = {};
+                Object.keys(pgChartInstances).forEach((key) => {
+                    delete pgChartInstances[key];
+                });
                 loadPanelGroups();
             });
         });
@@ -3282,7 +3429,9 @@ const _HomePage = {
             for (const chart of Object.values(pgChartInstances)) {
                 if (chart) chart.dispose();
             }
-            pgChartInstances = {};
+            Object.keys(pgChartInstances).forEach((key) => {
+                delete pgChartInstances[key];
+            });
             if (resizeHandler) window.removeEventListener('resize', resizeHandler);
         });
 
@@ -3384,12 +3533,11 @@ const _HomePage = {
             color: var(--accent);
         }
         .hubble-header {
-            display: flex;
+            display: grid;
+            grid-template-columns: 48px minmax(170px, auto) minmax(360px, 1fr);
             align-items: center;
-            justify-content: flex-start;
-            flex-wrap: wrap;
             gap: var(--space-md);
-            margin-bottom: var(--space-md);
+            margin-bottom: 12px;
         }
         
         .hubble-sensor-ring-container {
@@ -3468,7 +3616,6 @@ const _HomePage = {
             flex-direction: column;
             gap: 2px;
             min-width: 0;
-            flex-grow: 1;
         }
         .hubble-kicker {
             color: var(--accent);
@@ -3483,8 +3630,7 @@ const _HomePage = {
             font-weight: 600;
         }
         .hubble-day-balance {
-            flex: 0 1 440px;
-            min-width: min(100%, 360px);
+            min-width: 0;
             padding: 2px 0;
         }
         .hubble-day-balance-heading {
@@ -3578,6 +3724,270 @@ const _HomePage = {
         .hubble-day-balance.critical .hubble-day-balance-warning {
             color: #ef4444;
         }
+        .hubble-energy-chain {
+            margin: 0 0 12px;
+            padding: 12px 0;
+            border-top: 1px solid var(--border-default);
+            border-bottom: 1px solid var(--border-default);
+        }
+        .hubble-energy-chain-heading {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: var(--space-md);
+            margin-bottom: 8px;
+        }
+        .hubble-energy-chain-heading > div {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .hubble-energy-chain-kicker {
+            color: var(--accent);
+            font-size: 0.76rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+        .hubble-energy-chain-subtitle {
+            color: var(--text-muted);
+            font-size: 0.72rem;
+        }
+        .hubble-energy-chain-status {
+            flex: 0 0 auto;
+            padding: 4px 8px;
+            border: 1px solid rgba(34, 197, 94, 0.28);
+            border-radius: 6px;
+            color: #22c55e;
+            background: rgba(34, 197, 94, 0.07);
+            font-size: 0.68rem;
+            font-weight: 750;
+        }
+        .hubble-energy-chain.partial .hubble-energy-chain-status,
+        .hubble-energy-chain.pending .hubble-energy-chain-status {
+            border-color: rgba(245, 158, 11, 0.28);
+            color: #f59e0b;
+            background: rgba(245, 158, 11, 0.07);
+        }
+        .hubble-energy-chain.inconsistent .hubble-energy-chain-status {
+            border-color: rgba(239, 68, 68, 0.3);
+            color: #ef4444;
+            background: rgba(239, 68, 68, 0.07);
+        }
+        .hubble-energy-chain-flow {
+            display: grid;
+            grid-template-columns: minmax(110px, 1fr) minmax(70px, 0.7fr) 76px minmax(70px, 0.7fr) minmax(110px, 1fr);
+            align-items: center;
+            gap: 10px;
+        }
+        .hubble-energy-chain-focus {
+            display: flex;
+            justify-content: center;
+            padding: 20px 0 4px;
+        }
+        .hubble-energy-chain-node {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .hubble-energy-chain-node.output {
+            text-align: right;
+        }
+        .hubble-energy-chain-node-label {
+            color: var(--text-muted);
+            font-size: 0.7rem;
+        }
+        .hubble-energy-chain-node strong {
+            color: var(--text-primary);
+            font: 800 1.15rem var(--font-mono);
+        }
+        .hubble-energy-chain-node strong small {
+            color: var(--text-muted);
+            font-size: 0.62rem;
+            font-weight: 600;
+        }
+        .hubble-energy-chain-route {
+            position: relative;
+            height: 2px;
+            background: #22d3ee;
+        }
+        .hubble-energy-chain-route::after {
+            content: ;
+            position: absolute;
+            top: 50%;
+            right: -1px;
+            width: 7px;
+            height: 7px;
+            border-top: 2px solid #22d3ee;
+            border-right: 2px solid #22d3ee;
+            transform: translateY(-50%) rotate(45deg);
+        }
+        .hubble-energy-chain-route.loss {
+            background: #fbbf24;
+        }
+        .hubble-energy-chain-route.loss::after {
+            border-color: #fbbf24;
+        }
+        .hubble-energy-chain-route.loss span {
+            position: absolute;
+            left: 50%;
+            bottom: 7px;
+            color: var(--text-muted);
+            font: 600 0.62rem var(--font-mono);
+            white-space: nowrap;
+            transform: translateX(-50%);
+        }
+        .hubble-energy-chain-converter {
+            position: relative;
+            display: flex;
+            justify-content: center;
+        }
+        .hubble-energy-chain-converter-label {
+            position: absolute;
+            bottom: calc(100% + 5px);
+            left: 50%;
+            color: var(--text-muted);
+            font-size: 0.58rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            white-space: nowrap;
+            transform: translateX(-50%);
+        }
+        .hubble-energy-chain-ring {
+            display: flex;
+            width: 68px;
+            height: 68px;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            border-radius: 50%;
+            background: radial-gradient(circle at center, var(--bg-card) 58%, transparent 60%),
+                conic-gradient(var(--accent) var(--chain-progress), rgba(148, 163, 184, 0.18) 0);
+        }
+        .hubble-energy-chain-ring strong {
+            color: var(--text-primary);
+            font: 800 1rem var(--font-mono);
+        }
+        .hubble-energy-chain-summary {
+            display: grid;
+            grid-template-columns: minmax(230px, auto) minmax(0, 1fr);
+            align-items: center;
+            gap: 12px 24px;
+            margin-top: 9px;
+            padding-top: 9px;
+            border-top: 1px solid rgba(148, 163, 184, 0.12);
+        }
+        .hubble-energy-chain-branches,
+        .hubble-energy-chain-kpis {
+            display: flex;
+            align-items: stretch;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 8px 20px;
+        }
+        .hubble-energy-chain-branches {
+            justify-content: flex-start;
+        }
+        .hubble-energy-chain-branch {
+            display: inline-flex;
+            align-items: baseline;
+            gap: 7px;
+            color: var(--text-secondary);
+            font-size: 0.68rem;
+        }
+        .hubble-energy-chain-branch::before {
+            content: ;
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #fbbf24;
+        }
+        .hubble-energy-chain-branch.battery::before {
+            background: #22c55e;
+        }
+        .hubble-energy-chain-branch.mixed::before {
+            background: #06b6d4;
+        }
+        .hubble-energy-chain-branch.pending::before {
+            background: #64748b;
+        }
+        .hubble-energy-chain-branch strong {
+            color: var(--text-primary);
+            font-family: var(--font-mono);
+        }
+        .hubble-energy-chain-branch.pending strong {
+            color: var(--text-muted);
+            font-family: var(--font-sans);
+            font-weight: 600;
+        }
+        .hubble-energy-chain-kpis {
+            justify-content: flex-end;
+        }
+        .hubble-energy-chain-kpis > span {
+            display: flex;
+            min-width: 120px;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .hubble-energy-chain-kpis small {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            color: var(--text-muted);
+            font-size: 0.66rem;
+        }
+        .hubble-metric-help {
+            position: relative;
+            display: inline-flex;
+            width: 15px;
+            height: 15px;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            border: 1px solid rgba(148, 163, 184, 0.42);
+            border-radius: 50%;
+            color: var(--text-muted);
+            background: transparent;
+            font: 700 0.58rem var(--font-sans);
+            cursor: help;
+        }
+        .hubble-metric-help::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            z-index: 20;
+            right: -8px;
+            bottom: calc(100% + 8px);
+            width: min(260px, 70vw);
+            padding: 7px 9px;
+            border: 1px solid var(--border-default);
+            border-radius: 6px;
+            color: var(--text-primary);
+            background: var(--bg-elevated, var(--bg-card));
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+            font-size: 0.68rem;
+            font-weight: 500;
+            line-height: 1.35;
+            text-align: left;
+            pointer-events: none;
+            opacity: 0;
+            transform: translateY(3px);
+            transition: opacity 0.15s ease, transform 0.15s ease;
+        }
+        .hubble-metric-help:hover::after,
+        .hubble-metric-help:focus-visible::after,
+        .hubble-metric-help:focus::after {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .hubble-metric-help:focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
+        }
+        .hubble-energy-chain-kpis strong {
+            color: var(--text-primary);
+            font: 800 0.82rem var(--font-mono);
+        }
         .hubble-system-status {
             flex: 1 1 260px;
             display: flex;
@@ -3628,6 +4038,13 @@ const _HomePage = {
         .hubble-toggle:hover {
             background: rgba(255, 255, 255, 0.12);
             border-color: rgba(255, 255, 255, 0.25);
+        }
+        .hubble-report-toggle-row {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(148, 163, 184, 0.12);
         }
         .hubble-chip-row {
             display: flex;
@@ -3852,14 +4269,18 @@ const _HomePage = {
             margin-top: var(--space-md);
         }
         @media (max-width: 1280px) {
+            .hubble-header {
+                grid-template-columns: 48px minmax(0, 1fr);
+            }
             .hubble-day-balance {
-                flex: 1 1 100%;
-                margin-left: 64px;
+                grid-column: 1 / -1;
+            }
+            .hubble-system-status {
+                grid-column: 1 / -1;
             }
         }
         @media (max-width: 760px) {
             .hubble-day-balance {
-                margin-left: 0;
                 min-width: 100%;
             }
             .hubble-day-balance-source {
@@ -3867,6 +4288,47 @@ const _HomePage = {
             }
             .hubble-day-balance-percent {
                 display: none;
+            }
+            .hubble-energy-chain-heading {
+                align-items: center;
+            }
+            .hubble-energy-chain-subtitle {
+                display: none;
+            }
+            .hubble-energy-chain-flow {
+                grid-template-columns: minmax(72px, 1fr) 34px 72px 34px minmax(72px, 1fr);
+                gap: 4px;
+            }
+            .hubble-energy-chain-ring {
+                width: 68px;
+                height: 68px;
+            }
+            .hubble-energy-chain-node strong {
+                font-size: 0.88rem;
+            }
+            .hubble-energy-chain-route.loss span {
+                display: none;
+            }
+            .hubble-energy-chain-branches {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+            .hubble-energy-chain-summary {
+                grid-template-columns: 1fr;
+                gap: 9px;
+            }
+            .hubble-energy-chain-kpis {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 4px;
+                justify-content: stretch;
+            }
+            .hubble-energy-chain-kpis > span {
+                min-width: 0;
+                align-items: center;
+                flex-direction: column;
+                gap: 3px;
+                text-align: center;
             }
         }
         /* ===== Photorealistic Twilight Energy Flow ===== */

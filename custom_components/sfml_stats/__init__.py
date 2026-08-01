@@ -10,6 +10,8 @@
 """SFML Stats V17 — Solar Command Center integration for Home Assistant. @zara"""
 from __future__ import annotations
 
+# ruff: noqa: E402
+
 
 # PyArmor Runtime Path Setup - MUST be before any protected module imports
 import sys
@@ -39,13 +41,13 @@ from .const import (
     VERSION,
     PLATFORMS,
     SOLAR_FORECAST_DB,
-    CONF_SENSOR_SMARTMETER_IMPORT_KWH,
     CONF_WEATHER_ENTITY,
     CONF_COUNTRY,
     CONF_VAT_RATE,
     CONF_GPM_GRID_FEE,
     CONF_TAXES_FEES,
     CONF_PROVIDER_MARKUP,
+    LEGACY_POWER_ENERGY_SENSOR_KEYS,
     CONF_MAX_PRICE,
     CONF_SMART_CHARGING_ENABLED,
     CONF_SMART_CHARGING_SWITCH,
@@ -60,8 +62,6 @@ from .const import (
     CONF_SENSOR_BATTERY_POWER,
     CONF_MAX_SOC,
     CONF_MIN_SOC,
-    CONF_FORECAST_ENTITY_1,
-    CONF_FORECAST_ENTITY_2,
     DEFAULT_COUNTRY,
     DEFAULT_VAT_RATE_DE,
     DEFAULT_GPM_GRID_FEE,
@@ -75,12 +75,8 @@ from .const import (
     DAILY_AGGREGATION_HOUR,
     DAILY_AGGREGATION_MINUTE,
     DAILY_AGGREGATION_SECOND,
-    FORECAST_MORNING_HOUR,
-    FORECAST_MORNING_MINUTE,
     FORECAST_EVENING_HOUR,
     FORECAST_EVENING_MINUTE,
-    FORECAST_CHART_HOUR,
-    FORECAST_CHART_MINUTE,
 )
 from .storage import DataValidator
 from .storage.db_connection_manager import DatabaseConnectionManager, get_manager
@@ -293,11 +289,66 @@ class GPMCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             # Smart charging
             if self._smart_charging:
                 is_cheap = data.get("is_cheap", False)
-                state = await self._smart_charging.async_update(is_cheap, current_price=data.get("total_price"))
+                future_total_price_slots: list[dict[str, Any]] = []
+                if self._price_service and self._price_calculator:
+                    current_hour_utc = datetime.now(timezone.utc).replace(
+                        minute=0, second=0, microsecond=0
+                    )
+                    reference_current = self._price_service.get_current_price()
+                    reference_total = (
+                        self._price_calculator.calculate_total_price(reference_current)
+                        if reference_current is not None
+                        else None
+                    )
+                    effective_current = data.get("total_price")
+                    price_adjustment = (
+                        float(effective_current) - reference_total
+                        if effective_current is not None and reference_total is not None
+                        else 0.0
+                    )
+                    for price_entry in self._price_service.get_all_prices():
+                        try:
+                            entry_timestamp = self._price_service._entry_timestamp_utc(
+                                price_entry["timestamp"]
+                            )
+                            if entry_timestamp <= current_hour_utc:
+                                continue
+                            total_price = self._price_calculator.calculate_total_price(
+                                float(price_entry["price"])
+                            )
+                            future_total_price_slots.append({
+                                "timestamp": entry_timestamp,
+                                "total_price": round(total_price + price_adjustment, 2),
+                                "duration_hours": 1.0,
+                            })
+                        except (KeyError, TypeError, ValueError):
+                            continue
+
+                state = await self._smart_charging.async_update(
+                    is_cheap,
+                    current_price=data.get("total_price"),
+                    future_total_price_slots=future_total_price_slots,
+                )
                 data["smart_charging_target_soc"] = state.target_soc
                 data["smart_charging_active"] = state.is_active
                 data["smart_charging_reason"] = state.reason
                 data["smart_charging_current_soc"] = state.current_soc
+                data["smart_charging_decision"] = state.economic_decision
+                data["smart_charging_requested_grid_charge_kwh"] = (
+                    state.requested_grid_charge_kwh
+                )
+                data["smart_charging_effective_storage_cost_ct_kwh"] = (
+                    state.effective_storage_cost_ct_kwh
+                )
+                data["smart_charging_compared_future_price_ct_kwh"] = (
+                    state.compared_future_price_ct_kwh
+                )
+                data["smart_charging_effective_roundtrip_efficiency"] = (
+                    state.effective_roundtrip_efficiency
+                )
+                data["smart_charging_reserved_future_grid_charge_kwh"] = (
+                    state.reserved_future_grid_charge_kwh
+                )
                 data["solar_forecast_today"] = state.solar_forecast_today_kwh
                 data["solar_forecast_tomorrow"] = state.solar_forecast_tomorrow_kwh
 
@@ -362,9 +413,10 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) ->
     """Migrate old entry to new version. @zara"""
     _LOGGER.info(
         "Migrating SFML Stats from version %s to %s",
-        config_entry.version, 7
+        config_entry.version, 9
     )
     new_data = {**config_entry.data}
+    new_options = {**config_entry.options}
 
     if config_entry.version < 6:
         hass.config_entries.async_update_entry(
@@ -380,6 +432,30 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) ->
             config_entry, data=new_data, version=7
         )
         _LOGGER.info("Migration to version 7 successful (GPM merged)")
+
+    if config_entry.version < 8:
+        removed = sorted(
+            key for key in LEGACY_POWER_ENERGY_SENSOR_KEYS
+            if key in new_data or key in new_options
+        )
+        for key in removed:
+            new_data.pop(key, None)
+            new_options.pop(key, None)
+        hass.config_entries.async_update_entry(
+            config_entry, data=new_data, options=new_options, version=8
+        )
+        _LOGGER.info(
+            "Migration to version 8 successful (%d legacy kWh sensor mappings removed)",
+            len(removed),
+        )
+
+    if config_entry.version < 9:
+        new_data.pop("sensor_solar_power", None)
+        new_options.pop("sensor_solar_power", None)
+        hass.config_entries.async_update_entry(
+            config_entry, data=new_data, options=new_options, version=9
+        )
+        _LOGGER.info("Migration to version 9 successful")
 
     return True
 
@@ -416,6 +492,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     from .core.billing import BillingCalculator
     from .core.tariff_manager import MonthlyTariffManager
     from .core.forecast_collector import ForecastComparisonCollector
+    from .core.energy_context import StatsEnergyContextProvider
 
     aggregator = DailyEnergyAggregator(hass, config_path)
     billing_calculator = BillingCalculator(hass, config_path, entry_data=entry_config)
@@ -426,6 +503,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hourly_aggregator = HourlyBillingAggregator(hass, config_path)
     _LOGGER.info("Hourly billing aggregator initialized (price_mode: %s)",
                  entry_config.get("billing_price_mode", "dynamic"))
+
+    energy_context_provider = (
+        StatsEnergyContextProvider(hass, db_manager) if db_manager is not None else None
+    )
+    if energy_context_provider is not None:
+        await energy_context_provider.async_refresh()
 
     # --- Power Sources Collector ---
     from .power_sources_collector import PowerSourcesCollector
@@ -476,6 +559,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "forecast_comparison_collector": forecast_comparison_collector,
         "gpm_coordinator": gpm_coordinator,
         "hourly_aggregator": hourly_aggregator,
+        "energy_context_provider": energy_context_provider,
     }
 
     # --- Forward sensor platforms ---
@@ -529,6 +613,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             success = await hourly_aggregator.async_aggregate_hourly()
             if success:
                 _LOGGER.debug("Hourly billing aggregation completed")
+                if energy_context_provider is not None:
+                    await energy_context_provider.async_refresh()
             else:
                 _LOGGER.debug("Hourly billing aggregation skipped (no data)")
         except Exception as err:
@@ -609,6 +695,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     except Exception as err:
         _LOGGER.warning("Could not auto-register Lovelace resources: %s", err)
 
+    from .sensor_mapping_provider import SensorMappingProvider, register_provider
+
+    sensor_mapping_provider = SensorMappingProvider(entry.entry_id, entry_config)
+    sensor_mapping_providers = hass.data[DOMAIN].setdefault(
+        "sensor_mapping_providers", {}
+    )
+    register_provider(sensor_mapping_providers, entry.entry_id, sensor_mapping_provider)
+
     _LOGGER.info("%s v%s successfully set up", NAME, VERSION)
     return True
 
@@ -622,6 +716,12 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Unload sensor platforms
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    if not unload_ok:
+        _LOGGER.warning(
+            "Platform unload failed for Entry %s; keeping runtime state intact",
+            entry.entry_id,
+        )
+        return False
 
     entry_data = hass.data[DOMAIN][entry.entry_id]
 
@@ -673,6 +773,16 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         await DatabaseConnectionManager.close_instance()
     except Exception as err:
         _LOGGER.warning("Error closing database: %s", err)
+
+    sensor_mapping_providers = hass.data[DOMAIN].get("sensor_mapping_providers")
+    if isinstance(sensor_mapping_providers, dict):
+        sensor_mapping_provider = sensor_mapping_providers.get(entry.entry_id)
+        if sensor_mapping_provider is not None:
+            sensor_mapping_provider.invalidate()
+            if sensor_mapping_providers.get(entry.entry_id) is sensor_mapping_provider:
+                sensor_mapping_providers.pop(entry.entry_id, None)
+        if not sensor_mapping_providers:
+            hass.data[DOMAIN].pop("sensor_mapping_providers", None)
 
     del hass.data[DOMAIN][entry.entry_id]
     return unload_ok
@@ -796,5 +906,13 @@ async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> Non
                 _LOGGER.info("Smart charging disabled dynamically")
         except Exception as err:
             _LOGGER.warning("Error updating smart charging dynamically: %s", err)
+
+    from .sensor_mapping_provider import SensorMappingProvider, register_provider
+
+    sensor_mapping_provider = SensorMappingProvider(entry.entry_id, new_config)
+    sensor_mapping_providers = hass.data[DOMAIN].setdefault(
+        "sensor_mapping_providers", {}
+    )
+    register_provider(sensor_mapping_providers, entry.entry_id, sensor_mapping_provider)
 
     _LOGGER.info("Configuration refresh complete")

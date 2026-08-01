@@ -44,7 +44,8 @@ from pathlib import Path
 from typing import Any, Optional
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.const import EVENT_HOMEASSISTANT_STOP
+from homeassistant.core import Event, HomeAssistant
 from homeassistant.helpers.typing import ConfigType
 
 from .const import (
@@ -155,6 +156,7 @@ _ALL_GROUP_TABLES = [
     ("drift_events", "scope"),
     ("drift_cusum_state", "scope"),
 ]
+_TEMP_GROUP_GLOB = "__pgm_temp_*__"
 
 
 @dataclass
@@ -845,68 +847,111 @@ async def _ensure_snapshot_table(db) -> None:
     )
 
 
+async def _get_existing_group_tables(db) -> list[tuple[str, str]]:
+    existing = []
+    for table, column in _ALL_GROUP_TABLES:
+        columns = await db.fetchall(f"PRAGMA table_info({table})")
+        if any(row[1] == column for row in columns):
+            existing.append((table, column))
+    return existing
+
+
+async def _cleanup_temporary_panel_group_rows(
+    db, group_tables: Optional[list[tuple[str, str]]] = None
+) -> int:
+    tables = group_tables
+    if tables is None:
+        tables = await _get_existing_group_tables(db)
+
+    removed_rows = 0
+    for table, column in tables:
+        row = await db.fetchone(
+            f"SELECT COUNT(*) FROM {table} WHERE {column} GLOB ?",
+            (_TEMP_GROUP_GLOB,),
+        )
+        count = int(row[0] or 0) if row else 0
+        if not count:
+            continue
+        await db.execute(
+            f"DELETE FROM {table} WHERE {column} GLOB ?",
+            (_TEMP_GROUP_GLOB,),
+            auto_commit=False,
+        )
+        removed_rows += count
+    return removed_rows
+
+
 async def _execute_migration(db, plan: _MigrationPlan, new_groups_config: list[dict]) -> None:
     await db.execute("PRAGMA foreign_keys = OFF")
     try:
-        renames_needed = [r for r in plan.renames if r.old_name != r.new_name]
-        if renames_needed:
-            for idx, rename in enumerate(renames_needed):
-                temp_name = f"__pgm_temp_{idx}__"
-                for table, col in _ALL_GROUP_TABLES:
-                    try:
+        group_tables = await _get_existing_group_tables(db)
+        async with db.transaction():
+            await _cleanup_temporary_panel_group_rows(db, group_tables)
+
+            renames_needed = [r for r in plan.renames if r.old_name != r.new_name]
+            if renames_needed:
+                for idx, rename in enumerate(renames_needed):
+                    temp_name = f"__pgm_temp_{idx}__"
+                    for table, col in group_tables:
                         await db.execute(
                             f"UPDATE {table} SET {col} = ? WHERE {col} = ?",
                             (temp_name, rename.old_name),
+                            auto_commit=False,
                         )
-                    except Exception:
-                        pass
-            for idx, rename in enumerate(renames_needed):
-                temp_name = f"__pgm_temp_{idx}__"
-                for table, col in _ALL_GROUP_TABLES:
-                    try:
+                for idx, rename in enumerate(renames_needed):
+                    temp_name = f"__pgm_temp_{idx}__"
+                    for table, col in group_tables:
                         await db.execute(
-                            f"UPDATE {table} SET {col} = ? WHERE {col} = ?",
+                            f"UPDATE OR IGNORE {table} SET {col} = ? WHERE {col} = ?",
                             (rename.new_name, temp_name),
+                            auto_commit=False,
                         )
-                    except Exception:
-                        pass
-                _LOGGER.info(
-                    "Panel Group Migration: renamed '%s' → '%s'",
-                    rename.old_name, rename.new_name,
+                    _LOGGER.info(
+                        "Panel Group Migration: renamed '%s' → '%s'",
+                        rename.old_name, rename.new_name,
+                    )
+
+            discarded_conflicts = await _cleanup_temporary_panel_group_rows(
+                db, group_tables
+            )
+            if discarded_conflicts:
+                _LOGGER.warning(
+                    "Panel Group Migration: discarded %d conflicting stale group rows",
+                    discarded_conflicts,
                 )
 
-        for donor in plan.donors:
-            await _copy_calibration_from_donor(
-                db, donor.donor_name, donor.new_name, donor.capacity_ratio
-            )
-            cfg = next(
-                (g for g in new_groups_config if g.get("name") == donor.new_name), {}
-            )
-            tilt = cfg.get("tilt", cfg.get(CONF_PANEL_GROUP_TILT, 30.0))
-            await db.execute(
-                "INSERT OR IGNORE INTO snow_tracking_groups (group_name, tilt_deg) VALUES (?, ?)",
-                (donor.new_name, tilt),
-            )
-            _LOGGER.info(
-                "Panel Group Migration: '%s' from donor '%s' (ratio=%.2f)",
-                donor.new_name, donor.donor_name, donor.capacity_ratio,
-            )
+            for donor in plan.donors:
+                await _copy_calibration_from_donor(
+                    db, donor.donor_name, donor.new_name, donor.capacity_ratio
+                )
+                cfg = next(
+                    (g for g in new_groups_config if g.get("name") == donor.new_name), {}
+                )
+                tilt = cfg.get("tilt", cfg.get(CONF_PANEL_GROUP_TILT, 30.0))
+                await db.execute(
+                    "INSERT OR IGNORE INTO snow_tracking_groups (group_name, tilt_deg) VALUES (?, ?)",
+                    (donor.new_name, tilt),
+                    auto_commit=False,
+                )
+                _LOGGER.info(
+                    "Panel Group Migration: '%s' from donor '%s' (ratio=%.2f)",
+                    donor.new_name, donor.donor_name, donor.capacity_ratio,
+                )
 
-        for name in plan.new_groups:
-            cfg = next((g for g in new_groups_config if g.get("name") == name), {})
-            tilt = cfg.get("tilt", cfg.get(CONF_PANEL_GROUP_TILT, 30.0))
-            await _initialize_group_defaults(db, name, tilt)
-            _LOGGER.info("Panel Group Migration: '%s' created with defaults", name)
+            for name in plan.new_groups:
+                cfg = next((g for g in new_groups_config if g.get("name") == name), {})
+                tilt = cfg.get("tilt", cfg.get(CONF_PANEL_GROUP_TILT, 30.0))
+                await _initialize_group_defaults(db, name, tilt)
+                _LOGGER.info("Panel Group Migration: '%s' created with defaults", name)
 
-        for name in plan.removed_groups:
-            for table, col in _ALL_GROUP_TABLES:
-                try:
-                    await db.execute(f"DELETE FROM {table} WHERE {col} = ?", (name,))
-                except Exception:
-                    pass
-            _LOGGER.info("Panel Group Migration: '%s' removed", name)
-
-        await db.commit()
+            for name in plan.removed_groups:
+                for table, col in group_tables:
+                    await db.execute(
+                        f"DELETE FROM {table} WHERE {col} = ?",
+                        (name,),
+                        auto_commit=False,
+                    )
+                _LOGGER.info("Panel Group Migration: '%s' removed", name)
     finally:
         await db.execute("PRAGMA foreign_keys = ON")
 
@@ -920,6 +965,13 @@ async def _migrate_panel_groups(
         db = data_manager._db_manager
         await _ensure_snapshot_table(db)
         await _ensure_topology_epoch_tables(db)
+        async with db.transaction():
+            stale_temp_rows = await _cleanup_temporary_panel_group_rows(db)
+        if stale_temp_rows:
+            _LOGGER.warning(
+                "Panel Group Migration: repaired %d temporary rows from an incomplete migration",
+                stale_temp_rows,
+            )
 
         new_config = []
         for g in panel_groups:
@@ -1105,7 +1157,18 @@ def _stop_queue_listener() -> None:
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up the Solar Forecast ML integration. @zara"""
+    from .core.database_service import (
+        async_setup_database_service,
+        async_shutdown_database_service,
+    )
+
     hass.data.setdefault(DOMAIN, {})
+    await async_setup_database_service(hass)
+
+    async def _handle_home_assistant_stop(_event: Event) -> None:
+        await async_shutdown_database_service(hass)
+
+    hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, _handle_home_assistant_stop)
     return True
 
 
@@ -1252,9 +1315,27 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     )
 
     hass.data[DOMAIN][entry.entry_id] = coordinator
+    if coordinator.data_manager:
+        from .data.sfml_weather_provider import SFMLWeatherIntelligenceProvider
+
+        weather_providers = hass.data[DOMAIN].setdefault(
+            "weather_intelligence_providers", {}
+        )
+        weather_providers[entry.entry_id] = SFMLWeatherIntelligenceProvider(
+            coordinator.data_manager,
+            getattr(hass.config, "time_zone", None),
+        )
 
     # Forward entry setup to platforms @zara
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
+    from .data.sensor_mapping_provider import SensorMappingProvider, register_provider
+
+    sensor_mapping_provider = SensorMappingProvider(entry.entry_id, entry.data)
+    sensor_mapping_providers = hass.data[DOMAIN].setdefault(
+        "sensor_mapping_providers", {}
+    )
+    register_provider(sensor_mapping_providers, entry.entry_id, sensor_mapping_provider)
 
     # Register services in background to not block bootstrap @zara
     async def _delayed_service_registration():
@@ -1401,6 +1482,20 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     if unload_ok:
         coordinator = hass.data[DOMAIN].pop(entry.entry_id)
+        sensor_mapping_providers = hass.data[DOMAIN].get("sensor_mapping_providers")
+        if isinstance(sensor_mapping_providers, dict):
+            sensor_mapping_provider = sensor_mapping_providers.get(entry.entry_id)
+            if sensor_mapping_provider is not None:
+                sensor_mapping_provider.invalidate()
+                if sensor_mapping_providers.get(entry.entry_id) is sensor_mapping_provider:
+                    sensor_mapping_providers.pop(entry.entry_id, None)
+            if not sensor_mapping_providers:
+                hass.data[DOMAIN].pop("sensor_mapping_providers", None)
+        weather_providers = hass.data[DOMAIN].get("weather_intelligence_providers")
+        if isinstance(weather_providers, dict):
+            weather_providers.pop(entry.entry_id, None)
+            if not weather_providers:
+                hass.data[DOMAIN].pop("weather_intelligence_providers", None)
 
         await coordinator.async_shutdown()
 

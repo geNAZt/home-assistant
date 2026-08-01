@@ -10,15 +10,15 @@
 """Constants for SFML Stats integration. @zara"""
 from __future__ import annotations
 
+from datetime import timedelta
 from pathlib import Path
 from typing import Final
 
+from homeassistant.const import Platform
+
 DOMAIN: Final = "sfml_stats"
 NAME: Final = "Solar Forecast STATS"
-VERSION: Final = "32.2.2"
-
-from datetime import timedelta
-from homeassistant.const import Platform
+VERSION: Final = "40.0.4"
 
 PLATFORMS: Final = [Platform.SENSOR, Platform.BINARY_SENSOR]
 
@@ -119,6 +119,7 @@ COLORS: Final = {
 LOGGER_NAME: Final = "sfml_stats"
 
 CONF_SENSOR_SOLAR_TO_HOUSE: Final = "sensor_solar_to_house"
+CONF_SENSOR_INVERTER_AC_OUTPUT: Final = "sensor_inverter_ac_output"
 CONF_SENSOR_SOLAR_TO_BATTERY: Final = "sensor_solar_to_battery"
 CONF_SENSOR_BATTERY_TO_HOUSE: Final = "sensor_battery_to_house"
 CONF_SENSOR_GRID_TO_HOUSE: Final = "sensor_grid_to_house"
@@ -179,6 +180,26 @@ CONF_AMORTIZATION_DEGRADATION_PERCENT: Final = "amortization_degradation_percent
 CONF_PANEL_GROUP_NAMES: Final = "panel_group_names"
 CONF_SHOW_PANEL_GROUPS: Final = "show_panel_groups"
 
+CONF_UI_MODE: Final = "ui_mode"
+UI_MODE_CLASSIC: Final = "classic"
+UI_MODE_MODERN: Final = "modern"
+DEFAULT_UI_MODE: Final = UI_MODE_CLASSIC
+UI_MODES: Final = frozenset({UI_MODE_CLASSIC, UI_MODE_MODERN})
+
+
+def normalize_ui_mode(value: object) -> str:
+    """Return a supported dashboard mode, defaulting to the classic UI."""
+    if isinstance(value, str) and value in UI_MODES:
+        return value
+    return DEFAULT_UI_MODE
+
+
+def frontend_index_for_ui_mode(value: object) -> str:
+    """Resolve the dashboard entry document for a configured UI mode."""
+    if normalize_ui_mode(value) == UI_MODE_MODERN:
+        return "modern/index.html"
+    return "index.html"
+
 PRICE_MODE_FIXED: Final = "fixed"
 PRICE_MODE_DYNAMIC: Final = "dynamic"
 PRICE_MODE_NONE: Final = "none"
@@ -197,17 +218,27 @@ DEFAULT_AMORTIZATION_ANNUAL_RUNNING_COSTS_EUR: Final = 0.0
 DEFAULT_AMORTIZATION_PRICE_INCREASE_PERCENT: Final = 2.0
 DEFAULT_AMORTIZATION_DEGRADATION_PERCENT: Final = 0.5
 
-SENSOR_W_TO_DAILY_KWH_MAP: Final = {
-    CONF_SENSOR_SOLAR_TO_BATTERY: CONF_SENSOR_BATTERY_CHARGE_SOLAR_DAILY,
-    CONF_SENSOR_GRID_TO_BATTERY: CONF_SENSOR_BATTERY_CHARGE_GRID_DAILY,
-    CONF_SENSOR_BATTERY_TO_HOUSE: CONF_SENSOR_BATTERY_DISCHARGE_DAILY,
-    CONF_SENSOR_SMARTMETER_IMPORT: CONF_SENSOR_GRID_IMPORT_DAILY,
-    CONF_SENSOR_SMARTMETER_EXPORT: CONF_SENSOR_GRID_EXPORT_DAILY,
-    CONF_SENSOR_HOME_CONSUMPTION: CONF_SENSOR_HOME_CONSUMPTION_DAILY,
+LEGACY_POWER_ENERGY_SENSOR_KEYS: Final = {
+    "sensor_solar_power",
+    CONF_SENSOR_HOME_CONSUMPTION_DAILY,
+    CONF_SENSOR_BATTERY_CHARGE_SOLAR_DAILY,
+    CONF_SENSOR_BATTERY_CHARGE_GRID_DAILY,
+    CONF_SENSOR_BATTERY_DISCHARGE_DAILY,
+    CONF_SENSOR_GRID_IMPORT_DAILY,
+    CONF_SENSOR_GRID_EXPORT_DAILY,
+    CONF_SENSOR_SMARTMETER_IMPORT_KWH,
+    CONF_SENSOR_SMARTMETER_EXPORT_KWH,
+    "sensor_heatpump_daily",
+    "sensor_heatingrod_daily",
+    "sensor_wallbox_daily",
+    "sensor_solar_yield_daily",
+    "sensor_solar_yield_total_kwh",
+    "sensor_grid_import_yearly",
 }
 
 ENERGY_FLOW_SENSORS: Final = [
     CONF_SENSOR_SOLAR_TO_HOUSE,
+    CONF_SENSOR_INVERTER_AC_OUTPUT,
     CONF_SENSOR_SOLAR_TO_BATTERY,
     CONF_SENSOR_BATTERY_TO_HOUSE,
     CONF_SENSOR_GRID_TO_HOUSE,
@@ -216,15 +247,7 @@ ENERGY_FLOW_SENSORS: Final = [
     CONF_SENSOR_BATTERY_SOC,
     CONF_SENSOR_BATTERY_POWER,
     CONF_SENSOR_HOME_CONSUMPTION,
-    CONF_SENSOR_GRID_IMPORT_DAILY,
-    CONF_SENSOR_BATTERY_CHARGE_SOLAR_DAILY,
-    CONF_SENSOR_BATTERY_CHARGE_GRID_DAILY,
-    CONF_SENSOR_BATTERY_DISCHARGE_DAILY,
-    CONF_SENSOR_GRID_EXPORT_DAILY,
-    CONF_SENSOR_HOME_CONSUMPTION_DAILY,
     CONF_SENSOR_PRICE_TOTAL,
-    CONF_SENSOR_SMARTMETER_IMPORT_KWH,
-    CONF_SENSOR_SMARTMETER_EXPORT_KWH,
 ]
 
 PANEL_SENSORS: Final = [
@@ -263,12 +286,9 @@ CONF_SENSOR_WB_ENERGY_SESSION: Final = "sensor_wb_energy_session"
 
 CONSUMER_SENSORS: Final = [
     CONF_SENSOR_HEATPUMP_POWER,
-    CONF_SENSOR_HEATPUMP_DAILY,
     CONF_SENSOR_HEATPUMP_COP,
     CONF_SENSOR_HEATINGROD_POWER,
-    CONF_SENSOR_HEATINGROD_DAILY,
     CONF_SENSOR_WALLBOX_POWER,
-    CONF_SENSOR_WALLBOX_DAILY,
     CONF_SENSOR_WALLBOX_STATE,
 ]
 
