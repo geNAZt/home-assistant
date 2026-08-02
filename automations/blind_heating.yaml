@@ -26,14 +26,16 @@
         - input_number.heating_base_wohnzimmer
     - trigger: state
       entity_id:
-        - sensor.solar_expected_gain_bad
-        - sensor.solar_expected_gain_buero_fabian
-        - sensor.solar_expected_gain_buero_merja
-        - sensor.solar_expected_gain_hwr
-        - sensor.solar_expected_gain_kueche
-        - sensor.solar_expected_gain_schlafzimmer
-        - sensor.solar_expected_gain_speisekammer
-        - sensor.solar_expected_gain_wohnzimmer
+        - sensor.solar_expected_gain_rollade_bad
+        - sensor.solar_expected_gain_rollade_buero_fabian
+        - sensor.solar_expected_gain_rollade_buero_merja
+        - sensor.solar_expected_gain_rollade_hwr
+        - sensor.solar_expected_gain_rollade_kueche_links
+        - sensor.solar_expected_gain_rollade_kueche_rechts
+        - sensor.solar_expected_gain_rollade_schlafzimmer
+        - sensor.solar_expected_gain_rollade_speisekammer
+        - sensor.solar_expected_gain_rollade_wohnzimmer_links
+        - sensor.solar_expected_gain_rollade_wohnzimmer_rechts
     - trigger: state
       entity_id:
         - cover.rollade_bad
@@ -95,48 +97,84 @@
           {% endfor %}
           {{ ns.count > 0 and ns.all }}
         cover_mapping:
-          cover.rollade_bad: bad
-          cover.rollade_buero_fabian: buero_fabian
-          cover.rollade_buero_merja: buero_merja
-          cover.rollade_hwr: hwr
-          cover.rollade_kueche_links: kueche
-          cover.rollade_kueche_rechts: kueche
-          cover.rollade_schlafzimmer: schlafzimmer
-          cover.rollade_speisekammer: speisekammer
-          cover.rollade_wohnzimmer_links: wohnzimmer
-          cover.rollade_wohnzimmer_rechts: wohnzimmer
-        open_covers: >-
-          {% set ns = namespace(open=[]) %}
-          {% if not all_overheated | bool and any_in_reach | bool %}
-            {% for cov, r in cover_mapping.items() %}
-              {% set gain_state = states('sensor.solar_expected_gain_' ~ r) %}
-              {% if gain_state not in ['unknown', 'unavailable', 'None', ''] and gain_state is not none %}
-                {% if gain_state | float > 50 and not is_state(cov, 'open') %}
-                  {% set ns.open = ns.open + [cov] %}
-                {% endif %}
+          cover.rollade_bad:
+            room: bad
+            gain_sensor: rollade_bad
+          cover.rollade_buero_fabian:
+            room: buero_fabian
+            gain_sensor: rollade_buero_fabian
+          cover.rollade_buero_merja:
+            room: buero_merja
+            gain_sensor: rollade_buero_merja
+          cover.rollade_hwr:
+            room: hwr
+            gain_sensor: rollade_hwr
+          cover.rollade_kueche_links:
+            room: kueche
+            gain_sensor: rollade_kueche_links
+          cover.rollade_kueche_rechts:
+            room: kueche
+            gain_sensor: rollade_kueche_rechts
+          cover.rollade_schlafzimmer:
+            room: schlafzimmer
+            gain_sensor: rollade_schlafzimmer
+          cover.rollade_speisekammer:
+            room: speisekammer
+            gain_sensor: rollade_speisekammer
+          cover.rollade_wohnzimmer_links:
+            room: wohnzimmer
+            gain_sensor: rollade_wohnzimmer_links
+          cover.rollade_wohnzimmer_rechts:
+            room: wohnzimmer
+            gain_sensor: rollade_wohnzimmer_rechts
+        cover_updates: >-
+          {% set ns = namespace(updates=[]) %}
+          {% set now_ts = as_timestamp(now()) %}
+          {% for cov, data in cover_mapping.items() %}
+            {% set r = data.room %}
+            {% set gain_suffix = data.gain_sensor %}
+            {% set gain_state = states('sensor.solar_expected_gain_' ~ gain_suffix) %}
+            {% set cur_temp_state = states('sensor.temperature_' ~ r ~ '_mean') %}
+            {% set tgt_temp_state = states('input_number.heating_base_' ~ r) %}
+            
+            {% set room_overheated = false %}
+            {% if cur_temp_state not in ['unknown', 'unavailable', 'None', ''] and tgt_temp_state not in ['unknown', 'unavailable', 'None', ''] and cur_temp_state is not none and tgt_temp_state is not none %}
+              {% if cur_temp_state | float - tgt_temp_state | float > 0.8 %}
+                {% set room_overheated = true %}
               {% endif %}
-            {% endfor %}
-          {% endif %}
-          {{ ns.open }}
-        close_covers: >-
-          {% set ns = namespace(close=[]) %}
-          {% for cov, r in cover_mapping.items() %}
-            {% set gain_state = states('sensor.solar_expected_gain_' ~ r) %}
-            {% set gain = gain_state | float(0) if (gain_state not in ['unknown', 'unavailable', 'None', ''] and gain_state is not none) else 0 %}
-            {% if (all_overheated | bool or not any_in_reach | bool or gain <= 50) and not is_state(cov, 'closed') %}
-              {% set ns.close = ns.close + [cov] %}
+            {% endif %}
+
+            {% if all_overheated | bool or not any_in_reach | bool or room_overheated %}
+              {% set target_pos = 0 %}
+            {% else %}
+              {% set gain = gain_state | float(0) if (gain_state not in ['unknown', 'unavailable', 'None', ''] and gain_state is not none) else 0 %}
+              {% if gain <= 0 %}
+                {% set target_pos = 0 %}
+              {% elif gain <= 50 %}
+                {% set target_pos = 100 %}
+              {% else %}
+                {% set target_pos = [ [ ((50.0 / gain) * 100) | round(0) | int, 100 ] | min, 0 ] | max %}
+              {% endif %}
+            {% endif %}
+
+            {% set cur_pos = state_attr(cov, 'current_position') %}
+            {% set cur_pos = (0 if is_state(cov, 'closed') else 100) if cur_pos is none or cur_pos == '' else cur_pos | int %}
+            {% set last_ch = as_timestamp(states[cov].last_changed) if (states[cov] is defined and states[cov] is not none and states[cov].last_changed is defined) else 0 %}
+            {% set last_ch = 0 if last_ch is none else last_ch | float(0) %}
+            {% set elapsed = now_ts - last_ch %}
+            {% if cur_pos != target_pos and elapsed >= 1800 %}
+              {% set ns.updates = ns.updates + [{'entity_id': cov, 'position': target_pos}] %}
             {% endif %}
           {% endfor %}
-          {{ ns.close }}
+          {{ ns.updates }}
     - choose:
-        - conditions: "{{ open_covers | length > 0 }}"
+        - conditions: "{{ cover_updates | length > 0 }}"
           sequence:
-            - action: cover.open_cover
-              target:
-                entity_id: "{{ open_covers }}"
-    - choose:
-        - conditions: "{{ close_covers | length > 0 }}"
-          sequence:
-            - action: cover.close_cover
-              target:
-                entity_id: "{{ close_covers }}"
+            - repeat:
+                for_each: "{{ cover_updates }}"
+                sequence:
+                  - action: cover.set_cover_position
+                    target:
+                      entity_id: "{{ repeat.item.entity_id }}"
+                    data:
+                      position: "{{ repeat.item.position }}"

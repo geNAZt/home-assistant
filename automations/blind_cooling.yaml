@@ -51,37 +51,33 @@
           cover.rollade_speisekammer: rollade_speisekammer
           cover.rollade_wohnzimmer_links: rollade_wohnzimmer_links
           cover.rollade_wohnzimmer_rechts: rollade_wohnzimmer_rechts
-        open_covers: >-
-          {% set ns = namespace(open=[]) %}
+        cover_updates: >-
+          {% set ns = namespace(updates=[]) %}
+          {% set now_ts = as_timestamp(now()) %}
           {% for cov, suffix in cover_mapping.items() %}
             {% set gain_state = states('sensor.solar_expected_gain_' ~ suffix) %}
             {% if gain_state not in ['unknown', 'unavailable', 'None', ''] and gain_state is not none %}
-              {% if gain_state | float <= 50 and not is_state(cov, 'open') %}
-                {% set ns.open = ns.open + [cov] %}
+              {% set p_exp = gain_state | float(0) %}
+              {% set target_pos = 100 if p_exp <= 50 else ([ [ ((50.0 / p_exp) * 100) | round(0) | int, 100 ] | min, 0 ] | max) %}
+              {% set cur_pos = state_attr(cov, 'current_position') %}
+              {% set cur_pos = (0 if is_state(cov, 'closed') else 100) if cur_pos is none or cur_pos == '' else cur_pos | int %}
+              {% set last_ch = as_timestamp(states[cov].last_changed) if (states[cov] is defined and states[cov] is not none and states[cov].last_changed is defined) else 0 %}
+              {% set last_ch = 0 if last_ch is none else last_ch | float(0) %}
+              {% set elapsed = now_ts - last_ch %}
+              {% if cur_pos != target_pos and elapsed >= 1800 %}
+                {% set ns.updates = ns.updates + [{'entity_id': cov, 'position': target_pos}] %}
               {% endif %}
             {% endif %}
           {% endfor %}
-          {{ ns.open }}
-        close_covers: >-
-          {% set ns = namespace(close=[]) %}
-          {% for cov, suffix in cover_mapping.items() %}
-            {% set gain_state = states('sensor.solar_expected_gain_' ~ suffix) %}
-            {% if gain_state not in ['unknown', 'unavailable', 'None', ''] and gain_state is not none %}
-              {% if gain_state | float > 50 and not is_state(cov, 'closed') %}
-                {% set ns.close = ns.close + [cov] %}
-              {% endif %}
-            {% endif %}
-          {% endfor %}
-          {{ ns.close }}
+          {{ ns.updates }}
     - choose:
-        - conditions: "{{ open_covers | length > 0 }}"
+        - conditions: "{{ cover_updates | length > 0 }}"
           sequence:
-            - action: cover.open_cover
-              target:
-                entity_id: "{{ open_covers }}"
-    - choose:
-        - conditions: "{{ close_covers | length > 0 }}"
-          sequence:
-            - action: cover.close_cover
-              target:
-                entity_id: "{{ close_covers }}"
+            - repeat:
+                for_each: "{{ cover_updates }}"
+                sequence:
+                  - action: cover.set_cover_position
+                    target:
+                      entity_id: "{{ repeat.item.entity_id }}"
+                    data:
+                      position: "{{ repeat.item.position }}"
