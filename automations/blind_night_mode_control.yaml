@@ -31,7 +31,7 @@
         entity_id: input_boolean.cover_night_mode
 
 - id: 'cover_night_mode_wakeup'
-  alias: "Rolladen: Nachtmodus Aufwachen (Erstes Licht + 15 min Verzögerung)"
+  alias: "Rolladen: Nachtmodus Aufwachen (Erstes Licht nach Sonnenaufgang + 15 min Verzögerung)"
   mode: restart
   triggers:
     - trigger: state
@@ -45,10 +45,29 @@
         - light.licht_speisekammer_virtuell
         - light.licht_wohnzimmer_virtuell
       to: "on"
+    - trigger: state
+      entity_id: sun.sun
+      to: "above_horizon"
   conditions:
     - condition: state
       entity_id: input_boolean.cover_night_mode
       state: "on"
+    - condition: state
+      entity_id: sun.sun
+      state: "above_horizon"
+    - condition: template
+      value_template: >-
+        {% set lights = [
+          'light.licht_bad_virtuell',
+          'light.licht_buero_fabian_virtuell',
+          'light.licht_buero_merja_virtuell',
+          'light.licht_flur_virtuell',
+          'light.licht_kueche_virtuell',
+          'light.licht_schlafzimmer_virtuell',
+          'light.licht_speisekammer_virtuell',
+          'light.licht_wohnzimmer_virtuell'
+        ] %}
+        {{ lights | select('is_state', 'on') | list | count > 0 }}
   actions:
     - delay: "00:15:00"
     - action: input_boolean.turn_off
