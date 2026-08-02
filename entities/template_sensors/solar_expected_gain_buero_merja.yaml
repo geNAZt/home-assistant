@@ -51,7 +51,7 @@ sensor:
 
     {{ ns.total | round(0) }}
 
-  - name: "Solar Expected Gain Rollade Buero Merja"
+- name: "Solar Expected Gain Rollade Buero Merja"
   unique_id: solar_expected_gain_rollade_buero_merja
   unit_of_measurement: 'W'
   device_class: power

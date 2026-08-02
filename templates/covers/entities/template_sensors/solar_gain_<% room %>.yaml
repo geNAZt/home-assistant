@@ -91,9 +91,9 @@ sensor:
 [[% set cov_id = window.cover.split('.')[1] %]]
 [[% set base_s_factor = 0.15 %]]
 [[% if window.shading %]]
-  [[% for shade in window.shading %]]
-    [[% if shade.factor %]] [[% set base_s_factor = shade.factor %]] [[% endif %]]
-  [[% endfor %]]
+[[% for shade in window.shading %]]
+[[% if shade.factor %]][[% set base_s_factor = shade.factor %]][[% endif %]]
+[[% endfor %]]
 [[% endif %]]
 - name: "Solar Gain [[ cov_id | replace('_', ' ') | title ]]"
   unique_id: solar_gain_[[ cov_id ]]
