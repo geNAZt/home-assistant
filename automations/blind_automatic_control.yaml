@@ -129,11 +129,23 @@
 
             {% set cur_pos = state_attr(cov, 'current_position') %}
             {% set cur_pos = (0 if is_state(cov, 'closed') else 100) if cur_pos is none or cur_pos == '' else cur_pos | int %}
-            {% set last_ch = as_timestamp(states[cov].last_changed) if (states[cov] is defined and states[cov] is not none and states[cov].last_changed is defined) else 0 %}
-            {% set last_ch = 0 if last_ch is none else last_ch | float(0) %}
-            {% set elapsed = now_ts - last_ch %}
 
-            {% if cur_pos != target_pos and (elapsed >= 1800 or (is_night and cur_pos != 0)) %}
+            {# 1. Human manual change cooldown (1 hour = 3600s) #}
+            {% set cov_suffix = cov.split('.')[1] %}
+            {% set manual_dt_state = states('input_datetime.cover_manual_change_' ~ cov_suffix) %}
+            {% set last_manual_ts = as_timestamp(manual_dt_state) if (manual_dt_state not in ['unknown', 'unavailable', 'None', ''] and manual_dt_state is not none) else 0 %}
+            {% set last_manual_ts = 0 if last_manual_ts is none else last_manual_ts | float(0) %}
+            {% set manual_elapsed = now_ts - last_manual_ts %}
+
+            {# 2. Automation change cooldown (30 minutes = 1800s) #}
+            {% set last_auto_ts = as_timestamp(states[cov].last_changed) if (states[cov] is defined and states[cov] is not none and states[cov].last_changed is defined) else 0 %}
+            {% set last_auto_ts = 0 if last_auto_ts is none else last_auto_ts | float(0) %}
+            {% set auto_elapsed = now_ts - last_auto_ts %}
+
+            {# Can update if 1 hour has passed since human change AND 30m passed since last automation change #}
+            {% set can_update = (manual_elapsed >= 3600) and (auto_elapsed >= 1800 or (is_night and cur_pos != 0)) %}
+
+            {% if cur_pos != target_pos and can_update %}
               {% set ns.updates = ns.updates + [{'entity_id': cov, 'position': target_pos}] %}
             {% endif %}
           {% endfor %}
