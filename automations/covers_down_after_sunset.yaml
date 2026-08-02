@@ -5,7 +5,20 @@
   - trigger: sun
     event: sunset
     offset: 00:30:00
-  conditions: []
+  - trigger: state
+    entity_id: input_select.cover_mode
+    to: "Automatic (Sundown)"
+  conditions:
+    - condition: state
+      entity_id: input_select.cover_mode
+      state: "Automatic (Sundown)"
+    - condition: or
+      conditions:
+        - condition: template
+          value_template: "{{ trigger.platform == 'sun' }}"
+        - condition: state
+          entity_id: sun.sun
+          state: "below_horizon"
   actions:
   - action: cover.close_cover
     metadata: {}

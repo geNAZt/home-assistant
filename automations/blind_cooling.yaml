@@ -1,0 +1,87 @@
+- id: 'cover_blind_cooling_control'
+  alias: "Automatic (Cool): Solar Gain Cover Control"
+  mode: restart
+  triggers:
+    - trigger: state
+      entity_id: input_select.cover_mode
+    - trigger: state
+      entity_id:
+        - sensor.solar_expected_gain_rollade_bad
+        - sensor.solar_expected_gain_rollade_buero_fabian
+        - sensor.solar_expected_gain_rollade_buero_merja
+        - sensor.solar_expected_gain_rollade_hwr
+        - sensor.solar_expected_gain_rollade_kueche_links
+        - sensor.solar_expected_gain_rollade_kueche_rechts
+        - sensor.solar_expected_gain_rollade_schlafzimmer
+        - sensor.solar_expected_gain_rollade_speisekammer
+        - sensor.solar_expected_gain_rollade_wohnzimmer_links
+        - sensor.solar_expected_gain_rollade_wohnzimmer_rechts
+    - trigger: state
+      entity_id:
+        - cover.rollade_bad
+        - cover.rollade_buero_fabian
+        - cover.rollade_buero_merja
+        - cover.rollade_hwr
+        - cover.rollade_kueche_links
+        - cover.rollade_kueche_rechts
+        - cover.rollade_schlafzimmer
+        - cover.rollade_speisekammer
+        - cover.rollade_wohnzimmer_links
+        - cover.rollade_wohnzimmer_rechts
+    - trigger: time_pattern
+      minutes: "/10"
+    - trigger: time
+      at: "00:00:05"
+    - trigger: homeassistant
+      event: start
+  conditions:
+    - condition: state
+      entity_id: input_select.cover_mode
+      state: "Automatic (Cool)"
+  actions:
+    - variables:
+        cover_mapping:
+          cover.rollade_bad: rollade_bad
+          cover.rollade_buero_fabian: rollade_buero_fabian
+          cover.rollade_buero_merja: rollade_buero_merja
+          cover.rollade_hwr: rollade_hwr
+          cover.rollade_kueche_links: rollade_kueche_links
+          cover.rollade_kueche_rechts: rollade_kueche_rechts
+          cover.rollade_schlafzimmer: rollade_schlafzimmer
+          cover.rollade_speisekammer: rollade_speisekammer
+          cover.rollade_wohnzimmer_links: rollade_wohnzimmer_links
+          cover.rollade_wohnzimmer_rechts: rollade_wohnzimmer_rechts
+        open_covers: >-
+          {% set ns = namespace(open=[]) %}
+          {% for cov, suffix in cover_mapping.items() %}
+            {% set gain_state = states('sensor.solar_expected_gain_' ~ suffix) %}
+            {% if gain_state not in ['unknown', 'unavailable', 'None', ''] and gain_state is not none %}
+              {% if gain_state | float <= 50 and not is_state(cov, 'open') %}
+                {% set ns.open = ns.open + [cov] %}
+              {% endif %}
+            {% endif %}
+          {% endfor %}
+          {{ ns.open }}
+        close_covers: >-
+          {% set ns = namespace(close=[]) %}
+          {% for cov, suffix in cover_mapping.items() %}
+            {% set gain_state = states('sensor.solar_expected_gain_' ~ suffix) %}
+            {% if gain_state not in ['unknown', 'unavailable', 'None', ''] and gain_state is not none %}
+              {% if gain_state | float > 50 and not is_state(cov, 'closed') %}
+                {% set ns.close = ns.close + [cov] %}
+              {% endif %}
+            {% endif %}
+          {% endfor %}
+          {{ ns.close }}
+    - choose:
+        - conditions: "{{ open_covers | length > 0 }}"
+          sequence:
+            - action: cover.open_cover
+              target:
+                entity_id: "{{ open_covers }}"
+    - choose:
+        - conditions: "{{ close_covers | length > 0 }}"
+          sequence:
+            - action: cover.close_cover
+              target:
+                entity_id: "{{ close_covers }}"

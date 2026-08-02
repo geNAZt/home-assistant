@@ -1,0 +1,142 @@
+- id: 'automatic_heat_solar_gain_cover_control'
+  alias: "Automatic (Heat): Solar Gain Cover Control"
+  mode: restart
+  triggers:
+    - trigger: state
+      entity_id: input_select.cover_mode
+    - trigger: state
+      entity_id:
+        - sensor.temperature_bad_mean
+        - sensor.temperature_buero_fabian_mean
+        - sensor.temperature_buero_merja_mean
+        - sensor.temperature_flur_mean
+        - sensor.temperature_kueche_mean
+        - sensor.temperature_schlafzimmer_mean
+        - sensor.temperature_speisekammer_mean
+        - sensor.temperature_wohnzimmer_mean
+    - trigger: state
+      entity_id:
+        - input_number.heating_base_bad
+        - input_number.heating_base_buero_fabian
+        - input_number.heating_base_buero_merja
+        - input_number.heating_base_flur
+        - input_number.heating_base_kueche
+        - input_number.heating_base_schlafzimmer
+        - input_number.heating_base_speisekammer
+        - input_number.heating_base_wohnzimmer
+    - trigger: state
+      entity_id:
+        - sensor.solar_expected_gain_bad
+        - sensor.solar_expected_gain_buero_fabian
+        - sensor.solar_expected_gain_buero_merja
+        - sensor.solar_expected_gain_hwr
+        - sensor.solar_expected_gain_kueche
+        - sensor.solar_expected_gain_schlafzimmer
+        - sensor.solar_expected_gain_speisekammer
+        - sensor.solar_expected_gain_wohnzimmer
+    - trigger: state
+      entity_id:
+        - cover.rollade_bad
+        - cover.rollade_buero_fabian
+        - cover.rollade_buero_merja
+        - cover.rollade_hwr
+        - cover.rollade_kueche_links
+        - cover.rollade_kueche_rechts
+        - cover.rollade_schlafzimmer
+        - cover.rollade_speisekammer
+        - cover.rollade_wohnzimmer_links
+        - cover.rollade_wohnzimmer_rechts
+    - trigger: time_pattern
+      minutes: "/10"
+    - trigger: time
+      at: "00:00:05"
+    - trigger: homeassistant
+      event: start
+  conditions:
+    - condition: state
+      entity_id: input_select.cover_mode
+      state: "Automatic (Heat)"
+  actions:
+    - variables:
+        temp_rooms:
+          - bad
+          - buero_fabian
+          - buero_merja
+          - flur
+          - kueche
+          - schlafzimmer
+          - speisekammer
+          - wohnzimmer
+        any_in_reach: >-
+          {% set ns = namespace(any=false) %}
+          {% for r in temp_rooms %}
+            {% set cur_state = states('sensor.temperature_' ~ r ~ '_mean') %}
+            {% set tgt_state = states('input_number.heating_base_' ~ r) %}
+            {% if cur_state not in ['unknown', 'unavailable', 'None', ''] and tgt_state not in ['unknown', 'unavailable', 'None', ''] and cur_state is not none and tgt_state is not none %}
+              {% if tgt_state | float - cur_state | float <= 0.5 %}
+                {% set ns.any = true %}
+              {% endif %}
+            {% endif %}
+          {% endfor %}
+          {{ ns.any }}
+        all_overheated: >-
+          {% set ns = namespace(all=true, count=0) %}
+          {% for r in temp_rooms %}
+            {% set cur_state = states('sensor.temperature_' ~ r ~ '_mean') %}
+            {% set tgt_state = states('input_number.heating_base_' ~ r) %}
+            {% if cur_state not in ['unknown', 'unavailable', 'None', ''] and tgt_state not in ['unknown', 'unavailable', 'None', ''] and cur_state is not none and tgt_state is not none %}
+              {% set cur = cur_state | float %}
+              {% set tgt = tgt_state | float %}
+              {% set ns.count = ns.count + 1 %}
+              {% if cur - tgt <= 0.8 %}
+                {% set ns.all = false %}
+              {% endif %}
+            {% endif %}
+          {% endfor %}
+          {{ ns.count > 0 and ns.all }}
+        cover_mapping:
+          cover.rollade_bad: bad
+          cover.rollade_buero_fabian: buero_fabian
+          cover.rollade_buero_merja: buero_merja
+          cover.rollade_hwr: hwr
+          cover.rollade_kueche_links: kueche
+          cover.rollade_kueche_rechts: kueche
+          cover.rollade_schlafzimmer: schlafzimmer
+          cover.rollade_speisekammer: speisekammer
+          cover.rollade_wohnzimmer_links: wohnzimmer
+          cover.rollade_wohnzimmer_rechts: wohnzimmer
+        open_covers: >-
+          {% set ns = namespace(open=[]) %}
+          {% if not all_overheated | bool and any_in_reach | bool %}
+            {% for cov, r in cover_mapping.items() %}
+              {% set gain_state = states('sensor.solar_expected_gain_' ~ r) %}
+              {% if gain_state not in ['unknown', 'unavailable', 'None', ''] and gain_state is not none %}
+                {% if gain_state | float > 50 and not is_state(cov, 'open') %}
+                  {% set ns.open = ns.open + [cov] %}
+                {% endif %}
+              {% endif %}
+            {% endfor %}
+          {% endif %}
+          {{ ns.open }}
+        close_covers: >-
+          {% set ns = namespace(close=[]) %}
+          {% for cov, r in cover_mapping.items() %}
+            {% set gain_state = states('sensor.solar_expected_gain_' ~ r) %}
+            {% set gain = gain_state | float(0) if (gain_state not in ['unknown', 'unavailable', 'None', ''] and gain_state is not none) else 0 %}
+            {% if (all_overheated | bool or not any_in_reach | bool or gain <= 50) and not is_state(cov, 'closed') %}
+              {% set ns.close = ns.close + [cov] %}
+            {% endif %}
+          {% endfor %}
+          {{ ns.close }}
+    - choose:
+        - conditions: "{{ open_covers | length > 0 }}"
+          sequence:
+            - action: cover.open_cover
+              target:
+                entity_id: "{{ open_covers }}"
+    - choose:
+        - conditions: "{{ close_covers | length > 0 }}"
+          sequence:
+            - action: cover.close_cover
+              target:
+                entity_id: "{{ close_covers }}"
