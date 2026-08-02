@@ -1,6 +1,7 @@
 name: Cover Mode
 options:
   - Manual
+  - Automatic
   - Automatic (Heat)
   - Automatic (Cool)
   - Automatic (Sundown)

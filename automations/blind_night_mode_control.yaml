@@ -1,0 +1,56 @@
+- id: 'cover_night_mode_start'
+  alias: "Rolladen: Nachtmodus Start (30 min nach Sonnenuntergang)"
+  mode: single
+  triggers:
+    - trigger: sun
+      event: sunset
+      offset: "00:30:00"
+    - trigger: time_pattern
+      minutes: "/10"
+    - trigger: homeassistant
+      event: start
+  conditions:
+    - condition: state
+      entity_id: sun.sun
+      state: "below_horizon"
+    - condition: template
+      value_template: >-
+        {% set sunset_ts = as_timestamp(state_attr('sun.sun', 'next_setting')) %}
+        {% set rising_ts = as_timestamp(state_attr('sun.sun', 'next_rising')) %}
+        {# When below_horizon, next_rising is in the future. Check if 30m elapsed after sunset #}
+        {% if sunset_ts is not none and rising_ts is not none and sunset_ts > rising_ts %}
+          {# Sunset occurred today (next_setting is tomorrow), check if now >= sunset + 30m #}
+          {% set prev_sunset = sunset_ts - 86400 %}
+          {{ as_timestamp(now()) >= (prev_sunset + 1800) }}
+        {% else %}
+          true
+        {% endif %}
+  actions:
+    - action: input_boolean.turn_on
+      target:
+        entity_id: input_boolean.cover_night_mode
+
+- id: 'cover_night_mode_wakeup'
+  alias: "Rolladen: Nachtmodus Aufwachen (Erstes Licht + 15 min Verzögerung)"
+  mode: restart
+  triggers:
+    - trigger: state
+      entity_id:
+        - light.licht_bad_virtuell
+        - light.licht_buero_fabian_virtuell
+        - light.licht_buero_merja_virtuell
+        - light.licht_flur_virtuell
+        - light.licht_kueche_virtuell
+        - light.licht_schlafzimmer_virtuell
+        - light.licht_speisekammer_virtuell
+        - light.licht_wohnzimmer_virtuell
+      to: "on"
+  conditions:
+    - condition: state
+      entity_id: input_boolean.cover_night_mode
+      state: "on"
+  actions:
+    - delay: "00:15:00"
+    - action: input_boolean.turn_off
+      target:
+        entity_id: input_boolean.cover_night_mode
