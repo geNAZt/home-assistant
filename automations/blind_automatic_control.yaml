@@ -7,6 +7,20 @@
     - trigger: state
       entity_id: input_boolean.cover_night_mode
     - trigger: state
+      entity_id: input_text.exempt_covers
+    - trigger: state
+      entity_id:
+        - input_boolean.auto_cover_rollade_bad
+        - input_boolean.auto_cover_rollade_buero_fabian
+        - input_boolean.auto_cover_rollade_buero_merja
+        - input_boolean.auto_cover_rollade_hwr
+        - input_boolean.auto_cover_rollade_kueche_links
+        - input_boolean.auto_cover_rollade_kueche_rechts
+        - input_boolean.auto_cover_rollade_schlafzimmer
+        - input_boolean.auto_cover_rollade_speisekammer
+        - input_boolean.auto_cover_rollade_wohnzimmer_links
+        - input_boolean.auto_cover_rollade_wohnzimmer_rechts
+    - trigger: state
       entity_id:
         - sensor.temperature_bad_mean
         - sensor.temperature_buero_fabian_mean
@@ -94,59 +108,68 @@
             gain_sensor: rollade_wohnzimmer_rechts
         cover_updates: >-
           {% set is_night = is_state('input_boolean.cover_night_mode', 'on') %}
+          {% set exempt_text = states('input_text.exempt_covers') | default('') %}
           {% set ns = namespace(updates=[]) %}
           {% set now_ts = as_timestamp(now()) %}
 
           {% for cov, data in cover_mapping.items() %}
-            {% set r = data.room %}
-            {% set gain_suffix = data.gain_sensor %}
-
-            {% if is_night %}
-              {% set target_pos = 0 %}
-            {% else %}
-              {% set gain_state = states('sensor.solar_expected_gain_' ~ gain_suffix) %}
-              {% set cur_temp_state = states('sensor.temperature_' ~ r ~ '_mean') %}
-              {% set tgt_temp_state = states('input_number.heating_base_' ~ r) %}
-              {% set p_exp = gain_state | float(0) if (gain_state not in ['unknown', 'unavailable', 'None', ''] and gain_state is not none) else 0 %}
-
-              {% set delta_t = 0 %}
-              {% if cur_temp_state not in ['unknown', 'unavailable', 'None', ''] and tgt_temp_state not in ['unknown', 'unavailable', 'None', ''] and cur_temp_state is not none and tgt_temp_state is not none %}
-                {% set delta_t = (cur_temp_state | float) - (tgt_temp_state | float) %}
-              {% endif %}
-
-              {# If room temp is > 1.0°C over target, limit solar heat input to max 50W #}
-              {% if delta_t > 1.0 %}
-                {% if p_exp <= 50 %}
-                  {% set target_pos = 100 %}
-                {% else %}
-                  {% set target_pos = [ [ ((50.0 / p_exp) * 100) | round(0) | int, 100 ] | min, 0 ] | max %}
-                {% endif %}
-              {% else %}
-                {# Default open cover (including when room target temp is not reached) #}
-                {% set target_pos = 100 %}
-              {% endif %}
-            {% endif %}
-
-            {% set cur_pos = state_attr(cov, 'current_position') %}
-            {% set cur_pos = (0 if is_state(cov, 'closed') else 100) if cur_pos is none or cur_pos == '' else cur_pos | int %}
-
-            {# 1. Human manual change cooldown (1 hour = 3600s) #}
             {% set cov_suffix = cov.split('.')[1] %}
-            {% set manual_dt_state = states('input_datetime.cover_manual_change_' ~ cov_suffix) %}
-            {% set last_manual_ts = as_timestamp(manual_dt_state) if (manual_dt_state not in ['unknown', 'unavailable', 'None', ''] and manual_dt_state is not none) else 0 %}
-            {% set last_manual_ts = 0 if last_manual_ts is none else last_manual_ts | float(0) %}
-            {% set manual_elapsed = now_ts - last_manual_ts %}
+            
+            {# Check runtime exemption: via input_text list or per-cover input_boolean #}
+            {% set is_exempt_text = cov in exempt_text or cov_suffix in exempt_text %}
+            {% set is_exempt_bool = is_state('input_boolean.auto_cover_' ~ cov_suffix, 'off') %}
+            {% set is_exempt = is_exempt_text or is_exempt_bool %}
 
-            {# 2. Automation change cooldown (30 minutes = 1800s) #}
-            {% set last_auto_ts = as_timestamp(states[cov].last_changed) if (states[cov] is defined and states[cov] is not none and states[cov].last_changed is defined) else 0 %}
-            {% set last_auto_ts = 0 if last_auto_ts is none else last_auto_ts | float(0) %}
-            {% set auto_elapsed = now_ts - last_auto_ts %}
+            {% if not is_exempt %}
+              {% set r = data.room %}
+              {% set gain_suffix = data.gain_sensor %}
 
-            {# Can update if 1 hour has passed since human change AND 30m passed since last automation change #}
-            {% set can_update = (manual_elapsed >= 3600) and (auto_elapsed >= 1800 or (is_night and cur_pos != 0)) %}
+              {% if is_night %}
+                {% set target_pos = 0 %}
+              {% else %}
+                {% set gain_state = states('sensor.solar_expected_gain_' ~ gain_suffix) %}
+                {% set cur_temp_state = states('sensor.temperature_' ~ r ~ '_mean') %}
+                {% set tgt_temp_state = states('input_number.heating_base_' ~ r) %}
+                {% set p_exp = gain_state | float(0) if (gain_state not in ['unknown', 'unavailable', 'None', ''] and gain_state is not none) else 0 %}
 
-            {% if cur_pos != target_pos and can_update %}
-              {% set ns.updates = ns.updates + [{'entity_id': cov, 'position': target_pos}] %}
+                {% set delta_t = 0 %}
+                {% if cur_temp_state not in ['unknown', 'unavailable', 'None', ''] and tgt_temp_state not in ['unknown', 'unavailable', 'None', ''] and cur_temp_state is not none and tgt_temp_state is not none %}
+                  {% set delta_t = (cur_temp_state | float) - (tgt_temp_state | float) %}
+                {% endif %}
+
+                {# If room temp is > 1.0°C over target, limit solar heat input to max 50W #}
+                {% if delta_t > 1.0 %}
+                  {% if p_exp <= 50 %}
+                    {% set target_pos = 100 %}
+                  {% else %}
+                    {% set target_pos = [ [ ((50.0 / p_exp) * 100) | round(0) | int, 100 ] | min, 0 ] | max %}
+                  {% endif %}
+                {% else %}
+                  {# Default open cover (including when room target temp is not reached) #}
+                  {% set target_pos = 100 %}
+                {% endif %}
+              {% endif %}
+
+              {% set cur_pos = state_attr(cov, 'current_position') %}
+              {% set cur_pos = (0 if is_state(cov, 'closed') else 100) if cur_pos is none or cur_pos == '' else cur_pos | int %}
+
+              {# 1. Human manual change cooldown (1 hour = 3600s) #}
+              {% set manual_dt_state = states('input_datetime.cover_manual_change_' ~ cov_suffix) %}
+              {% set last_manual_ts = as_timestamp(manual_dt_state) if (manual_dt_state not in ['unknown', 'unavailable', 'None', ''] and manual_dt_state is not none) else 0 %}
+              {% set last_manual_ts = 0 if last_manual_ts is none else last_manual_ts | float(0) %}
+              {% set manual_elapsed = now_ts - last_manual_ts %}
+
+              {# 2. Automation change cooldown (30 minutes = 1800s) #}
+              {% set last_auto_ts = as_timestamp(states[cov].last_changed) if (states[cov] is defined and states[cov] is not none and states[cov].last_changed is defined) else 0 %}
+              {% set last_auto_ts = 0 if last_auto_ts is none else last_auto_ts | float(0) %}
+              {% set auto_elapsed = now_ts - last_auto_ts %}
+
+              {# Can update if 1 hour has passed since human change AND 30m passed since last automation change #}
+              {% set can_update = (manual_elapsed >= 3600) and (auto_elapsed >= 1800 or (is_night and cur_pos != 0)) %}
+
+              {% if cur_pos != target_pos and can_update %}
+                {% set ns.updates = ns.updates + [{'entity_id': cov, 'position': target_pos}] %}
+              {% endif %}
             {% endif %}
           {% endfor %}
           {{ ns.updates }}
