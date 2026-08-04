@@ -29,6 +29,11 @@
     - action: input_boolean.turn_on
       target:
         entity_id: input_boolean.cover_night_mode
+    - action: system_log.write
+      data:
+        logger: automatic_cover_control
+        level: info
+        message: "[Cover Night Mode] Night mode activated (30 minutes after sunset reached)."
 
 - id: 'cover_night_mode_wakeup'
   alias: "Rolladen: Nachtmodus Aufwachen (Erstes Licht nach Sonnenaufgang + 15 min Verzögerung)"
@@ -69,7 +74,17 @@
         ] %}
         {{ lights | select('is_state', 'on') | list | count > 0 }}
   actions:
+    - action: system_log.write
+      data:
+        logger: automatic_cover_control
+        level: info
+        message: "[Cover Night Mode] Wake-up light detected after sunrise. Starting 15-minute wake-up delay."
     - delay: "00:15:00"
     - action: input_boolean.turn_off
       target:
         entity_id: input_boolean.cover_night_mode
+    - action: system_log.write
+      data:
+        logger: automatic_cover_control
+        level: info
+        message: "[Cover Night Mode] 15-minute wake-up delay completed. Night mode deactivated."

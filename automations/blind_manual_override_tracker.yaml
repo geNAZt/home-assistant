@@ -25,3 +25,8 @@
         entity_id: "{{ 'input_datetime.cover_manual_change_' ~ suffix }}"
       data:
         datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+    - action: system_log.write
+      data:
+        logger: automatic_cover_control
+        level: info
+        message: "[Cover Manual Override] Human manual operation detected on {{ trigger.entity_id }}. Initiating 1-hour manual cooldown."
