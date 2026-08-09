@@ -112,6 +112,12 @@
           {% set ns = namespace(evals=[]) %}
           {% set now_ts = as_timestamp(now()) %}
 
+          {% set global_dt_state = states('input_datetime.cover_last_global_move') %}
+          {% set last_global_ts = as_timestamp(global_dt_state) if (global_dt_state not in ['unknown', 'unavailable', 'None', ''] and global_dt_state is not none) else 0 %}
+          {% set last_global_ts = 0 if last_global_ts is none else last_global_ts | float(0) %}
+          {% set global_elapsed = (now_ts - last_global_ts) | int %}
+          {% set global_cooldown_active = global_elapsed < 1800 %}
+
           {% for cov, data in cover_mapping.items() %}
             {% set r = data.room %}
             {% set gain_suffix = data.gain_sensor %}
@@ -166,31 +172,18 @@
               {% endif %}
             {% endif %}
 
-            {# Cooldowns #}
-            {% set manual_dt_state = states('input_datetime.cover_manual_change_' ~ cov_suffix) %}
-            {% set last_manual_ts = as_timestamp(manual_dt_state) if (manual_dt_state not in ['unknown', 'unavailable', 'None', ''] and manual_dt_state is not none) else 0 %}
-            {% set last_manual_ts = 0 if last_manual_ts is none else last_manual_ts | float(0) %}
-            {% set manual_elapsed = (now_ts - last_manual_ts) | int %}
-            {% set manual_cooldown_active = manual_elapsed < 3600 %}
-
-            {% set last_auto_ts = as_timestamp(states[cov].last_changed) if (states[cov] is defined and states[cov] is not none and states[cov].last_changed is defined) else 0 %}
-            {% set last_auto_ts = 0 if last_auto_ts is none else last_auto_ts | float(0) %}
-            {% set auto_elapsed = (now_ts - last_auto_ts) | int %}
-            {% set auto_cooldown_active = auto_elapsed < 1800 %}
+            {% set pos_diff = (target_pos - cur_pos) | abs %}
 
             {# Status & Summary Determination #}
             {% if is_exempt %}
               {% set status = "SKIPPED_EXEMPT" %}
               {% set summary = "Skipped: " ~ exempt_reason %}
-            {% elif cur_pos == target_pos %}
-              {% set status = "SKIPPED_ALREADY_AT_TARGET" %}
-              {% set summary = "Skipped: Already at target position (" ~ cur_pos ~ "%). Reason: " ~ calc_reason %}
-            {% elif manual_cooldown_active %}
-              {% set status = "SKIPPED_MANUAL_COOLDOWN" %}
-              {% set summary = "Skipped: Human manual operation " ~ manual_elapsed ~ "s ago (< 3600s 1h cooldown). Target: " ~ target_pos ~ "%, Current: " ~ cur_pos ~ "%" %}
-            {% elif auto_cooldown_active and not (is_night and cur_pos != 0) %}
-              {% set status = "SKIPPED_AUTO_COOLDOWN" %}
-              {% set summary = "Skipped: Automation changed position " ~ auto_elapsed ~ "s ago (< 1800s 30m cooldown). Target: " ~ target_pos ~ "%, Current: " ~ cur_pos ~ "%" %}
+            {% elif pos_diff <= 5 %}
+              {% set status = "SKIPPED_DIFF_TOO_SMALL" if cur_pos != target_pos else "SKIPPED_ALREADY_AT_TARGET" %}
+              {% set summary = "Skipped: Position difference (" ~ pos_diff ~ "%) <= 5% (Current: " ~ cur_pos ~ "%, Target: " ~ target_pos ~ "%). Reason: " ~ calc_reason if cur_pos != target_pos else "Skipped: Already at target position (" ~ cur_pos ~ "%). Reason: " ~ calc_reason %}
+            {% elif global_cooldown_active and not (is_night and cur_pos != 0) %}
+              {% set status = "SKIPPED_GLOBAL_COOLDOWN" %}
+              {% set summary = "Skipped: Global cooldown active (" ~ global_elapsed ~ "s < 1800s 30m global cooldown). Target: " ~ target_pos ~ "%, Current: " ~ cur_pos ~ "%" %}
             {% else %}
               {% set status = "UPDATING_POSITION" %}
               {% set summary = "Updating position from " ~ cur_pos ~ "% to " ~ target_pos ~ "%. Reason: " ~ calc_reason %}
@@ -220,6 +213,11 @@
     - choose:
         - conditions: "{{ cover_updates | length > 0 }}"
           sequence:
+            - action: input_datetime.set_datetime
+              target:
+                entity_id: input_datetime.cover_last_global_move
+              data:
+                datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
             - repeat:
                 for_each: "{{ cover_updates }}"
                 sequence:
