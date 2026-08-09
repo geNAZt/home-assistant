@@ -86,7 +86,7 @@
             room: buero_merja
             gain_sensor: rollade_buero_merja
           cover.rollade_hwr:
-            room: hwr
+            room: flur
             gain_sensor: rollade_hwr
           cover.rollade_kueche_links:
             room: kueche

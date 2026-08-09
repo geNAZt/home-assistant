@@ -25,6 +25,10 @@ sensor:
         {% set net_w = states('sensor.heating_net_balance') | float(0) %}
         {% set c_wh_k = states('input_number.building_heat_capacity') | float(13.28) * 1000 %}
         {{ (net_w / c_wh_k) | round(4) if c_wh_k > 0 else 0.0 }}
+      estimated_bridge_autonomy_hours: >
+        {% set losses_w = (states('sensor.h_kw_per_k_effective') | float(0) * 1000 * states('sensor.deltaT') | float(0)) %}
+        {% set stored_wh = states('sensor.heating_energy_debt_tracker') | float(0) %}
+        {{ (stored_wh / losses_w) | round(1) if losses_w > 0 and stored_wh > 0 else 0.0 }}
       building_heat_capacity_kwh_k: "{{ states('input_number.building_heat_capacity') }}"
       mean_setpoint: >
         {% set setpoints = states.input_number
