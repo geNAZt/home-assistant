@@ -4,6 +4,12 @@ sensor:
   unit_of_measurement: 'W'
   device_class: power
   state_class: measurement
+  availability: >
+    {{ states('sensor.internal_gains_total') | is_number
+       and states('sensor.solar_gains') | is_number
+       and states('sensor.heating_power') | is_number
+       and states('sensor.h_kw_per_k_effective') | is_number
+       and states('sensor.deltaT') | is_number }}
   state: >
     {# GEWINNE (Positiv) #}
     {% set internal = states('sensor.internal_gains_total') | float(0) %}
@@ -17,3 +23,9 @@ sensor:
 
     {# Bilanz: Alles was reinwärmt MINUS was rausgeht #}
     {{ (internal + solar + heating - losses) | round(0) }}
+  attributes:
+    internal_gains_w: "{{ states('sensor.internal_gains_total') | float(0) | round(0) }}"
+    solar_gains_w: "{{ states('sensor.solar_gains') | float(0) | round(0) }}"
+    heating_power_w: "{{ states('sensor.heating_power') | float(0) | round(0) }}"
+    transmission_losses_w: "{{ (states('sensor.h_kw_per_k_effective') | float(0) * 1000 * states('sensor.deltaT') | float(0)) | round(0) }}"
+
