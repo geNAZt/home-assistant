@@ -4,8 +4,15 @@ sensor:
   device_class: power
   state_class: measurement
   state: >
-    {% set temp = states.sensor 
-      | selectattr('entity_id', 'search', '^sensor.heat_battery_discharge') | expand 
-      | selectattr('state', 'defined') | map(attribute='state') 
-      | map('float') | list | sum %}
+    {% set room_sensors = [
+      'sensor.heat_battery_discharge_power_bad',
+      'sensor.heat_battery_discharge_power_buero_fabian',
+      'sensor.heat_battery_discharge_power_buero_merja',
+      'sensor.heat_battery_discharge_power_flur',
+      'sensor.heat_battery_discharge_power_kueche',
+      'sensor.heat_battery_discharge_power_schlafzimmer',
+      'sensor.heat_battery_discharge_power_speisekammer',
+      'sensor.heat_battery_discharge_power_wohnzimmer'
+    ] %}
+    {% set temp = room_sensors | map('states') | map('float', 0) | sum %}
     {{ temp | round(2) }}

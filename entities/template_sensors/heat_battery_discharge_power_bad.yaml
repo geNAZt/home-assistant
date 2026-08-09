@@ -23,10 +23,5 @@ sensor:
       {# Nur positive Leistung (Entladen) berechnen #}
       {{ [0, (delta_t * area * ubergang_koeff)] | max | round(0) }}
     {% else %}
-      {% set prev = this.state %}
-      {% if prev not in ['unknown', 'unavailable', 'none', None, ''] %}
-        {{ prev }}
-      {% else %}
-        0
-      {% endif %}
+      0
     {% endif %}

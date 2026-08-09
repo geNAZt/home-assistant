@@ -29,7 +29,7 @@ sensor:
   attributes:
     solar_gains: "{{ states('sensor.solar_gains_average') }}"
     internal_gains: "{{ states('sensor.internal_gains_average') }}"
-    gains: "{{ ((states('sensor.solar_gains_average') | float(0)) + (states('sensor.internal_gains_average') | float(0))) * 16 }}"
+    gains: "{{ ((states('sensor.solar_gains_average') | float(0)) + (states('sensor.internal_gains_average') | float(0))) * 19 }}"
 - name: "Heating Preheat Offset Dynamic"
   unit_of_measurement: "K"
   availability: >

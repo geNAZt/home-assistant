@@ -9,8 +9,16 @@ sensor:
     device_class: power
     state_class: measurement
     state: >
-      {% set gains = states.sensor
-              | selectattr('entity_id', 'search', '^sensor.solar_gain_[A-Za-z_]+$')
-              | map(attribute='state') | map('float')
-              | sum %}
+      {% set room_sensors = [
+        'sensor.solar_gain_bad',
+        'sensor.solar_gain_buero_fabian',
+        'sensor.solar_gain_buero_merja',
+        'sensor.solar_gain_hwr',
+        'sensor.solar_gain_kueche',
+        'sensor.solar_gain_schlafzimmer',
+        'sensor.solar_gain_speisekammer',
+        'sensor.solar_gain_wohnzimmer'
+      ] %}
+      {% set gains = room_sensors | map('states') | map('float', 0) | sum %}
       {{ gains | round(0) }}
+

@@ -8,12 +8,7 @@
     - platform: state
       entity_id: sensor.inside_temp_mean_now
     - platform: time_pattern
-      minutes: "/1"
-
-  condition:
-    - condition: state
-      entity_id: input_boolean.debt_reset_on_setpoint_hit
-      state: "on"
+      minutes: "/5"
 
   action:
     - variables:
@@ -28,10 +23,12 @@
 
         # Prüfung auf Übereinstimmung mit 0.05K Toleranz
         is_at_setpoint: "{{ (current_temp - mean_setpoint) | abs <= 0.05 }}"
+        reset_requested: "{{ is_state('input_boolean.debt_reset_on_setpoint_hit', 'on') }}"
+        debt_not_zero: "{{ (states('sensor.heating_energy_debt_tracker') | float(0)) | abs > 10 }}"
 
     - if:
         - condition: template
-          value_template: "{{ is_at_setpoint }}"
+          value_template: "{{ is_at_setpoint and (reset_requested or debt_not_zero) }}"
       then:
         # 1. Das Konto mit dem Python-Script nullen
         - service: python_script.set_state
@@ -48,3 +45,4 @@
           data:
             title: "Heizungskonto kalibriert"
             message: "Das Konto wurde auf 0 Wh gesetzt (Soll: {{ mean_setpoint }}°C / Ist: {{ current_temp }}°C)."
+

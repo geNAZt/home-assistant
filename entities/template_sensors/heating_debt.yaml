@@ -7,22 +7,31 @@ sensor:
     unit_of_measurement: 'Wh'
     device_class: energy
     state: >
-      {# 1. Die physikalische Nettobilanz in Watt (Sonne + Heizung - Verluste) #}
-      {# WICHTIG: Die Formel im sensor.heating_net_balance muss wie unten beschrieben korrigiert sein! #}
-      {% set net_power = states('sensor.heating_net_balance') | float(0) %}
+      {% set c_wh_k = states('input_number.building_heat_capacity') | float(13.28) * 1000 %}
+      {% set t_in = states('sensor.inside_temp_mean_now') | float(none) %}
+      {% set setpoints = states.input_number
+          | selectattr('entity_id', 'match', 'input_number.heating_base_')
+          | map(attribute='state') | map('float') | list %}
+      {% set t_sp = (setpoints | sum / setpoints | count) if setpoints | count > 0 else none %}
       
-      {# 2. Zeitintervall: 30 Sekunden in Stunden umrechnen #}
-      {% set interval_hours = 30 / 3600 %}
-      
-      {# 3. Energieänderung in dieser Periode (Wh) #}
-      {% set delta_energy = net_power * interval_hours %}
-      
-      {# 4. Alten Kontostand holen und neuen berechnen #}
-      {% set previous_debt = states('sensor.heating_energy_debt_tracker') | float(0) %}
-      
-      {{ (previous_debt + delta_energy) | round(2) }}
+      {% if t_in is not none and t_sp is not none %}
+        {{ ((t_in - t_sp) * c_wh_k) | round(2) }}
+      {% else %}
+        0.0
+      {% endif %}
     attributes:
       current_net_w: "{{ states('sensor.heating_net_balance') }}"
+      expected_temp_change_deg_per_h: >
+        {% set net_w = states('sensor.heating_net_balance') | float(0) %}
+        {% set c_wh_k = states('input_number.building_heat_capacity') | float(13.28) * 1000 %}
+        {{ (net_w / c_wh_k) | round(4) if c_wh_k > 0 else 0.0 }}
+      building_heat_capacity_kwh_k: "{{ states('input_number.building_heat_capacity') }}"
+      mean_setpoint: >
+        {% set setpoints = states.input_number
+            | selectattr('entity_id', 'match', 'input_number.heating_base_')
+            | map(attribute='state') | map('float') | list %}
+        {{ (setpoints | sum / setpoints | count) | round(2) if setpoints | count > 0 else 0 }}
+      mean_inside_temp: "{{ states('sensor.inside_temp_mean_now') }}"
       status: >
         {% set net = states('sensor.heating_net_balance') | float(0) %}
         {% if net > 50 %}
