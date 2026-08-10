@@ -35,17 +35,8 @@
         {% endif %}
       {% else %}
         {# When discharging the battery to charge the car is allowed #}
-        {% if exported_power > 0 %}
-          {# PV surplus is available, add 5000W to the PV surplus #}
-          {% set surplus = exported_power + 5000 %}
-        {% else %}
-          {# ONLY the battery is over the threshold and NO PV surplus is available #}
-          {% set house_usage = (states('sensor.solar_house_consumption_w') | float(0)) - car_charge_power %}
-          {% set surplus = 5000 - house_usage %}
-        {% endif %}
-
-        {# The charger expects a positive value for import, negative for export #}
-        {{ surplus * -1 }}
+        {% set surplus = exported_power + battery_export_power + 5000 %}
+        {{ (surplus * -1) | round(0) }}
       {% endif %}
   action:
     - service: goecharger_api2.set_pv_data
