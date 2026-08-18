@@ -31,13 +31,15 @@ sensor:
       {% set s_factor = 0.15 + (1.0 - 0.15) * cloud %}
       
       {% set direct_factor = 1.0 %}
+      {% set diffuse_factor = 1.0 %}
+      {% set tan_prof = ((ele * 0.0174532925) | tan) / ([cos_factor, 0.05] | max) %}
 
       {% set sun_part = [pos, direct_factor]|min %}
       
       {# Gesamtleistung inkl. Direkt-, Diffus- und Bodenreflexionsanteil #}
       {% set direct_part_gain = sun_part * (1.0 - s_factor) * g_dir %}
-      {% set diffuse_part_gain = pos * s_factor * g_diff %}
-      {% set ground_ref_gain = 0.10 * pos * g_diff %}
+      {% set diffuse_part_gain = pos * s_factor * g_diff * diffuse_factor %}
+      {% set ground_ref_gain = 0.10 * pos * g_diff * diffuse_factor %}
       
       {% set total_gain_factor = cos_factor * (direct_part_gain + diffuse_part_gain) + ground_ref_gain %}
       {% set ns.total = ns.total + (0.24 * rad * total_gain_factor) %}
@@ -75,13 +77,15 @@ sensor:
       {% set s_factor = 0.15 + (1.0 - 0.15) * cloud %}
       
       {% set direct_factor = 1.0 %}
+      {% set diffuse_factor = 1.0 %}
+      {% set tan_prof = ((ele * 0.0174532925) | tan) / ([cos_factor, 0.05] | max) %}
 
       {% set sun_part = [pos, direct_factor]|min %}
       
       {# Gesamtleistung inkl. Direkt-, Diffus- und Bodenreflexionsanteil #}
       {% set direct_part_gain = sun_part * (1.0 - s_factor) * g_dir %}
-      {% set diffuse_part_gain = pos * s_factor * g_diff %}
-      {% set ground_ref_gain = 0.10 * pos * g_diff %}
+      {% set diffuse_part_gain = pos * s_factor * g_diff * diffuse_factor %}
+      {% set ground_ref_gain = 0.10 * pos * g_diff * diffuse_factor %}
       
       {% set total_gain_factor = cos_factor * (direct_part_gain + diffuse_part_gain) + ground_ref_gain %}
       {% set ns.total = ns.total + (0.24 * rad * total_gain_factor) %}

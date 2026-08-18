@@ -10,72 +10,34 @@
       entity_id: input_text.exempt_covers
     - trigger: state
       entity_id:
-        - input_boolean.auto_cover_rollade_buero_fabian
-        - input_boolean.auto_cover_rollade_wohnzimmer_links
-        - input_boolean.auto_cover_rollade_wohnzimmer_rechts
-        - input_boolean.auto_cover_rollade_kueche_rechts
-        - input_boolean.auto_cover_rollade_kueche_links
-        - input_boolean.auto_cover_rollade_speisekammer
-        - input_boolean.auto_cover_rollade_hwr
-        - input_boolean.auto_cover_rollade_bad
-        - input_boolean.auto_cover_rollade_schlafzimmer
-        - input_boolean.auto_cover_rollade_buero_merja
+[[% for entry in cover_entries %]]
+        - input_boolean.auto_cover_[[ entry.cov_suffix ]]
+[[% endfor %]]
     - trigger: state
       entity_id:
-        - sensor.temperature_buero_fabian_mean
-        - sensor.temperature_wohnzimmer_mean
-        - sensor.temperature_kueche_mean
-        - sensor.temperature_speisekammer_mean
-        - sensor.temperature_flur_mean
-        - sensor.temperature_bad_mean
-        - sensor.temperature_schlafzimmer_mean
-        - sensor.temperature_buero_merja_mean
+[[% for r in temp_rooms %]]
+        - sensor.temperature_[[ r ]]_mean
+[[% endfor %]]
     - trigger: state
       entity_id:
-        - input_number.heating_base_buero_fabian
-        - input_number.heating_base_wohnzimmer
-        - input_number.heating_base_kueche
-        - input_number.heating_base_speisekammer
-        - input_number.heating_base_flur
-        - input_number.heating_base_bad
-        - input_number.heating_base_schlafzimmer
-        - input_number.heating_base_buero_merja
+[[% for r in temp_rooms %]]
+        - input_number.heating_base_[[ r ]]
+[[% endfor %]]
     - trigger: state
       entity_id:
-        - sensor.solar_expected_gain_rollade_buero_fabian
-        - sensor.solar_expected_gain_rollade_wohnzimmer_links
-        - sensor.solar_expected_gain_rollade_wohnzimmer_rechts
-        - sensor.solar_expected_gain_rollade_kueche_rechts
-        - sensor.solar_expected_gain_rollade_kueche_links
-        - sensor.solar_expected_gain_rollade_speisekammer
-        - sensor.solar_expected_gain_rollade_hwr
-        - sensor.solar_expected_gain_rollade_bad
-        - sensor.solar_expected_gain_rollade_schlafzimmer
-        - sensor.solar_expected_gain_rollade_buero_merja
+[[% for entry in cover_entries %]]
+        - sensor.solar_expected_gain_[[ entry.cov_suffix ]]
+[[% endfor %]]
     - trigger: state
       entity_id:
-        - cover.rollade_buero_fabian
-        - cover.rollade_wohnzimmer_links
-        - cover.rollade_wohnzimmer_rechts
-        - cover.rollade_kueche_rechts
-        - cover.rollade_kueche_links
-        - cover.rollade_speisekammer
-        - cover.rollade_hwr
-        - cover.rollade_bad
-        - cover.rollade_schlafzimmer
-        - cover.rollade_buero_merja
+[[% for entry in cover_entries %]]
+        - [[ entry.cover ]]
+[[% endfor %]]
     - trigger: state
       entity_id:
-        - input_datetime.cover_manual_change_rollade_buero_fabian
-        - input_datetime.cover_manual_change_rollade_wohnzimmer_links
-        - input_datetime.cover_manual_change_rollade_wohnzimmer_rechts
-        - input_datetime.cover_manual_change_rollade_kueche_rechts
-        - input_datetime.cover_manual_change_rollade_kueche_links
-        - input_datetime.cover_manual_change_rollade_speisekammer
-        - input_datetime.cover_manual_change_rollade_hwr
-        - input_datetime.cover_manual_change_rollade_bad
-        - input_datetime.cover_manual_change_rollade_schlafzimmer
-        - input_datetime.cover_manual_change_rollade_buero_merja
+[[% for entry in cover_entries %]]
+        - input_datetime.cover_manual_change_[[ entry.cov_suffix ]]
+[[% endfor %]]
     - trigger: time_pattern
       minutes: "/10"
     - trigger: time
@@ -88,46 +50,12 @@
   actions:
     - variables:
         cover_mapping:
-          cover.rollade_buero_fabian:
-            room: buero_fabian
-            gain_sensor: rollade_buero_fabian
-            watt_limit: 80.0
-          cover.rollade_wohnzimmer_links:
-            room: wohnzimmer
-            gain_sensor: rollade_wohnzimmer_links
-            watt_limit: 138.6
-          cover.rollade_wohnzimmer_rechts:
-            room: wohnzimmer
-            gain_sensor: rollade_wohnzimmer_rechts
-            watt_limit: 138.6
-          cover.rollade_kueche_rechts:
-            room: kueche
-            gain_sensor: rollade_kueche_rechts
-            watt_limit: 145.5
-          cover.rollade_kueche_links:
-            room: kueche
-            gain_sensor: rollade_kueche_links
-            watt_limit: 160.93
-          cover.rollade_speisekammer:
-            room: speisekammer
-            gain_sensor: rollade_speisekammer
-            watt_limit: 12.0
-          cover.rollade_hwr:
-            room: flur
-            gain_sensor: rollade_hwr
-            watt_limit: 12.0
-          cover.rollade_bad:
-            room: bad
-            gain_sensor: rollade_bad
-            watt_limit: 45.51
-          cover.rollade_schlafzimmer:
-            room: schlafzimmer
-            gain_sensor: rollade_schlafzimmer
-            watt_limit: 77.0
-          cover.rollade_buero_merja:
-            room: buero_merja
-            gain_sensor: rollade_buero_merja
-            watt_limit: 160.93
+[[% for entry in cover_entries %]]
+          [[ entry.cover ]]:
+            room: [[ entry.room ]]
+            gain_sensor: [[ entry.cov_suffix ]]
+            watt_limit: [[ entry.watt_limit ]]
+[[% endfor %]]
         cover_evaluations: >-
           {% set is_night = is_state('input_boolean.cover_night_mode', 'on') %}
           {% set exempt_text = states('input_text.exempt_covers') | default('') %}

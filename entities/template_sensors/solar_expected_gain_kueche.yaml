@@ -31,19 +31,23 @@ sensor:
       {% set s_factor = 0.15 + (1.0 - 0.15) * cloud %}
       
       {% set direct_factor = 1.0 %}
-          {# Hier nutzen wir ebenfalls die manuelle Umrechnung und den tan-Filter #}
-          {% set shadow_h = 2.9 - (4.5 * ((ele * 0.0174532925) | tan)) %}
+      {% set diffuse_factor = 1.0 %}
+      {% set tan_prof = ((ele * 0.0174532925) | tan) / ([cos_factor, 0.05] | max) %}
+          {# Continuous overhang shading from top (e.g. Vordach / roof) #}
+          {% set shadow_h = 2.9 - (4.5 * tan_prof) %}
           {% set win_top = 1.94 %}
           {% set win_bottom = 0.0 %}
           {% set sun_h = [0, [shadow_h, win_top]|min - win_bottom]|max %}
-          {% set direct_factor = [direct_factor, sun_h / 1.94] | min %}
+          {% set df_top = sun_h / 1.94 %}
+          {% set direct_factor = [direct_factor, df_top] | min %}
+          {% set diffuse_factor = [diffuse_factor, 0.3 + 0.7 * df_top] | min %}
 
       {% set sun_part = [pos, direct_factor]|min %}
       
       {# Gesamtleistung inkl. Direkt-, Diffus- und Bodenreflexionsanteil #}
       {% set direct_part_gain = sun_part * (1.0 - s_factor) * g_dir %}
-      {% set diffuse_part_gain = pos * s_factor * g_diff %}
-      {% set ground_ref_gain = 0.10 * pos * g_diff %}
+      {% set diffuse_part_gain = pos * s_factor * g_diff * diffuse_factor %}
+      {% set ground_ref_gain = 0.10 * pos * g_diff * diffuse_factor %}
       
       {% set total_gain_factor = cos_factor * (direct_part_gain + diffuse_part_gain) + ground_ref_gain %}
       {% set ns.total = ns.total + (2.91 * rad * total_gain_factor) %}
@@ -69,8 +73,10 @@ sensor:
       {% set s_factor = 0.15 + (1.0 - 0.15) * cloud %}
       
       {% set direct_factor = 1.0 %}
-          {# Hier berechnen wir die kontinuierliche Verschattung von unten #}
-          {% set shadow_h = 5.0 - (4.2 * ((ele * 0.0174532925) | tan)) %}
+      {% set diffuse_factor = 1.0 %}
+      {% set tan_prof = ((ele * 0.0174532925) | tan) / ([cos_factor, 0.05] | max) %}
+          {# Continuous shading from bottom #}
+          {% set shadow_h = 5.0 - (4.2 * tan_prof) %}
           {% set win_top = 2.09 %}
           {% set win_bottom = 0.0 %}
           {% set sun_h = [0, win_top - [win_bottom, shadow_h]|max]|max %}
@@ -80,8 +86,8 @@ sensor:
       
       {# Gesamtleistung inkl. Direkt-, Diffus- und Bodenreflexionsanteil #}
       {% set direct_part_gain = sun_part * (1.0 - s_factor) * g_dir %}
-      {% set diffuse_part_gain = pos * s_factor * g_diff %}
-      {% set ground_ref_gain = 0.10 * pos * g_diff %}
+      {% set diffuse_part_gain = pos * s_factor * g_diff * diffuse_factor %}
+      {% set ground_ref_gain = 0.10 * pos * g_diff * diffuse_factor %}
       
       {% set total_gain_factor = cos_factor * (direct_part_gain + diffuse_part_gain) + ground_ref_gain %}
       {% set ns.total = ns.total + (3.2186 * rad * total_gain_factor) %}
@@ -119,19 +125,23 @@ sensor:
       {% set s_factor = 0.15 + (1.0 - 0.15) * cloud %}
       
       {% set direct_factor = 1.0 %}
-          {# Hier nutzen wir ebenfalls die manuelle Umrechnung und den tan-Filter #}
-          {% set shadow_h = 2.9 - (4.5 * ((ele * 0.0174532925) | tan)) %}
+      {% set diffuse_factor = 1.0 %}
+      {% set tan_prof = ((ele * 0.0174532925) | tan) / ([cos_factor, 0.05] | max) %}
+          {# Continuous overhang shading from top (e.g. Vordach / roof) #}
+          {% set shadow_h = 2.9 - (4.5 * tan_prof) %}
           {% set win_top = 1.94 %}
           {% set win_bottom = 0.0 %}
           {% set sun_h = [0, [shadow_h, win_top]|min - win_bottom]|max %}
-          {% set direct_factor = [direct_factor, sun_h / 1.94] | min %}
+          {% set df_top = sun_h / 1.94 %}
+          {% set direct_factor = [direct_factor, df_top] | min %}
+          {% set diffuse_factor = [diffuse_factor, 0.3 + 0.7 * df_top] | min %}
 
       {% set sun_part = [pos, direct_factor]|min %}
       
       {# Gesamtleistung inkl. Direkt-, Diffus- und Bodenreflexionsanteil #}
       {% set direct_part_gain = sun_part * (1.0 - s_factor) * g_dir %}
-      {% set diffuse_part_gain = pos * s_factor * g_diff %}
-      {% set ground_ref_gain = 0.10 * pos * g_diff %}
+      {% set diffuse_part_gain = pos * s_factor * g_diff * diffuse_factor %}
+      {% set ground_ref_gain = 0.10 * pos * g_diff * diffuse_factor %}
       
       {% set total_gain_factor = cos_factor * (direct_part_gain + diffuse_part_gain) + ground_ref_gain %}
       {% set ns.total = ns.total + (2.91 * rad * total_gain_factor) %}
@@ -168,8 +178,10 @@ sensor:
       {% set s_factor = 0.15 + (1.0 - 0.15) * cloud %}
       
       {% set direct_factor = 1.0 %}
-          {# Hier berechnen wir die kontinuierliche Verschattung von unten #}
-          {% set shadow_h = 5.0 - (4.2 * ((ele * 0.0174532925) | tan)) %}
+      {% set diffuse_factor = 1.0 %}
+      {% set tan_prof = ((ele * 0.0174532925) | tan) / ([cos_factor, 0.05] | max) %}
+          {# Continuous shading from bottom #}
+          {% set shadow_h = 5.0 - (4.2 * tan_prof) %}
           {% set win_top = 2.09 %}
           {% set win_bottom = 0.0 %}
           {% set sun_h = [0, win_top - [win_bottom, shadow_h]|max]|max %}
@@ -179,8 +191,8 @@ sensor:
       
       {# Gesamtleistung inkl. Direkt-, Diffus- und Bodenreflexionsanteil #}
       {% set direct_part_gain = sun_part * (1.0 - s_factor) * g_dir %}
-      {% set diffuse_part_gain = pos * s_factor * g_diff %}
-      {% set ground_ref_gain = 0.10 * pos * g_diff %}
+      {% set diffuse_part_gain = pos * s_factor * g_diff * diffuse_factor %}
+      {% set ground_ref_gain = 0.10 * pos * g_diff * diffuse_factor %}
       
       {% set total_gain_factor = cos_factor * (direct_part_gain + diffuse_part_gain) + ground_ref_gain %}
       {% set ns.total = ns.total + (3.2186 * rad * total_gain_factor) %}

@@ -97,6 +97,7 @@
       u: 0.7
       cover: cover.rollade_speisekammer
 - room: hwr
+  temp_room: flur
   windows:
     - position:
         bottom: 1.35

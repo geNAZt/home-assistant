@@ -61,12 +61,26 @@ def load_values(values_path: Path) -> List[Dict]:
     """Load values.yaml and return as list of dictionaries.
     
     Uses proper YAML parsing to handle the format.
+    Calculates window glass area and wattage limit (50W/m2) for cover templates.
     """
     with open(values_path, 'r', encoding='utf-8') as f:
         data = yaml.safe_load(f)
     
     if not data:
         return []
+    
+    for item in data:
+        if isinstance(item, dict) and 'windows' in item:
+            for window in item['windows']:
+                if isinstance(window, dict) and 'area' in window:
+                    height = window['area'].get('height', 0)
+                    width = window['area'].get('width', 0)
+                    area_m2 = height * width
+                    # Calculate wattage limit per window at 50 W / m² of glass
+                    limit_w = round(area_m2 * 50.0, 2)
+                    window['wattage_limit'] = limit_w
+                    window['watt_limit'] = limit_w
+                    window['glass_area'] = round(area_m2, 4)
     
     return data
 
@@ -156,6 +170,31 @@ def process_template_folder(template_folder: Path, output_base: Path):
     print(f"\nProcessing template folder: {template_folder.name}")
     print(f"Found {len(values)} room items")
     
+    # Helper structures for global templates
+    temp_rooms = []
+    cover_entries = []
+    covers = []
+    for item in values:
+        if isinstance(item, dict):
+            r = item.get('temp_room', item.get('room'))
+            if r and r not in temp_rooms:
+                temp_rooms.append(r)
+            if 'windows' in item:
+                for window in item['windows']:
+                    if isinstance(window, dict) and 'cover' in window:
+                        cov = window['cover']
+                        cov_suffix = cov.split('.')[1] if '.' in cov else cov
+                        if cov not in covers:
+                            covers.append(cov)
+                        cover_entries.append({
+                            'cover': cov,
+                            'cov_suffix': cov_suffix,
+                            'room': r,
+                            'watt_limit': window.get('watt_limit', 50.0),
+                            'wattage_limit': window.get('wattage_limit', 50.0),
+                            'glass_area': window.get('glass_area', 1.0),
+                        })
+
     # Find all YAML files (excluding values.yaml)
     yaml_files = []
     for root, dirs, files in os.walk(template_folder):
@@ -163,16 +202,44 @@ def process_template_folder(template_folder: Path, output_base: Path):
             if file.endswith('.yaml') and file != 'values.yaml':
                 yaml_files.append(Path(root) / file)
     
-    # Process each room
+    per_item_files = []
+    global_files = []
+    
+    for template_file in yaml_files:
+        relative_path = template_file.relative_to(template_folder)
+        if '<%' in relative_path.name or '<%' in str(relative_path):
+            per_item_files.append(template_file)
+        else:
+            global_files.append(template_file)
+    
+    # Process per-item template files
     for item in values:
-        print(f"\n  Processing item: {item}")
-        
-        # Create Mustache context
-        context = item
-        
-        # Process each template file
-        for template_file in yaml_files:
+        print(f"\n  Processing item: {item.get('room', item)}")
+        context = {
+            **item,
+            'rooms': values,
+            'items': values,
+            'values': values,
+            'temp_rooms': temp_rooms,
+            'cover_entries': cover_entries,
+            'covers': covers,
+        }
+        for template_file in per_item_files:
             process_template_file(template_file, output_base, context, template_folder)
+
+    # Process global template files (once with full context)
+    if global_files:
+        print(f"\n  Processing {len(global_files)} global template file(s)")
+        global_context = {
+            'rooms': values,
+            'items': values,
+            'values': values,
+            'temp_rooms': temp_rooms,
+            'cover_entries': cover_entries,
+            'covers': covers,
+        }
+        for template_file in global_files:
+            process_template_file(template_file, output_base, global_context, template_folder)
 
 
 def main():

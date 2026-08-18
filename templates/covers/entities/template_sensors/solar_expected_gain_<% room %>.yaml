@@ -41,22 +41,26 @@ sensor:
       {% set s_factor = [[ base_s_factor ]] + (1.0 - [[ base_s_factor ]]) * cloud %}
       
       {% set direct_factor = 1.0 %}
+      {% set diffuse_factor = 1.0 %}
+      {% set tan_prof = ((ele * 0.0174532925) | tan) / ([cos_factor, 0.05] | max) %}
       [[% if window.shading %]]
       [[% for shade in window.shading %]]
         [[% if shade.direction == 'bottom' %]]
-          {# Hier berechnen wir die kontinuierliche Verschattung von unten #}
-          {% set shadow_h = [[ shade.height ]] - ([[ shade.distance ]] * ((ele * 0.0174532925) | tan)) %}
+          {# Continuous shading from bottom #}
+          {% set shadow_h = [[ shade.height ]] - ([[ shade.distance ]] * tan_prof) %}
           {% set win_top = [[ window.position.bottom + window.area.height ]] %}
           {% set win_bottom = [[ window.position.bottom ]] %}
           {% set sun_h = [0, win_top - [win_bottom, shadow_h]|max]|max %}
           {% set direct_factor = [direct_factor, sun_h / [[ window.area.height ]]] | min %}
         [[% elif shade.direction == 'top' %]]
-          {# Hier nutzen wir ebenfalls die manuelle Umrechnung und den tan-Filter #}
-          {% set shadow_h = [[ shade.height ]] - ([[ shade.distance ]] * ((ele * 0.0174532925) | tan)) %}
+          {# Continuous overhang shading from top (e.g. Vordach / roof) #}
+          {% set shadow_h = [[ shade.height ]] - ([[ shade.distance ]] * tan_prof) %}
           {% set win_top = [[ window.position.bottom + window.area.height ]] %}
           {% set win_bottom = [[ window.position.bottom ]] %}
           {% set sun_h = [0, [shadow_h, win_top]|min - win_bottom]|max %}
-          {% set direct_factor = [direct_factor, sun_h / [[ window.area.height ]]] | min %}
+          {% set df_top = sun_h / [[ window.area.height ]] %}
+          {% set direct_factor = [direct_factor, df_top] | min %}
+          {% set diffuse_factor = [diffuse_factor, 0.3 + 0.7 * df_top] | min %}
         [[% elif shade.direction == 'left' %]]
           {% if rel_azi < 0 %}
             {% set shadow_w = [[ shade.distance ]] * ((-rel_azi * 0.0174532925) | tan) %}
@@ -75,8 +79,8 @@ sensor:
       
       {# Gesamtleistung inkl. Direkt-, Diffus- und Bodenreflexionsanteil #}
       {% set direct_part_gain = sun_part * (1.0 - s_factor) * g_dir %}
-      {% set diffuse_part_gain = pos * s_factor * g_diff %}
-      {% set ground_ref_gain = 0.10 * pos * g_diff %}
+      {% set diffuse_part_gain = pos * s_factor * g_diff * diffuse_factor %}
+      {% set ground_ref_gain = 0.10 * pos * g_diff * diffuse_factor %}
       
       {% set total_gain_factor = cos_factor * (direct_part_gain + diffuse_part_gain) + ground_ref_gain %}
       {% set ns.total = ns.total + ([[ w_area ]] * rad * total_gain_factor) %}
@@ -126,22 +130,26 @@ sensor:
       {% set s_factor = [[ base_s_factor ]] + (1.0 - [[ base_s_factor ]]) * cloud %}
       
       {% set direct_factor = 1.0 %}
+      {% set diffuse_factor = 1.0 %}
+      {% set tan_prof = ((ele * 0.0174532925) | tan) / ([cos_factor, 0.05] | max) %}
       [[% if window.shading %]]
       [[% for shade in window.shading %]]
         [[% if shade.direction == 'bottom' %]]
-          {# Hier berechnen wir die kontinuierliche Verschattung von unten #}
-          {% set shadow_h = [[ shade.height ]] - ([[ shade.distance ]] * ((ele * 0.0174532925) | tan)) %}
+          {# Continuous shading from bottom #}
+          {% set shadow_h = [[ shade.height ]] - ([[ shade.distance ]] * tan_prof) %}
           {% set win_top = [[ window.position.bottom + window.area.height ]] %}
           {% set win_bottom = [[ window.position.bottom ]] %}
           {% set sun_h = [0, win_top - [win_bottom, shadow_h]|max]|max %}
           {% set direct_factor = [direct_factor, sun_h / [[ window.area.height ]]] | min %}
         [[% elif shade.direction == 'top' %]]
-          {# Hier nutzen wir ebenfalls die manuelle Umrechnung und den tan-Filter #}
-          {% set shadow_h = [[ shade.height ]] - ([[ shade.distance ]] * ((ele * 0.0174532925) | tan)) %}
+          {# Continuous overhang shading from top (e.g. Vordach / roof) #}
+          {% set shadow_h = [[ shade.height ]] - ([[ shade.distance ]] * tan_prof) %}
           {% set win_top = [[ window.position.bottom + window.area.height ]] %}
           {% set win_bottom = [[ window.position.bottom ]] %}
           {% set sun_h = [0, [shadow_h, win_top]|min - win_bottom]|max %}
-          {% set direct_factor = [direct_factor, sun_h / [[ window.area.height ]]] | min %}
+          {% set df_top = sun_h / [[ window.area.height ]] %}
+          {% set direct_factor = [direct_factor, df_top] | min %}
+          {% set diffuse_factor = [diffuse_factor, 0.3 + 0.7 * df_top] | min %}
         [[% elif shade.direction == 'left' %]]
           {% if rel_azi < 0 %}
             {% set shadow_w = [[ shade.distance ]] * ((-rel_azi * 0.0174532925) | tan) %}
@@ -160,8 +168,8 @@ sensor:
       
       {# Gesamtleistung inkl. Direkt-, Diffus- und Bodenreflexionsanteil #}
       {% set direct_part_gain = sun_part * (1.0 - s_factor) * g_dir %}
-      {% set diffuse_part_gain = pos * s_factor * g_diff %}
-      {% set ground_ref_gain = 0.10 * pos * g_diff %}
+      {% set diffuse_part_gain = pos * s_factor * g_diff * diffuse_factor %}
+      {% set ground_ref_gain = 0.10 * pos * g_diff * diffuse_factor %}
       
       {% set total_gain_factor = cos_factor * (direct_part_gain + diffuse_part_gain) + ground_ref_gain %}
       {% set ns.total = ns.total + ([[ w_area ]] * rad * total_gain_factor) %}
