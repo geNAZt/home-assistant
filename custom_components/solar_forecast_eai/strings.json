@@ -13,7 +13,7 @@
       },
       "features": {
         "title": "EAI Premium functions",
-        "description": "One EAI Premium license enables every function. Select only the equipment and data sources available in this home.",
+        "description": "One EAI Premium license enables every function. Select only the equipment and data sources available in this home. STATS energy corrections are enabled automatically with a valid Premium Full Package license and do not require a separate switch.",
         "data": {
           "heat_pump_enabled": "Use heat-pump intelligence",
           "wallbox_enabled": "Use e-mobility intelligence",
@@ -193,7 +193,7 @@
       },
       "weather_intelligence": {
         "title": "Weather intelligence",
-        "description": "Requires Solar Forecast ML with a local weather station, SFML STATS and Weather Fusion AI. Live values and Recorder history come automatically from the station configured in SFML; forecasts come only from WFAI.",
+        "description": "Uses bundled local weather-station data automatically for live values and Recorder history. Forecasts come from Weather Fusion AI.",
         "data": {
           "weather_fusion_entry_id": "Weather Fusion AI location",
           "weather_history_days": "Evaluation retention (days)"
@@ -290,10 +290,6 @@
       "license_missing_entitlement": "The EAI entitlement is missing.",
       "license_validation_error": "The license could not be validated safely.",
       "feature_required": "Select at least one Premium function.",
-      "sfml_required": "Install and configure Solar Forecast ML before enabling weather intelligence.",
-      "stats_required": "Install and configure SFML STATS before enabling weather intelligence.",
-      "weather_station_required": "Configure a local weather station in Solar Forecast ML with at least temperature and one additional weather sensor.",
-      "weather_station_ambiguous": "Weather intelligence found multiple Solar Forecast ML stations. Keep exactly one SFML configuration active.",
       "weather_fusion_required": "Install and configure Weather Fusion AI before enabling weather intelligence.",
       "validation_required": "Correct the missing or duplicate sensor assignments.",
       "invalid_heat_pump_values": "Enter finite numeric values: heating output from 1 to 100 kW and COP from 1 to 10.",
@@ -325,7 +321,7 @@
       },
       "features": {
         "title": "EAI Premium functions",
-        "description": "Every function is included in the same license. Enable the areas available in this home.",
+        "description": "Every function is included in the same license. Enable the areas available in this home. STATS energy corrections are enabled automatically with a valid Premium Full Package license and do not require a separate switch.",
         "data": {
           "heat_pump_enabled": "Use heat-pump intelligence",
           "wallbox_enabled": "Use e-mobility intelligence",
@@ -495,7 +491,7 @@
       },
       "weather_intelligence": {
         "title": "Weather intelligence",
-        "description": "Requires Solar Forecast ML with a local weather station, SFML STATS and Weather Fusion AI. SFML station sensors are used automatically for live values and Recorder history.",
+        "description": "Uses bundled local weather-station data automatically for live values and Recorder history. Forecasts come from Weather Fusion AI.",
         "data": {
           "weather_fusion_entry_id": "Weather Fusion AI location",
           "weather_history_days": "Evaluation retention (days)"
@@ -524,10 +520,6 @@
       "license_missing_entitlement": "The EAI entitlement is missing.",
       "license_validation_error": "The license could not be validated safely.",
       "feature_required": "Select at least one Premium function.",
-      "sfml_required": "Install and configure Solar Forecast ML before enabling weather intelligence.",
-      "stats_required": "Install and configure SFML STATS before enabling weather intelligence.",
-      "weather_station_required": "Configure a local weather station in Solar Forecast ML with at least temperature and one additional weather sensor.",
-      "weather_station_ambiguous": "Weather intelligence found multiple Solar Forecast ML stations. Keep exactly one SFML configuration active.",
       "weather_fusion_required": "Install and configure Weather Fusion AI before enabling weather intelligence.",
       "validation_required": "Review the sensor assignments and resolve missing or duplicate entries.",
       "invalid_heat_pump_values": "Enter finite numeric values: heating output from 1 to 100 kW and COP from 1 to 10.",
@@ -558,7 +550,7 @@
       "weather_next_event_severity": {"name": "Next weather event severity", "state": {"none": "None", "advisory": "Advisory", "warning": "Warning", "critical": "Critical"}},
       "weather_next_event_start": {"name": "Next weather event starts"}, "weather_next_event_end": {"name": "Next weather event ends"}, "weather_precipitation_next_24h": {"name": "Forecast precipitation next 24 hours"}, "weather_precipitation_probability_next_24h": {"name": "Maximum precipitation probability next 24 hours"}, "weather_temperature_min_next_24h": {"name": "Minimum temperature next 24 hours"}, "weather_temperature_max_next_24h": {"name": "Maximum temperature next 24 hours"}, "weather_wind_speed_max_next_24h": {"name": "Maximum wind speed next 24 hours"}, "weather_forecast_confidence": {"name": "Weather forecast confidence"},
       "wallbox_recommended_action": {"name": "Wallbox recommendation", "state": {"data_unavailable": "Data unavailable", "connect": "Connect vehicle", "charge": "Charge", "defer": "Wait", "complete": "Target reached"}},
-      "wallbox_recommendation_reason": {"name": "Wallbox recommendation reason", "state": {"data_unavailable": "Data unavailable", "pv_surplus": "Residual PV surplus", "pv_window_upcoming": "PV window upcoming", "low_price": "Low electricity price", "departure_deadline": "Departure target", "deadline_plan": "Charging plan to departure", "target_reached": "Target reached"}},
+      "wallbox_recommendation_reason": {"name": "Wallbox recommendation reason", "state": {"data_unavailable": "Data unavailable", "pv_surplus": "Residual PV surplus", "pv_window_upcoming": "PV window upcoming", "low_price": "Low electricity price", "departure_deadline": "Departure target", "deadline_plan": "Charging plan to departure", "target_reached": "Target reached", "planning_window_incomplete": "Planning window incomplete"}},
       "wallbox_recommendation_explanation": {"name": "Wallbox recommendation explanation"},
       "wallbox_recommendation_confidence": {"name": "Wallbox recommendation confidence"},
       "wallbox_forecast_uncertainty": {"name": "Wallbox forecast uncertainty"},

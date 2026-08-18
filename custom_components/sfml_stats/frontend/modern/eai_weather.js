@@ -41,6 +41,7 @@ const EAI_WEATHER_DEMO = {
         { code: "freeze_risk", severity: "warning", start: "2026-01-16T04:00:00+00:00", end: "2026-01-16T08:00:00+00:00", impact_code: "freeze_precautions", evidence: { temperature_c: -1.4 } },
     ],
     actual_history: {
+        time_context: { timezone: "Europe/Berlin" },
         available: true,
         status: "available",
         source: "sfml_database",
@@ -88,6 +89,8 @@ const EAI_WEATHER_DEMO = {
         precipitation: {
             available: true,
             source: "sfml_database",
+            semantics: "amount",
+            unit: "mm",
             total_mm: 486.2,
             rain_days: 91,
             dry_spell_days: 16,
@@ -323,7 +326,7 @@ const ModernEAIWeatherPage = {
                 <div class="eai-weather-metrics">
                     <article><span>Nächste {{ nextHours.hours || 24 }} Stunden</span><strong>{{ forecastRain }}</strong><small>erwarteter Niederschlag</small></article>
                     <article><span>Temperatur</span><strong>{{ temperature(nextHours.temperature_min_c) }} – {{ temperature(nextHours.temperature_max_c) }}</strong><small>erwarteter Bereich</small></article>
-                    <article><span>Lokale Historie</span><strong>{{ historySince }}</strong><small>{{ coverageLabel }}</small></article>
+                    <article><span>Lokale Historie</span><strong>{{ historySince }}</strong><small>{{ coverageLabel }}{{ historyQualityLabel ? ' · ' + historyQualityLabel : '' }}</small></article>
                     <article><span>Warnlage</span><strong>{{ warningSummary }}</strong><small>{{ warnings.length }} aktive Hinweise</small></article>
                 </div>
 
@@ -483,6 +486,7 @@ const ModernEAIWeatherPage = {
 
     setup() {
         const { ref, reactive, computed, onMounted, onUnmounted } = Vue;
+        const hourUnit = window.SFMLI18n?.current === "en" ? "hours" : "Stunden";
         const loading = ref(true);
         const error = ref("");
         const status = reactive({ data_mode: "mock", is_demo: true });
@@ -618,6 +622,16 @@ const ModernEAIWeatherPage = {
         const forecastAvailable = computed(() => weather.available === true && hourly.value.length > 0);
         const history = computed(() => weather.actual_history || weather.history || {});
         const current = computed(() => history.value.current || {});
+        const timeContext = computed(() => weather.time_context || status.time_context || {});
+        const haTimeZone = computed(() => {
+            const candidate = timeContext.value?.timezone;
+            try {
+                new Intl.DateTimeFormat("en-US", { timeZone: candidate || "UTC" });
+                return candidate || "UTC";
+            } catch {
+                return "UTC";
+            }
+        });
         const normalizedSource = (value) => String(value || "").trim().toLowerCase();
         const currentSource = computed(() => normalizedSource(current.value.source));
         const timelineSource = computed(() => normalizedSource(history.value.timeline_source || history.value.source));
@@ -664,16 +678,28 @@ const ModernEAIWeatherPage = {
         const rainfall = computed(() => history.value.precipitation || {});
         const yearComparison = computed(() => history.value.year_comparison || {});
         const sourceComparison = computed(() => history.value.source_comparison || {});
-        const rainDays = computed(() => Array.isArray(rainfall.value.daily)
+        const rainDays = computed(() => rainfall.value.semantics === "amount"
+            && rainfall.value.unit === "mm" && Array.isArray(rainfall.value.daily)
             ? rainfall.value.daily.filter((item) => isFiniteValue(item?.total_mm)).slice(-7)
             : []);
-        const rainfallAvailable = computed(() => rainfall.value.available === true && isFiniteValue(rainfall.value.total_mm));
+        const rainfallAvailable = computed(() => rainfall.value.available === true
+            && rainfall.value.semantics === "amount"
+            && rainfall.value.unit === "mm"
+            && isFiniteValue(rainfall.value.total_mm));
         const rainfallRateAvailable = computed(() => rainfall.value.available === true
             && rainfall.value.semantics === "rate"
             && rainfall.value.unit === "mm/h");
         const rainRateDays = computed(() => Array.isArray(rainfall.value.daily)
             ? rainfall.value.daily.filter((item) => isFiniteValue(item?.max_mm_per_h)).slice(-7)
             : []);
+        const historyQualityLabel = computed(() => {
+            const quality = history.value.data_quality || history.value.quality || {};
+            const partial = quality.partial_day === true || quality.is_partial === true
+                || history.value.partial_day === true || history.value.is_partial === true;
+            if (!partial) return "";
+            const hours = quality.hours_count ?? quality.observed_hours ?? history.value.hours_count;
+            return isFiniteValue(hours) ? `Teil-Tag · ${integer(hours)} Stunden` : "Teil-Tag";
+        });
         const rainfallTitle = computed(() => rainfallRateAvailable.value
             ? "Intensität, Regentage und Trockenphasen"
             : "Menge, Regentage und Trockenphasen");
@@ -781,7 +807,7 @@ const ModernEAIWeatherPage = {
             { label: "Historie", value: historySource.value, detail: coverageLabel.value + " Abdeckung" },
         ]);
         const quality = computed(() => weather.forecast_vs_actual?.temperature_c || { by_horizon: weather.accuracy || {} });
-        const qualityRows = computed(() => [["0_6h", "0–6 Stunden"], ["6_24h", "6–24 Stunden"], ["24_72h", "24–72 Stunden"]].map(([key, label]) => ({ key, label, values: quality.value.by_horizon?.[key] || {} })));
+        const qualityRows = computed(() => [["0_6h", `0–6 ${hourUnit}`], ["6_24h", `6–24 ${hourUnit}`], ["24_72h", `24–72 ${hourUnit}`]].map(([key, label]) => ({ key, label, values: quality.value.by_horizon?.[key] || {} })));
         const trendLabel = computed(() => ({ improving: "Treffer werden besser", worsening: "Zuletzt wechselhafter", stable: "Treffer bleiben stabil" }[quality.value.trend?.direction] || "Trend braucht mehr Daten"));
         const accuracyProvenance = computed(() => assessAccuracyProvenance(
             quality.value.provenance,
@@ -804,8 +830,9 @@ const ModernEAIWeatherPage = {
         const modeLabel = computed(() => ({ mock: "Premium-Demo", onboarding: "Lernphase", live: "Live", degraded: "Eingeschränkt" }[status.data_mode] || "Vorschau"));
 
         const isFiniteValue = (value) => value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value));
-        const number = (value, digits = 1) => isFiniteValue(value) ? new Intl.NumberFormat("de-DE", { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(Number(value)) : "—";
-        const integer = (value) => isFiniteValue(value) ? new Intl.NumberFormat("de-DE", { maximumFractionDigits: 0 }).format(Number(value)) : "—";
+        const displayLocale = window.SFMLI18n?.current || "de";
+        const number = (value, digits = 1) => isFiniteValue(value) ? new Intl.NumberFormat(displayLocale, { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(Number(value)) : "—";
+        const integer = (value) => isFiniteValue(value) ? new Intl.NumberFormat(displayLocale, { maximumFractionDigits: 0 }).format(Number(value)) : "—";
         const percent = (value) => isFiniteValue(value) ? `${integer(value)} %` : "—";
         const temperature = (value) => isFiniteValue(value) ? `${number(value)} °C` : "—";
         const precipitation = (value) => isFiniteValue(value) ? `${number(value)} mm` : "—";
@@ -820,11 +847,22 @@ const ModernEAIWeatherPage = {
         const precipitationOutlook = (amount, probability) => `${precipitation(amount)} · ${precipitationProbability(amount, probability)} Regenrisiko`;
         const irradiance = (value) => isFiniteValue(value) ? `${number(value, 0)} W/m²` : "—";
         const signedTemperature = (value) => isFiniteValue(value) ? `${Number(value) > 0 ? "+" : ""}${number(value)} °C` : "—";
-        const dateTime = (value) => value ? new Date(value).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "noch offen";
-        const dateOnly = (value) => value ? new Date(value).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }) : "";
-        const shortDate = (value) => value ? new Date(`${value}T12:00:00`).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" }) : "—";
-        const time = (value) => value ? new Date(value).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }) : "—";
-        const dayName = (value) => value ? new Date(`${value}T12:00:00`).toLocaleDateString("de-DE", { weekday: "long", day: "2-digit", month: "2-digit" }) : "—";
+        const dateForDisplay = (value) => /^\d{4}-\d{2}(-\d{2})?$/.test(String(value || ""))
+            ? new Date(`${String(value).length === 7 ? `${value}-15` : value}T12:00:00Z`)
+            : new Date(value);
+        const formatDate = (value, options, fallback) => {
+            if (!value) return fallback;
+            const date = dateForDisplay(value);
+            return Number.isNaN(date.getTime()) ? fallback : new Intl.DateTimeFormat(displayLocale, {
+                ...options,
+                timeZone: haTimeZone.value,
+            }).format(date);
+        };
+        const dateTime = (value) => formatDate(value, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }, "noch offen");
+        const dateOnly = (value) => formatDate(value, { day: "2-digit", month: "2-digit", year: "numeric" }, "");
+        const shortDate = (value) => formatDate(value, { day: "2-digit", month: "2-digit" }, "—");
+        const time = (value) => formatDate(value, { hour: "2-digit", minute: "2-digit" }, "—");
+        const dayName = (value) => formatDate(value, { weekday: "long", day: "2-digit", month: "2-digit" }, "—");
         const daySummary = (code) => ({ storm: "Sturm prägt die Wetterlage", heat: "Es wird heiß und belastend", heavy_rain: "Kräftiger Regen ist zu erwarten", rain_likely: "Regen ist wahrscheinlich", strong_wind: "Es wird deutlich windiger", frost: "Frost ist möglich", calm: "Die Wetterlage bleibt überwiegend ruhig" }[code] || "Die Wetterentwicklung wird ausgewertet");
         const weatherSymbol = (point) => Number(point.wind_speed) >= 60 ? "💨" : Number(point.precipitation_probability) >= 70 ? "🌧️" : Number(point.precipitation_probability) >= 35 ? "🌦️" : Number(point.temperature_c) >= 30 ? "☀️" : "⛅";
         const weatherDescription = (point) => ({
@@ -860,19 +898,23 @@ const ModernEAIWeatherPage = {
         }[code] || "Die Prognose wird regelmäßig aktualisiert.");
         const warningEvidence = (warning) => { const evidence = warning.evidence || {}; if (Number.isFinite(Number(evidence.temperature_c))) return temperature(evidence.temperature_c); if (Number.isFinite(Number(evidence.wind_speed))) return `${number(evidence.wind_speed)} km/h Wind`; if (Number.isFinite(Number(evidence.visibility))) return `${number(evidence.visibility)} m Sichtweite`; const rain = evidence.precipitation_forecast_mm ?? evidence.precipitation; if (Number.isFinite(Number(rain))) return precipitationOutlook(rain, evidence.precipitation_probability); if (Number.isFinite(Number(evidence.precipitation_probability))) return `${percent(evidence.precipitation_probability)} Regenwahrscheinlichkeit`; return ({ lightning: "Gewitter", "lightning-rainy": "Gewitter mit Regen", hail: "Hagel", fog: "Dichter Nebel", rainy: "Regen", pouring: "Starker Regen", snowy: "Schnee", "snowy-rainy": "Schneeregen", exceptional: "Ungewöhnliche Wetterlage" }[evidence.condition] || "Prognosewert nicht verfügbar"); };
         const warningAction = (warning) => String(warning?.recommended_action || impactLabel(warning?.impact_code));
-        const warningDate = (value, includeWeekday = true) => value ? new Date(value).toLocaleDateString("de-DE", { weekday: includeWeekday ? "long" : undefined, day: "2-digit", month: "long" }) : "Zeitpunkt noch offen";
+        const warningDate = (value, includeWeekday = true) => formatDate(value, {
+            weekday: includeWeekday ? "long" : undefined,
+            day: "2-digit",
+            month: "long",
+        }, "Zeitpunkt noch offen");
         const warningPeriod = (warning) => {
             const startValue = warning.start || warning.valid_at;
             if (!startValue) return "Zeitpunkt noch offen";
             const start = new Date(startValue);
             const end = warning.end ? new Date(warning.end) : null;
             if (!end || Number.isNaN(end.getTime())) return `${warningDate(startValue)} · ab ${time(startValue)} Uhr`;
-            const sameDay = start.toLocaleDateString("de-DE") === end.toLocaleDateString("de-DE");
+            const sameDay = dateOnly(startValue) === dateOnly(warning.end);
             return sameDay
                 ? `${warningDate(startValue)} · ${time(startValue)}–${time(warning.end)} Uhr`
                 : `${warningDate(startValue)} · ${time(startValue)} Uhr bis ${warningDate(warning.end)} · ${time(warning.end)} Uhr`;
         };
-        const monthLabel = (value) => { if (!value) return "—"; const date = /^\d{4}-\d{2}$/.test(value) ? new Date(`${value}-15T12:00:00`) : new Date(value); return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString("de-DE", { month: "short", year: "2-digit" }); };
+        const monthLabel = (value) => formatDate(value, { month: "short", year: "2-digit" }, value || "—");
         const monthStyle = (month) => ({ left: `${Math.max(0, Math.min(100, ((Number(month.temperature_min_c) + 15) / 55) * 100))}%`, width: `${Math.max(4, Math.min(100, ((Number(month.temperature_max_c) - Number(month.temperature_min_c)) / 55) * 100))}%` });
         const monthAverageStyle = (month) => ({ left: `${Math.max(0, Math.min(100, ((Number(month.temperature_avg_c) - Number(month.temperature_min_c)) / Math.max(1, Number(month.temperature_max_c) - Number(month.temperature_min_c))) * 100))}%` });
         const recordLabel = (type) => ({ coldest_temperature: "Kältester Tag", hottest_temperature: "Wärmster Tag", strongest_wind: "Stärkster Wind", lowest_pressure: "Tiefster Luftdruck", highest_pressure: "Höchster Luftdruck" }[type] || type);
@@ -886,7 +928,7 @@ const ModernEAIWeatherPage = {
         const chartAxisValue = (value) => `${number(value)} ${chartConfig.value.unit}`;
         const chartAxisTime = (tick) => tick?.kind === "now"
             ? `Jetzt · ${time(tick.at)}`
-            : `${shortDate(new Date(tick?.at).toISOString().slice(0, 10))} · ${time(tick?.at)}`;
+            : `${shortDate(tick?.at)} · ${time(tick?.at)}`;
         const chartAriaLabel = computed(() => {
             const ticks = chartModel.value.yTicks || [];
             const range = ticks.length === 2
@@ -911,7 +953,7 @@ const ModernEAIWeatherPage = {
         return {
             loading, error, status, weather, chartMetric, selectedChartPoint, chartOptions, chartTitle, chartSubtitle, chartModel, chartAriaLabel,
             modeLabel, recorderLabel, historySource, outlook, nextHours, hourly, daily, history, current, currentMetrics, currentSourceEyebrow, hasActualTimeline, actualTimelineLabel,
-            aggregates, monthly, records, warnings, hasModelWarnings, warningSummary, rainfall, rainDays, rainRateDays, rainfallAvailable, rainfallRateAvailable, rainfallTitle, historySince,
+            aggregates, monthly, records, warnings, hasModelWarnings, warningSummary, rainfall, rainDays, rainRateDays, rainfallAvailable, rainfallRateAvailable, rainfallTitle, historySince, historyQualityLabel,
             yearComparison, sourceCards, sourceComparisonRows, missingSourceLabels, sourceAvailabilityLabel,
             coverageLabel, forecastRain, narrative, qualityRows, trendLabel, qualityEyebrow, qualityTitle, qualityProvenance, accuracyProvenance, number, integer, percent, temperature,
             precipitation, precipitationRate, irradiance, signedTemperature, precipitationProbability, precipitationOutlook, dateTime, dateOnly, shortDate, time, dayName, daySummary, weatherSymbol, weatherDescription, precipitationInconsistent, dayIcon,

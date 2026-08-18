@@ -3,13 +3,14 @@
 from datetime import timedelta
 
 DOMAIN = "solar_forecast_eai"
-VERSION = "40.0.4"
+VERSION = "44.0.4"
 CONF_LICENSE_KEY = "license_key"
 CONF_LICENSE_STATUS = "license_status"
 CONF_LICENSE_ID = "license_id"
 CONF_HEAT_PUMP_ENABLED = "heat_pump_enabled"
 CONF_WEATHER_INTELLIGENCE_ENABLED = "weather_intelligence_enabled"
 CONF_WEATHER_FUSION_ENTRY_ID = "weather_fusion_entry_id"
+CONF_SFML_ENTRY_ID = "sfml_entry_id"
 CONF_WEATHER_HISTORY_DAYS = "weather_history_days"
 CONF_WP_TYPE = "wp_type"
 CONF_MANUFACTURER = "manufacturer"
@@ -139,7 +140,7 @@ ML_MODEL_VERSION = "1.0"
 DATA_VERSION = "1.0"
 AI_VERSION = "1.0"
 SOFTWARE_VERSION = VERSION
-INTEGRATION_MODEL = "Solar Forecast Energy AI V40"
+INTEGRATION_MODEL = f"Solar Forecast Energy AI V{VERSION}"
 CORRECTION_FACTOR_MIN = 0.5
 CORRECTION_FACTOR_MAX = 1.5
 BACKUP_RETENTION_DAYS = 30
