@@ -4,6 +4,7 @@
   lights: ["1", "2"]
 - room: buero_fabian
   lights: ["1"]
+  waterLow: 75
 - room: flur
   lights: ["1", "2", "3", "4", "5", "6"]
 - room: kueche
