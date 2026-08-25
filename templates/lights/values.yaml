@@ -17,4 +17,5 @@
   lights: ["1", "2"]
 - room: bad
   lights: ["1"]
-  waterHigh: 800
+  waterHigh: 1200
+  waterLow: 800
