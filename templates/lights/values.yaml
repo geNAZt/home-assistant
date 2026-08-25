@@ -9,7 +9,8 @@
   lights: ["1", "2", "3", "4", "5", "6"]
 - room: kueche
   lights: ["1", "2", "3"]
-  waterHigh: 400
+  waterHigh: 800
+  waterLow: 500
 - room: speisekammer
   lights: ["1", "2"]
 - room: schlafzimmer
