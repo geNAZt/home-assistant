@@ -24,31 +24,26 @@
       entity_id: binary_sensor.presence_[[room]]
       state: "on"
 
-    # Lux muss UNTER 120 sein
+    # Lux muss UNTER waterLow / Threshold sein
     - condition: numeric_state
       entity_id: sensor.lux_[[room]]
-      below: 120
+      below: [[ waterLow | default(140) ]]
 
     # Licht nur einschalten, wenn es wirklich aus ist
     - condition: state
       entity_id: light.[[room]]_lights
       state: "off"
 
-    # Optional: wenn ForceOn vorhanden, diese Automation deaktivieren
-    # indem ForceOn "off" sein muss
-    - condition: or
-      conditions:
-        - condition: template
-          value_template: "{{ not states('input_boolean.force_on_[[room]]') }}"
-        - condition: state
-          entity_id: input_boolean.force_on_[[room]]
-          state: "off"
+    # ForceOn darf nicht aktiv sein
+    - condition: state
+      entity_id: input_boolean.force_on_[[room]]
+      state: "off"
 
   action:
     - variables:
         saved_brightness: "{{ states('input_number.[[room]]_brightness') | int(0) }}"
         brightness: >
-          {{ 300 if saved_brightness == 0 else saved_brightness }}
+          {{ 255 if saved_brightness == 0 else ([saved_brightness, 255] | min) }}
         color_temp: "{{ states('input_number.[[room]]_color_temp') | int(370) }}"
     - service: light.turn_on
       target:

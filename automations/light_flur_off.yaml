@@ -21,14 +21,10 @@
       entity_id: input_boolean.auto_light_flur
       state: "on"
   
-    # Optional: ForceOn darf nicht aktiv sein
-    - condition: or
-      conditions:
-        - condition: template
-          value_template: "{{ not states('input_boolean.force_on_flur') }}"
-        - condition: state
-          entity_id: input_boolean.force_on_flur
-          state: "off"
+    # ForceOn darf nicht aktiv sein
+    - condition: state
+      entity_id: input_boolean.force_on_flur
+      state: "off"
   
   action:
     - choose:

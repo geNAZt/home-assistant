@@ -21,14 +21,10 @@
       entity_id: input_boolean.auto_light_wohnzimmer
       state: "on"
   
-    # Optional: ForceOn darf nicht aktiv sein
-    - condition: or
-      conditions:
-        - condition: template
-          value_template: "{{ not states('input_boolean.force_on_wohnzimmer') }}"
-        - condition: state
-          entity_id: input_boolean.force_on_wohnzimmer
-          state: "off"
+    # ForceOn darf nicht aktiv sein
+    - condition: state
+      entity_id: input_boolean.force_on_wohnzimmer
+      state: "off"
   
   action:
     - choose:

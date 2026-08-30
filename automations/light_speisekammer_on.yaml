@@ -24,31 +24,26 @@
       entity_id: binary_sensor.presence_speisekammer
       state: "on"
 
-    # Lux muss UNTER 120 sein
+    # Lux muss UNTER waterLow / Threshold sein
     - condition: numeric_state
       entity_id: sensor.lux_speisekammer
-      below: 120
+      below: 140
 
     # Licht nur einschalten, wenn es wirklich aus ist
     - condition: state
       entity_id: light.speisekammer_lights
       state: "off"
 
-    # Optional: wenn ForceOn vorhanden, diese Automation deaktivieren
-    # indem ForceOn "off" sein muss
-    - condition: or
-      conditions:
-        - condition: template
-          value_template: "{{ not states('input_boolean.force_on_speisekammer') }}"
-        - condition: state
-          entity_id: input_boolean.force_on_speisekammer
-          state: "off"
+    # ForceOn darf nicht aktiv sein
+    - condition: state
+      entity_id: input_boolean.force_on_speisekammer
+      state: "off"
 
   action:
     - variables:
         saved_brightness: "{{ states('input_number.speisekammer_brightness') | int(0) }}"
         brightness: >
-          {{ 300 if saved_brightness == 0 else saved_brightness }}
+          {{ 255 if saved_brightness == 0 else ([saved_brightness, 255] | min) }}
         color_temp: "{{ states('input_number.speisekammer_color_temp') | int(370) }}"
     - service: light.turn_on
       target:
