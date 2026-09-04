@@ -29,6 +29,10 @@ set_device_preferences:
       selector:
         time:
 
+refresh_intelligent_data:
+  name: Refresh Intelligent data
+  description: Request an immediate refresh of Intelligent device and dispatch data.
+
 get_smart_meter_readings:
   name: Get Smart Meter Readings
   description: Fetch smart meter readings for a specific date (historical). Results are returned in the service response and as event `octopus_germany_smart_meter_readings_result` (subscribe via Developer Tools → Events).
@@ -147,6 +151,13 @@ submit_meter_readings:
   name: Submit Meter Readings
   description: Submit one or more electricity or gas meter readings to the OE API. Use either a JSON array of readings or the single-reading helper fields. Results are returned in the service response and as event `octopus_germany_meter_readings_submission_result`.
   fields:
+    account_number:
+      name: Account Number
+      description: The account number that owns the meter
+      required: true
+      example: "A-12345678"
+      selector:
+        text:
     meter_type:
       name: Meter Type
       description: Select electricity or gas to route the reading to the correct OE mutation

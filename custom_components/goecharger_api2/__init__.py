@@ -28,6 +28,7 @@ from homeassistant.helpers import (
     device_registry as device_reg
 )
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.device_registry import DeviceEntry, async_entries_for_config_entry
 from homeassistant.helpers.entity import Entity, EntityDescription
 from homeassistant.helpers.event import async_track_time_interval, async_call_later
 from homeassistant.helpers.typing import UNDEFINED, UndefinedType
@@ -250,13 +251,13 @@ async def check_device_registry(hass: HomeAssistant):
         a_device_reg = device_reg.async_get(hass)
         if a_device_reg is not None:
             key_list = []
-            for a_device_entry in list(a_device_reg.devices.values()):
+            all_domain_devices = []
+            for a_config_entry in hass.config_entries.async_entries(DOMAIN):
+                all_domain_devices.extend(async_entries_for_config_entry(a_device_reg, a_config_entry.entry_id))
+            for a_device_entry in all_domain_devices:
                 if hasattr(a_device_entry, "identifiers"):
                     ident_value = a_device_entry.identifiers
-                    #if f"{ident_value}".__contains__(DOMAIN):
-                        #a_ident_value = next(iter(ident_value))
-                        #if len(a_ident_value) != 2 or len(a_ident_value[1].split('@.@')) == 1:
-                    if f"{ident_value}".__contains__(DOMAIN) and len(next(iter(ident_value))) != 4:
+                    if len(next(iter(ident_value))) != 4:
                         _LOGGER.debug(f"found a OLD {DOMAIN} DeviceEntry: {a_device_entry}")
                         key_list.append(a_device_entry.id)
 
@@ -350,7 +351,10 @@ class GoeChargerDataUpdateCoordinator(DataUpdateCoordinator):
             if self.hass is not None:
                 a_device_reg = device_reg.async_get(self.hass)
                 if a_device_reg is not None:
-                    device = a_device_reg.async_get_device(identifiers=self._device_info_dict["identifiers"])
+                    if hasattr(a_device_reg, "async_get_device_by_identifier"):
+                        device = a_device_reg.async_get_device_by_identifier(identifier=next(iter(self._device_info_dict["identifiers"])), config_entry_id=self.config_entry.entry_id)
+                    else:
+                        device = a_device_reg.async_get_device(identifiers=self._device_info_dict["identifiers"])
                     if device:
                         _LOGGER.info(f"call_later_update_device_registry(): device registry update triggered for device {device.name}")
                         if self.bridge.ws_connected and self.bridge.ws_check_last_update():
@@ -637,17 +641,31 @@ class GoeChargerDataUpdateCoordinator(DataUpdateCoordinator):
             _LOGGER.info(f"active cards {self.available_cards_idx}")
 
             # check for the 16A limiter...
-            if self._is_core_wallbox:
-                # CORE wallboxes currently return as ADI always true, so we check the CLL:cableCurrentLimit
-                cable_limit = self.bridge._versions.get(Tag.CLL.key, {}).get("cableCurrentLimit", "-1")
-                _LOGGER.debug(f"read_versions(): read CLL:cableCurrentLimit: '{cable_limit}'")
+            # we now always try to read a possible ccl object and use there the 'cableCurrentLimit' - if there
+            # is no ccl or we have an error, we make use of the adi as fallback (if it's not core_wallbox)...
+            wb_has_16a_cable_limit = None
+            use_adi_as_fallback = not self._is_core_wallbox
+            if Tag.CLL.key in self.bridge._versions:
+                ccl_cable_limit_val = self.bridge._versions.get(Tag.CLL.key, {}).get("cableCurrentLimit", "-1")
+                _LOGGER.debug(f"read_versions(): read CLL:cableCurrentLimit: '{ccl_cable_limit_val}'")
                 try:
-                    wb_has_16a_cable_limit = int(cable_limit) <= 16
-                except BaseException as ex:
-                    _LOGGER.debug(f"read_versions(): try to handle CLL:cableCurrentLimit caused: {type(ex).__name__} - {ex}")
-                    wb_has_16a_cable_limit = True
-            else:
+                    wb_has_16a_cable_limit = int(ccl_cable_limit_val) <= 16
+                    use_adi_as_fallback = False
+                except BaseException as exc:
+                    _LOGGER.debug(f"read_versions(): try to handle CLL:cableCurrentLimit caused: {type(exc).__name__} - {exc}")
+                    if self._is_core_wallbox:
+                        wb_has_16a_cable_limit = True
+                    # else:
+                    #     # we do not have to set `use_adi_as_fallback` here, since we are "not self._is_core_wallbox"
+                    #     use_adi_as_fallback = True
+
+            if wb_has_16a_cable_limit is None and use_adi_as_fallback:
                 wb_has_16a_cable_limit = self.bridge._versions.get(Tag.ADI.key, False)
+
+            # if we haven't sen any 'wb_has_16a_cable_limit' yet, then we enable the limit just to be sure...
+            if wb_has_16a_cable_limit is None:
+                _LOGGER.debug(f"read_versions(): enforcing 'wb_has_16a_cable_limit=True' cause previously the code did not set any value")
+                wb_has_16a_cable_limit = True
 
             self.limit_to16a = (self._config_entry.data.get(CONF_11KWLIMIT, False)
                                 or self.bridge._versions.get(Tag.VAR.key, -1) == 11
@@ -658,7 +676,6 @@ class GoeChargerDataUpdateCoordinator(DataUpdateCoordinator):
         else:
             # no additional controller stuff... but we need to init some variables
             self.limit_to16a = False
-
 
         comm_mode = self._config_entry.data.get(CONF_PASSWORD, None)
         if comm_mode is not None and len(comm_mode.strip()) > 0:
