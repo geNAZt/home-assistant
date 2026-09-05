@@ -1,0 +1,6 @@
+name: "Solar Irradiance"
+min: 0
+max: 1200
+step: 1
+unit_of_measurement: "W/m²"
+icon: mdi:weather-sunny

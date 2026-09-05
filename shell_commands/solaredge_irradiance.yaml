@@ -1,0 +1,1 @@
+solaredge_update_irradiance: "python3 /config/scripts/solaredge_irradiance_fetcher.py"

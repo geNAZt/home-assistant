@@ -1,0 +1,26 @@
+- id: solaredge_irradiance_update
+  alias: "SolarEdge: Update Solar Irradiance"
+  mode: single
+  trigger:
+    - platform: time_pattern
+      minutes: "/15"
+  condition:
+    - condition: state
+      entity_id: sun.sun
+      state: "above_horizon"
+  action:
+    - action: shell_command.solaredge_update_irradiance
+      response_variable: irradiance_result
+    - if:
+        - condition: template
+          value_template: "{{ irradiance_result is defined and irradiance_result.stdout is defined }}"
+      then:
+        - variables:
+            raw_out: "{{ irradiance_result.stdout | trim }}"
+            parsed: "{{ raw_out | from_json if raw_out.startswith('{') else {'irradiance': raw_out|float(0)} }}"
+            irr_val: "{{ parsed.get('irradiance', 0) | float(0) }}"
+        - action: input_number.set_value
+          target:
+            entity_id: input_number.solar_irradiance
+          data:
+            value: "{{ irr_val }}"
