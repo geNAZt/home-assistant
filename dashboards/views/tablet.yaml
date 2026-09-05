@@ -1,0 +1,234 @@
+type: sections
+max_columns: 4
+title: Tablet
+path: tablet-2
+sections:
+  - type: grid
+    cards:
+      - type: heading
+        heading: Heizung
+        heading_style: title
+        icon: mdi:heat-wave
+      - type: custom:mushroom-climate-card
+        entity: climate.climate_room_speisekammer
+        name: Speisekammer
+        icon: mdi:food
+        layout: horizontal
+        fill_container: false
+        primary_info: name
+        secondary_info: state
+        hvac_modes:
+          - heat
+          - 'off'
+        show_temperature_control: true
+        collapsible_controls: true
+      - type: custom:mushroom-climate-card
+        entity: climate.climate_room_bad
+        icon: mdi:shower
+        name: Badezimmer
+        hvac_modes:
+          - heat
+          - 'off'
+        show_temperature_control: true
+        layout: horizontal
+      - type: custom:mushroom-climate-card
+        entity: climate.climate_room_buero_fabian
+        name: Fabian
+        layout: horizontal
+        show_temperature_control: true
+        hvac_modes:
+          - heat
+          - 'off'
+        icon: mdi:briefcase
+      - type: custom:mushroom-climate-card
+        entity: climate.climate_room_buero_merja
+        name: Merja
+        layout: horizontal
+        hvac_modes:
+          - heat
+          - 'off'
+        show_temperature_control: true
+        icon: mdi:briefcase
+      - type: custom:mushroom-climate-card
+        entity: climate.climate_room_flur
+        name: Flur
+        layout: horizontal
+        show_temperature_control: true
+        hvac_modes:
+          - heat
+          - 'off'
+        icon: mdi:coat-rack
+      - type: custom:mushroom-climate-card
+        entity: climate.climate_room_kueche
+        name: Küche
+        icon: mdi:countertop
+        show_temperature_control: true
+        hvac_modes:
+          - heat
+          - 'off'
+        layout: horizontal
+      - type: custom:mushroom-climate-card
+        entity: climate.climate_room_schlafzimmer
+        name: Schlafzimmer
+        icon: mdi:sleep
+        layout: horizontal
+        hvac_modes:
+          - heat
+          - 'off'
+        show_temperature_control: true
+      - type: custom:mushroom-climate-card
+        entity: climate.climate_room_wohnzimmer
+        name: Wohnzimmer
+        icon: mdi:sofa
+        layout: horizontal
+        show_temperature_control: true
+        hvac_modes:
+          - heat
+          - 'off'
+  - type: grid
+    cards:
+      - type: heading
+        heading: Rolladen
+        heading_style: title
+        icon: mdi:blinds-horizontal-closed
+      - type: custom:mushroom-cover-card
+        entity: cover.rollade_speisekammer
+        layout: horizontal
+        show_position_control: true
+        show_buttons_control: true
+      - type: custom:mushroom-cover-card
+        entity: cover.rollade_bad
+        name: Badezimmer
+        show_position_control: true
+        show_buttons_control: true
+        layout: horizontal
+      - type: custom:mushroom-cover-card
+        entity: cover.rollade_buero_fabian
+        layout: horizontal
+        show_position_control: true
+        show_buttons_control: true
+        name: Büro Fabian
+      - type: custom:mushroom-cover-card
+        entity: cover.rollade_buero_merja
+        name: Büro Merja
+        show_position_control: true
+        show_buttons_control: true
+        layout: horizontal
+      - type: custom:mushroom-cover-card
+        entity: cover.rollade_hwr
+        name: HWR
+        layout: horizontal
+        show_position_control: true
+        show_buttons_control: true
+      - type: custom:mushroom-cover-card
+        entity: cover.rollade_schlafzimmer
+        fill_container: true
+        show_position_control: true
+        layout: horizontal
+        show_buttons_control: true
+      - type: custom:mushroom-cover-card
+        entity: cover.rollade_kueche_links
+        show_buttons_control: true
+        show_position_control: true
+        layout: horizontal
+        fill_container: true
+      - type: custom:mushroom-cover-card
+        entity: cover.rollade_kueche_rechts
+        fill_container: true
+        layout: horizontal
+        show_buttons_control: true
+        show_position_control: true
+      - type: custom:mushroom-cover-card
+        entity: cover.rollade_wohnzimmer_links
+        show_position_control: true
+        show_buttons_control: true
+        fill_container: true
+        layout: horizontal
+      - type: custom:mushroom-cover-card
+        entity: cover.rollade_wohnzimmer_rechts
+        layout: horizontal
+        fill_container: true
+        show_position_control: true
+        show_buttons_control: true
+      - type: tile
+        entity: input_select.cover_mode
+  - type: grid
+    cards:
+      - type: heading
+        heading: Licht
+        heading_style: title
+        badges: []
+        icon: mdi:lightbulb
+      - type: custom:mushroom-light-card
+        entity: light.licht_speisekammer_virtuell
+        show_brightness_control: true
+        use_light_color: false
+        show_color_temp_control: true
+        fill_container: true
+        layout: horizontal
+        name: Speisekammer
+      - type: custom:mushroom-light-card
+        entity: light.licht_bad_virtuell
+        show_brightness_control: true
+        use_light_color: false
+        show_color_control: false
+        layout: horizontal
+        fill_container: false
+        collapsible_controls: false
+        show_color_temp_control: true
+        name: Bad
+      - type: custom:mushroom-light-card
+        entity: light.licht_buero_fabian_virtuell
+        show_brightness_control: true
+        show_color_temp_control: true
+        fill_container: true
+        layout: horizontal
+        name: Fabian
+      - type: custom:mushroom-light-card
+        entity: light.licht_buero_merja_virtuell
+        layout: horizontal
+        show_color_temp_control: true
+        show_brightness_control: true
+        name: Merja
+      - type: custom:mushroom-light-card
+        entity: light.licht_flur_virtuell
+        show_color_temp_control: true
+        show_color_control: false
+        layout: horizontal
+        show_brightness_control: true
+        name: Flur
+      - type: custom:mushroom-light-card
+        entity: light.licht_kueche_virtuell
+        name: Küche
+        layout: horizontal
+        show_color_temp_control: true
+        show_brightness_control: true
+      - type: custom:mushroom-light-card
+        entity: light.licht_schlafzimmer_virtuell
+        name: Schlafzimmer
+        show_color_temp_control: true
+        show_brightness_control: true
+        layout: horizontal
+      - type: custom:mushroom-light-card
+        entity: light.licht_wohnzimmer_virtuell
+        name: Wohnzimmer
+        layout: horizontal
+        show_color_temp_control: true
+        show_brightness_control: true
+        show_color_control: false
+  - type: grid
+    cards:
+      - type: heading
+        heading: Neuer Abschnitt
+      - type: custom:mushroom-vacuum-card
+        entity: vacuum.kitchen
+        fill_container: true
+        layout: horizontal
+        commands:
+          - start_pause
+          - clean_spot
+          - return_home
+      - type: custom:mushroom-lock-card
+        entity: lock.home
+        fill_container: true
+        layout: horizontal

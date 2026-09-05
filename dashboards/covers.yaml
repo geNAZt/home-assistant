@@ -1,0 +1,3 @@
+title: Rolladen Steuerung
+views:
+  - !include views/covers.yaml

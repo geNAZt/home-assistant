@@ -1,0 +1,285 @@
+type: masonry
+title: Energy
+path: energy
+cards:
+  - graph: line
+    type: sensor
+    detail: 1
+    entity: sensor.pv_battery1_state_of_charge
+    name: Battery SoC
+  - type: custom:power-distribution-card
+    title: ''
+    entities:
+      - decimals: 2
+        display_abs: true
+        name: solar
+        unit_of_display: adaptive
+        icon: mdi:solar-power
+        producer: true
+        entity: sensor.solar_panel_production_w
+        preset: solar
+      - decimals: 2
+        display_abs: true
+        name: grid
+        unit_of_display: adaptive
+        icon: mdi:transmission-tower
+        entity: sensor.pv_m1_ac_power
+        preset: grid
+        threshold: ''
+        icon_color:
+          bigger: ''
+          equal: ''
+          smaller: ''
+        invert_value: true
+      - decimals: 2
+        display_abs: true
+        name: home
+        unit_of_display: W
+        consumer: true
+        icon: mdi:home-assistant
+        entity: sensor.solar_house_consumption_w
+        preset: home
+        threshold: ''
+        icon_color:
+          bigger: ''
+          equal: ''
+          smaller: ''
+        invert_value: true
+      - decimals: 2
+        display_abs: true
+        name: battery
+        unit_of_display: W
+        consumer: true
+        icon: mdi:battery-outline
+        producer: true
+        entity: sensor.pv_battery1_power
+        preset: battery
+        threshold: ''
+        icon_color:
+          bigger: ''
+          equal: ''
+          smaller: ''
+        invert_value: true
+    center:
+      type: bars
+      content:
+        - preset: autarky
+          name: autark
+          bar_color: green
+          bar_bg_color: ''
+          entity: sensor.solar_autarkie_ratio
+        - preset: ratio
+          name: selbst
+          bar_color: blue
+          bar_bg_color: ''
+          entity: sensor.solar_selfconsumption_ratio
+    animation: none
+  - type: entities
+    entities:
+      - entity: climate.climate_room_bad
+      - entity: climate.climate_room_buero_fabian
+      - entity: climate.climate_room_buero_merja
+      - entity: climate.climate_room_flur
+      - entity: climate.climate_room_kueche
+      - entity: climate.climate_room_schlafzimmer
+      - entity: climate.climate_room_speisekammer
+      - entity: climate.climate_room_wohnzimmer
+  - type: custom:uconnect-vehicle-card
+    device_id: 03f1180be160a028c76ac522814f47be
+    license_plate: H-EX 2313 E
+    show_indicators: true
+    show_range: true
+    show_image: true
+    show_map: true
+    show_buttons: true
+  - type: entities
+    entities:
+      - entity: sensor.internal_gains_misc
+      - entity: sensor.kuche_links_power
+      - entity: sensor.kueche_zeile_power
+      - entity: sensor.network_power
+      - entity: sensor.shellyplus2pm_485519a264d8_switch_1_power
+      - entity: sensor.kuche_aussen_power
+      - entity: sensor.kuche_geschirrspuler_power
+      - entity: sensor.shellyplus2pm_485519a264d8_switch_0_power
+      - entity: sensor.kuche_backofen_power
+      - entity: sensor.towel_dryer_leistung
+      - entity: sensor.water_heating_pump_power
+      - entity: sensor.knx_leistung
+      - entity: sensor.hrv_leistung
+      - entity: sensor.internal_gains_pv
+  - type: entities
+    entities:
+      - entity: sensor.water_heating_pump_usage
+      - entity: switch.water_heater_pv_switch_powerr_usage_stage_1
+      - entity: switch.water_heater_pv_switch_powerr_usage_stage_2
+      - entity: sensor.goe_288025_pgrid
+      - entity: sensor.goe_288025_nrg_11
+      - entity: sensor.goe_288025_wh
+      - entity: number.pv_storage_remote_charge_limit
+      - entity: input_boolean.charge_solar_battery_override
+      - entity: input_boolean.car_charge_override
+      - entity: input_select.power_provider
+  - type: entities
+    entities:
+      - entity: light.light_1_kueche
+      - entity: light.light_2_kueche
+      - entity: light.light_3_kueche
+      - entity: light.light_1_buero_fabian
+      - entity: light.light_1_buero_merja
+      - entity: light.light_2_buero_merja
+      - entity: light.light_1_flur
+      - entity: light.light_2_flur
+      - entity: light.light_4_flur
+      - entity: light.light_5_flur
+      - entity: light.light_6_flur
+      - entity: light.light_1_bad
+      - entity: light.light_1_speisekammer
+      - entity: light.light_2_speisekammer
+      - entity: light.light_1_schlafzimmer
+      - entity: light.light_2_schlafzimmer
+      - entity: light.light_1_wohnzimmer
+      - entity: light.light_2_wohnzimmer
+  - type: entities
+    entities:
+      - entity: sensor.power_price
+      - entity: sensor.heating_savings_today
+      - entity: sensor.solar_house_consumption_daily
+      - entity: sensor.solar_imported_power_daily
+      - entity: sensor.solar_exported_power_daily
+      - entity: sensor.solar_panel_production_daily
+  - type: custom:apexcharts-card
+    header:
+      title: Solar forecast
+      show: true
+      show_states: true
+      colorize_states: true
+    apex_config:
+      chart:
+        height: 300px
+      tooltip:
+        enabled: true
+        shared: true
+        followCursor: true
+    graph_span: 24h
+    span:
+      start: day
+    yaxis:
+      - id: capacity
+        show: true
+        opposite: true
+        decimals: 0
+        max: 100
+        min: 0
+        apex_config:
+          tickAmount: 10
+      - id: kWh
+        show: true
+        min: 0
+        apex_config:
+          tickAmount: 10
+      - id: header_only
+        show: false
+    series:
+      - entity: sensor.solar_panel_production_w
+        transform: return x / 1000;
+        name: Solar Power (now)
+        type: line
+        stroke_width: 2
+        float_precision: 2
+        color: Orange
+        yaxis_id: kWh
+        unit: kW
+        extend_to: now
+        show:
+          legend_value: true
+          in_header: false
+        group_by:
+          func: avg
+          duration: 5m
+      - entity: sensor.solar_prediction_kwh
+        name: Forecast
+        color: Grey
+        opacity: 0.3
+        stroke_width: 0
+        type: area
+        time_delta: +15min
+        extend_to: false
+        yaxis_id: kWh
+        show:
+          legend_value: false
+          in_header: false
+        data_generator: |
+          let predictions = JSON.parse(entity.attributes.predictions);
+          let ret = [];
+
+          Object.keys(predictions).forEach(function(key, index) {
+            ret.push([new Date(key), predictions[key]]);
+          });
+
+          return ret;
+      - entity: sensor.solar_panel_production_daily
+        yaxis_id: header_only
+        name: Today Actual
+        stroke_width: 2
+        color: Orange
+        show:
+          legend_value: true
+          in_header: true
+          in_chart: false
+      - entity: sensor.none_prognose_heute
+        yaxis_id: header_only
+        name: Today Forecast
+        color: Grey
+        show:
+          legend_value: true
+          in_header: true
+          in_chart: false
+      - entity: sensor.none_forecast_today_remaining
+        yaxis_id: header_only
+        name: Remaining
+        color: Grey
+        show:
+          legend_value: true
+          in_header: true
+          in_chart: false
+visible:
+  - user: 88ebd5f34f1c412a8795640615dfa3f7
+  - user: ffda0aab0d294a7cb837bb3fd9c3ae2f
+badges:
+  - type: entity
+    show_name: true
+    show_state: true
+    show_icon: true
+    entity: sensor.solar_grid_to_house_daily
+    name: Grid -> Haus
+  - type: entity
+    show_name: true
+    show_state: true
+    show_icon: true
+    entity: sensor.solar_panel_to_house_daily
+    name: PV -> Haus
+  - type: entity
+    show_name: true
+    show_state: true
+    show_icon: true
+    entity: sensor.solar_battery_out_daily
+    name: Battery -> Haus
+  - type: entity
+    show_name: true
+    show_state: true
+    show_icon: true
+    entity: sensor.solar_grid_to_battery_daily
+    name: Grid -> Battery
+  - type: entity
+    show_name: true
+    show_state: true
+    show_icon: true
+    entity: sensor.solar_house_consumption_daily
+    name: Haus
+  - type: entity
+    show_name: true
+    show_state: true
+    show_icon: true
+    entity: sensor.solar_panel_to_battery_daily
+    name: Panel -> Battery

@@ -1,0 +1,36 @@
+type: sections
+title: 3D Printer (Bibimbap)
+sections:
+  - type: grid
+    cards:
+      - type: heading
+        heading_style: title
+        heading: Bibimbap
+      - type: custom:ha-bambulab-print_status-card
+        printer: 6a3cac3d589827a135e3232b09bff304
+        style: simple
+      - type: custom:ha-bambulab-print_control-card
+        printer: 6a3cac3d589827a135e3232b09bff304
+  - type: grid
+    cards:
+      - type: heading
+        heading: Neuer Abschnitt
+      - type: gauge
+        entity: sensor.air_senseair_co2_value
+        max: 2000
+        severity:
+          green: 900
+          yellow: 1000
+          red: 1400
+        name: CO2
+      - type: gauge
+        entity: sensor.air_particulate_matter_2_5mm_concentration
+        severity:
+          green: 10
+          yellow: 25
+          red: 50
+cards: []
+header:
+  layout: responsive
+  badges_position: bottom
+  badges_wrap: wrap

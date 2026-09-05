@@ -1,0 +1,17 @@
+wallpanel:
+  enabled: true
+  hide_toolbar: true
+  hide_sidebar: true
+  fullscreen: false
+  idle_time: 0
+title: Home
+views:
+  - !include dashboards/views/home.yaml
+  - !include dashboards/views/tablet.yaml
+  - !include dashboards/views/energy.yaml
+  - !include dashboards/views/vacuum.yaml
+  - !include dashboards/views/printer.yaml
+  - !include dashboards/views/heating.yaml
+  - !include dashboards/views/hrv.yaml
+  - !include dashboards/views/internet.yaml
+  - !include dashboards/views/pv.yaml

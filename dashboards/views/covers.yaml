@@ -1,0 +1,162 @@
+title: Rolladen Steuerung
+icon: mdi:window-shutter-cog
+path: covers
+cards:
+  - type: entities
+    title: Global Steuerung & Modi
+    show_header_toggle: false
+    entities:
+      - entity: input_select.cover_mode
+        name: Rolladen Modus
+      - entity: input_boolean.cover_night_mode
+        name: Nachtmodus Aktiv
+      - entity: input_text.exempt_covers
+        name: Ausgenommene Rolläden (Text)
+      - entity: input_datetime.cover_last_global_move
+        name: Letzte Globale Bewegung
+
+  - type: grid
+    title: Rolläden Übersicht
+    columns: 2
+    square: false
+    cards:
+      - type: entities
+        title: "Rollade Buero Fabian"
+        show_header_toggle: false
+        entities:
+          - entity: cover.rollade_buero_fabian
+            name: Position
+          - entity: input_boolean.auto_cover_rollade_buero_fabian
+            name: Automatik Aktiv
+          - entity: input_number.cover_min_open_rollade_buero_fabian
+            name: Mindestöffnung (%)
+          - entity: input_datetime.cover_manual_change_rollade_buero_fabian
+            name: Manuelle Änderung
+          - entity: sensor.solar_expected_gain_rollade_buero_fabian
+            name: Erwartete Solarleistung
+      - type: entities
+        title: "Rollade Wohnzimmer Links"
+        show_header_toggle: false
+        entities:
+          - entity: cover.rollade_wohnzimmer_links
+            name: Position
+          - entity: input_boolean.auto_cover_rollade_wohnzimmer_links
+            name: Automatik Aktiv
+          - entity: input_number.cover_min_open_rollade_wohnzimmer_links
+            name: Mindestöffnung (%)
+          - entity: input_datetime.cover_manual_change_rollade_wohnzimmer_links
+            name: Manuelle Änderung
+          - entity: sensor.solar_expected_gain_rollade_wohnzimmer_links
+            name: Erwartete Solarleistung
+      - type: entities
+        title: "Rollade Wohnzimmer Rechts"
+        show_header_toggle: false
+        entities:
+          - entity: cover.rollade_wohnzimmer_rechts
+            name: Position
+          - entity: input_boolean.auto_cover_rollade_wohnzimmer_rechts
+            name: Automatik Aktiv
+          - entity: input_number.cover_min_open_rollade_wohnzimmer_rechts
+            name: Mindestöffnung (%)
+          - entity: input_datetime.cover_manual_change_rollade_wohnzimmer_rechts
+            name: Manuelle Änderung
+          - entity: sensor.solar_expected_gain_rollade_wohnzimmer_rechts
+            name: Erwartete Solarleistung
+      - type: entities
+        title: "Rollade Kueche Rechts"
+        show_header_toggle: false
+        entities:
+          - entity: cover.rollade_kueche_rechts
+            name: Position
+          - entity: input_boolean.auto_cover_rollade_kueche_rechts
+            name: Automatik Aktiv
+          - entity: input_number.cover_min_open_rollade_kueche_rechts
+            name: Mindestöffnung (%)
+          - entity: input_datetime.cover_manual_change_rollade_kueche_rechts
+            name: Manuelle Änderung
+          - entity: sensor.solar_expected_gain_rollade_kueche_rechts
+            name: Erwartete Solarleistung
+      - type: entities
+        title: "Rollade Kueche Links"
+        show_header_toggle: false
+        entities:
+          - entity: cover.rollade_kueche_links
+            name: Position
+          - entity: input_boolean.auto_cover_rollade_kueche_links
+            name: Automatik Aktiv
+          - entity: input_number.cover_min_open_rollade_kueche_links
+            name: Mindestöffnung (%)
+          - entity: input_datetime.cover_manual_change_rollade_kueche_links
+            name: Manuelle Änderung
+          - entity: sensor.solar_expected_gain_rollade_kueche_links
+            name: Erwartete Solarleistung
+      - type: entities
+        title: "Rollade Speisekammer"
+        show_header_toggle: false
+        entities:
+          - entity: cover.rollade_speisekammer
+            name: Position
+          - entity: input_boolean.auto_cover_rollade_speisekammer
+            name: Automatik Aktiv
+          - entity: input_number.cover_min_open_rollade_speisekammer
+            name: Mindestöffnung (%)
+          - entity: input_datetime.cover_manual_change_rollade_speisekammer
+            name: Manuelle Änderung
+          - entity: sensor.solar_expected_gain_rollade_speisekammer
+            name: Erwartete Solarleistung
+      - type: entities
+        title: "Rollade Hwr"
+        show_header_toggle: false
+        entities:
+          - entity: cover.rollade_hwr
+            name: Position
+          - entity: input_boolean.auto_cover_rollade_hwr
+            name: Automatik Aktiv
+          - entity: input_number.cover_min_open_rollade_hwr
+            name: Mindestöffnung (%)
+          - entity: input_datetime.cover_manual_change_rollade_hwr
+            name: Manuelle Änderung
+          - entity: sensor.solar_expected_gain_rollade_hwr
+            name: Erwartete Solarleistung
+      - type: entities
+        title: "Rollade Bad"
+        show_header_toggle: false
+        entities:
+          - entity: cover.rollade_bad
+            name: Position
+          - entity: input_boolean.auto_cover_rollade_bad
+            name: Automatik Aktiv
+          - entity: input_number.cover_min_open_rollade_bad
+            name: Mindestöffnung (%)
+          - entity: input_datetime.cover_manual_change_rollade_bad
+            name: Manuelle Änderung
+          - entity: sensor.solar_expected_gain_rollade_bad
+            name: Erwartete Solarleistung
+      - type: entities
+        title: "Rollade Schlafzimmer"
+        show_header_toggle: false
+        entities:
+          - entity: cover.rollade_schlafzimmer
+            name: Position
+          - entity: input_boolean.auto_cover_rollade_schlafzimmer
+            name: Automatik Aktiv
+          - entity: input_number.cover_min_open_rollade_schlafzimmer
+            name: Mindestöffnung (%)
+          - entity: input_datetime.cover_manual_change_rollade_schlafzimmer
+            name: Manuelle Änderung
+          - entity: sensor.solar_expected_gain_rollade_schlafzimmer
+            name: Erwartete Solarleistung
+      - type: entities
+        title: "Rollade Buero Merja"
+        show_header_toggle: false
+        entities:
+          - entity: cover.rollade_buero_merja
+            name: Position
+          - entity: input_boolean.auto_cover_rollade_buero_merja
+            name: Automatik Aktiv
+          - entity: input_number.cover_min_open_rollade_buero_merja
+            name: Mindestöffnung (%)
+          - entity: input_datetime.cover_manual_change_rollade_buero_merja
+            name: Manuelle Änderung
+          - entity: sensor.solar_expected_gain_rollade_buero_merja
+            name: Erwartete Solarleistung

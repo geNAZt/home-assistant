@@ -1,0 +1,32 @@
+type: sections
+title: HRV
+cards: []
+sections:
+  - type: grid
+    cards:
+      - type: gauge
+        entity: sensor.air_senseair_co2_value
+        severity:
+          green: 900
+          yellow: 1200
+          red: 1500
+        max: 2000
+        theme: darkish
+        unit: ppm
+        name: CO2
+      - type: gauge
+        entity: sensor.air_particulate_matter_2_5mm_concentration
+  - type: grid
+    cards:
+      - type: gauge
+        entity: sensor.thermo_hygrometer_luftfeuchtigkeit
+      - type: gauge
+        entity: sensor.barsinghausen_hohenb_relative_luftfeuchtigkeit
+      - type: gauge
+        entity: sensor.base_humidity_inside
+  - type: grid
+    cards:
+      - type: custom:mushroom-number-card
+        entity: input_number.hrv_flow_rate
+        fill_container: true
+        layout: horizontal

@@ -1,0 +1,96 @@
+type: custom:grid-layout
+path: heizung
+title: Heizung
+cards:
+  - type: horizontal-stack
+    cards:
+      - graph: line
+        type: sensor
+        entity: sensor.h_kw_per_k_effective
+        detail: 1
+        name: Heff (kW/k)
+      - graph: line
+        type: sensor
+        entity: sensor.outside_temperature
+        detail: 1
+        name: Aussentemperatur
+      - graph: line
+        type: sensor
+        entity: sensor.inside_temp_mean_now
+        detail: 2
+        name: Innentemperatur (aktuell)
+      - type: entity
+        entity: sensor.heizenergie_spezifisch_letztes_jahr
+        name: Effizienz
+      - type: entity
+        entity: sensor.heating_energy_24h
+        name: Heating Energy 24h
+      - type: entity
+        entity: input_number.building_heat_capacity
+        name: Ceff
+      - type: entity
+        entity: binary_sensor.preheat_erlaubt_demand_weighted
+      - type: entity
+        entity: sensor.heating_savings_today
+      - type: entities
+        entities:
+          - entity: sensor.heating_preheat_offset_dynamic_uncapped
+          - entity: sensor.heating_preheat_offset_dynamic
+          - entity: sensor.heating_preheat_offset_24h_max
+          - entity: sensor.heating_preheat_offset_5min_average
+          - entity: input_number.heating_max_offset_k
+        title: Heating offset
+  - type: history-graph
+    entities:
+      - entity: sensor.internal_gains_total
+      - entity: sensor.solar_gains
+      - entity: sensor.heating_power
+      - entity: sensor.internal_gains_dishwasher
+      - entity: sensor.internal_gains_hrv
+      - entity: sensor.internal_gains_misc
+      - entity: sensor.internal_gains_persons
+      - entity: sensor.internal_gains_trockner
+      - entity: sensor.internal_gains_pv
+      - entity: sensor.internal_gains_waschmaschine
+      - entity: sensor.internal_gains_heating_pump
+      - entity: sensor.heating_net_balance
+    title: Debt
+    hours_to_show: 24
+  - type: history-graph
+    entities:
+      - entity: sensor.security_temperature_bad_max
+      - entity: sensor.security_temperature_buero_fabian_max
+      - entity: sensor.security_temperature_buero_merja_max
+      - entity: sensor.security_temperature_flur_max
+      - entity: sensor.security_temperature_kueche_max
+      - entity: sensor.security_temperature_schlafzimmer_max
+      - entity: sensor.security_temperature_speisekammer_max
+      - entity: sensor.security_temperature_wohnzimmer_max
+    hours_to_show: 72
+    title: Security Floor Sensors
+  - type: history-graph
+    entities:
+      - entity: sensor.temperature_bad_mean
+      - entity: sensor.temperature_buero_fabian_mean
+      - entity: sensor.temperature_buero_merja_mean
+      - entity: sensor.temperature_flur_mean
+      - entity: sensor.temperature_kueche_mean
+      - entity: sensor.temperature_schlafzimmer_mean
+      - entity: sensor.temperature_speisekammer_mean
+      - entity: sensor.temperature_wohnzimmer_mean
+    title: Raum Temperatur
+    hours_to_show: 72
+  - type: custom:apexcharts-card
+    header:
+      show: true
+      title: ApexCharts-Card
+      show_states: true
+      colorize_states: true
+    yaxis:
+      - id: debt
+      - id: temp
+    series:
+      - entity: sensor.inside_temp_mean_now
+        yaxis_id: temp
+      - entity: sensor.heating_energy_debt_tracker
+        yaxis_id: debt

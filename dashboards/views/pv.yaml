@@ -1,0 +1,166 @@
+type: sections
+max_columns: 4
+title: PV
+path: pv
+sections:
+  - type: grid
+    cards:
+      - type: heading
+        heading: Forecast Überblick
+      - type: gauge
+        name: PV Budget 24h
+        entity: sensor.pv_priority_next_day_budget
+        min: 0
+        max: 40
+      - type: gauge
+        name: Batterie SoC
+        entity: sensor.pv_battery1_state_of_charge
+        min: 0
+        max: 100
+      - type: gauge
+        name: Warmwasser heute (Wh)
+        entity: sensor.water_heating_pump_daily
+        min: 0
+        max: 6000
+  - type: grid
+    cards:
+      - type: custom:power-distribution-card
+        title: ''
+        entities:
+          - decimals: 2
+            display_abs: true
+            name: solar
+            unit_of_display: adaptive
+            icon: mdi:solar-power
+            producer: true
+            entity: sensor.solar_panel_production_w
+            preset: solar
+          - decimals: 2
+            display_abs: true
+            name: grid
+            unit_of_display: adaptive
+            icon: mdi:transmission-tower
+            entity: sensor.pv_m1_ac_power
+            preset: grid
+            threshold: ''
+            icon_color:
+              bigger: ''
+              equal: ''
+              smaller: ''
+            invert_value: true
+          - decimals: 2
+            display_abs: true
+            name: home
+            unit_of_display: W
+            consumer: true
+            icon: mdi:home-assistant
+            entity: sensor.solar_house_consumption_w
+            preset: home
+            threshold: ''
+            icon_color:
+              bigger: ''
+              equal: ''
+              smaller: ''
+            invert_value: true
+          - decimals: 2
+            display_abs: true
+            name: battery
+            unit_of_display: W
+            consumer: true
+            icon: mdi:battery-outline
+            producer: true
+            entity: sensor.pv_battery1_power
+            preset: battery
+            threshold: ''
+            icon_color:
+              bigger: ''
+              equal: ''
+              smaller: ''
+            invert_value: true
+        center:
+          type: bars
+          content:
+            - preset: autarky
+              name: autark
+              bar_color: green
+              bar_bg_color: ''
+              entity: sensor.solar_autarkie_ratio
+            - preset: ratio
+              name: selbst
+              bar_color: blue
+              bar_bg_color: ''
+              entity: sensor.solar_selfconsumption_ratio
+        animation: none
+      - type: heading
+        heading: Forecast Stages (%)
+      - type: markdown
+        content: >
+          {% set ww_target =
+          state_attr('sensor.pv_priority_next_day_budget','water_stage1_target_kwh')
+          | float(5) %}
+
+          {% set ww_done =
+          state_attr('sensor.pv_priority_next_day_budget','water_stage1_done_today_kwh')
+          | float(0) %}
+
+          {% set heat_need =
+          state_attr('sensor.pv_priority_next_day_budget','heating_need_next_day_kwh')
+          | float(0) %}
+
+          {% set heat_alloc =
+          state_attr('sensor.pv_priority_next_day_budget','allocated_to_heating_kwh')
+          | float(0) %}
+
+          {% set batt_need =
+          state_attr('sensor.pv_priority_next_day_budget','battery_needed_before_stage2_kwh')
+          | float(0) %}
+
+          {% set batt_alloc =
+          state_attr('sensor.pv_priority_next_day_budget','allocated_to_battery_before_stage2_kwh')
+          | float(0) %}
+
+
+          **Warmwasser Stage 1:** {{ (100 * ww_done / ww_target) | round(1)
+          if ww_target > 0 else 0 }} %  
+
+          **Heizung Forecast-Abdeckung:** {{ (100 * heat_alloc / heat_need)
+          | round(1) if heat_need > 0 else 100 }} %  
+
+          **Batterie bis Ziel:** {{ (100 * batt_alloc / batt_need) |
+          round(1) if batt_need > 0 else 100 }} %  
+
+          **Rest nach Batterie:** {{
+          state_attr('sensor.pv_priority_next_day_budget','remaining_after_battery_kwh')
+          | float(0) | round(2) }} kWh
+  - type: grid
+    cards:
+      - type: heading
+        heading: Freigaben / Verbraucher
+      - type: entities
+        entities:
+          - entity: switch.water_heater_pv_switch_powerr_usage_stage_1
+            name: Warmwasser Stage 1 aktiv
+          - entity: switch.water_heater_pv_switch_powerr_usage_stage_2
+            name: Warmwasser Stage 2 aktiv
+          - entity: input_boolean.water_heater_stage2_whitelist
+            name: Stage 2 freigeschaltet (Whitelist)
+          - entity: input_boolean.heating_block_daytime
+            name: Heizung tagsüber blockiert
+          - entity: input_boolean.car_charge_override
+            name: EV Override aktiv
+          - entity: sensor.goe_288025_nrg_11
+            name: EV Ladeleistung (W)
+  - type: grid
+    cards:
+      - type: heading
+        heading: Verlauf (24h)
+      - type: history-graph
+        hours_to_show: 24
+        entities:
+          - entity: sensor.pv_priority_next_day_budget
+          - entity: sensor.water_heating_pump_power
+          - entity: sensor.filtered_exported_power_w
+          - entity: sensor.pv_battery1_state_of_charge
+          - entity: switch.water_heater_pv_switch_powerr_usage_stage_1
+          - entity: switch.water_heater_pv_switch_powerr_usage_stage_2
+cards: []

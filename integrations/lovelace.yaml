@@ -1,0 +1,9 @@
+lovelace:
+  mode: yaml
+  dashboards:
+    covers-dashboard:
+      mode: yaml
+      title: Rolladen Steuerung
+      icon: mdi:window-shutter-cog
+      show_in_sidebar: true
+      filename: dashboards/covers.yaml

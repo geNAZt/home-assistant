@@ -1,0 +1,16 @@
+type: sections
+max_columns: 4
+title: Internet
+path: internet
+sections:
+  - type: grid
+    cards:
+      - type: custom:transmission-card
+        hide_type: true
+        default_type: started
+        display_mode: full
+        hide_eta: false
+        hide_header_eta: false
+        custom_colors:
+          downloading: '#2196F3'
+          seeding: '#4CAF50'

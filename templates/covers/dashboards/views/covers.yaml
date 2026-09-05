@@ -1,0 +1,38 @@
+title: Rolladen Steuerung
+icon: mdi:window-shutter-cog
+path: covers
+cards:
+  - type: entities
+    title: Global Steuerung & Modi
+    show_header_toggle: false
+    entities:
+      - entity: input_select.cover_mode
+        name: Rolladen Modus
+      - entity: input_boolean.cover_night_mode
+        name: Nachtmodus Aktiv
+      - entity: input_text.exempt_covers
+        name: Ausgenommene Rolläden (Text)
+      - entity: input_datetime.cover_last_global_move
+        name: Letzte Globale Bewegung
+
+  - type: grid
+    title: Rolläden Übersicht
+    columns: 2
+    square: false
+    cards:
+[[% for entry in cover_entries %]]
+      - type: entities
+        title: "Rollade [[ entry.cov_suffix | replace('rollade_', '') | replace('_', ' ') | title ]]"
+        show_header_toggle: false
+        entities:
+          - entity: [[ entry.cover ]]
+            name: Position
+          - entity: input_boolean.auto_cover_[[ entry.cov_suffix ]]
+            name: Automatik Aktiv
+          - entity: input_number.cover_min_open_[[ entry.cov_suffix ]]
+            name: Mindestöffnung (%)
+          - entity: input_datetime.cover_manual_change_[[ entry.cov_suffix ]]
+            name: Manuelle Änderung
+          - entity: sensor.solar_expected_gain_[[ entry.cov_suffix ]]
+            name: Erwartete Solarleistung
+[[% endfor %]]

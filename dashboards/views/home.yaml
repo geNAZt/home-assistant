@@ -1,0 +1,87 @@
+path: default_view
+title: Home
+badges: []
+cards:
+  - show_current: true
+    show_forecast: true
+    type: weather-forecast
+    entity: weather.barsinghausen_hohenb
+    secondary_info_attribute: wind_speed
+    forecast_type: daily
+  - type: entities
+    entities:
+      - entity: sensor.gelber_sack
+      - entity: sensor.bioabfall
+      - entity: sensor.restmull
+      - entity: sensor.papier
+    title: Müllabholung
+  - type: entities
+    entities:
+      - entity: sensor.waschetrockner_verbleibende_zeit
+      - entity: sensor.waschmaschine_verbleibende_zeit
+      - entity: sensor.waschmaschine_wasserverbrauch
+    title: HWR
+  - type: entities
+    entities:
+      - entity: light.licht_speisekammer_virtuell
+      - entity: climate.climate_room_speisekammer
+    title: Speisekammer
+  - type: entities
+    entities:
+      - entity: light.licht_buero_fabian_virtuell
+      - entity: climate.climate_room_buero_fabian
+    title: Fabian Büro
+  - type: entities
+    entities:
+      - entity: light.licht_kueche_virtuell
+      - entity: climate.climate_room_kueche
+    title: Küche
+  - type: entities
+    entities:
+      - entity: light.licht_wohnzimmer_virtuell
+      - entity: climate.climate_room_wohnzimmer
+    title: Wohnzimmer
+    state_color: false
+  - type: entities
+    entities:
+      - entity: light.licht_schlafzimmer_virtuell
+      - entity: climate.climate_room_schlafzimmer
+    title: Schlafzimmer
+  - type: entities
+    entities:
+      - entity: light.licht_bad_virtuell
+      - entity: climate.climate_room_bad
+    title: Bad
+  - type: entities
+    entities:
+      - entity: light.licht_buero_merja_virtuell
+      - entity: climate.climate_room_buero_merja
+    title: Merja
+  - type: entities
+    entities:
+      - entity: input_button.snapper_door
+      - entity: light.licht_flur_virtuell
+      - entity: climate.climate_room_flur
+    title: Flur
+  - title: Verlauf
+    type: history-graph
+    hours_to_show: 26
+    entities:
+      - sensor.indoor_temp_filtered
+      - sensor.temperature_bad_mean
+      - sensor.temperature_buero_fabian_mean
+      - sensor.temperature_flur_mean
+      - sensor.temperature_buero_merja_mean
+      - sensor.temperature_kueche_mean
+      - sensor.temperature_speisekammer_mean
+      - sensor.temperature_schlafzimmer_mean
+      - sensor.temperature_wohnzimmer_mean
+  - type: entities
+    entities:
+      - entity: input_datetime.vacation_return
+      - entity: binary_sensor.vacation_mode
+      - entity: binary_sensor.vacation_mode_water_heater
+    title: Urlaub
+visible:
+  - user: 88ebd5f34f1c412a8795640615dfa3f7
+  - user: bafe2f81b05541899ce260ec50c6f547
