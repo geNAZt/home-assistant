@@ -213,19 +213,32 @@ def process_template_folder(template_folder: Path, output_base: Path):
             global_files.append(template_file)
     
     # Process per-item template files
-    for item in values:
-        print(f"\n  Processing item: {item.get('room', item)}")
-        context = {
-            **item,
-            'rooms': values,
-            'items': values,
-            'values': values,
-            'temp_rooms': temp_rooms,
-            'cover_entries': cover_entries,
-            'covers': covers,
-        }
-        for template_file in per_item_files:
-            process_template_file(template_file, output_base, context, template_folder)
+    for template_file in per_item_files:
+        relative_path = template_file.relative_to(template_folder)
+        if '<% cov_suffix %>' in relative_path.name or '<% cov_suffix %>' in str(relative_path):
+            for entry in cover_entries:
+                context = {
+                    **entry,
+                    'rooms': values,
+                    'items': values,
+                    'values': values,
+                    'temp_rooms': temp_rooms,
+                    'cover_entries': cover_entries,
+                    'covers': covers,
+                }
+                process_template_file(template_file, output_base, context, template_folder)
+        else:
+            for item in values:
+                context = {
+                    **item,
+                    'rooms': values,
+                    'items': values,
+                    'values': values,
+                    'temp_rooms': temp_rooms,
+                    'cover_entries': cover_entries,
+                    'covers': covers,
+                }
+                process_template_file(template_file, output_base, context, template_folder)
 
     # Process global template files (once with full context)
     if global_files:

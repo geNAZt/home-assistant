@@ -1,0 +1,6 @@
+name: "Cover Min Open Rollade Speisekammer"
+min: 0
+max: 100
+step: 1
+unit_of_measurement: "%"
+icon: mdi:window-shutter-open

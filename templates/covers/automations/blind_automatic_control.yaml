@@ -15,6 +15,11 @@
 [[% endfor %]]
     - trigger: state
       entity_id:
+[[% for entry in cover_entries %]]
+        - input_number.cover_min_open_[[ entry.cov_suffix ]]
+[[% endfor %]]
+    - trigger: state
+      entity_id:
 [[% for r in temp_rooms %]]
         - sensor.temperature_[[ r ]]_mean
 [[% endfor %]]
@@ -57,6 +62,7 @@
             watt_limit: [[ entry.watt_limit ]]
 [[% endfor %]]
         cover_evaluations: >-
+          {% set cover_mode = states('input_select.cover_mode') %}
           {% set is_night = is_state('input_boolean.cover_night_mode', 'on') %}
           {% set exempt_text = states('input_text.exempt_covers') | default('') %}
           {% set ns = namespace(evals=[]) %}
@@ -73,6 +79,10 @@
             {% set gain_suffix = data.gain_sensor %}
             {% set cov_suffix = cov.split('.')[1] %}
             {% set limit_w = data.watt_limit | default(50) | float %}
+
+            {# Check minimum open position #}
+            {% set min_open_state = states('input_number.cover_min_open_' ~ cov_suffix) %}
+            {% set min_open = min_open_state | int(0) if (min_open_state not in ['unknown', 'unavailable', 'None', ''] and min_open_state is not none) else 0 %}
 
             {# Check runtime exemption #}
             {% set is_exempt_text = cov in exempt_text or cov_suffix in exempt_text %}
@@ -108,37 +118,50 @@
             {% endif %}
 
             {# Calculate target position and reason #}
-            {% if is_exempt %}
+            {% if is_night %}
+              {% set target_pos = 0 %}
+              {% set calc_reason = "Night mode active (sunset + 30m reached)" %}
+            {% elif is_exempt %}
               {% set target_pos = cur_pos %}
               {% set calc_reason = "Exempt cover (" ~ exempt_reason ~ ")" %}
+            {% elif cover_mode == 'Manual (sunset)' %}
+              {% set target_pos = cur_pos %}
+              {% set calc_reason = "Manual (sunset) mode active during daytime" %}
             {% elif manual_cooldown_active %}
               {% set target_pos = cur_pos %}
               {% set calc_reason = "Manual override cooldown active (" ~ manual_elapsed ~ "s < 3600s 1h manual cooldown)" %}
-            {% elif is_night %}
-              {% set target_pos = 0 %}
-              {% set calc_reason = "Night mode active (sunset + 30m reached)" %}
             {% else %}
               {% if delta_t > 1.0 %}
                 {% if p_exp <= limit_w %}
-                  {% set target_pos = 100 %}
+                  {% set raw_target_pos = 100 %}
                   {% set calc_reason = "Overheating (delta_t " ~ delta_t ~ "°C > 1.0°C), expected gain " ~ p_exp ~ "W <= " ~ limit_w ~ "W -> open 100%" %}
                 {% else %}
-                  {% set target_pos = [ [ ((limit_w / p_exp) * 100) | round(0) | int, 100 ] | min, 0 ] | max %}
-                  {% set calc_reason = "Overheating (delta_t " ~ delta_t ~ "°C > 1.0°C), expected gain " ~ p_exp ~ "W > " ~ limit_w ~ "W -> target " ~ target_pos ~ "% (limit to " ~ limit_w ~ "W)" %}
+                  {% set raw_target_pos = [ [ ((limit_w / p_exp) * 100) | round(0) | int, 100 ] | min, 0 ] | max %}
+                  {% set calc_reason = "Overheating (delta_t " ~ delta_t ~ "°C > 1.0°C), expected gain " ~ p_exp ~ "W > " ~ limit_w ~ "W -> target " ~ raw_target_pos ~ "% (limit to " ~ limit_w ~ "W)" %}
                 {% endif %}
               {% else %}
-                {% set target_pos = 100 %}
+                {% set raw_target_pos = 100 %}
                 {% set calc_reason = "Normal/Heating state (delta_t " ~ delta_t ~ "°C <= 1.0°C) -> default open 100%" %}
+              {% endif %}
+
+              {% if min_open > 0 and raw_target_pos < min_open %}
+                {% set target_pos = min_open %}
+                {% set calc_reason = calc_reason ~ " -> enforced minimum open position " ~ min_open ~ "%" %}
+              {% else %}
+                {% set target_pos = raw_target_pos %}
               {% endif %}
             {% endif %}
 
             {% set pos_diff = (target_pos - cur_pos) | abs %}
 
             {# Status & Summary Determination #}
-            {% if is_exempt %}
+            {% if is_exempt and not is_night %}
               {% set status = "SKIPPED_EXEMPT" %}
               {% set summary = "Skipped: " ~ exempt_reason %}
-            {% elif manual_cooldown_active %}
+            {% elif cover_mode == 'Manual (sunset)' and not is_night %}
+              {% set status = "SKIPPED_MANUAL_SUNSET" %}
+              {% set summary = "Skipped: Manual (sunset) mode active during daytime" %}
+            {% elif manual_cooldown_active and not is_night %}
               {% set status = "SKIPPED_MANUAL_COOLDOWN" %}
               {% set summary = "Skipped: Manual override cooldown active (" ~ manual_elapsed ~ "s < 3600s 1h manual cooldown)" %}
             {% elif pos_diff <= 5 %}

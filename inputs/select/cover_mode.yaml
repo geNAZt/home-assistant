@@ -1,8 +1,6 @@
 name: Cover Mode
 options:
   - Manual
+  - Manual (sunset)
   - Automatic
-  - Automatic (Heat)
-  - Automatic (Cool)
-  - Automatic (Sundown)
 icon: mdi:window-shutter-cog
