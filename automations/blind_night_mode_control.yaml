@@ -36,7 +36,7 @@
         message: "[Cover Night Mode] Night mode activated (30 minutes after sunset reached)."
 
 - id: 'cover_night_mode_wakeup'
-  alias: "Rolladen: Nachtmodus Aufwachen (Erstes Licht nach Sonnenaufgang + 15 min Verzögerung)"
+  alias: "Rolladen: Nachtmodus Aufwachen (Alle Lichter nach Sonnenaufgang + 10 min Verzögerung)"
   mode: restart
   triggers:
     - trigger: state
@@ -72,19 +72,52 @@
           'light.licht_speisekammer_virtuell',
           'light.licht_wohnzimmer_virtuell'
         ] %}
-        {{ lights | select('is_state', 'on') | list | count > 0 }}
+        {% set all_on = (lights | select('is_state', 'on') | list | count) == (lights | count) %}
+        {% if all_on %}
+          {% set ns = namespace(timestamps=[]) %}
+          {% for l in lights %}
+            {% set st = states[l] %}
+            {% if st is not none and st.last_changed is not none %}
+              {% set ns.timestamps = ns.timestamps + [as_timestamp(st.last_changed)] %}
+            {% endif %}
+          {% endfor %}
+          {% if ns.timestamps | count == (lights | count) %}
+            {% set min_ts = ns.timestamps | min %}
+            {% set max_ts = ns.timestamps | max %}
+            {{ (max_ts - min_ts) <= 60 }}
+          {% else %}
+            false
+          {% endif %}
+        {% else %}
+          false
+        {% endif %}
   actions:
     - action: system_log.write
       data:
         logger: automatic_cover_control
         level: info
-        message: "[Cover Night Mode] Wake-up light detected after sunrise. Starting 15-minute wake-up delay."
-    - delay: "00:15:00"
+        message: "[Cover Night Mode] All wake-up lights detected within 1 minute after sunrise. Starting 10-minute wake-up delay."
+    - delay: "00:10:00"
     - action: input_boolean.turn_off
       target:
         entity_id: input_boolean.cover_night_mode
+    - action: input_datetime.set_datetime
+      target:
+        entity_id:
+          - input_datetime.cover_manual_change_rollade_bad
+          - input_datetime.cover_manual_change_rollade_buero_fabian
+          - input_datetime.cover_manual_change_rollade_buero_merja
+          - input_datetime.cover_manual_change_rollade_hwr
+          - input_datetime.cover_manual_change_rollade_kueche_links
+          - input_datetime.cover_manual_change_rollade_kueche_rechts
+          - input_datetime.cover_manual_change_rollade_schlafzimmer
+          - input_datetime.cover_manual_change_rollade_speisekammer
+          - input_datetime.cover_manual_change_rollade_wohnzimmer_links
+          - input_datetime.cover_manual_change_rollade_wohnzimmer_rechts
+      data:
+        datetime: "1970-01-01 00:00:00"
     - action: system_log.write
       data:
         logger: automatic_cover_control
         level: info
-        message: "[Cover Night Mode] 15-minute wake-up delay completed. Night mode deactivated."
+        message: "[Cover Night Mode] 10-minute wake-up delay completed. Night mode deactivated and manual cooldowns reset."
