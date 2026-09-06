@@ -13,14 +13,10 @@
       response_variable: irradiance_result
     - if:
         - condition: template
-          value_template: "{{ irradiance_result is defined and irradiance_result.stdout is defined }}"
+          value_template: "{{ irradiance_result is defined and irradiance_result.stdout is defined and (irradiance_result.stdout | trim | length) > 0 }}"
       then:
-        - variables:
-            raw_out: "{{ irradiance_result.stdout | trim }}"
-            parsed: "{{ raw_out | from_json if raw_out.startswith('{') else {'irradiance': raw_out|float(0)} }}"
-            irr_val: "{{ parsed.get('irradiance', 0) | float(0) }}"
         - action: input_number.set_value
           target:
             entity_id: input_number.solar_irradiance
           data:
-            value: "{{ irr_val }}"
+            value: "{{ (irradiance_result.stdout | from_json).irradiance | float(0) }}"
