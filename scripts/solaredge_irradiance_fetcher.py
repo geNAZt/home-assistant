@@ -4,10 +4,10 @@ SolarEdge Individual Optimizer Irradiance Fetcher
 
 Logs in directly to SolarEdge Monitoring Portal, requests real-time 15-minute
 production power telemetry for all 31 site optimizers via the devices-measurements
-endpoint, finds the peak optimizer wattage (unclipped by inverter AC limits),
-and calculates solar irradiance (W/m²) based on a 415W STC module rating.
+endpoint, finds the peak optimizer wattage for the MOST RECENT time slot (unclipped by inverter AC limits),
+and calculates real-time solar irradiance (W/m²) based on a 415W STC module rating.
 
-Formula: Irradiance = (Max_Optimizer_Watts / 415.0) * 1000.0
+Formula: Irradiance = (Latest_Slot_Max_Optimizer_Watts / 415.0) * 1000.0
 """
 
 import sys
@@ -130,10 +130,8 @@ def fetch_optimizer_measurements(site_id, username, password):
     with opener.open(m_req, timeout=15) as resp:
         data = json.loads(resp.read().decode("utf-8"))
 
-    peak_opt_name = ""
-    peak_opt_watts = 0.0
-    peak_opt_time = ""
-
+    # Group measurements by time slot
+    ts_map = {}
     for opt in data:
         d_name = opt.get("deviceName", "")
         measurements = opt.get("measurements", [])
@@ -141,12 +139,22 @@ def fetch_optimizer_measurements(site_id, username, password):
             val = m.get("measurement")
             t_str = m.get("time")
             if val is not None and isinstance(val, (int, float)):
-                if val > peak_opt_watts:
-                    peak_opt_watts = float(val)
-                    peak_opt_name = d_name
-                    peak_opt_time = t_str
+                if t_str not in ts_map:
+                    ts_map[t_str] = []
+                ts_map[t_str].append((d_name, float(val)))
 
-    return peak_opt_name, peak_opt_watts, peak_opt_time
+    if not ts_map:
+        return "", 0.0, datetime.now().isoformat()
+
+    # Sort available timestamps and pick the MOST RECENT time slot
+    sorted_ts = sorted(list(ts_map.keys()))
+    latest_ts = sorted_ts[-1]
+
+    # Find the peak optimizer wattage for this latest time slot
+    latest_measurements = ts_map[latest_ts]
+    peak_opt_name, peak_opt_watts = max(latest_measurements, key=lambda x: x[1])
+
+    return peak_opt_name, peak_opt_watts, latest_ts
 
 
 def main():
