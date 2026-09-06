@@ -1,0 +1,2 @@
+name: "Cover Daylight Protection [[ cov_suffix | replace('rollade_', '') | replace('_', ' ') | title ]]"
+icon: mdi:sun-clock

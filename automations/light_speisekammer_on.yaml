@@ -24,10 +24,14 @@
       entity_id: binary_sensor.presence_speisekammer
       state: "on"
 
-    # Lux muss UNTER waterLow / Threshold sein
-    - condition: numeric_state
-      entity_id: sensor.lux_speisekammer
-      below: 140
+    # Lux muss UNTER effektivem waterLow Threshold sein (250 Lux wenn Cover Daylight Protection aktiv ist, sonst normal waterLow)
+    - condition: template
+      value_template: >-
+        {% set base_water_low = 140 %}
+        {% set prot_entities = states.input_boolean | selectattr('entity_id', 'search', 'cover_daylight_protection_.*' ~ 'speisekammer') | selectattr('state', 'eq', 'on') | list %}
+        {% set is_daylight_prot = prot_entities | length > 0 %}
+        {% set effective_water_low = 250 if is_daylight_prot else base_water_low %}
+        {{ (states('sensor.lux_speisekammer') | float(0)) < effective_water_low }}
 
     # Licht nur einschalten, wenn es wirklich aus ist
     - condition: state

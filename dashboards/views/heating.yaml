@@ -1,45 +1,35 @@
-type: custom:grid-layout
 path: heizung
 title: Heizung
 cards:
-  - type: horizontal-stack
-    cards:
-      - graph: line
-        type: sensor
-        entity: sensor.h_kw_per_k_effective
-        detail: 1
+  - type: entities
+    title: Heizung Kennzahlen & Status
+    entities:
+      - entity: sensor.h_kw_per_k_effective
         name: Heff (kW/k)
-      - graph: line
-        type: sensor
-        entity: sensor.outside_temperature
-        detail: 1
+      - entity: sensor.outside_temperature
         name: Aussentemperatur
-      - graph: line
-        type: sensor
-        entity: sensor.inside_temp_mean_now
-        detail: 2
+      - entity: sensor.inside_temp_mean_now
         name: Innentemperatur (aktuell)
-      - type: entity
-        entity: sensor.heizenergie_spezifisch_letztes_jahr
+      - entity: sensor.heizenergie_spezifisch_letztes_jahr
         name: Effizienz
-      - type: entity
-        entity: sensor.heating_energy_24h
+      - entity: sensor.heating_energy_24h
         name: Heating Energy 24h
-      - type: entity
-        entity: input_number.building_heat_capacity
+      - entity: input_number.building_heat_capacity
         name: Ceff
-      - type: entity
-        entity: binary_sensor.preheat_erlaubt_demand_weighted
-      - type: entity
-        entity: sensor.heating_savings_today
-      - type: entities
-        entities:
-          - entity: sensor.heating_preheat_offset_dynamic_uncapped
-          - entity: sensor.heating_preheat_offset_dynamic
-          - entity: sensor.heating_preheat_offset_24h_max
-          - entity: sensor.heating_preheat_offset_5min_average
-          - entity: input_number.heating_max_offset_k
-        title: Heating offset
+      - entity: binary_sensor.preheat_erlaubt_demand_weighted
+        name: Preheat Erlaubt
+      - entity: sensor.heating_savings_today
+        name: Heating Savings Today
+
+  - type: entities
+    title: Heating Offset
+    entities:
+      - entity: sensor.heating_preheat_offset_dynamic_uncapped
+      - entity: sensor.heating_preheat_offset_dynamic
+      - entity: sensor.heating_preheat_offset_24h_max
+      - entity: sensor.heating_preheat_offset_5min_average
+      - entity: input_number.heating_max_offset_k
+
   - type: history-graph
     entities:
       - entity: sensor.internal_gains_total
@@ -56,6 +46,7 @@ cards:
       - entity: sensor.heating_net_balance
     title: Debt
     hours_to_show: 24
+
   - type: history-graph
     entities:
       - entity: sensor.security_temperature_bad_max
@@ -68,6 +59,7 @@ cards:
       - entity: sensor.security_temperature_wohnzimmer_max
     hours_to_show: 72
     title: Security Floor Sensors
+
   - type: history-graph
     entities:
       - entity: sensor.temperature_bad_mean
@@ -80,6 +72,7 @@ cards:
       - entity: sensor.temperature_wohnzimmer_mean
     title: Raum Temperatur
     hours_to_show: 72
+
   - type: custom:apexcharts-card
     header:
       show: true

@@ -330,6 +330,8 @@
               {% set daylight_min_pos = 20 %}
             {% endif %}
 
+            {% set is_daylight_clamped = false %}
+
             {# Calculate target position and reason #}
             {% if is_night %}
               {% set target_pos = 0 %}
@@ -370,6 +372,7 @@
               {% set solar_heat_saved = solar_gain_at_daylight - solar_gain_at_raw %}
 
               {% if raw_target_pos < daylight_min_pos and active_light_power > solar_heat_saved %}
+                {% set is_daylight_clamped = true %}
                 {% set target_pos_before_min = daylight_min_pos %}
                 {% set calc_reason = calc_reason ~ " -> clamped to daylight floor " ~ daylight_min_pos ~ "% (active LED heat " ~ (active_light_power | round(1)) ~ "W @ " ~ ((actual_bright * 100 // 255) | int) ~ "% brightness > solar heat saved " ~ (solar_heat_saved | round(1)) ~ "W)" %}
               {% else %}
@@ -409,11 +412,13 @@
 
             {% set item = {
               'entity_id': cov,
+              'cov_suffix': cov_suffix,
               'target_position': target_pos,
               'current_position': cur_pos,
               'status': status,
               'summary': summary,
-              'should_update': (status == 'UPDATING_POSITION')
+              'should_update': (status == 'UPDATING_POSITION'),
+              'is_daylight_protection': is_daylight_clamped
             } %}
             {% set ns.evals = ns.evals + [item] %}
           {% endfor %}
@@ -423,6 +428,16 @@
     - repeat:
         for_each: "{{ cover_evaluations }}"
         sequence:
+          - choose:
+              - conditions: "{{ repeat.item.is_daylight_protection }}"
+                sequence:
+                  - action: input_boolean.turn_on
+                    target:
+                      entity_id: "input_boolean.cover_daylight_protection_{{ repeat.item.cov_suffix }}"
+            default:
+              - action: input_boolean.turn_off
+                target:
+                  entity_id: "input_boolean.cover_daylight_protection_{{ repeat.item.cov_suffix }}"
           - action: system_log.write
             data:
               logger: automatic_cover_control
