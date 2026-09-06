@@ -9,85 +9,173 @@
     - trigger: state
       entity_id: input_text.exempt_covers
     - trigger: state
-      entity_id:
-        - input_boolean.auto_cover_rollade_buero_fabian
-        - input_boolean.auto_cover_rollade_wohnzimmer_links
-        - input_boolean.auto_cover_rollade_wohnzimmer_rechts
-        - input_boolean.auto_cover_rollade_kueche_rechts
-        - input_boolean.auto_cover_rollade_kueche_links
-        - input_boolean.auto_cover_rollade_speisekammer
-        - input_boolean.auto_cover_rollade_hwr
-        - input_boolean.auto_cover_rollade_bad
-        - input_boolean.auto_cover_rollade_schlafzimmer
-        - input_boolean.auto_cover_rollade_buero_merja
+      entity_id: input_number.cover_overheating_threshold
     - trigger: state
-      entity_id:
-        - input_number.cover_min_open_rollade_buero_fabian
-        - input_number.cover_min_open_rollade_wohnzimmer_links
-        - input_number.cover_min_open_rollade_wohnzimmer_rechts
-        - input_number.cover_min_open_rollade_kueche_rechts
-        - input_number.cover_min_open_rollade_kueche_links
-        - input_number.cover_min_open_rollade_speisekammer
-        - input_number.cover_min_open_rollade_hwr
-        - input_number.cover_min_open_rollade_bad
-        - input_number.cover_min_open_rollade_schlafzimmer
-        - input_number.cover_min_open_rollade_buero_merja
+      entity_id: input_number.solar_irradiance
     - trigger: state
-      entity_id:
-        - sensor.temperature_buero_fabian_mean
-        - sensor.temperature_wohnzimmer_mean
-        - sensor.temperature_kueche_mean
-        - sensor.temperature_speisekammer_mean
-        - sensor.temperature_flur_mean
-        - sensor.temperature_bad_mean
-        - sensor.temperature_schlafzimmer_mean
-        - sensor.temperature_buero_merja_mean
+      entity_id: input_boolean.auto_cover_rollade_buero_fabian
     - trigger: state
-      entity_id:
-        - input_number.heating_base_buero_fabian
-        - input_number.heating_base_wohnzimmer
-        - input_number.heating_base_kueche
-        - input_number.heating_base_speisekammer
-        - input_number.heating_base_flur
-        - input_number.heating_base_bad
-        - input_number.heating_base_schlafzimmer
-        - input_number.heating_base_buero_merja
+      entity_id: input_boolean.auto_cover_rollade_wohnzimmer_links
     - trigger: state
-      entity_id:
-        - sensor.solar_expected_gain_rollade_buero_fabian
-        - sensor.solar_expected_gain_rollade_wohnzimmer_links
-        - sensor.solar_expected_gain_rollade_wohnzimmer_rechts
-        - sensor.solar_expected_gain_rollade_kueche_rechts
-        - sensor.solar_expected_gain_rollade_kueche_links
-        - sensor.solar_expected_gain_rollade_speisekammer
-        - sensor.solar_expected_gain_rollade_hwr
-        - sensor.solar_expected_gain_rollade_bad
-        - sensor.solar_expected_gain_rollade_schlafzimmer
-        - sensor.solar_expected_gain_rollade_buero_merja
+      entity_id: input_boolean.auto_cover_rollade_wohnzimmer_rechts
     - trigger: state
-      entity_id:
-        - cover.rollade_buero_fabian
-        - cover.rollade_wohnzimmer_links
-        - cover.rollade_wohnzimmer_rechts
-        - cover.rollade_kueche_rechts
-        - cover.rollade_kueche_links
-        - cover.rollade_speisekammer
-        - cover.rollade_hwr
-        - cover.rollade_bad
-        - cover.rollade_schlafzimmer
-        - cover.rollade_buero_merja
+      entity_id: input_boolean.auto_cover_rollade_kueche_rechts
     - trigger: state
-      entity_id:
-        - input_datetime.cover_manual_change_rollade_buero_fabian
-        - input_datetime.cover_manual_change_rollade_wohnzimmer_links
-        - input_datetime.cover_manual_change_rollade_wohnzimmer_rechts
-        - input_datetime.cover_manual_change_rollade_kueche_rechts
-        - input_datetime.cover_manual_change_rollade_kueche_links
-        - input_datetime.cover_manual_change_rollade_speisekammer
-        - input_datetime.cover_manual_change_rollade_hwr
-        - input_datetime.cover_manual_change_rollade_bad
-        - input_datetime.cover_manual_change_rollade_schlafzimmer
-        - input_datetime.cover_manual_change_rollade_buero_merja
+      entity_id: input_boolean.auto_cover_rollade_kueche_links
+    - trigger: state
+      entity_id: input_boolean.auto_cover_rollade_speisekammer
+    - trigger: state
+      entity_id: input_boolean.auto_cover_rollade_hwr
+    - trigger: state
+      entity_id: input_boolean.auto_cover_rollade_bad
+    - trigger: state
+      entity_id: input_boolean.auto_cover_rollade_schlafzimmer
+    - trigger: state
+      entity_id: input_boolean.auto_cover_rollade_buero_merja
+    - trigger: state
+      entity_id: input_number.cover_min_open_rollade_buero_fabian
+    - trigger: state
+      entity_id: input_number.cover_min_open_rollade_wohnzimmer_links
+    - trigger: state
+      entity_id: input_number.cover_min_open_rollade_wohnzimmer_rechts
+    - trigger: state
+      entity_id: input_number.cover_min_open_rollade_kueche_rechts
+    - trigger: state
+      entity_id: input_number.cover_min_open_rollade_kueche_links
+    - trigger: state
+      entity_id: input_number.cover_min_open_rollade_speisekammer
+    - trigger: state
+      entity_id: input_number.cover_min_open_rollade_hwr
+    - trigger: state
+      entity_id: input_number.cover_min_open_rollade_bad
+    - trigger: state
+      entity_id: input_number.cover_min_open_rollade_schlafzimmer
+    - trigger: state
+      entity_id: input_number.cover_min_open_rollade_buero_merja
+    - trigger: state
+      entity_id: sensor.temperature_buero_fabian_mean
+    - trigger: state
+      entity_id: sensor.temperature_wohnzimmer_mean
+    - trigger: state
+      entity_id: sensor.temperature_kueche_mean
+    - trigger: state
+      entity_id: sensor.temperature_speisekammer_mean
+    - trigger: state
+      entity_id: sensor.temperature_flur_mean
+    - trigger: state
+      entity_id: sensor.temperature_bad_mean
+    - trigger: state
+      entity_id: sensor.temperature_schlafzimmer_mean
+    - trigger: state
+      entity_id: sensor.temperature_buero_merja_mean
+    - trigger: state
+      entity_id: input_number.heating_base_buero_fabian
+    - trigger: state
+      entity_id: input_number.heating_base_wohnzimmer
+    - trigger: state
+      entity_id: input_number.heating_base_kueche
+    - trigger: state
+      entity_id: input_number.heating_base_speisekammer
+    - trigger: state
+      entity_id: input_number.heating_base_flur
+    - trigger: state
+      entity_id: input_number.heating_base_bad
+    - trigger: state
+      entity_id: input_number.heating_base_schlafzimmer
+    - trigger: state
+      entity_id: input_number.heating_base_buero_merja
+    - trigger: state
+      entity_id: sensor.lux_buero_fabian
+    - trigger: state
+      entity_id: sensor.lux_wohnzimmer
+    - trigger: state
+      entity_id: sensor.lux_kueche
+    - trigger: state
+      entity_id: sensor.lux_speisekammer
+    - trigger: state
+      entity_id: sensor.lux_flur
+    - trigger: state
+      entity_id: sensor.lux_bad
+    - trigger: state
+      entity_id: sensor.lux_schlafzimmer
+    - trigger: state
+      entity_id: sensor.lux_buero_merja
+    - trigger: state
+      entity_id: input_number.buero_fabian_brightness
+    - trigger: state
+      entity_id: input_number.wohnzimmer_brightness
+    - trigger: state
+      entity_id: input_number.kueche_brightness
+    - trigger: state
+      entity_id: input_number.speisekammer_brightness
+    - trigger: state
+      entity_id: input_number.flur_brightness
+    - trigger: state
+      entity_id: input_number.bad_brightness
+    - trigger: state
+      entity_id: input_number.schlafzimmer_brightness
+    - trigger: state
+      entity_id: input_number.buero_merja_brightness
+    - trigger: state
+      entity_id: sensor.solar_expected_gain_rollade_buero_fabian
+    - trigger: state
+      entity_id: sensor.solar_expected_gain_rollade_wohnzimmer_links
+    - trigger: state
+      entity_id: sensor.solar_expected_gain_rollade_wohnzimmer_rechts
+    - trigger: state
+      entity_id: sensor.solar_expected_gain_rollade_kueche_rechts
+    - trigger: state
+      entity_id: sensor.solar_expected_gain_rollade_kueche_links
+    - trigger: state
+      entity_id: sensor.solar_expected_gain_rollade_speisekammer
+    - trigger: state
+      entity_id: sensor.solar_expected_gain_rollade_hwr
+    - trigger: state
+      entity_id: sensor.solar_expected_gain_rollade_bad
+    - trigger: state
+      entity_id: sensor.solar_expected_gain_rollade_schlafzimmer
+    - trigger: state
+      entity_id: sensor.solar_expected_gain_rollade_buero_merja
+    - trigger: state
+      entity_id: cover.rollade_buero_fabian
+    - trigger: state
+      entity_id: cover.rollade_wohnzimmer_links
+    - trigger: state
+      entity_id: cover.rollade_wohnzimmer_rechts
+    - trigger: state
+      entity_id: cover.rollade_kueche_rechts
+    - trigger: state
+      entity_id: cover.rollade_kueche_links
+    - trigger: state
+      entity_id: cover.rollade_speisekammer
+    - trigger: state
+      entity_id: cover.rollade_hwr
+    - trigger: state
+      entity_id: cover.rollade_bad
+    - trigger: state
+      entity_id: cover.rollade_schlafzimmer
+    - trigger: state
+      entity_id: cover.rollade_buero_merja
+    - trigger: state
+      entity_id: input_datetime.cover_manual_change_rollade_buero_fabian
+    - trigger: state
+      entity_id: input_datetime.cover_manual_change_rollade_wohnzimmer_links
+    - trigger: state
+      entity_id: input_datetime.cover_manual_change_rollade_wohnzimmer_rechts
+    - trigger: state
+      entity_id: input_datetime.cover_manual_change_rollade_kueche_rechts
+    - trigger: state
+      entity_id: input_datetime.cover_manual_change_rollade_kueche_links
+    - trigger: state
+      entity_id: input_datetime.cover_manual_change_rollade_speisekammer
+    - trigger: state
+      entity_id: input_datetime.cover_manual_change_rollade_hwr
+    - trigger: state
+      entity_id: input_datetime.cover_manual_change_rollade_bad
+    - trigger: state
+      entity_id: input_datetime.cover_manual_change_rollade_schlafzimmer
+    - trigger: state
+      entity_id: input_datetime.cover_manual_change_rollade_buero_merja
     - trigger: time_pattern
       minutes: "/10"
     - trigger: time
@@ -103,47 +191,72 @@
           cover.rollade_buero_fabian:
             room: buero_fabian
             gain_sensor: rollade_buero_fabian
-            watt_limit: 80.0
+            watt_limit: 192.0
+            light_power_w: 75.6
+            water_low_lux: 75
           cover.rollade_wohnzimmer_links:
             room: wohnzimmer
             gain_sensor: rollade_wohnzimmer_links
-            watt_limit: 138.6
+            watt_limit: 332.64
+            light_power_w: 216.0
+            water_low_lux: 140
           cover.rollade_wohnzimmer_rechts:
             room: wohnzimmer
             gain_sensor: rollade_wohnzimmer_rechts
-            watt_limit: 138.6
+            watt_limit: 332.64
+            light_power_w: 216.0
+            water_low_lux: 140
           cover.rollade_kueche_rechts:
             room: kueche
             gain_sensor: rollade_kueche_rechts
-            watt_limit: 145.5
+            watt_limit: 349.2
+            light_power_w: 351.0
+            water_low_lux: 800
           cover.rollade_kueche_links:
             room: kueche
             gain_sensor: rollade_kueche_links
-            watt_limit: 160.93
+            watt_limit: 386.23
+            light_power_w: 351.0
+            water_low_lux: 800
           cover.rollade_speisekammer:
             room: speisekammer
             gain_sensor: rollade_speisekammer
-            watt_limit: 12.0
+            watt_limit: 28.8
+            light_power_w: 162.0
+            water_low_lux: 140
           cover.rollade_hwr:
             room: flur
             gain_sensor: rollade_hwr
-            watt_limit: 12.0
+            watt_limit: 28.8
+            light_power_w: 0.0
+            water_low_lux: 140
           cover.rollade_bad:
             room: bad
             gain_sensor: rollade_bad
-            watt_limit: 45.51
+            watt_limit: 109.22
+            light_power_w: 27.0
+            water_low_lux: 800
           cover.rollade_schlafzimmer:
             room: schlafzimmer
             gain_sensor: rollade_schlafzimmer
-            watt_limit: 77.0
+            watt_limit: 184.8
+            light_power_w: 178.2
+            water_low_lux: 140
           cover.rollade_buero_merja:
             room: buero_merja
             gain_sensor: rollade_buero_merja
-            watt_limit: 160.93
+            watt_limit: 386.23
+            light_power_w: 270.0
+            water_low_lux: 140
         cover_evaluations: >-
           {% set cover_mode = states('input_select.cover_mode') %}
           {% set is_night = is_state('input_boolean.cover_night_mode', 'on') %}
           {% set exempt_text = states('input_text.exempt_covers') | default('') %}
+          {% set overheating_thresh_state = states('input_number.cover_overheating_threshold') %}
+          {% set overheating_thresh = overheating_thresh_state | float(2.0) if (overheating_thresh_state not in ['unknown', 'unavailable', 'None', ''] and overheating_thresh_state is not none) else 2.0 %}
+          {% set solar_rad_state = states('input_number.solar_irradiance') %}
+          {% set solar_rad = solar_rad_state | float(0) if (solar_rad_state not in ['unknown', 'unavailable', 'None', ''] and solar_rad_state is not none) else 0 %}
+          
           {% set ns = namespace(evals=[]) %}
           {% set now_ts = as_timestamp(now()) %}
 
@@ -157,7 +270,10 @@
             {% set r = data.room %}
             {% set gain_suffix = data.gain_sensor %}
             {% set cov_suffix = cov.split('.')[1] %}
-            {% set limit_w = data.watt_limit | default(50) | float %}
+            {% set limit_w = data.watt_limit | default(120) | float %}
+            {% set max_light_power = data.light_power_w | default(100.0) | float %}
+            {% set raw_water_low = data.water_low_lux | default(140) | float %}
+            {% set target_lux = [raw_water_low, 250.0] | min %}
 
             {# Check minimum open position #}
             {% set min_open_state = states('input_number.cover_min_open_' ~ cov_suffix) %}
@@ -191,9 +307,27 @@
             {% set tgt_temp_state = states('input_number.heating_base_' ~ r) %}
             {% set p_exp = gain_state | float(0) if (gain_state not in ['unknown', 'unavailable', 'None', ''] and gain_state is not none) else 0 %}
 
-            {% set delta_t = 0 %}
+            {% set delta_t = 0.0 %}
             {% if cur_temp_state not in ['unknown', 'unavailable', 'None', ''] and tgt_temp_state not in ['unknown', 'unavailable', 'None', ''] and cur_temp_state is not none and tgt_temp_state is not none %}
               {% set delta_t = ((cur_temp_state | float) - (tgt_temp_state | float)) | round(2) %}
+            {% endif %}
+
+            {# Calculate Daylight Floor and Dynamic Light Heat Load #}
+            {% set saved_bright_state = states('input_number.' ~ r ~ '_brightness') %}
+            {% set saved_bright = saved_bright_state | int(0) if (saved_bright_state not in ['unknown', 'unavailable', 'None', ''] and saved_bright_state is not none) else 0 %}
+            {% set actual_bright = 255 if saved_bright == 0 else ([saved_bright, 255] | min) %}
+            {% set active_light_power = max_light_power * (actual_bright / 255.0) %}
+
+            {% set cur_lux_state = states('sensor.lux_' ~ r) %}
+            {% set cur_lux = cur_lux_state | float(0) if (cur_lux_state not in ['unknown', 'unavailable', 'None', ''] and cur_lux_state is not none) else 0 %}
+            {% set cur_pos_clamp = [cur_pos, 10] | max %}
+            {% set est_lux_100 = (cur_lux * 100.0 / cur_pos_clamp) if cur_pos > 5 else cur_lux %}
+
+            {% if est_lux_100 > (target_lux + 20.0) %}
+              {% set daylight_min_pos = (((target_lux + 20.0) * 100.0) / est_lux_100) | round(0) | int %}
+              {% set daylight_min_pos = [ [daylight_min_pos, 100] | min, 20 ] | max %}
+            {% else %}
+              {% set daylight_min_pos = 20 %}
             {% endif %}
 
             {# Calculate target position and reason #}
@@ -210,24 +344,43 @@
               {% set target_pos = cur_pos %}
               {% set calc_reason = "Manual override cooldown active (" ~ manual_elapsed ~ "s < 3600s 1h manual cooldown)" %}
             {% else %}
-              {% if delta_t > 1.0 %}
+              {% set hysteresis_clear = overheating_thresh - 0.5 %}
+              {% set is_overheating = (delta_t >= overheating_thresh) or (cur_pos < 100 and delta_t >= hysteresis_clear) %}
+              
+              {% if is_overheating and solar_rad >= 200.0 %}
                 {% if p_exp <= limit_w %}
                   {% set raw_target_pos = 100 %}
-                  {% set calc_reason = "Overheating (delta_t " ~ delta_t ~ "°C > 1.0°C), expected gain " ~ p_exp ~ "W <= " ~ limit_w ~ "W -> open 100%" %}
+                  {% set calc_reason = "Overheating (delta_t " ~ delta_t ~ "°C >= " ~ overheating_thresh ~ "°C), expected gain " ~ p_exp ~ "W <= " ~ limit_w ~ "W -> open 100%" %}
                 {% else %}
                   {% set raw_target_pos = [ [ ((limit_w / p_exp) * 100) | round(0) | int, 100 ] | min, 0 ] | max %}
-                  {% set calc_reason = "Overheating (delta_t " ~ delta_t ~ "°C > 1.0°C), expected gain " ~ p_exp ~ "W > " ~ limit_w ~ "W -> target " ~ raw_target_pos ~ "% (limit to " ~ limit_w ~ "W)" %}
+                  {% set calc_reason = "Overheating (delta_t " ~ delta_t ~ "°C >= " ~ overheating_thresh ~ "°C), expected gain " ~ p_exp ~ "W > " ~ limit_w ~ "W -> target " ~ raw_target_pos ~ "% (limit to " ~ limit_w ~ "W)" %}
                 {% endif %}
               {% else %}
                 {% set raw_target_pos = 100 %}
-                {% set calc_reason = "Normal/Heating state (delta_t " ~ delta_t ~ "°C <= 1.0°C) -> default open 100%" %}
+                {% if solar_rad < 200.0 %}
+                  {% set calc_reason = "Low solar irradiance (" ~ solar_rad ~ " W/m² < 200 W/m²) -> default open 100%" %}
+                {% else %}
+                  {% set calc_reason = "Normal temperature (delta_t " ~ delta_t ~ "°C < " ~ hysteresis_clear ~ "°C) -> default open 100%" %}
+                {% endif %}
               {% endif %}
 
-              {% if min_open > 0 and raw_target_pos < min_open %}
+              {# Daylight & Light Heat-Balance Check #}
+              {% set solar_gain_at_raw = p_exp * (raw_target_pos / 100.0) %}
+              {% set solar_gain_at_daylight = p_exp * (daylight_min_pos / 100.0) %}
+              {% set solar_heat_saved = solar_gain_at_daylight - solar_gain_at_raw %}
+
+              {% if raw_target_pos < daylight_min_pos and active_light_power > solar_heat_saved %}
+                {% set target_pos_before_min = daylight_min_pos %}
+                {% set calc_reason = calc_reason ~ " -> clamped to daylight floor " ~ daylight_min_pos ~ "% (active LED heat " ~ (active_light_power | round(1)) ~ "W @ " ~ ((actual_bright * 100 // 255) | int) ~ "% brightness > solar heat saved " ~ (solar_heat_saved | round(1)) ~ "W)" %}
+              {% else %}
+                {% set target_pos_before_min = raw_target_pos %}
+              {% endif %}
+
+              {% if min_open > 0 and target_pos_before_min < min_open %}
                 {% set target_pos = min_open %}
                 {% set calc_reason = calc_reason ~ " -> enforced minimum open position " ~ min_open ~ "%" %}
               {% else %}
-                {% set target_pos = raw_target_pos %}
+                {% set target_pos = target_pos_before_min %}
               {% endif %}
             {% endif %}
 

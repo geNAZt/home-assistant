@@ -10,6 +10,8 @@ cards:
         name: Rolladen Modus
       - entity: input_boolean.cover_night_mode
         name: Nachtmodus Aktiv
+      - entity: input_number.cover_overheating_threshold
+        name: Überhitzungs-Schwelle (°C)
       - entity: input_text.exempt_covers
         name: Ausgenommene Rolläden (Text)
       - entity: input_datetime.cover_last_global_move

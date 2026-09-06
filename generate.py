@@ -76,8 +76,8 @@ def load_values(values_path: Path) -> List[Dict]:
                     height = window['area'].get('height', 0)
                     width = window['area'].get('width', 0)
                     area_m2 = height * width
-                    # Calculate wattage limit per window at 50 W / m² of glass
-                    limit_w = round(area_m2 * 50.0, 2)
+                    # Calculate wattage limit per window at 120 W / m² of glass
+                    limit_w = round(area_m2 * 120.0, 2)
                     window['wattage_limit'] = limit_w
                     window['watt_limit'] = limit_w
                     window['glass_area'] = round(area_m2, 4)
@@ -190,9 +190,11 @@ def process_template_folder(template_folder: Path, output_base: Path):
                             'cover': cov,
                             'cov_suffix': cov_suffix,
                             'room': r,
-                            'watt_limit': window.get('watt_limit', 50.0),
-                            'wattage_limit': window.get('wattage_limit', 50.0),
+                            'watt_limit': window.get('watt_limit', 120.0),
+                            'wattage_limit': window.get('wattage_limit', 120.0),
                             'glass_area': window.get('glass_area', 1.0),
+                            'light_power_w': item.get('light_power_w', 100.0),
+                            'water_low_lux': item.get('water_low_lux', 140),
                         })
 
     # Find all YAML files (excluding values.yaml)

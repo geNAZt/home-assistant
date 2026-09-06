@@ -1,4 +1,6 @@
 - room: buero_fabian
+  light_power_w: 75.6
+  water_low_lux: 75
   windows:
     - position:
         bottom: 0.0
@@ -15,6 +17,8 @@
           height: 8.7
           direction: bottom
 - room: wohnzimmer
+  light_power_w: 216.0
+  water_low_lux: 140
   windows:
     - position:
         bottom: 0.0
@@ -56,6 +60,8 @@
           direction: top
       cover: cover.rollade_wohnzimmer_rechts
 - room: kueche
+  light_power_w: 351.0
+  water_low_lux: 800
   windows:
     - position:
         bottom: 0.0
@@ -86,6 +92,8 @@
           height: 5.0
           direction: bottom
 - room: speisekammer
+  light_power_w: 162.0
+  water_low_lux: 140
   windows:
     - position:
         bottom: 1.35
@@ -98,6 +106,8 @@
       cover: cover.rollade_speisekammer
 - room: hwr
   temp_room: flur
+  light_power_w: 0.0
+  water_low_lux: 140
   windows:
     - position:
         bottom: 1.35
@@ -109,6 +119,8 @@
       u: 0.7
       cover: cover.rollade_hwr
 - room: bad
+  light_power_w: 27.0
+  water_low_lux: 800
   windows:
     - position:
         bottom: 1.35
@@ -120,6 +132,8 @@
       u: 0.7
       cover: cover.rollade_bad
 - room: schlafzimmer
+  light_power_w: 178.2
+  water_low_lux: 140
   windows:
     - position:
         bottom: 0.0
@@ -136,6 +150,8 @@
           height: 7.5
           direction: bottom
 - room: buero_merja
+  light_power_w: 270.0
+  water_low_lux: 140
   windows:
     - position:
         bottom: 0.0

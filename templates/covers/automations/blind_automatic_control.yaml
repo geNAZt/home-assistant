@@ -9,39 +9,44 @@
     - trigger: state
       entity_id: input_text.exempt_covers
     - trigger: state
-      entity_id:
-[[% for entry in cover_entries %]]
-        - input_boolean.auto_cover_[[ entry.cov_suffix ]]
-[[% endfor %]]
+      entity_id: input_number.cover_overheating_threshold
     - trigger: state
-      entity_id:
+      entity_id: input_number.solar_irradiance
 [[% for entry in cover_entries %]]
-        - input_number.cover_min_open_[[ entry.cov_suffix ]]
-[[% endfor %]]
     - trigger: state
-      entity_id:
+      entity_id: input_boolean.auto_cover_[[ entry.cov_suffix ]]
+[[% endfor %]]
+[[% for entry in cover_entries %]]
+    - trigger: state
+      entity_id: input_number.cover_min_open_[[ entry.cov_suffix ]]
+[[% endfor %]]
 [[% for r in temp_rooms %]]
-        - sensor.temperature_[[ r ]]_mean
-[[% endfor %]]
     - trigger: state
-      entity_id:
+      entity_id: sensor.temperature_[[ r ]]_mean
+[[% endfor %]]
 [[% for r in temp_rooms %]]
-        - input_number.heating_base_[[ r ]]
-[[% endfor %]]
     - trigger: state
-      entity_id:
-[[% for entry in cover_entries %]]
-        - sensor.solar_expected_gain_[[ entry.cov_suffix ]]
+      entity_id: input_number.heating_base_[[ r ]]
 [[% endfor %]]
+[[% for r in temp_rooms %]]
     - trigger: state
-      entity_id:
-[[% for entry in cover_entries %]]
-        - [[ entry.cover ]]
+      entity_id: sensor.lux_[[ r ]]
 [[% endfor %]]
+[[% for r in temp_rooms %]]
     - trigger: state
-      entity_id:
+      entity_id: input_number.[[ r ]]_brightness
+[[% endfor %]]
 [[% for entry in cover_entries %]]
-        - input_datetime.cover_manual_change_[[ entry.cov_suffix ]]
+    - trigger: state
+      entity_id: sensor.solar_expected_gain_[[ entry.cov_suffix ]]
+[[% endfor %]]
+[[% for entry in cover_entries %]]
+    - trigger: state
+      entity_id: [[ entry.cover ]]
+[[% endfor %]]
+[[% for entry in cover_entries %]]
+    - trigger: state
+      entity_id: input_datetime.cover_manual_change_[[ entry.cov_suffix ]]
 [[% endfor %]]
     - trigger: time_pattern
       minutes: "/10"
@@ -60,11 +65,18 @@
             room: [[ entry.room ]]
             gain_sensor: [[ entry.cov_suffix ]]
             watt_limit: [[ entry.watt_limit ]]
+            light_power_w: [[ entry.light_power_w ]]
+            water_low_lux: [[ entry.water_low_lux ]]
 [[% endfor %]]
         cover_evaluations: >-
           {% set cover_mode = states('input_select.cover_mode') %}
           {% set is_night = is_state('input_boolean.cover_night_mode', 'on') %}
           {% set exempt_text = states('input_text.exempt_covers') | default('') %}
+          {% set overheating_thresh_state = states('input_number.cover_overheating_threshold') %}
+          {% set overheating_thresh = overheating_thresh_state | float(2.0) if (overheating_thresh_state not in ['unknown', 'unavailable', 'None', ''] and overheating_thresh_state is not none) else 2.0 %}
+          {% set solar_rad_state = states('input_number.solar_irradiance') %}
+          {% set solar_rad = solar_rad_state | float(0) if (solar_rad_state not in ['unknown', 'unavailable', 'None', ''] and solar_rad_state is not none) else 0 %}
+          
           {% set ns = namespace(evals=[]) %}
           {% set now_ts = as_timestamp(now()) %}
 
@@ -78,7 +90,10 @@
             {% set r = data.room %}
             {% set gain_suffix = data.gain_sensor %}
             {% set cov_suffix = cov.split('.')[1] %}
-            {% set limit_w = data.watt_limit | default(50) | float %}
+            {% set limit_w = data.watt_limit | default(120) | float %}
+            {% set max_light_power = data.light_power_w | default(100.0) | float %}
+            {% set raw_water_low = data.water_low_lux | default(140) | float %}
+            {% set target_lux = [raw_water_low, 250.0] | min %}
 
             {# Check minimum open position #}
             {% set min_open_state = states('input_number.cover_min_open_' ~ cov_suffix) %}
@@ -112,9 +127,27 @@
             {% set tgt_temp_state = states('input_number.heating_base_' ~ r) %}
             {% set p_exp = gain_state | float(0) if (gain_state not in ['unknown', 'unavailable', 'None', ''] and gain_state is not none) else 0 %}
 
-            {% set delta_t = 0 %}
+            {% set delta_t = 0.0 %}
             {% if cur_temp_state not in ['unknown', 'unavailable', 'None', ''] and tgt_temp_state not in ['unknown', 'unavailable', 'None', ''] and cur_temp_state is not none and tgt_temp_state is not none %}
               {% set delta_t = ((cur_temp_state | float) - (tgt_temp_state | float)) | round(2) %}
+            {% endif %}
+
+            {# Calculate Daylight Floor and Dynamic Light Heat Load #}
+            {% set saved_bright_state = states('input_number.' ~ r ~ '_brightness') %}
+            {% set saved_bright = saved_bright_state | int(0) if (saved_bright_state not in ['unknown', 'unavailable', 'None', ''] and saved_bright_state is not none) else 0 %}
+            {% set actual_bright = 255 if saved_bright == 0 else ([saved_bright, 255] | min) %}
+            {% set active_light_power = max_light_power * (actual_bright / 255.0) %}
+
+            {% set cur_lux_state = states('sensor.lux_' ~ r) %}
+            {% set cur_lux = cur_lux_state | float(0) if (cur_lux_state not in ['unknown', 'unavailable', 'None', ''] and cur_lux_state is not none) else 0 %}
+            {% set cur_pos_clamp = [cur_pos, 10] | max %}
+            {% set est_lux_100 = (cur_lux * 100.0 / cur_pos_clamp) if cur_pos > 5 else cur_lux %}
+
+            {% if est_lux_100 > (target_lux + 20.0) %}
+              {% set daylight_min_pos = (((target_lux + 20.0) * 100.0) / est_lux_100) | round(0) | int %}
+              {% set daylight_min_pos = [ [daylight_min_pos, 100] | min, 20 ] | max %}
+            {% else %}
+              {% set daylight_min_pos = 20 %}
             {% endif %}
 
             {# Calculate target position and reason #}
@@ -131,24 +164,43 @@
               {% set target_pos = cur_pos %}
               {% set calc_reason = "Manual override cooldown active (" ~ manual_elapsed ~ "s < 3600s 1h manual cooldown)" %}
             {% else %}
-              {% if delta_t > 1.0 %}
+              {% set hysteresis_clear = overheating_thresh - 0.5 %}
+              {% set is_overheating = (delta_t >= overheating_thresh) or (cur_pos < 100 and delta_t >= hysteresis_clear) %}
+              
+              {% if is_overheating and solar_rad >= 200.0 %}
                 {% if p_exp <= limit_w %}
                   {% set raw_target_pos = 100 %}
-                  {% set calc_reason = "Overheating (delta_t " ~ delta_t ~ "°C > 1.0°C), expected gain " ~ p_exp ~ "W <= " ~ limit_w ~ "W -> open 100%" %}
+                  {% set calc_reason = "Overheating (delta_t " ~ delta_t ~ "°C >= " ~ overheating_thresh ~ "°C), expected gain " ~ p_exp ~ "W <= " ~ limit_w ~ "W -> open 100%" %}
                 {% else %}
                   {% set raw_target_pos = [ [ ((limit_w / p_exp) * 100) | round(0) | int, 100 ] | min, 0 ] | max %}
-                  {% set calc_reason = "Overheating (delta_t " ~ delta_t ~ "°C > 1.0°C), expected gain " ~ p_exp ~ "W > " ~ limit_w ~ "W -> target " ~ raw_target_pos ~ "% (limit to " ~ limit_w ~ "W)" %}
+                  {% set calc_reason = "Overheating (delta_t " ~ delta_t ~ "°C >= " ~ overheating_thresh ~ "°C), expected gain " ~ p_exp ~ "W > " ~ limit_w ~ "W -> target " ~ raw_target_pos ~ "% (limit to " ~ limit_w ~ "W)" %}
                 {% endif %}
               {% else %}
                 {% set raw_target_pos = 100 %}
-                {% set calc_reason = "Normal/Heating state (delta_t " ~ delta_t ~ "°C <= 1.0°C) -> default open 100%" %}
+                {% if solar_rad < 200.0 %}
+                  {% set calc_reason = "Low solar irradiance (" ~ solar_rad ~ " W/m² < 200 W/m²) -> default open 100%" %}
+                {% else %}
+                  {% set calc_reason = "Normal temperature (delta_t " ~ delta_t ~ "°C < " ~ hysteresis_clear ~ "°C) -> default open 100%" %}
+                {% endif %}
               {% endif %}
 
-              {% if min_open > 0 and raw_target_pos < min_open %}
+              {# Daylight & Light Heat-Balance Check #}
+              {% set solar_gain_at_raw = p_exp * (raw_target_pos / 100.0) %}
+              {% set solar_gain_at_daylight = p_exp * (daylight_min_pos / 100.0) %}
+              {% set solar_heat_saved = solar_gain_at_daylight - solar_gain_at_raw %}
+
+              {% if raw_target_pos < daylight_min_pos and active_light_power > solar_heat_saved %}
+                {% set target_pos_before_min = daylight_min_pos %}
+                {% set calc_reason = calc_reason ~ " -> clamped to daylight floor " ~ daylight_min_pos ~ "% (active LED heat " ~ (active_light_power | round(1)) ~ "W @ " ~ ((actual_bright * 100 // 255) | int) ~ "% brightness > solar heat saved " ~ (solar_heat_saved | round(1)) ~ "W)" %}
+              {% else %}
+                {% set target_pos_before_min = raw_target_pos %}
+              {% endif %}
+
+              {% if min_open > 0 and target_pos_before_min < min_open %}
                 {% set target_pos = min_open %}
                 {% set calc_reason = calc_reason ~ " -> enforced minimum open position " ~ min_open ~ "%" %}
               {% else %}
-                {% set target_pos = raw_target_pos %}
+                {% set target_pos = target_pos_before_min %}
               {% endif %}
             {% endif %}
 
