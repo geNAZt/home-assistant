@@ -162,6 +162,8 @@
         ["Regen", "rain"], ["Quelldaten widersprüchlich", "Source data inconsistent"], ["⚠ Quelldaten widersprüchlich", "⚠ Source data inconsistent"],
         ["STUNDEN", "HOURS"],
         ["Wetterhinweise", "Weather notices"], ["Was du jetzt wissen solltest", "What you should know now"],
+        ["Amtliche Warnung", "Official warning"], ["Modellprognose · nicht amtlich", "Model forecast · unofficial"],
+        ["Amtliche DWD-Warnung", "Official DWD warning"],
         ["Aktuell wurden keine besonderen Wetterhinweise erkannt.", "No notable weather notices are currently detected."],
         ["Die nächsten Tage", "The next few days"], ["Klare Tagesaussage statt Zahlenfriedhof", "Clear daily outlook instead of a wall of numbers"],
         ["Die Wetterlage bleibt überwiegend ruhig", "Weather conditions remain mostly calm"], ["Es wird heiß und belastend", "Hot and strenuous conditions are expected"],
@@ -248,7 +250,13 @@
         [/^Bewertet mit (.+) ct\/kWh nach Einspeisevergütung \((.+) ct\/kWh\) und Speicherverlusten$/, "Valued at $1 ct/kWh after feed-in tariff ($2 ct/kWh) and storage losses"],
         [/^Dein Akku \((.+) kWh\) ist optimal dimensioniert\. Eine Vergrößerung hätte bisher nur (.+) € Netto-Ersparnis gebracht\.$/, "Your battery ($1 kWh) is optimally sized. Increasing its capacity would have delivered only €$2 in net savings so far."],
         [/^Geladene Energie \(PV: (.+)%, Netz: (.+)%\)$/, "Charged energy (PV: $1%, grid: $2%)"],
-        [/^Netz: (.+)%$/, "Grid: $1%"],
+        ["Was jetzt tun", "What to do now"], ["Energiemanagement", "Energy management"],
+        ["Was darf das EMS tun?", "What may EMS do?"], ["Freigaben und Sollzustand", "Approvals and desired state"],
+        ["Nächstes Fenster:", "Next window:"], ["Festtarif", "Fixed tariff"],
+        ["Günstigste Reststunde", "Cheapest remaining hour"], ["Netzspitze", "Grid peak"],
+        ["Verschiebepotenzial", "Shift potential"], ["Restlicher Überschuss", "Remaining surplus"],
+        ["EMS ist nur für Administratoren", "EMS is available to administrators only"],
+        ["Pausiert", "Paused"], ["Strompreis", "Electricity price"],
     ];
     function translate(value) {
         const output = String(value ?? "");

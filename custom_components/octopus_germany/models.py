@@ -4,7 +4,56 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, TypedDict
+
+
+class TariffCapabilityData(TypedDict):
+    """Serialized tariff capabilities stored in coordinator data."""
+
+    has_dynamic_prices: bool
+    has_intelligent_dispatches: bool
+    has_smart_meter: bool
+
+
+class AccountData(TypedDict, total=False):
+    """Normalized data contract for one account."""
+
+    account_number: str
+    electricity_balance: float
+    gas_balance: float
+    heat_balance: float
+    other_ledgers: dict[str, float]
+    planned_dispatches: list[dict[str, Any]]
+    completed_dispatches: list[dict[str, Any]]
+    property_ids: list[str | None]
+    devices: list[dict[str, Any]]
+    products: list[dict[str, Any]]
+    gas_products: list[dict[str, Any]]
+    charging_sessions: list[dict[str, Any]] | None
+    vehicle_battery_size_in_kwh: float | None
+    current_start: Any
+    current_end: Any
+    next_start: Any
+    next_end: Any
+    ledgers: list[dict[str, Any]]
+    malo_number: str | None
+    melo_number: str | None
+    meter: dict[str, Any] | None
+    gas_malo_number: str | None
+    gas_melo_number: str | None
+    gas_meter: dict[str, Any] | None
+    tariff_capabilities: TariffCapabilityData
+    gas_price: float | None
+    gas_contract_start: str | None
+    gas_contract_end: str | None
+    gas_contract_days_until_expiry: int | None
+    gas_meter_smart_reading: bool | None
+    gas_latest_reading: dict[str, Any] | None
+    electricity_latest_reading: dict[str, Any] | None
+    electricity_smart_meter_readings: list[dict[str, Any]]
+
+
+CoordinatorData = dict[str, AccountData]
 
 
 @dataclass(frozen=True, slots=True)
@@ -17,6 +66,15 @@ class TariffCapabilities:
 
 
 TERMINAL_ACCOUNT_STATUSES = frozenset({"DORMANT", "VOID", "WITHDRAWN"})
+ELECTRICITY_LEDGER = "ELECTRICITY_LEDGER"
+
+
+def account_has_electricity(account: Mapping[str, Any]) -> bool:
+    """Return whether an account carries an electricity supply ledger."""
+    return any(
+        (ledger or {}).get("ledgerType") == ELECTRICITY_LEDGER
+        for ledger in account.get("ledgers", []) or []
+    )
 
 
 def filter_active_accounts(
@@ -33,14 +91,7 @@ def filter_active_accounts(
 def select_primary_account(accounts: list[Mapping[str, Any]]) -> str | None:
     """Prefer an active account with an electricity ledger."""
     electricity_account = next(
-        (
-            account
-            for account in accounts
-            if any(
-                ledger.get("ledgerType") == "ELECTRICITY_LEDGER"
-                for ledger in account.get("ledgers", []) or []
-            )
-        ),
+        (account for account in accounts if account_has_electricity(account)),
         None,
     )
     account = electricity_account or (accounts[0] if accounts else None)
@@ -80,9 +131,14 @@ def detect_tariff_capabilities(account_data: Mapping[str, Any]) -> TariffCapabil
         for field in ("code", "description", "fullName")
     ).lower()
     has_dynamic_prices = any(bool(product.get("isTimeOfUse")) for product in products)
-    has_intelligent_dispatches = any(
-        marker in product_text for marker in ("intelligent", "smart flex", "smartflex")
-    ) or bool(account_data.get("intelligentDispatches"))
+    has_intelligent_dispatches = (
+        any(
+            marker in product_text
+            for marker in ("intelligent", "smart flex", "smartflex")
+        )
+        or bool(account_data.get("intelligentDispatches"))
+        or bool(account_data.get("devices"))
+    )
 
     return TariffCapabilities(
         has_dynamic_prices=has_dynamic_prices,

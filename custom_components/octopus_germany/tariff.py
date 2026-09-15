@@ -5,6 +5,36 @@ from __future__ import annotations
 from datetime import UTC, datetime, time
 from typing import Any
 
+from homeassistant.util.dt import now as local_now
+
+
+def parse_product_datetime(value: str | None) -> datetime | None:
+    """Parse an API product timestamp into an aware UTC datetime."""
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value)
+    except TypeError, ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
+
+
+def is_product_current(
+    product: dict[str, Any], current_time: datetime | None = None
+) -> bool:
+    """Return whether a product is valid at the supplied instant."""
+    valid_from = parse_product_datetime(product.get("validFrom"))
+    valid_to = parse_product_datetime(product.get("validTo"))
+    if valid_from is None:
+        return False
+    current_time = current_time or datetime.now(UTC)
+    if current_time.tzinfo is None:
+        current_time = current_time.replace(tzinfo=UTC)
+    current_time = current_time.astimezone(UTC)
+    return valid_from <= current_time and (valid_to is None or current_time <= valid_to)
+
 
 def parse_tariff_time(value: str) -> time | None:
     """Parse an HH:MM:SS tariff time."""
@@ -38,7 +68,7 @@ def get_active_timeslot_rate(
     if product.get("type") != "TimeOfUse":
         return None
 
-    current_time = current_time or datetime.now(UTC).time()
+    current_time = current_time or local_now().time()
     for timeslot in product.get("timeslots", []):
         for rule in timeslot.get("activation_rules", []):
             start = parse_tariff_time(rule.get("from_time", "00:00:00"))
@@ -57,7 +87,11 @@ def get_current_forecast_rate(
     """Return the current forecast rate in EUR per kWh."""
     if not product:
         return None
-    current_time = current_time or datetime.now(UTC)
+    current_time = current_time or local_now()
+    if current_time.tzinfo is None:
+        current_time = current_time.replace(tzinfo=UTC)
+    current_time_utc = current_time.astimezone(UTC)
+
     for forecast in product.get("unitRateForecast", []):
         valid_from = forecast.get("validFrom")
         valid_to = forecast.get("validTo")
@@ -66,7 +100,11 @@ def get_current_forecast_rate(
         try:
             start = datetime.fromisoformat(valid_from)
             end = datetime.fromisoformat(valid_to)
-            if not start <= current_time < end:
+            if start.tzinfo is None:
+                start = start.replace(tzinfo=UTC)
+            if end.tzinfo is None:
+                end = end.replace(tzinfo=UTC)
+            if not start.astimezone(UTC) <= current_time_utc < end.astimezone(UTC):
                 continue
             rate_info = forecast.get("unitRateInformation", {})
             rates = rate_info.get("rates", [])

@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
 from importlib import import_module
 
+from aiohttp import ClientError
 from homeassistant import config_entries
 from homeassistant.components.camera import (
     Camera,
@@ -23,7 +25,12 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from webrtc_models import RTCIceCandidateInit
 
-from .python_xsense.async_xsense import camera_live_resolution, is_camera_entity
+from .python_xsense.async_xsense import (
+    camera_addx_serial,
+    camera_live_resolution,
+    cameras_share_identity,
+    is_camera_entity,
+)
 from .python_xsense.exceptions import APIFailure, SessionExpired
 from .const import DOMAIN, LOGGER
 from .coordinator import XSenseDataUpdateCoordinator
@@ -88,21 +95,22 @@ def _camera_entities(
     """Return X-Sense camera entities from station and device records."""
     entities: list[XSenseCameraEntity] = []
     seen_entity_ids: set[str] = set()
-    seen_camera_serials: set[str] = set()
+    seen_cameras: list = []
 
     for station in coordinator_stations(coordinator).values():
-        if is_camera_entity(station):
-            entities.append(_camera_entity(coordinator, station))
-            seen_entity_ids.add(station.entity_id)
-            if serial := _camera_serial(station):
-                seen_camera_serials.add(serial)
+        if not is_camera_entity(station) or any(
+            cameras_share_identity(station, seen) for seen in seen_cameras
+        ):
+            continue
+        entities.append(_camera_entity(coordinator, station))
+        seen_entity_ids.add(station.entity_id)
+        seen_cameras.append(station)
 
     for device in coordinator_devices(coordinator).values():
-        serial = _camera_serial(device)
         if (
             not is_camera_entity(device)
             or device.entity_id in seen_entity_ids
-            or (serial is not None and serial in seen_camera_serials)
+            or any(cameras_share_identity(device, seen) for seen in seen_cameras)
         ):
             continue
         entities.append(
@@ -110,6 +118,7 @@ def _camera_entities(
                 coordinator, device, station_id=DEVICE_ENTITY_WITHOUT_STATION
             )
         )
+        seen_cameras.append(device)
 
     return entities
 
@@ -130,9 +139,7 @@ def _camera_entity(
 
 def _camera_serial(entity) -> str | None:
     """Return a normalized camera serial for station/device de-duplication."""
-    serial = getattr(entity, "sn", None)
-    if serial is None:
-        serial = entity.data.get("serialNumber") if isinstance(entity.data, dict) else None
+    serial = camera_addx_serial(entity)
     normalized = str(serial or "").strip().upper()
     return normalized or None
 
@@ -140,7 +147,7 @@ def _camera_serial(entity) -> str | None:
 def _camera_entity_keys(entity: XSenseCameraEntity) -> set[str]:
     """Return stable keys used to avoid duplicate camera entity adds."""
     keys = {str(entity._dev_id).upper()}
-    serial = getattr(entity, "_entity_serial", None)
+    serial = getattr(entity, "_camera_identity", None)
     if serial:
         keys.add(str(serial).upper())
     return keys
@@ -161,6 +168,8 @@ class XSenseCameraEntity(XSenseEntity, Camera):
         """Set up the camera entity."""
         Camera.__init__(self)
         self.entity_description = entity_description
+        self._last_camera_image: bytes | None = None
+        self._camera_identity = camera_addx_serial(entity)
         super().__init__(coordinator, entity, station_id=station_id)
 
     @callback
@@ -195,15 +204,19 @@ class XSenseCameraEntity(XSenseEntity, Camera):
         if entity is None:
             return None
 
-        thumbnail_url = entity.data.get("thumbImgUrl")
-        if not thumbnail_url:
-            return None
-
-        session = async_get_clientsession(self.hass)
-        async with session.get(thumbnail_url) as response:
-            if response.status >= 400:
-                return None
-            return await response.read()
+        prepare_snapshot = getattr(
+            self.coordinator, "async_camera_event_snapshot", None
+        )
+        image = (
+            await prepare_snapshot(entity)
+            if callable(prepare_snapshot)
+            else self.coordinator.camera_event_snapshot(entity)
+        )
+        if image is None:
+            image = await self.coordinator.xsense.get_camera_thumbnail(entity)
+        if image:
+            self._last_camera_image = image
+        return self._last_camera_image
 
     async def stream_source(self) -> str | None:
         """Return a live stream URL when the X-Sense camera service provides one."""
@@ -276,16 +289,25 @@ class XSenseWebRTCCameraEntity(XSenseCameraEntity):
                 entity, session_id, offer_sdp=_sdp_debug_context(offer_sdp)
             ),
         )
-        self._pending_webrtc_candidates[session_id] = []
-        await self._close_existing_webrtc_sessions(
-            preserve_pending_session_id=session_id
-        )
-
+        pending_candidates: list[object] = []
+        self._pending_webrtc_candidates[session_id] = pending_candidates
         try:
+            await self._close_existing_webrtc_sessions(
+                preserve_pending_session_id=session_id
+            )
+            if self._pending_webrtc_candidates.get(session_id) is not pending_candidates:
+                return
             ticket_data = await self.coordinator.xsense.get_camera_webrtc_ticket(
                 entity, force_refresh=True
             )
-        except (APIFailure, SessionExpired) as err:
+        except asyncio.CancelledError:
+            if self._pending_webrtc_candidates.get(session_id) is pending_candidates:
+                self._pending_webrtc_candidates.pop(session_id, None)
+            raise
+        except (APIFailure, SessionExpired, ClientError, OSError) as err:
+            if self._pending_webrtc_candidates.get(session_id) is not pending_candidates:
+                return
+            self._pending_webrtc_candidates.pop(session_id, None)
             LOGGER.warning(
                 "X-Sense camera WebRTC ticket request failed: %s",
                 _camera_debug_context(
@@ -298,7 +320,8 @@ class XSenseWebRTCCameraEntity(XSenseCameraEntity):
                     "Unable to get X-Sense WebRTC ticket",
                 )
             )
-            self._pending_webrtc_candidates.pop(session_id, None)
+            return
+        if self._pending_webrtc_candidates.get(session_id) is not pending_candidates:
             return
         LOGGER.debug(
             "X-Sense camera WebRTC ticket response: %s",
@@ -314,9 +337,16 @@ class XSenseWebRTCCameraEntity(XSenseCameraEntity):
             self._pending_webrtc_candidates.pop(session_id, None)
             return
 
-        webrtc_signal = await self.hass.async_add_import_executor_job(
-            import_module, __package__ + ".python_xsense.webrtc_signal"
-        )
+        try:
+            webrtc_signal = await self.hass.async_add_import_executor_job(
+                import_module, __package__ + ".python_xsense.webrtc_signal"
+            )
+        except BaseException:
+            if self._pending_webrtc_candidates.get(session_id) is pending_candidates:
+                self._pending_webrtc_candidates.pop(session_id, None)
+            raise
+        if self._pending_webrtc_candidates.get(session_id) is not pending_candidates:
+            return
         try:
             ticket = webrtc_signal.XSenseWebRTCTicket.from_api(
                 _camera_webrtc_ticket_serial(entity, ticket_data), ticket_data
@@ -359,13 +389,21 @@ class XSenseWebRTCCameraEntity(XSenseCameraEntity):
             ),
         )
         self._webrtc_sessions[session_id] = session
-        await self._flush_pending_webrtc_candidates(entity, session_id, session)
         try:
+            await self._flush_pending_webrtc_candidates(entity, session_id, session)
             answer = await session.start()
-        except Exception as err:  # noqa: BLE001 - HA frontend needs a clean error
-            self._webrtc_sessions.pop(session_id, None)
-            self._pending_webrtc_candidates.pop(session_id, None)
+        except asyncio.CancelledError:
+            if self._webrtc_sessions.get(session_id) is session:
+                self._webrtc_sessions.pop(session_id, None)
             await session.close()
+            raise
+        except Exception as err:  # noqa: BLE001 - HA frontend needs a clean error
+            current = self._webrtc_sessions.get(session_id) is session
+            if current:
+                self._webrtc_sessions.pop(session_id, None)
+            await session.close()
+            if not current:
+                return
             LOGGER.debug(
                 "X-Sense camera WebRTC signal relay failed: %s",
                 _camera_debug_context(
@@ -373,6 +411,10 @@ class XSenseWebRTCCameraEntity(XSenseCameraEntity):
                 ),
             )
             send_message(WebRTCError("xsense_webrtc_start_failed", str(err)))
+            return
+
+        if self._webrtc_sessions.get(session_id) is not session:
+            await session.close()
             return
 
         LOGGER.debug(
@@ -557,7 +599,7 @@ def _camera_webrtc_ticket_serial(entity, ticket_data) -> str:
         serial = ticket_data.get("serialNumber")
         if serial not in (None, ""):
             return str(serial)
-    return str(entity.sn)
+    return camera_addx_serial(entity)
 
 
 def _send_remote_candidate(send_message, entity, session_id, candidate) -> None:
