@@ -1,5 +1,7 @@
 - room: wohnzimmer
   lights: ["1", "2"]
+  waterHigh: 1200
+  waterLow: 800
 - room: buero_merja
   lights: ["1", "2"]
 - room: buero_fabian

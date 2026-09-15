@@ -7,7 +7,7 @@
       to: "on"
     - platform: numeric_state
       entity_id: sensor.lux_wohnzimmer
-      below: 140           # waterLowLux
+      below: 800           # waterLowLux
       for: "00:00:05"
     - platform: state
       entity_id: input_boolean.auto_light_wohnzimmer
@@ -27,7 +27,7 @@
     # Lux muss UNTER effektivem waterLow Threshold sein (250 Lux wenn Cover Daylight Protection aktiv ist, sonst normal waterLow)
     - condition: template
       value_template: >-
-        {% set base_water_low = 140 %}
+        {% set base_water_low = 800 %}
         {% set prot_entities = states.input_boolean | selectattr('entity_id', 'search', 'cover_daylight_protection_.*' ~ 'wohnzimmer') | selectattr('state', 'eq', 'on') | list %}
         {% set is_daylight_prot = prot_entities | length > 0 %}
         {% set effective_water_low = 250 if is_daylight_prot else base_water_low %}
