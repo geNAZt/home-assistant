@@ -1,0 +1,12 @@
+- id: waschetrockner_program_ended_notification
+  alias: Wäschetrockner fertig Alexa Benachrichtigung
+  description: "Send Alexa notification when dryer program ends"
+  triggers:
+    - trigger: state
+      entity_id: sensor.waschetrockner
+      to: "program_ended"
+  actions:
+    - action: notify.alexa_media
+      data:
+        message: "Trockner fertig"
+  mode: single

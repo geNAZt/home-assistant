@@ -1,0 +1,12 @@
+- id: waschmaschine_program_ended_notification
+  alias: Waschmaschine fertig Alexa Benachrichtigung
+  description: "Send Alexa notification when washing machine program ends"
+  triggers:
+    - trigger: state
+      entity_id: sensor.waschmaschine
+      to: "program_ended"
+  actions:
+    - action: notify.alexa_media
+      data:
+        message: "Waschmachine fertig"
+  mode: single
