@@ -3,4 +3,4 @@ state_address: "8/6/2"
 type: active_energy
 always_callback: true
 state_class: total_increasing
-sync_state: expire 1
+sync_state: expire 5
