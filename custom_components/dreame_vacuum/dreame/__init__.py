@@ -1,3 +1,5 @@
+VERSION = "v2.0.1"
+
 from .types import (
     DreameVacuumProperty,
     DreameVacuumAutoSwitchProperty,
@@ -19,6 +21,10 @@ from .types import (
     DreameVacuumMoppingType,
     DreameVacuumStreamStatus,
     DreameVacuumVoiceAssistantLanguage,
+    DreameVacuumMopPressure,
+    DreameVacuumMopTemperature,
+    DreameVacuumLowLyingAreaFrequency,
+    DreameVacuumScraperFrequency,
     DreameVacuumWiderCornerCoverage,
     DreameVacuumMopPadSwing,
     DreameVacuumMopExtendFrequency,
@@ -27,6 +33,7 @@ from .types import (
     DreameVacuumCustomMoppingRoute,
     DreameVacuumSelfCleanFrequency,
     DreameVacuumAutoEmptyMode,
+    DreameVacuumAutoEmptyModeV2,
     DreameVacuumCleanGenius,
     DreameVacuumCleanGeniusMode,
     DreameVacuumFloorMaterial,
@@ -37,6 +44,7 @@ from .types import (
     DreameVacuumTaskType,
     DreameVacuumWashingMode,
     DreameVacuumWaterTemperature,
+    DreameVacuumAutoLDSCoverage,
     PROPERTY_AVAILABILITY,
     ACTION_AVAILABILITY,
     MAP_COLOR_SCHEME_LIST,
@@ -51,12 +59,14 @@ from .const import (
     FLOOR_MATERIAL_CODE_TO_NAME,
     FLOOR_MATERIAL_DIRECTION_CODE_TO_NAME,
     SEGMENT_VISIBILITY_CODE_TO_NAME,
-    PROPERTY_TO_NAME,
-    ACTION_TO_NAME,
     SUCTION_LEVEL_QUIET,
     STATUS_CODE_TO_NAME,
     CUSTOM_MOPPING_ROUTE_TO_NAME,
     CLEANING_ROUTE_TO_NAME,
+    MOP_PRESSURE_TO_NAME,
+    MOP_TEMPERATURE_TO_NAME,
+    LOW_LYING_AREA_FREQUENCY_TO_NAME,
+    SCRAPER_FREQUENCY_TO_NAME,
 )
 from .device import DreameVacuumDevice
 from .protocol import DreameVacuumProtocol

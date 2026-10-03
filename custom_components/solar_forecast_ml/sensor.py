@@ -135,11 +135,10 @@ async def async_setup_entry(
     coordinator.system_status_sensor = system_status_sensor
 
     actual_live_manager = getattr(coordinator, "actual_live_state_manager", None)
-    if actual_live_manager is None:
+    start_live_manager = actual_live_manager is None
+    if start_live_manager:
         actual_live_manager = ActualLiveStateManager(hass, coordinator, entry)
         coordinator.actual_live_state_manager = actual_live_manager
-        await actual_live_manager.async_start()
-        entry.async_on_unload(actual_live_manager.async_stop)
 
     panel_group_sot_entities = []
     for idx, group in enumerate(getattr(coordinator, "panel_groups", []) or []):
@@ -219,7 +218,7 @@ async def async_setup_entry(
             EodDurationSensor(coordinator, entry),
         ]
         entities_to_add.extend(diagnostic_entities)
-        _LOGGER.info(
+        _LOGGER.debug(
             f"Diagnostic mode enabled - Adding {len(diagnostic_entities)} advanced diagnostic sensors."
         )
 
@@ -227,14 +226,14 @@ async def async_setup_entry(
     if enable_evcc:
         evcc_entities = [EvccForecastSensor(coordinator, entry)]
         entities_to_add.extend(evcc_entities)
-        _LOGGER.info("evcc Forecast sensor enabled - Adding evcc integration sensor")
+        _LOGGER.debug("evcc Forecast sensor enabled - Adding evcc integration sensor")
 
     # Shadow detection sensors (always created) @zara
     shadow_detection_entities = [
         sensor_class(coordinator, entry) for sensor_class in SHADOW_DETECTION_SENSORS
     ]
     entities_to_add.extend(shadow_detection_entities)
-    _LOGGER.info(
+    _LOGGER.debug(
         f"Shadow Detection enabled - Adding {len(shadow_detection_entities)} shadow detection sensors"
     )
 
@@ -243,12 +242,32 @@ async def async_setup_entry(
         sensor_class(coordinator, entry) for sensor_class in DRIFT_DETECTION_SENSORS
     ]
     entities_to_add.extend(drift_detection_entities)
-    _LOGGER.info(
+    _LOGGER.debug(
         f"Drift Detection enabled - Adding {len(drift_detection_entities)} drift detection sensors"
     )
 
     async_add_entities(entities_to_add, True)
+    coordinator.sensor_entity_count = len(entities_to_add)
     _LOGGER.info(f"Successfully added {len(entities_to_add)} total sensors.")
+
+    if start_live_manager:
+        live_start_cancelled = False
+
+        async def _start_actual_live() -> None:
+            if live_start_cancelled:
+                return
+            await actual_live_manager.async_start()
+
+        async def _stop_actual_live() -> None:
+            nonlocal live_start_cancelled
+            live_start_cancelled = True
+            await actual_live_manager.async_stop()
+
+        entry.async_on_unload(_stop_actual_live)
+        hass.async_create_task(
+            _start_actual_live(),
+            name=f"{DOMAIN}_actual_live_start",
+        )
 
     return True
 

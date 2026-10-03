@@ -17,6 +17,7 @@ from .exceptions import APIFailure, SessionExpired, XSenseError
 from .house import House
 from .mapping import bool_state
 from .station import Station
+from .webrtc_trace import trace_host, trace_id
 
 LOGGER = logging.getLogger(__name__)
 
@@ -242,6 +243,15 @@ def camera_identifiers(camera: Entity) -> tuple[str, ...]:
 def _camera_addx_serial_candidates(camera: Entity) -> list[str]:
     """Return APK camera identifiers in ADDX preference order."""
     return list(camera_identifiers(camera)) or [""]
+
+
+def _camera_history_serial_candidates(camera: Entity, key: str) -> list[str]:
+    """Prefer this history endpoint's identity without changing live access."""
+    serials = _camera_addx_serial_candidates(camera)
+    preferred = camera.data.get(key)
+    if preferred in serials:
+        return [preferred, *(serial for serial in serials if serial != preferred)]
+    return serials
 
 
 def camera_addx_serial(camera: Entity) -> str:
@@ -731,7 +741,9 @@ class AsyncXSense(XSenseBase):
         successful_requests = 0
         seen_cameras: list[Entity] = []
         for camera in cameras:
-            serials = _camera_addx_serial_candidates(camera)
+            serials = _camera_history_serial_candidates(
+                camera, "cameraLibrarySerialNumber"
+            )
             if not serials:
                 continue
             if any(cameras_share_identity(camera, seen) for seen in seen_cameras):
@@ -785,8 +797,7 @@ class AsyncXSense(XSenseBase):
             if accepted_serial is not None:
                 camera.set_data(
                     {
-                        "addxAccessSerialNumber": accepted_serial,
-                        "addxSerialNumber": accepted_serial,
+                        "cameraLibrarySerialNumber": accepted_serial,
                     }
                 )
             if camera_request_succeeded:
@@ -855,7 +866,9 @@ class AsyncXSense(XSenseBase):
         successful_requests = 0
         seen_cameras: list[Entity] = []
         for camera in cameras:
-            serials = _camera_addx_serial_candidates(camera)
+            serials = _camera_history_serial_candidates(
+                camera, "cameraEventHistorySerialNumber"
+            )
             if not serials:
                 continue
             if any(cameras_share_identity(camera, seen) for seen in seen_cameras):
@@ -909,8 +922,7 @@ class AsyncXSense(XSenseBase):
             if accepted_serial is not None:
                 camera.set_data(
                     {
-                        "addxAccessSerialNumber": accepted_serial,
-                        "addxSerialNumber": accepted_serial,
+                        "cameraEventHistorySerialNumber": accepted_serial,
                     }
                 )
             if camera_request_succeeded:
@@ -1282,6 +1294,17 @@ class AsyncXSense(XSenseBase):
         data = self._addx_body(addx_session, kwargs)
 
         session = await self._get_session()
+        if endpoint == "/device/getWebrtcTicket":
+            LOGGER.debug(
+                "X-Sense WebRTC ticket HTTP route trace: %s",
+                {
+                    "request_serial": trace_id(data.get("serialNumber")),
+                    "house": trace_id(getattr(_house, "house_id", None)),
+                    "node": node,
+                    "api_host": trace_host(base_url),
+                    "auth_retry": not _retry,
+                },
+            )
         async with session.post(
             f"{base_url}{endpoint}",
             json=data,
@@ -1925,18 +1948,50 @@ class AsyncXSense(XSenseBase):
 
         data = None
         last_error: APIFailure | None = None
-        for serial in _camera_addx_serial_candidates(camera):
+        serials = _camera_addx_serial_candidates(camera)
+        # History APIs may prefer another alias; refresh tickets with their own
+        # previously accepted identity before trying the shared fallbacks.
+        ticket_serial = cached.get("serialNumber") if isinstance(cached, dict) else None
+        if ticket_serial not in (None, ""):
+            ticket_serial = str(ticket_serial)
+            serials = [ticket_serial, *(value for value in serials if value != ticket_serial)]
+        for serial in serials:
             try:
+                house = self._camera_addx_house(camera)
+                LOGGER.debug(
+                    "X-Sense WebRTC ticket request trace: %s",
+                    {
+                        "camera": trace_id(camera.sn),
+                        "request_serial": trace_id(serial),
+                        "house": trace_id(getattr(house, "house_id", None)),
+                        "node": _ipc_node_type(house.mqtt_region) if house else None,
+                        "attempt": serials.index(serial) + 1,
+                        "force_refresh": force_refresh,
+                    },
+                )
                 data = await self._camera_addx_call(
                     camera,
                     "/device/getWebrtcTicket",
                     serialNumber=serial,
                     verifyDormancyStatus=True,
                 )
+                if isinstance(data, dict):
+                    LOGGER.debug(
+                        "X-Sense WebRTC ticket response trace: %s",
+                        {
+                            "request_serial": trace_id(serial),
+                            "id": trace_id(data.get("id")),
+                            "groupId": trace_id(data.get("groupId")),
+                            "realCxSerialNumber": trace_id(data.get("realCxSerialNumber")),
+                            "response_serial": trace_id(data.get("serialNumber")),
+                            "role": data.get("role") if data.get("role") in ("viewer", "device", "camera") else "other",
+                            "signal_host": trace_host(data.get("signalServer")),
+                            "expirationTime": data.get("expirationTime") if isinstance(data.get("expirationTime"), (int, float)) else None,
+                        },
+                    )
                 camera.set_data(
                     {
                         "addxAccessSerialNumber": serial,
-                        "addxSerialNumber": serial,
                     }
                 )
                 break

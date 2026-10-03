@@ -371,6 +371,8 @@ class GoeChargerDataUpdateCoordinator(DataUpdateCoordinator):
         # just to keep track if we allow a forced ws restart...
         self._integration_start = time.time()
 
+        # a MAP that contains all entities that are by the integration
+        self.entities = {}
         super().__init__(hass, _LOGGER, name=DOMAIN, update_interval=SCAN_INTERVAL)
 
     async def call_later_update_device_registry(self, now:Any):
@@ -625,11 +627,11 @@ class GoeChargerDataUpdateCoordinator(DataUpdateCoordinator):
                 #     self.hass.async_create_task(self.trigger_restart_delayed())
                 return new_data
 
-            except ClientConnectionError as ccerr:
-                self._handle_client_connection_error("_async_update_data()", ccerr)
-                raise UpdateFailed(f"Error while fetching data: {type({ccerr}.__name__)} - {ccerr}") from ccerr
-            except UpdateFailed as ufail:
-                raise UpdateFailed() from ufail
+            except ClientConnectionError as cc_err:
+                self._handle_client_connection_error("_async_update_data()", cc_err)
+                raise UpdateFailed(f"Error while fetching data: {type(cc_err).__name__} - {cc_err}") from cc_err
+            except UpdateFailed as upd_fail:
+                raise UpdateFailed() from upd_fail
             except Exception as other:
                 _LOGGER.error(f"_async_update_data(): unexpected: {type(other).__name__} - {other}")
                 raise UpdateFailed() from other
@@ -648,9 +650,9 @@ class GoeChargerDataUpdateCoordinator(DataUpdateCoordinator):
             self.handle_write_result("single", value, key, result, entity)
             return result
 
-        except ClientConnectionError as exception:
-            self._handle_client_connection_error("async_write_key()", exception)
-            raise ValueError(f"ClientConnectionError while writing {key} to wallbox: {type({exception}.__name__)} - {exception}") from exception
+        except ClientConnectionError as cc_err:
+            self._handle_client_connection_error("async_write_key()", cc_err)
+            raise ValueError(f"ClientConnectionError while writing {key} to wallbox: {type(cc_err.__name__)} - {cc_err}") from cc_err
         except Exception as e:
             _LOGGER.error(f"Error while writing single {key} to wallbox: {e}")
             raise ValueError(f"Exception while writing {key} to wallbox: {e}") from e
@@ -862,6 +864,10 @@ class GoeChargerDataUpdateCoordinator(DataUpdateCoordinator):
                                                            Tag.SDP.key, Tag.BAC.key, Tag.CBL.key, Tag.UST.key]: # SELECTS
             return False
 
+        # the core-exclusive entities [currently just the 'ISO15118-2' select entity]
+        elif not self._is_core_wallbox and description.key in [Tag.ISO2ENA.key]:
+            return False
+
         return True
 
 class GoeChargerBaseEntity(CustomFriendlyNameEntity):
@@ -902,6 +908,11 @@ class GoeChargerBaseEntity(CustomFriendlyNameEntity):
             self.entity_id = f"{entity_type}.goe_wan_{self.coordinator._serial}_{self._attr_translation_key}".lower()
         else:
             self.entity_id = f"{entity_type}.goe_{self.coordinator._serial}_{self._attr_translation_key}".lower()
+
+        # adding the entity to the coordinator's entities map
+        # currently we only need the AMP entity (to adjust min/max & value) - so there
+        # is no need for a general entity map
+        # self.coordinator.entities[self.entity_id] = self
 
     def _name_internal(self, device_class_name: str | None,
                        platform_translations: dict[str, Any], ) -> str | UndefinedType | None:

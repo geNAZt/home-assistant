@@ -49,10 +49,6 @@ if TYPE_CHECKING:
     from .coordinator import XSenseDataUpdateCoordinator
 
 
-# These models report physical self-tests but have no remote self-test command.
-SELF_TEST_REPORT_ONLY_MODELS = {"SC06-WX", "XS01-WX", "XS0B-iR"}
-
-
 @dataclass(kw_only=True, frozen=True)
 class XSenseSensorEntityDescription(SensorEntityDescription):
     """Describes XSense sensor entity."""
@@ -63,7 +59,7 @@ class XSenseSensorEntityDescription(SensorEntityDescription):
 
 def battery_percentage(device: Entity) -> int | None:
     """Return the X-Sense battery level as a whole Home Assistant percentage."""
-    value = device.data["batInfo"]
+    value = device.data.get("batInfo")
     if value is None:
         return None
     try:
@@ -75,7 +71,7 @@ def battery_percentage(device: Entity) -> int | None:
 
 def rf_level(device: Entity) -> str | None:
     """Return the X-Sense RF signal level."""
-    value = device.data["rfLevel"]
+    value = device.data.get("rfLevel")
     if value is None:
         return None
     try:
@@ -86,7 +82,7 @@ def rf_level(device: Entity) -> str | None:
 
 def data_value(key: str) -> Callable[[Entity], StateType]:
     """Return a value function for a X-Sense data key."""
-    return lambda entity: entity.data[key]
+    return lambda entity: entity.data.get(key)
 
 
 def optional_data_value(key: str) -> Callable[[Entity], StateType]:
@@ -106,6 +102,11 @@ def co_device(entity: Entity) -> bool:
         EntityType.CO,
         EntityType.COMBI,
     } or entity.type.startswith("XC")
+
+
+def radon_device(entity: Entity) -> bool:
+    """Return whether this entity is the APK XR0A-iR radon station."""
+    return entity.type == "XR0A-iR"
 
 
 def co_alarm_standard(entity: Entity) -> str | None:
@@ -145,6 +146,11 @@ def has_data_or_sbs50(key: str) -> Callable[[Entity], bool]:
     return lambda entity: key in entity.data or sbs50_station(entity)
 
 
+def has_sbs50_management_data(entity: Entity) -> bool:
+    """Expose SBS50-only management diagnostics without leaking them to detectors."""
+    return sbs50_station(entity)
+
+
 def timestamp_value(value) -> datetime | None:
     """Return an aware datetime for X-Sense timestamp payload values."""
     if value in (None, ""):
@@ -180,7 +186,7 @@ def timestamp_value(value) -> datetime | None:
 
 def data_timestamp(key: str) -> Callable[[Entity], datetime | None]:
     """Return a value function for a X-Sense timestamp data key."""
-    return lambda entity: timestamp_value(entity.data[key])
+    return lambda entity: timestamp_value(entity.data.get(key))
 
 
 def optional_data_timestamp(key: str) -> Callable[[Entity], datetime | None]:
@@ -214,16 +220,8 @@ def has_report_time(entity: Entity) -> bool:
 
 
 def has_self_test_report(entity: Entity) -> bool:
-    """Return whether the entity can report an app-style self-test result."""
-    entity_def = entities.get(entity.type, {})
-    return (
-        entity.type in SELF_TEST_REPORT_ONLY_MODELS
-        or "lastSelfTest" in entity.data
-        or any(
-            action.get("action") == "test"
-            for action in entity_def.get("actions", [])
-        )
-    )
+    """Return whether an actual self-test result report is present."""
+    return "lastSelfTest" in entity.data or "lastSelfTestTime" in entity.data
 
 
 _ALL_SENSORS: tuple[XSenseSensorEntityDescription, ...] = (
@@ -260,7 +258,7 @@ _ALL_SENSORS: tuple[XSenseSensorEntityDescription, ...] = (
         entity_category=EntityCategory.DIAGNOSTIC,
         icon="mdi:chip",
         exists_fn=lambda device: "wifi_sw" in device.data,
-        value_fn=lambda station: station.data["wifi_sw"],
+        value_fn=optional_data_value("wifi_sw"),
     ),
     XSenseSensorEntityDescription(
         key="ip",
@@ -306,13 +304,76 @@ _ALL_SENSORS: tuple[XSenseSensorEntityDescription, ...] = (
         exists_fn=has_data("coPpmPeakTime"),
     ),
     XSenseSensorEntityDescription(
+        key="radon",
+        translation_key="radon",
+        native_unit_of_measurement="Bq/m³",
+        state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:radioactive",
+        value_fn=optional_data_value("longTermValue"),
+        exists_fn=lambda device: radon_device(device)
+        or "longTermValue" in device.data,
+    ),
+    XSenseSensorEntityDescription(
+        key="radon_long_term_day",
+        translation_key="radon_long_term_day",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        icon="mdi:calendar-range",
+        value_fn=optional_data_value("longTermDay"),
+        exists_fn=lambda device: radon_device(device)
+        or "longTermDay" in device.data,
+    ),
+    XSenseSensorEntityDescription(
+        key="radon_1_day",
+        translation_key="radon_1_day",
+        native_unit_of_measurement="Bq/m³",
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        icon="mdi:radioactive",
+        value_fn=optional_data_value("day1Value"),
+        exists_fn=lambda device: radon_device(device)
+        or "day1Value" in device.data,
+    ),
+    XSenseSensorEntityDescription(
+        key="radon_7_day",
+        translation_key="radon_7_day",
+        native_unit_of_measurement="Bq/m³",
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        icon="mdi:radioactive",
+        value_fn=optional_data_value("day7Value"),
+        exists_fn=lambda device: radon_device(device)
+        or "day7Value" in device.data,
+    ),
+    XSenseSensorEntityDescription(
+        key="radon_30_day",
+        translation_key="radon_30_day",
+        native_unit_of_measurement="Bq/m³",
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        icon="mdi:radioactive",
+        value_fn=optional_data_value("day30Value"),
+        exists_fn=lambda device: radon_device(device)
+        or "day30Value" in device.data,
+    ),
+    XSenseSensorEntityDescription(
+        key="radon_90_day",
+        translation_key="radon_90_day",
+        native_unit_of_measurement="Bq/m³",
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        icon="mdi:radioactive",
+        value_fn=optional_data_value("day90Value"),
+        exists_fn=lambda device: radon_device(device)
+        or "day90Value" in device.data,
+    ),
+    XSenseSensorEntityDescription(
         key="radon_peak",
         translation_key="radon_peak",
         native_unit_of_measurement="Bq/m³",
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:radioactive",
         value_fn=optional_data_value("radonPeak"),
-        exists_fn=lambda device: device.type == "XR0A-iR"
+        exists_fn=lambda device: radon_device(device)
         or "radonPeak" in device.data,
     ),
     XSenseSensorEntityDescription(
@@ -321,7 +382,7 @@ _ALL_SENSORS: tuple[XSenseSensorEntityDescription, ...] = (
         device_class=SensorDeviceClass.TIMESTAMP,
         entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=optional_data_timestamp("radonPeakTime"),
-        exists_fn=lambda device: device.type == "XR0A-iR"
+        exists_fn=lambda device: radon_device(device)
         or "radonPeakTime" in device.data,
     ),
     XSenseSensorEntityDescription(
@@ -329,7 +390,7 @@ _ALL_SENSORS: tuple[XSenseSensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda device: device.data["temperature"],
+        value_fn=optional_data_value("temperature"),
         exists_fn=lambda device: "temperature" in device.data,
     ),
     XSenseSensorEntityDescription(
@@ -337,7 +398,7 @@ _ALL_SENSORS: tuple[XSenseSensorEntityDescription, ...] = (
         native_unit_of_measurement=PERCENTAGE,
         device_class=SensorDeviceClass.HUMIDITY,
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda device: device.data["humidity"],
+        value_fn=optional_data_value("humidity"),
         exists_fn=lambda device: "humidity" in device.data,
     ),
     XSenseSensorEntityDescription(
@@ -682,7 +743,7 @@ _ALL_SENSORS: tuple[XSenseSensorEntityDescription, ...] = (
         entity_category=EntityCategory.DIAGNOSTIC,
         icon="mdi:map-marker-outline",
         value_fn=optional_data_value("zoneName"),
-        exists_fn=has_data_or_sbs50("zoneName"),
+        exists_fn=has_sbs50_management_data,
     ),
     XSenseSensorEntityDescription(
         key="location",
@@ -738,7 +799,7 @@ _ALL_SENSORS: tuple[XSenseSensorEntityDescription, ...] = (
         entity_category=EntityCategory.DIAGNOSTIC,
         icon="mdi:shield-home",
         value_fn=optional_data_value("safeMode"),
-        exists_fn=has_data_or_sbs50("safeMode"),
+        exists_fn=has_sbs50_management_data,
     ),
 )
 

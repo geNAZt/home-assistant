@@ -50,10 +50,17 @@ Wichtig:
 - Fahrzeugdaten (SoC, Battery Size)
 - Smart Charging Sessions
 - Historische Smart-Meter-Verbrauchswerte
+- Von OE gemeldetes Paragraph-14a-Modul
+- Aktuell wirksamer variabler Netzentgeltanteil in EUR/kWh mit vollstaendigem Tagesplan als Attribut
+- Der Strompreis-Sensor enthaelt unter `agreements` alle von OE gelieferten vergangenen, aktuellen und zukuenftigen Stromvertraege mit Status, Laufzeit sowie den verfuegbaren Brutto-, Netto- und MwSt.-Preisstufen. `agreement_prices` enthaelt die Preisstufen des aktuell ausgewaehlten Vertrags.
+
+Jeder Eintrag in `agreements` enthaelt `code`, `name`, `type`, `is_active`, `is_revoked`, `is_terminated`, `valid_from`, `valid_to` und `prices`. Die Preise enthalten, soweit von OE geliefert, Cent/kWh und EUR/kWh fuer Brutto und Netto, `vat_percent`, die Preisgueltigkeit sowie Aktivierungszeitfenster.
 
 Hinweis:
 
 - SoC Change und SoC Limit wurden entfernt.
+- `MODULE_1` wird neutral als OE-Backend-Wert angezeigt und beweist allein nicht, dass Modul 3 als Abrechnungsoption gewaehlt wurde.
+- Eine erfolgreiche Netzentgelt-Antwort wird fuer den lokalen Tag gecacht; Zeitfensterwechsel werden lokal berechnet.
 
 ### Switches
 
@@ -67,6 +74,9 @@ Geraetebezogene Entitaets-IDs verwenden die stabile Octopus-Geraete-UUID. Der An
 - octopus_germany.set_device_preferences
 - octopus_germany.get_smart_meter_readings
 - octopus_germany.export_smart_meter_csv
+- octopus_germany.submit_meter_readings
+
+CSV-Exporte laden Smart-Meter-Werte ueber paginierte Monatsabfragen in der konfigurierten Home-Assistant-Zeitzone. Die API-Schicht behaelt Quellen-, Qualitaets-, Geraete- und Registerdaten bei, sofern OE sie liefert; auch intern konsistente Intervalle koennen geschaetzt sein.
 
 Fuer Parameter, Beispiele und Event-Outputs siehe:
 
@@ -86,7 +96,9 @@ Empfohlene Rollenverteilung:
 ## API Support
 
 - REST: https://developer.oeg-kraken.energy/
-- GraphQL: https://developer.oeg-kraken.energy/graphql/
+- Kraken GraphQL: https://developer.oeg-kraken.energy/graphql/
+- OE Backend GraphQL: wird fuer variable Netzentgelte direkt und mit demselben Token angesprochen
+- Schema-Snapshots: `oeg_graphql_schema.yaml` und `oe_backend_graphql_schema.json`
 
 ## Support
 

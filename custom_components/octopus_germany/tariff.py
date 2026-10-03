@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, time
+import logging
+from datetime import UTC, datetime, time, timedelta
+from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from homeassistant.util.dt import now as local_now
+
+_LOGGER = logging.getLogger(__name__)
 
 
 def parse_product_datetime(value: str | None) -> datetime | None:
@@ -79,6 +83,150 @@ def get_active_timeslot_rate(
                 except ValueError, TypeError:
                     continue
     return None
+
+
+def get_next_price_change(
+    product: dict[str, Any], current_time: datetime | None = None
+) -> datetime | None:
+    """Return the next local boundary that can change a product price."""
+    if not product:
+        return None
+    current_time = current_time or local_now()
+    if current_time.tzinfo is None:
+        current_time = current_time.replace(tzinfo=UTC)
+
+    candidates: list[datetime] = []
+    local_time = current_time.timetz().replace(tzinfo=None)
+    for timeslot in product.get("timeslots", []):
+        for rule in timeslot.get("activation_rules", []):
+            for boundary in (rule.get("from_time"), rule.get("to_time")):
+                boundary_time = parse_tariff_time(boundary)
+                if boundary_time is None:
+                    continue
+                boundary_date = current_time.date()
+                if boundary_time <= local_time:
+                    boundary_date += timedelta(days=1)
+                candidates.append(
+                    datetime.combine(
+                        boundary_date, boundary_time, tzinfo=current_time.tzinfo
+                    )
+                )
+
+    for forecast in product.get("unitRateForecast", []):
+        for field in ("validFrom", "validTo"):
+            boundary = parse_product_datetime(forecast.get(field))
+            if boundary and boundary > current_time.astimezone(UTC):
+                candidates.append(boundary.astimezone(current_time.tzinfo))
+
+    return min(candidates) if candidates else None
+
+
+def normalize_variable_grid_fees(
+    value: dict[str, Any] | None,
+    grid_operator_name: str | None = None,
+) -> dict[str, Any] | None:
+    """Normalize OE backend variable grid fee data."""
+    if not value:
+        return None
+
+    rates = []
+    for rate in value.get("gridFees") or []:
+        try:
+            cents = Decimal(str(rate["gridFeeInCentsPerKwh"]))
+        except InvalidOperation, KeyError, TypeError:
+            continue
+        start_time = rate.get("rateTypeIntervalStart")
+        end_time = rate.get("rateTypeIntervalEnd")
+        if start_time == "00:00:00" and end_time == "00:00:00":
+            _LOGGER.warning(
+                "OE variable grid fee contains an all-day fallback interval: "
+                "grid_operator=%s, grid_operator_code=%s, module=%s, "
+                "rate_type=%s, rate_cents_per_kwh=%s",
+                grid_operator_name,
+                rate.get("gridOperatorCode"),
+                value.get("module"),
+                rate.get("gridFeeKwhRateType"),
+                cents,
+            )
+        rates.append(
+            {
+                "rate_type": rate.get("gridFeeKwhRateType"),
+                "start_time": start_time,
+                "end_time": end_time,
+                "valid_from": rate.get("validFrom"),
+                "valid_to": rate.get("validTo"),
+                "grid_operator_code": rate.get("gridOperatorCode"),
+                "rate_cents_per_kwh": str(cents),
+                "rate_eur_per_kwh": float(cents / Decimal(100)),
+            }
+        )
+
+    if not value.get("module") and not rates:
+        return None
+    return {
+        "module": value.get("module"),
+        "grid_operator_code": next(
+            (
+                rate.get("grid_operator_code")
+                for rate in rates
+                if rate.get("grid_operator_code")
+            ),
+            None,
+        ),
+        "grid_operator_name": grid_operator_name,
+        "rates": rates,
+    }
+
+
+def get_active_grid_fee(
+    grid_fee_data: dict[str, Any] | None,
+    current_time: datetime | None = None,
+) -> dict[str, Any] | None:
+    """Return the variable grid fee active at the supplied local time."""
+    if not grid_fee_data:
+        return None
+    current_time = current_time or local_now()
+    if current_time.tzinfo is None:
+        current_time = current_time.replace(tzinfo=UTC)
+    current_utc = current_time.astimezone(UTC)
+    wall_time = current_time.time().replace(tzinfo=None)
+
+    fallback_rate = None
+    for rate in grid_fee_data.get("rates", []):
+        valid_from = parse_product_datetime(rate.get("valid_from"))
+        valid_to = parse_product_datetime(rate.get("valid_to"))
+        if valid_from and current_utc < valid_from:
+            continue
+        if valid_to and current_utc >= valid_to:
+            continue
+        start = parse_tariff_time(rate.get("start_time"))
+        end = parse_tariff_time(rate.get("end_time"))
+        if start == time.min and end == time.min:
+            fallback_rate = rate
+            continue
+        if start and end and is_time_between(wall_time, start, end):
+            return rate
+    return fallback_rate
+
+
+def get_next_grid_fee_change(
+    grid_fee_data: dict[str, Any] | None,
+    current_time: datetime | None = None,
+) -> datetime | None:
+    """Return the next local boundary for the active variable grid fee."""
+    current_time = current_time or local_now()
+    if current_time.tzinfo is None:
+        current_time = current_time.replace(tzinfo=UTC)
+    active_rate = get_active_grid_fee(grid_fee_data, current_time)
+    if not active_rate:
+        return None
+    end_time = parse_tariff_time(active_rate.get("end_time"))
+    if end_time is None:
+        return None
+    change_date = current_time.date()
+    if end_time <= current_time.time().replace(tzinfo=None):
+        change_date += timedelta(days=1)
+    return datetime.combine(change_date, end_time, tzinfo=current_time.tzinfo)
 
 
 def get_current_forecast_rate(

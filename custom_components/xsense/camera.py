@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import logging
+import sys
 from dataclasses import dataclass
 from importlib import import_module
 
@@ -40,6 +42,23 @@ from .entity import (
     coordinator_devices,
     coordinator_stations,
 )
+
+
+def _webrtc_close_callers() -> list[dict[str, str | int]]:
+    """Identify the cleanup caller without source lines or frame locals."""
+    callers = []
+    frame = sys._getframe(1)
+    try:
+        while frame is not None and len(callers) < 8:
+            callers.append({
+                "function": frame.f_code.co_name,
+                "file": frame.f_code.co_filename.replace("\\", "/").rsplit("/", 1)[-1],
+                "line": frame.f_lineno,
+            })
+            frame = frame.f_back
+    finally:
+        del frame
+    return callers
 
 
 @dataclass(kw_only=True, frozen=True)
@@ -311,7 +330,7 @@ class XSenseWebRTCCameraEntity(XSenseCameraEntity):
             LOGGER.warning(
                 "X-Sense camera WebRTC ticket request failed: %s",
                 _camera_debug_context(
-                    entity, session_id, error=str(err), error_type=type(err).__name__
+                    entity, session_id, error=_error_debug_context(err), error_type=type(err).__name__
                 ),
             )
             send_message(
@@ -393,8 +412,18 @@ class XSenseWebRTCCameraEntity(XSenseCameraEntity):
             await self._flush_pending_webrtc_candidates(entity, session_id, session)
             answer = await session.start()
         except asyncio.CancelledError:
+            task = asyncio.current_task()
+            task_cancel_requested = bool(task and task.cancelling())
             if self._webrtc_sessions.get(session_id) is session:
                 self._webrtc_sessions.pop(session_id, None)
+            LOGGER.debug(
+                "X-Sense camera WebRTC startup cancelled: %s",
+                _camera_debug_context(
+                    entity, session_id,
+                    close_reason=("offer_task_cancelled" if task_cancel_requested else "answer_wait_cancelled"),
+                    task_cancel_requested=task_cancel_requested
+                ),
+            )
             await session.close()
             raise
         except Exception as err:  # noqa: BLE001 - HA frontend needs a clean error
@@ -407,13 +436,21 @@ class XSenseWebRTCCameraEntity(XSenseCameraEntity):
             LOGGER.debug(
                 "X-Sense camera WebRTC signal relay failed: %s",
                 _camera_debug_context(
-                    entity, session_id, error=_error_debug_context(err)
+                    entity, session_id,
+                    error=_error_debug_context(err),
+                    close_reason="startup_failed",
                 ),
             )
             send_message(WebRTCError("xsense_webrtc_start_failed", str(err)))
             return
 
         if self._webrtc_sessions.get(session_id) is not session:
+            LOGGER.debug(
+                "X-Sense camera WebRTC discarded superseded answer: %s",
+                _camera_debug_context(
+                    entity, session_id, close_reason="superseded_answer"
+                ),
+            )
             await session.close()
             return
 
@@ -445,7 +482,11 @@ class XSenseWebRTCCameraEntity(XSenseCameraEntity):
             return
         LOGGER.debug(
             "X-Sense camera closing previous WebRTC signal sessions before new offer: %s",
-            {"count": len(sessions)},
+            {
+                "count": len(sessions),
+                "close_reason": "replacement_offer",
+                "replacement_session": _short_id(preserve_pending_session_id),
+            },
         )
         self._webrtc_sessions.clear()
         for session in sessions:
@@ -459,11 +500,12 @@ class XSenseWebRTCCameraEntity(XSenseCameraEntity):
         if not candidates:
             return
         LOGGER.debug(
-            "X-Sense camera WebRTC forwarding queued HA ICE candidates: %s",
+            "X-Sense camera WebRTC handing queued HA ICE candidates to signal helper: %s",
             _camera_debug_context(
                 entity,
                 session_id,
                 queued_candidate_count=len(candidates),
+                candidate_stage="adapter_to_helper",
             ),
         )
         for candidate in candidates:
@@ -472,13 +514,38 @@ class XSenseWebRTCCameraEntity(XSenseCameraEntity):
     async def async_on_webrtc_candidate(self, session_id, candidate) -> None:
         """Forward a Home Assistant WebRTC candidate to X-Sense signaling."""
         entity = self._current_entity()
+        candidate_context = _webrtc_candidate_debug_context(candidate)
         if session := self._webrtc_sessions.get(session_id):
+            LOGGER.debug(
+                "X-Sense camera WebRTC HA ICE candidate received: %s",
+                _camera_debug_context(entity, session_id, **candidate_context)
+                if entity is not None
+                else {"session": _short_id(session_id), **candidate_context},
+            )
             await session.add_candidate(candidate)
             return
         if session_id in self._pending_webrtc_candidates:
             self._pending_webrtc_candidates[session_id].append(candidate)
+            LOGGER.debug(
+                "X-Sense camera WebRTC HA ICE candidate queued before signal session: %s",
+                _camera_debug_context(
+                    entity,
+                    session_id,
+                    queued_candidate_count=len(
+                        self._pending_webrtc_candidates[session_id]
+                    ),
+                    **candidate_context,
+                )
+                if entity is not None
+                else {
+                    "session": _short_id(session_id),
+                    "queued_candidate_count": len(
+                        self._pending_webrtc_candidates[session_id]
+                    ),
+                    **candidate_context,
+                },
+            )
             return
-        candidate_context = _webrtc_candidate_debug_context(candidate)
         LOGGER.debug(
             "X-Sense camera WebRTC HA ICE candidate ignored for missing session: %s",
             _camera_debug_context(entity, session_id, **candidate_context)
@@ -489,6 +556,11 @@ class XSenseWebRTCCameraEntity(XSenseCameraEntity):
     @callback
     def close_webrtc_session(self, session_id: str) -> None:
         """Close an X-Sense WebRTC signaling session."""
+        if LOGGER.isEnabledFor(logging.DEBUG):
+            LOGGER.debug(
+                "X-Sense camera WebRTC close caller trace: %s",
+                {"session": _short_id(session_id), "callers": _webrtc_close_callers()},
+            )
         entity = self._current_entity()
         session = self._webrtc_sessions.pop(session_id, None)
         self._pending_webrtc_candidates.pop(session_id, None)
@@ -498,6 +570,7 @@ class XSenseWebRTCCameraEntity(XSenseCameraEntity):
                 entity,
                 session_id,
                 had_session=session is not None,
+                close_reason="ha_subscription_cleanup",
                 remaining_sessions=len(self._webrtc_sessions),
             )
             if entity is not None
@@ -508,20 +581,7 @@ class XSenseWebRTCCameraEntity(XSenseCameraEntity):
             },
         )
         if session is not None:
-            entry = getattr(self.coordinator, "entry", None)
-            create_task = getattr(entry, "async_create_task", None)
-            if callable(create_task):
-                create_task(
-                    self.hass,
-                    session.close(),
-                    "X-Sense WebRTC session close",
-                )
-            else:
-                hass_create_task = getattr(self.hass, "create_task", None)
-                if callable(hass_create_task):
-                    hass_create_task(session.close())
-                else:
-                    self.hass.async_create_task(session.close())
+            self.hass.async_create_task(session.close())
         super().close_webrtc_session(session_id)
 
     async def async_will_remove_from_hass(self) -> None:
