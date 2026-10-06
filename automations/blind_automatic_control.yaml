@@ -1,6 +1,7 @@
 - id: 'automatic_unified_cover_control'
   alias: "Automatic (Unified): Solar & Thermal Cover Control"
-  mode: restart
+  mode: queued
+  max: 3
   triggers:
     - trigger: state
       entity_id: input_select.cover_mode
@@ -136,26 +137,6 @@
       entity_id: sensor.solar_expected_gain_rollade_schlafzimmer
     - trigger: state
       entity_id: sensor.solar_expected_gain_rollade_buero_merja
-    - trigger: state
-      entity_id: cover.rollade_buero_fabian
-    - trigger: state
-      entity_id: cover.rollade_wohnzimmer_links
-    - trigger: state
-      entity_id: cover.rollade_wohnzimmer_rechts
-    - trigger: state
-      entity_id: cover.rollade_kueche_rechts
-    - trigger: state
-      entity_id: cover.rollade_kueche_links
-    - trigger: state
-      entity_id: cover.rollade_speisekammer
-    - trigger: state
-      entity_id: cover.rollade_hwr
-    - trigger: state
-      entity_id: cover.rollade_bad
-    - trigger: state
-      entity_id: cover.rollade_schlafzimmer
-    - trigger: state
-      entity_id: cover.rollade_buero_merja
     - trigger: state
       entity_id: input_datetime.cover_manual_change_rollade_buero_fabian
     - trigger: state
@@ -299,8 +280,8 @@
             {% set manual_dt_state = states('input_datetime.cover_manual_change_' ~ cov_suffix) %}
             {% set last_manual_ts = as_timestamp(manual_dt_state) if (manual_dt_state not in ['unknown', 'unavailable', 'None', ''] and manual_dt_state is not none) else 0 %}
             {% set last_manual_ts = 0 if last_manual_ts is none else last_manual_ts | float(0) %}
-            {% set manual_elapsed = (now_ts - last_manual_ts) | int %}
-            {% set manual_cooldown_active = manual_elapsed < 3600 %}
+            {% set manual_elapsed = [ (now_ts - last_manual_ts) | int, 0 ] | max %}
+            {% set manual_cooldown_active = (last_manual_ts > 86400) and (manual_elapsed < 3600) %}
 
             {% set gain_state = states('sensor.solar_expected_gain_' ~ gain_suffix) %}
             {% set cur_temp_state = states('sensor.temperature_' ~ r ~ '_mean') %}
@@ -333,18 +314,18 @@
             {% set is_daylight_clamped = false %}
 
             {# Calculate target position and reason #}
-            {% if is_night %}
-              {% set target_pos = 0 %}
-              {% set calc_reason = "Night mode active (sunset + 30m reached)" %}
+            {% if manual_cooldown_active %}
+              {% set target_pos = cur_pos %}
+              {% set calc_reason = "Manual override cooldown active (" ~ manual_elapsed ~ "s < 3600s 1h manual cooldown)" %}
             {% elif is_exempt %}
               {% set target_pos = cur_pos %}
               {% set calc_reason = "Exempt cover (" ~ exempt_reason ~ ")" %}
+            {% elif is_night %}
+              {% set target_pos = 0 %}
+              {% set calc_reason = "Night mode active (sunset + 30m reached)" %}
             {% elif cover_mode == 'Manual (sunset)' %}
               {% set target_pos = cur_pos %}
               {% set calc_reason = "Manual (sunset) mode active during daytime" %}
-            {% elif manual_cooldown_active %}
-              {% set target_pos = cur_pos %}
-              {% set calc_reason = "Manual override cooldown active (" ~ manual_elapsed ~ "s < 3600s 1h manual cooldown)" %}
             {% else %}
               {% set hysteresis_clear = overheating_thresh - 0.5 %}
               {% set is_overheating = (delta_t >= overheating_thresh) or (cur_pos < 100 and delta_t >= hysteresis_clear) %}
@@ -390,18 +371,27 @@
             {% set pos_diff = (target_pos - cur_pos) | abs %}
 
             {# Status & Summary Determination #}
-            {% if is_exempt and not is_night %}
+            {% if manual_cooldown_active %}
+              {% set status = "SKIPPED_MANUAL_COOLDOWN" %}
+              {% set summary = "Skipped: Manual override cooldown active (" ~ manual_elapsed ~ "s < 3600s 1h manual cooldown)" %}
+            {% elif is_exempt and not is_night %}
               {% set status = "SKIPPED_EXEMPT" %}
               {% set summary = "Skipped: " ~ exempt_reason %}
             {% elif cover_mode == 'Manual (sunset)' and not is_night %}
               {% set status = "SKIPPED_MANUAL_SUNSET" %}
               {% set summary = "Skipped: Manual (sunset) mode active during daytime" %}
-            {% elif manual_cooldown_active and not is_night %}
-              {% set status = "SKIPPED_MANUAL_COOLDOWN" %}
-              {% set summary = "Skipped: Manual override cooldown active (" ~ manual_elapsed ~ "s < 3600s 1h manual cooldown)" %}
+            {% elif is_state(cov, 'opening') %}
+              {% set status = "SKIPPED_ALREADY_OPENING" %}
+              {% set summary = "Skipped: Cover is currently opening (Current: " ~ cur_pos ~ "%, Target: " ~ target_pos ~ "%). Reason: " ~ calc_reason %}
+            {% elif is_state(cov, 'closing') and target_pos <= cur_pos %}
+              {% set status = "SKIPPED_ALREADY_CLOSING" %}
+              {% set summary = "Skipped: Already closing towards target (Current: " ~ cur_pos ~ "%, Target: " ~ target_pos ~ "%). Reason: " ~ calc_reason %}
             {% elif pos_diff <= 5 %}
               {% set status = "SKIPPED_DIFF_TOO_SMALL" if cur_pos != target_pos else "SKIPPED_ALREADY_AT_TARGET" %}
               {% set summary = "Skipped: Position difference (" ~ pos_diff ~ "%) <= 5% (Current: " ~ cur_pos ~ "%, Target: " ~ target_pos ~ "%). Reason: " ~ calc_reason if cur_pos != target_pos else "Skipped: Already at target position (" ~ cur_pos ~ "%). Reason: " ~ calc_reason %}
+            {% elif global_elapsed < 60 %}
+              {% set status = "SKIPPED_GLOBAL_COOLDOWN" %}
+              {% set summary = "Skipped: Global move was initiated recently (" ~ global_elapsed ~ "s < 60s cooldown). Target: " ~ target_pos ~ "%, Current: " ~ cur_pos ~ "%" %}
             {% elif global_cooldown_active and not (is_night and cur_pos != 0) %}
               {% set status = "SKIPPED_GLOBAL_COOLDOWN" %}
               {% set summary = "Skipped: Global cooldown active (" ~ global_elapsed ~ "s < 1800s 30m global cooldown). Target: " ~ target_pos ~ "%, Current: " ~ cur_pos ~ "%" %}
@@ -459,3 +449,5 @@
                       entity_id: "{{ repeat.item.entity_id }}"
                     data:
                       position: "{{ repeat.item.target_position }}"
+                  - delay:
+                      milliseconds: 500
