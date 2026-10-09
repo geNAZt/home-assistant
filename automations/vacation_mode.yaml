@@ -4,14 +4,14 @@
   triggers:
     - trigger: state
       entity_id:
-        - light.licht_bad_virtuell
-        - light.licht_buero_fabian_virtuell
-        - light.licht_buero_merja_virtuell
-        - light.licht_flur_virtuell
-        - light.licht_kueche_virtuell
-        - light.licht_schlafzimmer_virtuell
-        - light.licht_speisekammer_virtuell
-        - light.licht_wohnzimmer_virtuell
+        - light.bad_lights
+        - light.buero_fabian_lights
+        - light.buero_merja_lights
+        - light.flur_lights
+        - light.kueche_lights
+        - light.schlafzimmer_lights
+        - light.speisekammer_lights
+        - light.wohnzimmer_lights
     - trigger: state
       entity_id: binary_sensor.vacation_mode
       to: "on"
@@ -33,14 +33,14 @@
     - action: light.turn_off
       target:
         entity_id:
-          - light.licht_bad_virtuell
-          - light.licht_buero_fabian_virtuell
-          - light.licht_buero_merja_virtuell
-          - light.licht_flur_virtuell
-          - light.licht_kueche_virtuell
-          - light.licht_schlafzimmer_virtuell
-          - light.licht_speisekammer_virtuell
-          - light.licht_wohnzimmer_virtuell
+          - light.bad_lights
+          - light.buero_fabian_lights
+          - light.buero_merja_lights
+          - light.flur_lights
+          - light.kueche_lights
+          - light.schlafzimmer_lights
+          - light.speisekammer_lights
+          - light.wohnzimmer_lights
 
 - id: 'vacation_mode_keep_lock_locked'
   alias: "Vacation Mode: Keep Lock Locked"
@@ -60,14 +60,14 @@
     - condition: template
       value_template: >-
         {% set lights = [
-          'light.licht_bad_virtuell',
-          'light.licht_buero_fabian_virtuell',
-          'light.licht_buero_merja_virtuell',
-          'light.licht_flur_virtuell',
-          'light.licht_kueche_virtuell',
-          'light.licht_schlafzimmer_virtuell',
-          'light.licht_speisekammer_virtuell',
-          'light.licht_wohnzimmer_virtuell'
+          'light.bad_lights',
+          'light.buero_fabian_lights',
+          'light.buero_merja_lights',
+          'light.flur_lights',
+          'light.kueche_lights',
+          'light.schlafzimmer_lights',
+          'light.speisekammer_lights',
+          'light.wohnzimmer_lights'
         ] %}
         {{ not is_state('lock.home', 'locked') and (lights | select('is_state', 'on') | list | count == 0) }}
   actions:
@@ -81,14 +81,14 @@
   triggers:
     - trigger: state
       entity_id:
-        - light.licht_bad_virtuell
-        - light.licht_buero_fabian_virtuell
-        - light.licht_buero_merja_virtuell
-        - light.licht_flur_virtuell
-        - light.licht_kueche_virtuell
-        - light.licht_schlafzimmer_virtuell
-        - light.licht_speisekammer_virtuell
-        - light.licht_wohnzimmer_virtuell
+        - light.bad_lights
+        - light.buero_fabian_lights
+        - light.buero_merja_lights
+        - light.flur_lights
+        - light.kueche_lights
+        - light.schlafzimmer_lights
+        - light.speisekammer_lights
+        - light.wohnzimmer_lights
       to: "off"
   conditions:
     - condition: state
@@ -100,20 +100,45 @@
     - condition: template
       value_template: >-
         {% set lights = [
-          'light.licht_bad_virtuell',
-          'light.licht_buero_fabian_virtuell',
-          'light.licht_buero_merja_virtuell',
-          'light.licht_flur_virtuell',
-          'light.licht_kueche_virtuell',
-          'light.licht_schlafzimmer_virtuell',
-          'light.licht_speisekammer_virtuell',
-          'light.licht_wohnzimmer_virtuell'
+          'light.bad_lights',
+          'light.buero_fabian_lights',
+          'light.buero_merja_lights',
+          'light.flur_lights',
+          'light.kueche_lights',
+          'light.schlafzimmer_lights',
+          'light.speisekammer_lights',
+          'light.wohnzimmer_lights'
         ] %}
         {{ (lights | select('is_state', 'on') | list | count) == 0 }}
   actions:
     - action: lock.lock
       target:
         entity_id: lock.home
+
+- id: 'vacation_mode_presence_notification'
+  alias: "Vacation Mode: Presence Notification"
+  mode: parallel
+  triggers:
+    - trigger: state
+      entity_id:
+        - binary_sensor.presence_bad
+        - binary_sensor.presence_buero_fabian
+        - binary_sensor.presence_buero_merja
+        - binary_sensor.presence_flur
+        - binary_sensor.presence_kueche
+        - binary_sensor.presence_schlafzimmer
+        - binary_sensor.presence_speisekammer
+        - binary_sensor.presence_wohnzimmer
+      to: "on"
+  conditions:
+    - condition: state
+      entity_id: binary_sensor.vacation_mode
+      state: "on"
+  actions:
+    - action: notify.mobile_app_poco_x7_pro_fabian
+      data:
+        title: "Vacation Mode: Presence Detected"
+        message: "Presence detected: {{ trigger.to_state.name }}"
 
 - id: 'vacation_mode_covers'
   alias: "Vacation Mode: Cover Automatic Day Mode"
