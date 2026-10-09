@@ -1,0 +1,20 @@
+name: House Consumption Recent Hourly
+query: >
+  SELECT
+    'active' AS state,
+    JSON_OBJECTAGG(
+      hour_key,
+      kwh
+    ) AS hourly_consumption
+  FROM (
+    SELECT
+      DATE_FORMAT(FROM_UNIXTIME(start_ts), '%Y-%m-%d %H:00') AS hour_key,
+      GREATEST(ROUND(sum - LAG(sum) OVER (ORDER BY start_ts), 4), 0) AS kwh
+    FROM statistics s
+    JOIN statistics_meta sm ON s.metadata_id = sm.id
+    WHERE sm.statistic_id = 'sensor.solar_house_consumption_kwh'
+      AND s.start_ts >= UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 4 DAY))
+    ORDER BY start_ts ASC
+  ) sub
+  WHERE kwh IS NOT NULL;
+column: "state"

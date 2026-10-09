@@ -160,6 +160,7 @@ sensor:
   unique_id: solar_house_consumption_w
   unit_of_measurement: 'W'
   device_class: power
+  state_class: measurement
   icon: mdi:home
   state: >             
     {{(states('sensor.solar_panel_to_house_w') | float(0)) + (states('sensor.solar_battery_to_house_w') | float(0)) + (states('sensor.solar_grid_to_house_w') | float(0))}}  

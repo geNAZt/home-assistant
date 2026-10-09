@@ -19,7 +19,7 @@
     target_soc: 95.0
     target_energy_kwh: "{{ (battery_max_capacity_kwh * target_soc / 100.0) | float(0) }}"
     
-    # PV Schwellenwert
+    # PV Schwellenwert (Standard-Verbrauch als Fallback)
     pv_start_wattage: 500
     consumption_kw: "{{ pv_start_wattage / 1000.0 }}"
 
@@ -76,10 +76,37 @@
       {% endif %}
       {{ ns.found }}
 
+    # Historischer Verbrauch der letzten 3 Tage
+    recent_consumption: "{{ state_attr('sensor.house_consumption_recent_hourly', 'hourly_consumption') }}"
+
     energy_until_pv_start_kwh: >-
       {% if pv_start_time_str != '' and pv_enough_to_charge %}
-        {% set hours_until_pv = (as_timestamp(pv_start_time_str) - as_timestamp(now())) / 3600.0 %}
-        {{ max(0.0, consumption_kw * hours_until_pv) }}
+        {% set raw_hist = recent_consumption %}
+        {% set history = raw_hist | from_json(default={}) if raw_hist is string else (raw_hist if raw_hist is mapping else {}) %}
+        {% set pv_start_hour = as_datetime(pv_start_time_str).hour %}
+        {% set start_hour = 5 %}
+        {% set gap_hours = [pv_start_hour - start_hour, 0] | max %}
+        {% if gap_hours > 0 %}
+          {% set target_date = as_datetime(pv_start_time_str).date() %}
+          {% set ns = namespace(samples=[]) %}
+          {% for d in [1, 2, 3] %}
+            {% set day_str = (target_date - timedelta(days=d)).strftime('%Y-%m-%d') %}
+            {% for h in range(start_hour, pv_start_hour) %}
+              {% set key = day_str ~ ' ' ~ ('%02d' % h) ~ ':00' %}
+              {% if key in history and history[key] is not none %}
+                {% set ns.samples = ns.samples + [history[key] | float(0)] %}
+              {% endif %}
+            {% endfor %}
+          {% endfor %}
+          {% if ns.samples | count > 0 %}
+            {% set avg_hourly = (ns.samples | sum) / (ns.samples | count) %}
+            {{ (avg_hourly * gap_hours) | round(3) }}
+          {% else %}
+            {{ (consumption_kw * gap_hours) | round(3) }}
+          {% endif %}
+        {% else %}
+          0.0
+        {% endif %}
       {% else %}
         0.0
       {% endif %}
