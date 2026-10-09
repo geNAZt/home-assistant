@@ -65,6 +65,8 @@ The integration is configured via the Home Assistant UI:
 
 Base account and meter data are polled every 30 minutes by default. When Intelligent tariff support is detected, device and dispatch data use a separate three-minute coordinator. Both intervals can be configured in the integration options from 1 to 60 minutes. Electricity price sensors also update locally at Time-of-Use tariff boundaries, without waiting for the next base poll. Variable grid-fee entries with a `00:00:00` to `00:00:00` interval are treated as fallbacks behind specific intervals.
 
+All-day grid-fee intervals supplied by the Octopus Energy (OE) API are logged at DEBUG level, not as recurring warnings. The diagnostic includes the grid operator, module, rate and validity period. An all-day rate alone is not evidence of a backend error; if time-varying fees are expected, the API schedule may be incomplete.
+
 Smart-meter readings are requested only for accounts reporting smart-meter support, and Intelligent entities are created only when the corresponding capability or connected Intelligent devices are available.
 
 CSV exports load smart-meter readings through paginated monthly range queries in the configured Home Assistant timezone. The API layer retains source, quality, device and register metadata when OE provides it; internally consistent intervals can still represent estimated data.
@@ -148,7 +150,7 @@ using the example, replace `a_xxxxxxxx` with your lower-case account number and
   - `valid_to`: End date of validity
   - `meter_id`: ID of your meter
   - `meter_number`: Number of your meter
-  - `meter_type`: Type of your meter (MME, iMSys, etc.)
+  - `meter_type`: API-based meter classification: iMSys when `hasSmartMeterGateway` is true (mME + SMGW), otherwise the reported `meterType` (e.g. MME), or Unknown if absent
   - `account_number`: Your Octopus Energy account number
   - `malo_number`: Your electricity meter point number
   - `melo_number`: Your electricity meter number
@@ -163,6 +165,8 @@ using the example, replace `a_xxxxxxxx` with your lower-case account number and
   - `agreements`: All electricity agreements returned by OE, including past, current and scheduled entries, with validity, status and available price tiers
 
 Agreement price entries expose the original gross/net values in cents per kWh, normalized values in EUR per kWh, VAT percentage, price validity and Time-of-Use activation windows where available.
+
+Electricity meter device labels and consumption sensor `meter_type` attributes use the same classification, with type metadata requested from both account and per-meter API queries. `shouldReceiveSmartMeterData` describes data availability expectations, not the physical meter type. Historical meters and their register readings remain available; missing type information does not imply a smart meter.
 
 Each item in `agreements` contains `code`, `name`, `type`, `is_active`, `is_revoked`, `is_terminated`, `valid_from`, `valid_to` and `prices`. Each price entry can contain `name`, `gross_cents_per_kwh`, `gross_eur_per_kwh`, `net_cents_per_kwh`, `net_eur_per_kwh`, `vat_percent`, `price_valid_from`, `price_valid_to` and `activation_rules`.
 
@@ -180,12 +184,17 @@ Each item in `agreements` contains `code`, `name`, `type`, `is_active`, `is_revo
 
 #### Electricity Meter Register Sensors
 
-The integration creates separate cumulative-energy sensors for each electricity meter returned by Octopus:
+Meter discovery combines distinct meters from plural and singular API fields. A sensor is created for each OBIS register with at least one usable finite numeric reading. Empty, missing, or invalid registers do not create sensors; zero is a valid reading. Sensors use the meter ID and OBIS code for stable unique IDs. Their state is the latest register value, and `reading_history` contains all usable readings for that OBIS code with timestamp, value, origin and read type. Newly discovered meters and newly populated registers are added on coordinator updates without duplicates.
 
-- Import register `1.8.0`
-- Export register `2.8.0`
+Register sensors are created whenever readings are available, even if the account has no MALO number:
 
-Current and historical meters are discovered through OE's meter endpoint. Meter `activeFrom` and `activeTo` values identify the current meter. Sensors use the internal meter ID plus OBIS code for stable unique IDs and are grouped under a meter device named with the meter number (for example, `0251` or `1LGZ`). Each sensor uses kWh, energy device class and `total_increasing` state class. Attributes include meter ID/number, MALO number, active dates, latest reading time, and all register readings returned by OE with value, timestamp, origin and read type.
+- Import registers `1.8.x` (including `1.8.0`)
+- Export registers `2.8.x` (including `2.8.0`)
+- Other reported OBIS codes, displayed as neutral register sensors without an assumed unit or device/state class
+
+Empty or missing OBIS codes and registers without usable numeric readings do not create register entities (zero is a valid reading). Newly populated registers are added on coordinator updates without duplicates. Existing entities are retained if readings later become unavailable.
+
+Current and historical meters are discovered through OE's meter endpoint. Meter `activeFrom` and `activeTo` values identify the current meter. Sensors are grouped under a meter device named with the meter number (for example, `0251` or `1LGZ`). The device model uses `iMSys` when `hasSmartMeterGateway` is true; otherwise it uses an explicitly reported `meterType` (for example, `MME`). If the API omits type data, the device model is `Electricity Meter`; a false gateway flag alone does not prove MME. Register sensor attributes include the classified `meter_type`, raw `api_meter_type`, raw `has_smart_meter_gateway`, and `meter_type_source`, alongside meter ID/number, MALO number, active dates, latest reading time, and complete reading history for that register. Import/export sensors use kWh, energy device class and `total_increasing` state class. Existing `1.8.0`/`2.8.0` unique IDs remain unchanged.
 
 #### Electricity Balance Sensor
 
