@@ -23,6 +23,9 @@
     - condition: state
       entity_id: binary_sensor.vacation_mode
       state: "on"
+    - condition: state
+      entity_id: lock.home
+      state: "locked"
     - condition: template
       value_template: >-
         {{ trigger.platform != 'state' or trigger.entity_id == 'binary_sensor.vacation_mode' or not is_state(trigger.entity_id, 'off') }}
@@ -44,8 +47,6 @@
   mode: single
   triggers:
     - trigger: state
-      entity_id: lock.home
-    - trigger: state
       entity_id: binary_sensor.vacation_mode
       to: "on"
     - trigger: time
@@ -58,11 +59,116 @@
       state: "on"
     - condition: template
       value_template: >-
-        {{ trigger.platform != 'state' or trigger.entity_id == 'binary_sensor.vacation_mode' or not is_state(trigger.entity_id, 'locked') }}
+        {% set lights = [
+          'light.licht_bad_virtuell',
+          'light.licht_buero_fabian_virtuell',
+          'light.licht_buero_merja_virtuell',
+          'light.licht_flur_virtuell',
+          'light.licht_kueche_virtuell',
+          'light.licht_schlafzimmer_virtuell',
+          'light.licht_speisekammer_virtuell',
+          'light.licht_wohnzimmer_virtuell'
+        ] %}
+        {{ not is_state('lock.home', 'locked') and (lights | select('is_state', 'on') | list | count == 0) }}
   actions:
     - action: lock.lock
       target:
         entity_id: lock.home
+
+- id: 'vacation_mode_lock_when_lights_out'
+  alias: "Vacation Mode: Lock When Lights Out"
+  mode: restart
+  triggers:
+    - trigger: state
+      entity_id:
+        - light.licht_bad_virtuell
+        - light.licht_buero_fabian_virtuell
+        - light.licht_buero_merja_virtuell
+        - light.licht_flur_virtuell
+        - light.licht_kueche_virtuell
+        - light.licht_schlafzimmer_virtuell
+        - light.licht_speisekammer_virtuell
+        - light.licht_wohnzimmer_virtuell
+      to: "off"
+  conditions:
+    - condition: state
+      entity_id: binary_sensor.vacation_mode
+      state: "on"
+    - condition: state
+      entity_id: lock.home
+      state: "unlocked"
+    - condition: template
+      value_template: >-
+        {% set lights = [
+          'light.licht_bad_virtuell',
+          'light.licht_buero_fabian_virtuell',
+          'light.licht_buero_merja_virtuell',
+          'light.licht_flur_virtuell',
+          'light.licht_kueche_virtuell',
+          'light.licht_schlafzimmer_virtuell',
+          'light.licht_speisekammer_virtuell',
+          'light.licht_wohnzimmer_virtuell'
+        ] %}
+        {{ (lights | select('is_state', 'on') | list | count) == 0 }}
+  actions:
+    - action: lock.lock
+      target:
+        entity_id: lock.home
+
+- id: 'vacation_mode_covers'
+  alias: "Vacation Mode: Cover Automatic Day Mode"
+  mode: single
+  triggers:
+    - trigger: sun
+      event: sunrise
+      offset: "00:15:00"
+      id: sunrise_15m
+    - trigger: state
+      entity_id: binary_sensor.vacation_mode
+      to: "on"
+      id: vacation_on
+  conditions:
+    - condition: state
+      entity_id: binary_sensor.vacation_mode
+      state: "on"
+  actions:
+    - action: input_select.select_option
+      target:
+        entity_id: input_select.cover_mode
+      data:
+        option: "Automatic"
+    - if:
+        - condition: or
+          conditions:
+            - condition: trigger
+              id: sunrise_15m
+            - condition: state
+              entity_id: sun.sun
+              state: "above_horizon"
+      then:
+        - action: input_boolean.turn_off
+          target:
+            entity_id: input_boolean.cover_night_mode
+        - action: input_datetime.set_datetime
+          target:
+            entity_id:
+              - input_datetime.cover_manual_change_rollade_bad
+              - input_datetime.cover_manual_change_rollade_buero_fabian
+              - input_datetime.cover_manual_change_rollade_buero_merja
+              - input_datetime.cover_manual_change_rollade_hwr
+              - input_datetime.cover_manual_change_rollade_kueche_links
+              - input_datetime.cover_manual_change_rollade_kueche_rechts
+              - input_datetime.cover_manual_change_rollade_schlafzimmer
+              - input_datetime.cover_manual_change_rollade_speisekammer
+              - input_datetime.cover_manual_change_rollade_wohnzimmer_links
+              - input_datetime.cover_manual_change_rollade_wohnzimmer_rechts
+          data:
+            datetime: "1970-01-01 00:00:00"
+        - action: system_log.write
+          data:
+            logger: automatic_cover_control
+            level: info
+            message: "[Cover Vacation Mode] Sunrise + 15m reached: Night mode deactivated, cooldowns reset, cover mode set to Automatic."
 
 - id: 'vacation_mode_keep_poe_off'
   alias: "Vacation Mode: Keep PoE Off"
@@ -142,4 +248,3 @@
     - action: switch.turn_off
       target:
         entity_id: switch.water_cycling_pump
-
