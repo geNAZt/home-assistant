@@ -17,3 +17,12 @@ binary_sensor:
       {% else %}
         false
       {% endif %}
+  - name: "Vacation Mode Heating"
+    unique_id: vacation_mode_heating
+    state: >-
+      {% set return_date = states('input_datetime.vacation_return') %}
+      {% if return_date not in ['unknown', 'unavailable'] %}
+        {{ now().date() < (as_datetime(return_date) - timedelta(days=1)).date() }}
+      {% else %}
+        false
+      {% endif %}

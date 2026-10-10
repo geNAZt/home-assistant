@@ -35,7 +35,14 @@
     has_pv_excess: "{{ pv_forecast_w > (pv_thr_w + water_stage1_reserve_w) }}"
     max_total_heating_w: "{{ (pv_generation_w * 0.8) if has_pv_excess else (pv_generation_w + battery_support_w) }}"
     pv_surplus_w: "{{ [pv_forecast_w - pv_thr_w - water_stage1_reserve_w, 0] | max }}"
-    pv_offset_k: "0"
+    pv_offset_k: >-
+      {% if has_pv_excess and is_midday_topup_window %}
+        0.8
+      {% elif has_pv_excess %}
+        0.5
+      {% else %}
+        0.0
+      {% endif %}
     pv_predictions: "{{ state_attr('sensor.solar_prediction_kwh', 'predictions') }}"
     preheat_offset_24h_max_k: "{{ states('sensor.heating_preheat_offset_24h_max') | float(0) }}"
     pv_plan_day_kwh: >-
@@ -127,23 +134,35 @@
           {% set base_target = 22.0 %}
         {% endif %}
 
+        {# Vacation mode setback: 2.5K reduction (min 16.0°C) #}
+        {% set is_vacation = is_state('binary_sensor.vacation_mode_heating', 'on') %}
+        {% if is_vacation %}
+          {% set base_target = [base_target - 2.5, 16.0] | max %}
+        {% endif %}
+
         {% if current_temp is number %}
           {% set current = current_temp | float %}
         {% else %}
           {% set current = 22.0 %}
         {% endif %}
 
-        {% set pv_off = (pv_offset_k | float(0)) if has_pv_excess else 0 %}
+        {# Selective zoning: exempt sleeping room buero_merja, unoccupied schlafzimmer, and speisekammer #}
+        {% set preheat_eligible_rooms = ['wohnzimmer', 'kueche', 'buero_fabian', 'bad', 'flur'] %}
+        {% set pv_eligible_rooms = ['wohnzimmer', 'kueche', 'buero_fabian'] %}
+
+        {% set pv_off = (pv_offset_k | float(0)) if (has_pv_excess and room in pv_eligible_rooms and not is_vacation) else 0.0 %}
         {% set cap = max_total_offset_k | float(1.0) %}
 
         {% set preheat_off = 0.0 %}
-        {% if is_preheat_window and preheat_enabled %}
-          {% set preheat_off = states('sensor.heating_preheat_offset_dynamic') | float(0) %}
-        {% elif pv_shift_active_now %}
-          {% set preheat_off = preheat_offset_24h_max_k | float(0) %}
+        {% if not is_vacation and room in preheat_eligible_rooms %}
+          {% if is_preheat_window and preheat_enabled %}
+            {% set preheat_off = states('sensor.heating_preheat_offset_dynamic') | float(0) %}
+          {% elif pv_shift_active_now %}
+            {% set preheat_off = preheat_offset_24h_max_k | float(0) %}
+          {% endif %}
         {% endif %}
 
-        {% if offset_allowed_now %}
+        {% if offset_allowed_now and not is_vacation %}
           {% set room_offset = preheat_off + pv_off %}
         {% else %}
           {% set room_offset = 0.0 %}
@@ -177,13 +196,15 @@
 
         {% set must_heat_start = current <= (sp_now - lower_safety_band_k) %}
 
-        {# --- Start/Stop thresholds --- #}
+        {# --- Start/Stop thresholds with early cut-off when floor is warm --- #}
+        {% set stop_margin = stop_margin_k | float(0.1) %}
+        {% set is_floor_warm = (floor_temp > 0) and ((floor_temp - current) > 1.2) %}
         {% if preheat_enabled %}
-          {% set stop_th  = sp_now + 0.1 %}
+          {% set stop_th  = (sp_now - stop_margin) if is_floor_warm else (sp_now + 0.05) %}
           {% set start_th = sp_now - 0.2 %}
         {% else %}
-          {% set stop_th  = sp_now + 0.2 %}
-          {% set start_th = sp_now - 0.5 %}
+          {% set stop_th  = (sp_now - stop_margin) if is_floor_warm else (sp_now + 0.1) %}
+          {% set start_th = sp_now - 0.4 %}
         {% endif %}
 
         {# --- Cooldown check --- #}
@@ -224,8 +245,8 @@
           {% set needs_heating = cooldown_ok and ((current < start_th) or must_heat_start) and delta_ok %}
         {% endif %}
 
-        {# --- Absolute Security temperature check (> 25 limit) --- #}
-        {% if floor_temp > 25 %}
+        {# --- Absolute Security temperature check (cut-off >= 24.5C) --- #}
+        {% if floor_temp >= 24.5 %}
           {% set needs_heating = false %}
         {% endif %}
 
@@ -398,14 +419,22 @@
           {% set topup_ok = (is_midday_topup_window and has_pv_excess) %}
           {{ topup_ok }}
         heating_allowed_now: >-
-          {% if battery_above_min %}
-            true
-          {% elif not preheat_enabled %}
-            true
+          {% if is_state('binary_sensor.vacation_mode_heating', 'on') %}
+            false
+          {% elif heating_block_enabled %}
+            {{ is_preheat_window or allow_daytime_heat or (shift_heating_start_to_pv and (max_total_heating_w | float(0)) > (pv_thr_w | float(0))) }}
           {% elif shift_heating_start_to_pv %}
             {{ (max_total_heating_w | float(0)) > (pv_thr_w | float(0)) }}
+          {% elif not preheat_enabled %}
+            true
+          {% elif is_preheat_window %}
+            true
+          {% elif allow_daytime_heat %}
+            true
+          {% elif battery_above_min and (now().hour >= 6 and now().hour <= 18) %}
+            true
           {% else %}
-            {{ is_preheat_window or (not heating_block_enabled and allow_daytime_heat) }}
+            false
           {% endif %}
     # ===================================================================
     # ACTION 1: Apply offsets to thermostats (planner-owned) + persist offset
