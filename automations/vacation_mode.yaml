@@ -75,6 +75,39 @@
       target:
         entity_id: lock.home
 
+- id: 'vacation_mode_relock_10am_unlock'
+  alias: "Vacation Mode: Re-lock 10:00 Automated Unlock"
+  mode: single
+  triggers:
+    - trigger: state
+      entity_id: lock.home
+      to: unlocked
+    - trigger: time
+      at: "10:00:00"
+    - trigger: time
+      at: "10:00:05"
+    - trigger: time
+      at: "10:00:10"
+  conditions:
+    - condition: state
+      entity_id: binary_sensor.vacation_mode
+      state: "on"
+    - condition: time
+      after: "09:59:45"
+      before: "10:00:30"
+    - condition: state
+      entity_id: lock.home
+      state: "unlocked"
+  actions:
+    - action: lock.lock
+      target:
+        entity_id: lock.home
+    - action: system_log.write
+      data:
+        logger: vacation_mode
+        level: info
+        message: "[Vacation Mode] Blocked 10:00 automated lock unlock: Re-locked lock.home"
+
 - id: 'vacation_mode_lock_when_lights_out'
   alias: "Vacation Mode: Lock When Lights Out"
   mode: restart
