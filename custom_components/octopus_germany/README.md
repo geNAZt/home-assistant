@@ -15,7 +15,9 @@ This custom component integrates Octopus Germany services with Home Assistant, p
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/K3K71LPRM2)
 
 **⚡ New to Octopus Energy Germany?**
-[![Octopus Energy Referral](https://img.shields.io/badge/🐙_Get_100€_Bonus-Join_Octopus_Energy-00D9FF?style=for-the-badge&logoColor=white)](https://octopusenergy.de/empfehlungen?referralCode=free-cat-744)
+[![Octopus Energy Referral](https://img.shields.io/badge/🐙_Get_150€_as_a_new_customer-Join_Octopus_Energy-00D9FF?style=for-the-badge&logoColor=white)](https://octopusenergy.de/empfehlungen?referralCode=free-cat-744)
+
+Sign up through my referral link and receive **150 €** as a bill credit. Eligibility conditions apply.
 
 ## Features
 
@@ -35,6 +37,15 @@ This custom component integrates Octopus Germany services with Home Assistant, p
 - **Latest Electricity meter reading**
 - **Gas contract tracking** with expiry countdown
 - **[octopus-energy-rates-card](https://github.com/lozzd/octopus-energy-rates-card) compatibility** for dynamic tariff visualization
+
+## API Support
+
+For API-related questions, consult the official Octopus Energy Germany documentation:
+
+- REST API: [developer.oeg-kraken.energy](https://developer.oeg-kraken.energy/)
+- GraphQL API (OEG Kraken backend): [developer.oeg-kraken.energy/graphql](https://developer.oeg-kraken.energy/graphql/)
+
+This integration primarily uses the OEG Kraken GraphQL API. Variable grid-fee queries still use the legacy OE GraphQL backend.
 
 ## Installation
 
@@ -210,7 +221,12 @@ Current and historical meters are discovered through OE's meter endpoint. Meter 
   - This value alone does not prove that optional module 3 billing has been selected
 - **Variable grid fee unique ID**: `octopus_<account_number>_variable_grid_fee`
   - Shows only the currently active grid fee component in EUR/kWh, not the complete electricity price
-  - Attributes include rate type, current interval, next change, validity, grid operator and the complete daily schedule
+  - Attributes include rate type, current interval, next change, validity, grid operator, the complete `rates` array, and standardized `module_3_rates`
+  - `module_3_rates` provides stable `NT`, `ST`, and `HT` keys, each with `periods`. Each period stores its net EUR/cent rates and validity once, with applicable start/end `intervals` nested below. The original API `rates` array is retained.
+- **Combined electricity price entity**: `sensor.octopus_<account_number>_electricity_price_with_variable_grid_fee`
+  - Gross Octopus tariff price plus the active net grid-fee difference from the STANDARD baseline, converted using the VAT rate reported with the active tariff
+  - `price_combinations` groups today's equal tariff and Module 3 prices, with applicable intervals nested below each combination. It includes numeric price values and fixed-eight-decimal `*_display` strings. The state retains eight decimal places; the existing numeric attributes remain available for templates and automations
+  - Assumes the Octopus tariff price already includes the STANDARD net grid fee; the OE-reported module is informational and does not prove which billing module is applied. The entity is unavailable if the price/VAT or a unique STANDARD baseline is missing.
 
 A successful schedule response is cached for the local day. State changes at tariff boundaries are calculated locally without another API request. Sensors are only created when the OE backend returns grid fee data.
 
@@ -358,11 +374,11 @@ Per-device entity IDs use the stable Octopus device UUID. Display names remain h
 - **Service ID**: `octopus_germany.set_device_preferences`
 - **Description**: Configure charging preferences for an electric vehicle or charge point
 - **Parameters**:
-  - `device_id` (required): The device ID (available in device attributes)
+  - `device_id` (required): The UI dropdown selects by vehicle/charge-point name. YAML accepts either the Home Assistant device registry ID or the Octopus device UUID; HA registry IDs are resolved automatically.
   - `target_percentage` (required): Target state of charge (20-100% in 5% steps)
   - `target_time` (required): Target completion time (04:00-17:00)
 
-The target percentage and completion time apply to all seven days of the week.
+The Home Assistant action form lists vehicles and charge points by their registered names, excluding the account service device. The dropdown supplies a Home Assistant device registry ID, which the service resolves to the Octopus ID. YAML calls may use either the Home Assistant registry ID or the Octopus device UUID; entity IDs are not accepted. The target percentage and completion time apply to all seven days of the week.
 Success confirms acceptance by the Octopus API, not propagation to the vehicle.
 API errors or missing update confirmations cause the service call to fail.
 
@@ -491,7 +507,7 @@ Your support helps cover development time, testing infrastructure, and keeps the
 
 ### 🚀 Join the Community
 - **Contributing**: Pull requests are welcome! Whether it's bug fixes, new features, or documentation improvements
-- **New to Octopus Energy?**: Get 100€ bonus with my [referral link](https://octopusenergy.de/empfehlungen?referralCode=free-cat-744) when signing up
+- **New to Octopus Energy?**: Receive **150 €** as a bill credit when you sign up through [my referral link](https://octopusenergy.de/empfehlungen?referralCode=free-cat-744), subject to eligibility conditions.
 - **Found a bug or have an idea?**: Check the [discussions](https://github.com/thecem/octopus_germany/discussions) or [open an issue](https://github.com/thecem/octopus_germany/issues)
 
 Every contribution, whether code, feedback, or financial support, helps make this integration better for everyone!
