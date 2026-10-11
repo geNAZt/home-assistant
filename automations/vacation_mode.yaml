@@ -298,6 +298,9 @@
     - condition: state
       entity_id: binary_sensor.vacation_mode
       state: "on"
+    - condition: state
+      entity_id: binary_sensor.vacation_mode_water_heater
+      state: "off"
   actions:
     - action: switch.turn_on
       target:
@@ -354,3 +357,45 @@
     - action: switch.turn_on
       target:
         entity_id: switch.boiler_trinkwasser
+
+- id: 'vacation_mode_unexpected_water_usage'
+  alias: "Vacation Mode: Unexpected Water Usage Alert"
+  description: "Alerts when water consumption is detected while away, excluding garden watering windows and caretaker visits."
+  mode: single
+  triggers:
+    - trigger: state
+      entity_id: sensor.watermeter_value
+  conditions:
+    - condition: state
+      entity_id: binary_sensor.vacation_mode
+      state: "on"
+    - condition: state
+      entity_id: lock.home
+      state: "locked"
+    - condition: template
+      value_template: >-
+        {% set from_val = trigger.from_state.state | float(-1) if trigger.from_state is defined and trigger.from_state.state not in ['unavailable', 'unknown', 'None', ''] else -1 %}
+        {% set to_val = trigger.to_state.state | float(-1) if trigger.to_state is defined and trigger.to_state.state not in ['unavailable', 'unknown', 'None', ''] else -1 %}
+        {% if from_val > 0 and to_val > 0 and to_val > from_val %}
+          {% set delta_l = (to_val - from_val) * 1000.0 %}
+          {# Exclude garden watering windows: 03:15-03:55 and 21:15-21:55 local time #}
+          {% set now_time = now().strftime('%H:%M') %}
+          {% set is_morning_watering = ('03:15' <= now_time <= '03:55') %}
+          {% set is_evening_watering = ('21:15' <= now_time <= '21:55') %}
+          {% set is_garden_watering = is_morning_watering or is_evening_watering %}
+          {{ delta_l >= 2.0 and not is_garden_watering }}
+        {% else %}
+          false
+        {% endif %}
+  actions:
+    - variables:
+        delta_liters: "{{ ((trigger.to_state.state | float - trigger.from_state.state | float) * 1000.0) | round(1) }}"
+    - action: notify.mobile_app_poco_x7_pro_fabian
+      data:
+        title: "⚠️ Vacation Mode: Unexpected Water Usage"
+        message: "Unexpected water usage detected: {{ delta_liters }} L (Meter: {{ trigger.to_state.state }} m³). Lock is locked and outside watering schedule."
+    - action: system_log.write
+      data:
+        logger: vacation_mode
+        level: warning
+        message: "[Vacation Mode] Unexpected water usage: {{ delta_liters }} L detected."

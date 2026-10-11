@@ -76,7 +76,7 @@
       {% endif %}
       {{ ns.found }}
 
-    # Historischer Verbrauch der letzten 3 Tage
+    # Historischer Verbrauch (3 Tage im Normalbetrieb, 1 Tag im Urlaubsmodus)
     recent_consumption: "{{ state_attr('sensor.house_consumption_recent_hourly', 'hourly_consumption') }}"
 
     energy_until_pv_start_kwh: >-
@@ -89,7 +89,8 @@
         {% if gap_hours > 0 %}
           {% set target_date = as_datetime(pv_start_time_str).date() %}
           {% set ns = namespace(samples=[]) %}
-          {% for d in [1, 2, 3] %}
+          {% set lookback_days = [1] if is_state('binary_sensor.vacation_mode', 'on') else [1, 2, 3] %}
+          {% for d in lookback_days %}
             {% set day_str = (target_date - timedelta(days=d)).strftime('%Y-%m-%d') %}
             {% for h in range(start_hour, pv_start_hour) %}
               {% set key = day_str ~ ' ' ~ ('%02d' % h) ~ ':00' %}
