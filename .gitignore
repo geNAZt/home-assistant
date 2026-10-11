@@ -40,3 +40,5 @@ www/ha_washdata/feedback/
 
 # Debug
 debug/
+
+.DS_Store
