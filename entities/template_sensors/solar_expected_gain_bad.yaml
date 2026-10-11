@@ -30,18 +30,21 @@ sensor:
       {# Bewölkungsabhängiger Diffusanteil #}
       {% set s_factor = 0.15 + (1.0 - 0.15) * cloud %}
       
-      {% set direct_factor = 1.0 %}
+      {% set df_bottom = 1.0 %}
+      {% set df_top = 1.0 %}
+      {% set df_side = 1.0 %}
       {% set diffuse_factor = 1.0 %}
       {% set tan_prof = ((ele * 0.0174532925) | tan) / ([cos_factor, 0.05] | max) %}
 
-      {% set sun_part = [pos, direct_factor]|min %}
+      {# Direct sun portion passing through open shutter slats #}
+      {% set sun_part = [0, [pos, df_top]|min + df_bottom - 1]|max * df_side %}
       
-      {# Gesamtleistung inkl. Direkt-, Diffus- und Bodenreflexionsanteil #}
-      {% set direct_part_gain = sun_part * (1.0 - s_factor) * g_dir %}
-      {% set diffuse_part_gain = pos * s_factor * g_diff * diffuse_factor %}
+      {# Gesamtleistung inkl. Direkt (cos_aoi), Diffus (Sky View Factor 0.5) und Bodenreflexionsanteil #}
+      {% set direct_part_gain = cos_aoi * sun_part * (1.0 - s_factor) * g_dir %}
+      {% set diffuse_part_gain = 0.5 * pos * s_factor * g_diff * diffuse_factor %}
       {% set ground_ref_gain = 0.10 * pos * g_diff * diffuse_factor %}
       
-      {% set total_gain_factor = cos_factor * (direct_part_gain + diffuse_part_gain) + ground_ref_gain %}
+      {% set total_gain_factor = direct_part_gain + diffuse_part_gain + ground_ref_gain %}
       {% set ns.total = ns.total + (0.9102 * rad * total_gain_factor) %}
     {% endif %}
 
@@ -76,18 +79,21 @@ sensor:
       {# Bewölkungsabhängiger Diffusanteil #}
       {% set s_factor = 0.15 + (1.0 - 0.15) * cloud %}
       
-      {% set direct_factor = 1.0 %}
+      {% set df_bottom = 1.0 %}
+      {% set df_top = 1.0 %}
+      {% set df_side = 1.0 %}
       {% set diffuse_factor = 1.0 %}
       {% set tan_prof = ((ele * 0.0174532925) | tan) / ([cos_factor, 0.05] | max) %}
 
-      {% set sun_part = [pos, direct_factor]|min %}
+      {# Direct sun portion passing through open shutter slats #}
+      {% set sun_part = [0, [pos, df_top]|min + df_bottom - 1]|max * df_side %}
       
-      {# Gesamtleistung inkl. Direkt-, Diffus- und Bodenreflexionsanteil #}
-      {% set direct_part_gain = sun_part * (1.0 - s_factor) * g_dir %}
-      {% set diffuse_part_gain = pos * s_factor * g_diff * diffuse_factor %}
+      {# Gesamtleistung inkl. Direkt (cos_aoi), Diffus (Sky View Factor 0.5) und Bodenreflexionsanteil #}
+      {% set direct_part_gain = cos_aoi * sun_part * (1.0 - s_factor) * g_dir %}
+      {% set diffuse_part_gain = 0.5 * pos * s_factor * g_diff * diffuse_factor %}
       {% set ground_ref_gain = 0.10 * pos * g_diff * diffuse_factor %}
       
-      {% set total_gain_factor = cos_factor * (direct_part_gain + diffuse_part_gain) + ground_ref_gain %}
+      {% set total_gain_factor = direct_part_gain + diffuse_part_gain + ground_ref_gain %}
       {% set ns.total = ns.total + (0.9102 * rad * total_gain_factor) %}
     {% endif %}
 
