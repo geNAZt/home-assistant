@@ -306,3 +306,51 @@
     - action: switch.turn_off
       target:
         entity_id: switch.water_cycling_pump
+
+- id: 'vacation_mode_keep_boiler_trinkwasser_off'
+  alias: "Vacation Mode: Keep Drinking Water Boiler Off"
+  mode: parallel
+  triggers:
+    - trigger: state
+      entity_id: switch.boiler_trinkwasser
+    - trigger: state
+      entity_id: binary_sensor.vacation_mode_water_heater
+      to: "on"
+    - trigger: time
+      at: "00:00:05"
+    - trigger: homeassistant
+      event: start
+  conditions:
+    - condition: state
+      entity_id: binary_sensor.vacation_mode_water_heater
+      state: "on"
+    - condition: template
+      value_template: >-
+        {{ trigger.platform != 'state' or trigger.entity_id == 'binary_sensor.vacation_mode_water_heater' or not is_state('switch.boiler_trinkwasser', 'off') }}
+  actions:
+    - action: switch.turn_off
+      target:
+        entity_id: switch.boiler_trinkwasser
+
+- id: 'vacation_mode_restore_boiler_trinkwasser'
+  alias: "Vacation Mode: Restore Drinking Water Boiler Before Return"
+  mode: single
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.vacation_mode_water_heater
+      to: "off"
+    - trigger: time
+      at: "00:00:05"
+    - trigger: homeassistant
+      event: start
+  conditions:
+    - condition: state
+      entity_id: binary_sensor.vacation_mode_water_heater
+      state: "off"
+    - condition: state
+      entity_id: switch.boiler_trinkwasser
+      state: "off"
+  actions:
+    - action: switch.turn_on
+      target:
+        entity_id: switch.boiler_trinkwasser
