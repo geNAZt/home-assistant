@@ -80,13 +80,20 @@ All-day grid-fee intervals supplied by the Octopus Energy (OE) API are logged at
 
 Smart-meter readings are requested only for accounts reporting smart-meter support, and Intelligent entities are created only when the corresponding capability or connected Intelligent devices are available.
 
-CSV exports load smart-meter readings through paginated monthly range queries in the configured Home Assistant timezone. The API layer retains source, quality, device and register metadata when OE provides it; internally consistent intervals can still represent estimated data.
+Smart-meter CSV exports use paginated monthly ranges in the configured Home Assistant timezone. Source and reading-quality metadata are returned with the service response; internally consistent intervals can still be estimates, so check that metadata before treating a value as an actual meter reading.
+
+Cost reports use agreement prices and the network operator's time-valid API rates. The report is an estimate, not a supplier invoice or a legal decision. See [Electricity Cost Report](../../docs/COST_REPORT.md) for its formulas, inputs, CSV rows, and regulatory context.
+
+When API rates are missing, an optional [operator-specific hourly schedule file](../../docs/examples/grid_fee_schedules.example.json) can supply separate values for each hour and validity period.
+
+Generated CSV files are stored under `/config/octopus_germany/exports`. Each export creates a persistent Home Assistant notification with a file-scoped browser-download link that expires after 30 days.
 
 ## Documentation Structure
 
 To keep the repository start page compact, action details are documented in:
 
 - [`docs/ACTIONS_AND_SERVICES.md`](../../docs/ACTIONS_AND_SERVICES.md)
+- [Electricity cost-report reference](../../docs/COST_REPORT.md)
 
 ## Community Dashboard Example
 
@@ -173,13 +180,15 @@ using the example, replace `a_xxxxxxxx` with your lower-case account number and
   - `unit_rate_forecast`: (For Dynamic tariffs) Native German API unit rate forecast data
   - `agreement_is_active`, `agreement_is_revoked`, `agreement_is_terminated`: Status of the currently selected agreement
   - `agreement_prices`: Gross, net and VAT details for every price tier in the current agreement
-  - `agreements`: All electricity agreements returned by OE, including past, current and scheduled entries, with validity, status and available price tiers
+  - `agreements`: All electricity agreements returned by OE, including past, current and scheduled entries, with validity, status, unit-price tiers, net monthly standing charge and validity-dated gross standing charge rates
+
+  Agreement standing-charge fields are retrieved separately from the comprehensive account query to keep that query within the OEG complexity budget.
 
 Agreement price entries expose the original gross/net values in cents per kWh, normalized values in EUR per kWh, VAT percentage, price validity and Time-of-Use activation windows where available.
 
 Electricity meter device labels and consumption sensor `meter_type` attributes use the same classification, with type metadata requested from both account and per-meter API queries. `shouldReceiveSmartMeterData` describes data availability expectations, not the physical meter type. Historical meters and their register readings remain available; missing type information does not imply a smart meter.
 
-Each item in `agreements` contains `code`, `name`, `type`, `is_active`, `is_revoked`, `is_terminated`, `valid_from`, `valid_to` and `prices`. Each price entry can contain `name`, `gross_cents_per_kwh`, `gross_eur_per_kwh`, `net_cents_per_kwh`, `net_eur_per_kwh`, `vat_percent`, `price_valid_from`, `price_valid_to` and `activation_rules`.
+Each item in `agreements` contains `code`, `name`, `type`, `is_active`, `is_revoked`, `is_terminated`, `valid_from`, `valid_to`, `standing_charge_net_eur_per_month`, `standing_charge_gross_rates` and `prices`. Gross standing charge entries can contain `gross_eur_per_month`, `vat_percent`, `valid_from` and `valid_to`. Unit price entries can contain `name`, `gross_cents_per_kwh`, `gross_eur_per_kwh`, `net_cents_per_kwh`, `net_eur_per_kwh`, `vat_percent`, `price_valid_from`, `price_valid_to` and `activation_rules`.
 
 #### Electricity Latest Reading Sensor
 
@@ -370,52 +379,14 @@ Per-device entity IDs use the stable Octopus device UUID. Display names remain h
 
 ## Services
 
-### set_device_preferences
-- **Service ID**: `octopus_germany.set_device_preferences`
-- **Description**: Configure charging preferences for an electric vehicle or charge point
-- **Parameters**:
-  - `device_id` (required): The UI dropdown selects by vehicle/charge-point name. YAML accepts either the Home Assistant device registry ID or the Octopus device UUID; HA registry IDs are resolved automatically.
-  - `target_percentage` (required): Target state of charge (20-100% in 5% steps)
-  - `target_time` (required): Target completion time (04:00-17:00)
+- `octopus_germany.refresh_intelligent_data`
+- `octopus_germany.set_device_preferences`
+- `octopus_germany.get_smart_meter_readings`
+- `octopus_germany.export_smart_meter_csv`
+- `octopus_germany.export_cost_report`
+- `octopus_germany.submit_meter_readings`
 
-The Home Assistant action form lists vehicles and charge points by their registered names, excluding the account service device. The dropdown supplies a Home Assistant device registry ID, which the service resolves to the Octopus ID. YAML calls may use either the Home Assistant registry ID or the Octopus device UUID; entity IDs are not accepted. The target percentage and completion time apply to all seven days of the week.
-Success confirms acceptance by the Octopus API, not propagation to the vehicle.
-API errors or missing update confirmations cause the service call to fail.
-
-**Example:**
-```yaml
-service: octopus_germany.set_device_preferences
-data:
-  device_id: "00000000-0002-4000-803c-0000000021c7"
-  target_percentage: 80
-  target_time: "07:00"
-```
-
-**Note**: The old `set_vehicle_charge_preferences` service has been removed. Use `set_device_preferences` instead with specific device IDs.
-
-### submit_meter_readings
-- **Service ID**: `octopus_germany.submit_meter_readings`
-- **Description**: Submit electricity or gas meter readings to the OE API
-- **Parameters**:
-  - `meter_type` (required): `electricity` or `gas`
-  - `meter_id` (required): The OE meter ID from the meter entity attributes
-  - `reading_date` (required): `YYYY-MM-DD`
-  - `readings_json` (optional): JSON array of reading objects with `value` and `register_obis_code`
-  - `reading_value` / `register_obis_code` (optional): Convenience fields for a single register reading
-
-**Example:**
-```yaml
-service: octopus_germany.submit_meter_readings
-data:
-  meter_type: electricity
-  meter_id: "1234567890"
-  reading_date: "2026-06-01"
-  readings_json: >-
-    [{"value": 1234.56, "register_obis_code": "1-0:1.8.0"}]
-```
-
-**Note**: The OE mutation accepts the day plus register values; it does not submit per-entry timestamps.
-For a full Home Assistant automation example, see [docs/UPLOAD_DAILY_METER_READING_AUTOMATION.md](../../docs/UPLOAD_DAILY_METER_READING_AUTOMATION.md).
+See [Actions and Services](../../docs/ACTIONS_AND_SERVICES.md) for fields, response events, examples, and limitations. See [Electricity Cost Report](../../docs/COST_REPORT.md) for the cost model.
 
 ## iMSys / SMGW-HAN
 
@@ -479,12 +450,6 @@ LOG_API_RESPONSES = True
 ```
 After restarting HA the API-Responses and additional information will be in debug log.
 
-
-## API Support
-
-For API-related questions, consult the official documentation:
-- REST API: https://developer.oeg-kraken.energy/
-- GraphQL API: https://developer.oeg-kraken.energy/graphql/
 
 ## Support
 
