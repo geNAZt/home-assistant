@@ -3,7 +3,7 @@ sensor:
   unique_id: solar_selfconsumption_ratio
   icon: mdi:percent-outline
   state: >
-    {% if (((states('sensor.solar_panel_to_house_daily')| float(0)) + (states('sensor.solar_battery_in_daily')| float(0)) + (states('sensor.solar_exported_power_daiy')| float(0))) <= 0) %}
+    {% if (((states('sensor.solar_panel_to_house_daily')| float(0)) + (states('sensor.solar_battery_in_daily')| float(0)) + (states('sensor.solar_exported_power_daily')| float(0))) <= 0) %}
       0
     {% else %}
       {{((((states('sensor.solar_panel_to_house_daily')| float(0)) + (states('sensor.solar_battery_in_daily')| float(0))) / ((states('sensor.solar_panel_to_house_daily')| float(0)) + (states('sensor.solar_battery_in_daily')| float(0)) + (states('sensor.solar_exported_power_daily')| float(0)))) * 100) | round (0) }}
@@ -204,18 +204,13 @@ sensor:
   icon: mdi:percent-outline
   unit_of_measurement: '%'
   state: >
-    {% if ((states('sensor.pv_dc_power') | float(0)) < 100) or ((states('sensor.pv_ac_power') | float(0)) < 100)%}
-      {{(states('sensor.solar_inverter_effectiveness'))}}
+    {% set dc = states('sensor.pv_dc_power') | float(0) %}
+    {% set ac = states('sensor.pv_ac_power') | float(0) %}
+    {% set prev = this.state if (this is defined and this.state not in ['unknown', 'unavailable', 'none', None, '']) else 0.975 %}
+    {% if dc < 100 or ac < 100 %}
+      {{ prev | float(0.975) }}
     {% else %}
-      {% if is_state('sensor.solar_inverter_effectiveness', ['unknown','unavailable']) %}
-        1
-      {% elif ((states('sensor.pv_ac_power') | float(0)) <= 0) %}
-        {{(states('sensor.solar_inverter_effectiveness'))}}
-      {% elif ((states('sensor.pv_dc_power') | float(0)) <= 0) %}
-        {{(states('sensor.solar_inverter_effectiveness'))}}
-      {% else %}
-        {{(states('sensor.pv_ac_power') | float(0)) / (states('sensor.pv_dc_power') | float(0))}}
-      {% endif %}
+      {{ [0.0, [ac / dc, 1.0] | min] | max | round(4) }}
     {% endif %}
 - name: "Solar Battery Effectiveness"
   unique_id: solar_battery_effectiveness

@@ -7,10 +7,13 @@
         - sensor.current_l1_kueche_current
         - sensor.current_l2_kueche_current
         - sensor.current_l3_kueche_current
-  # Only act on real numbers (ignore unavailable/unknown)
+      for: "00:00:10"
+  # Only act on real numbers (ignore unavailable/unknown and transient spikes > 16A)
   condition:
     - condition: template
-      value_template: "{{ (trigger.to_state.state | float(0)) > 0 }}"
+      value_template: >-
+        {% set val = trigger.to_state.state | float(0) %}
+        {{ val > 0 and val <= 16000 }}
   action:
     - variables:
         new_val: "{{ trigger.to_state.state | float(0) }}"
@@ -24,4 +27,4 @@
               target:
                 entity_id: input_number.heater_kueche_rated_a
               data:
-                value: "{{ new_val / 1000 | round(2) }}"
+                value: "{{ (new_val / 1000) | round(2) }}"

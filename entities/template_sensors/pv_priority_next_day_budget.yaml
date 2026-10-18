@@ -45,10 +45,16 @@ sensor:
         {{ [3 - done, 0] | max | round(3) }}
       heating_need_next_day_kwh: >
         {% set c = states('input_number.building_heat_capacity') | float(0) %}
-        {% set rooms = states.input_number
-               | selectattr('entity_id', 'match', 'input_number.heating_base_')
-               | map(attribute='state') | map('float') | list %}
-        {% set setpoint_mean = (rooms | sum / rooms | count) if (rooms | count > 0) else 0 %}
+        {% set weights = {'wohnzimmer': 11.9, 'kueche': 19.5, 'flur': 29.0, 'schlafzimmer': 9.1, 'buero_fabian': 6.6, 'buero_merja': 13.9, 'bad': 4.9, 'speisekammer': 5.1} %}
+        {% set wns = namespace(w_sum=0.0, w_total=0.0) %}
+        {% for room, w in weights.items() %}
+          {% set val = states('input_number.heating_base_' ~ room) | float(none) %}
+          {% if val is not none %}
+            {% set wns.w_sum = wns.w_sum + (val * w) %}
+            {% set wns.w_total = wns.w_total + w %}
+          {% endif %}
+        {% endfor %}
+        {% set setpoint_mean = (wns.w_sum / wns.w_total) if wns.w_total > 0 else 0 %}
         {% set inside_now = states('sensor.inside_temp_mean_now') | float(0) %}
         {% set missing_delta_k = [setpoint_mean - inside_now, 0] | max %}
         {% set off = states('sensor.heating_preheat_offset_24h_max') | float(0) %}
@@ -105,10 +111,16 @@ sensor:
         {% set stage1_remaining = [3 - ((states('sensor.water_heating_pump_daily') | float(0)) / 1000.0), 0] | max %}
         {% set pv_after_stage1 = [pv.total | float(0) - ([pv.total | float(0), stage1_remaining] | min), 0] | max %}
         {% set c = states('input_number.building_heat_capacity') | float(0) %}
-        {% set rooms = states.input_number
-               | selectattr('entity_id', 'match', 'input_number.heating_base_')
-               | map(attribute='state') | map('float') | list %}
-        {% set setpoint_mean = (rooms | sum / rooms | count) if (rooms | count > 0) else 0 %}
+        {% set weights = {'wohnzimmer': 11.9, 'kueche': 19.5, 'flur': 29.0, 'schlafzimmer': 9.1, 'buero_fabian': 6.6, 'buero_merja': 13.9, 'bad': 4.9, 'speisekammer': 5.1} %}
+        {% set wns = namespace(w_sum=0.0, w_total=0.0) %}
+        {% for room, w in weights.items() %}
+          {% set val = states('input_number.heating_base_' ~ room) | float(none) %}
+          {% if val is not none %}
+            {% set wns.w_sum = wns.w_sum + (val * w) %}
+            {% set wns.w_total = wns.w_total + w %}
+          {% endif %}
+        {% endfor %}
+        {% set setpoint_mean = (wns.w_sum / wns.w_total) if wns.w_total > 0 else 0 %}
         {% set inside_now = states('sensor.inside_temp_mean_now') | float(0) %}
         {% set missing_delta_k = [setpoint_mean - inside_now, 0] | max %}
         {% set off = states('sensor.heating_preheat_offset_24h_max') | float(0) %}
@@ -131,10 +143,16 @@ sensor:
         {% set stage1_remaining = [3 - ((states('sensor.water_heating_pump_daily') | float(0)) / 1000.0), 0] | max %}
         {% set pv_after_stage1 = [pv.total | float(0) - ([pv.total | float(0), stage1_remaining] | min), 0] | max %}
         {% set c = states('input_number.building_heat_capacity') | float(0) %}
-        {% set rooms = states.input_number
-               | selectattr('entity_id', 'match', 'input_number.heating_base_')
-               | map(attribute='state') | map('float') | list %}
-        {% set setpoint_mean = (rooms | sum / rooms | count) if (rooms | count > 0) else 0 %}
+        {% set weights = {'wohnzimmer': 11.9, 'kueche': 19.5, 'flur': 29.0, 'schlafzimmer': 9.1, 'buero_fabian': 6.6, 'buero_merja': 13.9, 'bad': 4.9, 'speisekammer': 5.1} %}
+        {% set wns = namespace(w_sum=0.0, w_total=0.0) %}
+        {% for room, w in weights.items() %}
+          {% set val = states('input_number.heating_base_' ~ room) | float(none) %}
+          {% if val is not none %}
+            {% set wns.w_sum = wns.w_sum + (val * w) %}
+            {% set wns.w_total = wns.w_total + w %}
+          {% endif %}
+        {% endfor %}
+        {% set setpoint_mean = (wns.w_sum / wns.w_total) if wns.w_total > 0 else 0 %}
         {% set inside_now = states('sensor.inside_temp_mean_now') | float(0) %}
         {% set missing_delta_k = [setpoint_mean - inside_now, 0] | max %}
         {% set off = states('sensor.heating_preheat_offset_24h_max') | float(0) %}
@@ -158,10 +176,16 @@ sensor:
         {% set stage1_remaining = [3 - ((states('sensor.water_heating_pump_daily') | float(0)) / 1000.0), 0] | max %}
         {% set pv_after_stage1 = [pv.total | float(0) - ([pv.total | float(0), stage1_remaining] | min), 0] | max %}
         {% set c = states('input_number.building_heat_capacity') | float(0) %}
-        {% set rooms = states.input_number
-               | selectattr('entity_id', 'match', 'input_number.heating_base_')
-               | map(attribute='state') | map('float') | list %}
-        {% set setpoint_mean = (rooms | sum / rooms | count) if (rooms | count > 0) else 0 %}
+        {% set weights = {'wohnzimmer': 11.9, 'kueche': 19.5, 'flur': 29.0, 'schlafzimmer': 9.1, 'buero_fabian': 6.6, 'buero_merja': 13.9, 'bad': 4.9, 'speisekammer': 5.1} %}
+        {% set wns = namespace(w_sum=0.0, w_total=0.0) %}
+        {% for room, w in weights.items() %}
+          {% set val = states('input_number.heating_base_' ~ room) | float(none) %}
+          {% if val is not none %}
+            {% set wns.w_sum = wns.w_sum + (val * w) %}
+            {% set wns.w_total = wns.w_total + w %}
+          {% endif %}
+        {% endfor %}
+        {% set setpoint_mean = (wns.w_sum / wns.w_total) if wns.w_total > 0 else 0 %}
         {% set inside_now = states('sensor.inside_temp_mean_now') | float(0) %}
         {% set missing_delta_k = [setpoint_mean - inside_now, 0] | max %}
         {% set off = states('sensor.heating_preheat_offset_24h_max') | float(0) %}
@@ -197,10 +221,16 @@ sensor:
         {% set stage1_remaining = [3 - ((states('sensor.water_heating_pump_daily') | float(0)) / 1000.0), 0] | max %}
         {% set pv_after_stage1 = [pv.total | float(0) - ([pv.total | float(0), stage1_remaining] | min), 0] | max %}
         {% set c = states('input_number.building_heat_capacity') | float(0) %}
-        {% set rooms = states.input_number
-               | selectattr('entity_id', 'match', 'input_number.heating_base_')
-               | map(attribute='state') | map('float') | list %}
-        {% set setpoint_mean = (rooms | sum / rooms | count) if (rooms | count > 0) else 0 %}
+        {% set weights = {'wohnzimmer': 11.9, 'kueche': 19.5, 'flur': 29.0, 'schlafzimmer': 9.1, 'buero_fabian': 6.6, 'buero_merja': 13.9, 'bad': 4.9, 'speisekammer': 5.1} %}
+        {% set wns = namespace(w_sum=0.0, w_total=0.0) %}
+        {% for room, w in weights.items() %}
+          {% set val = states('input_number.heating_base_' ~ room) | float(none) %}
+          {% if val is not none %}
+            {% set wns.w_sum = wns.w_sum + (val * w) %}
+            {% set wns.w_total = wns.w_total + w %}
+          {% endif %}
+        {% endfor %}
+        {% set setpoint_mean = (wns.w_sum / wns.w_total) if wns.w_total > 0 else 0 %}
         {% set inside_now = states('sensor.inside_temp_mean_now') | float(0) %}
         {% set missing_delta_k = [setpoint_mean - inside_now, 0] | max %}
         {% set off = states('sensor.heating_preheat_offset_24h_max') | float(0) %}
@@ -228,10 +258,16 @@ sensor:
         {% set stage1_remaining = [3 - ((states('sensor.water_heating_pump_daily') | float(0)) / 1000.0), 0] | max %}
         {% set pv_after_stage1 = [pv.total | float(0) - ([pv.total | float(0), stage1_remaining] | min), 0] | max %}
         {% set c = states('input_number.building_heat_capacity') | float(0) %}
-        {% set rooms = states.input_number
-               | selectattr('entity_id', 'match', 'input_number.heating_base_')
-               | map(attribute='state') | map('float') | list %}
-        {% set setpoint_mean = (rooms | sum / rooms | count) if (rooms | count > 0) else 0 %}
+        {% set weights = {'wohnzimmer': 11.9, 'kueche': 19.5, 'flur': 29.0, 'schlafzimmer': 9.1, 'buero_fabian': 6.6, 'buero_merja': 13.9, 'bad': 4.9, 'speisekammer': 5.1} %}
+        {% set wns = namespace(w_sum=0.0, w_total=0.0) %}
+        {% for room, w in weights.items() %}
+          {% set val = states('input_number.heating_base_' ~ room) | float(none) %}
+          {% if val is not none %}
+            {% set wns.w_sum = wns.w_sum + (val * w) %}
+            {% set wns.w_total = wns.w_total + w %}
+          {% endif %}
+        {% endfor %}
+        {% set setpoint_mean = (wns.w_sum / wns.w_total) if wns.w_total > 0 else 0 %}
         {% set inside_now = states('sensor.inside_temp_mean_now') | float(0) %}
         {% set missing_delta_k = [setpoint_mean - inside_now, 0] | max %}
         {% set off = states('sensor.heating_preheat_offset_24h_max') | float(0) %}

@@ -8,18 +8,18 @@
   variables:
     climates: >
       {{ [
-        'climate.raum_bad','climate.raum_kueche','climate.raum_schlafzimmer',
-        'climate.raum_flur','climate.raum_speisekammer','climate.raum_wohnzimmer',
-        'climate.raum_buero_merja','climate.raum_buero_fabian'
+        'climate.climate_room_bad','climate.climate_room_kueche','climate.climate_room_schlafzimmer',
+        'climate.climate_room_flur','climate.climate_room_speisekammer','climate.climate_room_wohnzimmer',
+        'climate.climate_room_buero_merja','climate.climate_room_buero_fabian'
       ] }}
     # Innenziel-Mittel (jetzige Setpoints)
     inside_target_mean_c: >-
-      {% set vals = [] %}
+      {% set ns = namespace(vals=[]) %}
       {% for ce in climates %}
         {% set t = state_attr(ce,'temperature') %}
-        {% if t is number %}{% set vals = vals + [ t|float ] %}{% endif %}
+        {% if t is number %}{% set ns.vals = ns.vals + [ t|float ] %}{% endif %}
       {% endfor %}
-      {{ ((vals|sum / (vals|length)) if (vals|length>0) else 22) | round(2) }}
+      {{ ((ns.vals|sum / (ns.vals|length)) if (ns.vals|length>0) else 22) | round(2) }}
   action:
     - action: weather.get_forecasts
       target:
@@ -33,20 +33,20 @@
           {% set now_ts = as_timestamp(now()) %}
           {% set ahead  = now_ts + 24*3600 %}
           {% set arr = fc['weather.home']['forecast'] if 'weather.home' in fc else [] %}
-          {% set vals = [] %}
+          {% set ns = namespace(vals=[]) %}
           {% for e in arr %}
             {% set ts = as_timestamp(e.datetime if e.datetime is defined else e['datetime']) %}
             {% if ts is number and now_ts <= ts <= ahead %}
               {% set th = e.temperature if e.temperature is defined else e['temperature'] %}
               {% set tl = e.templow    if e.templow    is defined else e.get('templow') %}
               {% if (th is number) and (tl is number) %}
-                {% set vals = vals + [ (th|float + tl|float)/2 ] %}
+                {% set ns.vals = ns.vals + [ (th|float + tl|float)/2 ] %}
               {% elif th is number %}
-                {% set vals = vals + [ th|float ] %}
+                {% set ns.vals = ns.vals + [ th|float ] %}
               {% endif %}
             {% endif %}
           {% endfor %}
-          {{ vals | tojson }}
+          {{ ns.vals | tojson }}
         outside_temp_forecast_24h_c: >-
           {% set vals = outside_vals | from_json(default=[]) %}
           {% if vals|length > 0 %}
@@ -57,7 +57,7 @@
         delta_t_forecast_k: >-
           {% set outside_avg = (outside_vals | from_json(default=[])) %}
           {% set outside_avg = ((outside_avg|sum / (outside_avg|length)) if (outside_avg|length>0) else states('sensor.outside_temperature')|float(8)) %}
-          {% set inside_avg  = states('sensor.inside_target_mean_c')|float(22) %}
+          {% set inside_avg  = inside_target_mean_c | float(22) %}
           {{ (inside_avg - outside_avg) | round(2) }}
     - service: input_number.set_value
       data:

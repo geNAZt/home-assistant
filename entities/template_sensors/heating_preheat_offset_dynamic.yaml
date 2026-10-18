@@ -12,10 +12,16 @@ sensor:
   state: >
     {% set h_eff = states('sensor.H_kW_per_K_effective') | float(0.08) %}
     {% set c_real = states('input_number.building_heat_capacity') | float(13.28) %}
-    {% set rooms = states.input_number
-                | selectattr('entity_id', 'match', 'input_number.heating_base_')
-                | map(attribute='state') | map('float') | list %}
-    {% set t_sp_mean = (rooms | sum / rooms | count) if rooms | count > 0 else 21.0 %}
+    {% set weights = {'wohnzimmer': 11.9, 'kueche': 19.5, 'flur': 29.0, 'schlafzimmer': 9.1, 'buero_fabian': 6.6, 'buero_merja': 13.9, 'bad': 4.9, 'speisekammer': 5.1} %}
+    {% set wns = namespace(w_sum=0.0, w_total=0.0) %}
+    {% for room, w in weights.items() %}
+      {% set val = states('input_number.heating_base_' ~ room) | float(none) %}
+      {% if val is not none %}
+        {% set wns.w_sum = wns.w_sum + (val * w) %}
+        {% set wns.w_total = wns.w_total + w %}
+      {% endif %}
+    {% endfor %}
+    {% set t_sp_mean = (wns.w_sum / wns.w_total) if wns.w_total > 0 else 21.0 %}
     {% set t_out_fc = states('input_number.outside_temp_forecast_24h_c') | float(states('sensor.outside_temperature') | float(0)) %}
     {% set delta_t = [t_sp_mean - t_out_fc, 0] | max %}
     {% set hours_to_bridge = 19 %}
@@ -35,7 +41,18 @@ sensor:
     {{ needed_offset | round(1) }}
   attributes:
     forecast_outside_temp: "{{ states('input_number.outside_temp_forecast_24h_c') }}"
-    forecast_loss_kwh: "{{ (states('sensor.H_kW_per_K_effective') | float(0.08) * [((states.input_number | selectattr('entity_id', 'match', 'input_number.heating_base_') | map(attribute='state') | map('float') | list | sum / 8) - (states('input_number.outside_temp_forecast_24h_c') | float(0))), 0] | max * 19) | round(2) }}"
+    forecast_loss_kwh: >-
+      {% set weights = {'wohnzimmer': 11.9, 'kueche': 19.5, 'flur': 29.0, 'schlafzimmer': 9.1, 'buero_fabian': 6.6, 'buero_merja': 13.9, 'bad': 4.9, 'speisekammer': 5.1} %}
+      {% set wns = namespace(w_sum=0.0, w_total=0.0) %}
+      {% for room, w in weights.items() %}
+        {% set val = states('input_number.heating_base_' ~ room) | float(none) %}
+        {% if val is not none %}
+          {% set wns.w_sum = wns.w_sum + (val * w) %}
+          {% set wns.w_total = wns.w_total + w %}
+        {% endif %}
+      {% endfor %}
+      {% set t_sp_mean = (wns.w_sum / wns.w_total) if wns.w_total > 0 else 21.0 %}
+      {{ (states('sensor.H_kW_per_K_effective') | float(0.08) * [t_sp_mean - (states('input_number.outside_temp_forecast_24h_c') | float(0)), 0] | max * 19) | round(2) }}
     forecast_gains_kwh: "{{ (((states('sensor.solar_gains_average') | float(0)) + (states('sensor.internal_gains_average') | float(0))) * 19 / 1000) | round(2) }}"
 - name: "Heating Preheat Offset Dynamic"
   unit_of_measurement: "K"

@@ -16,8 +16,8 @@
     # --- SOAK CHARGING (Laminat-Schutz) ---
     # Verhindert Hitzestau unter dem Belag. Erzwingt Pausen, damit Wärme
     # in den Estrich ziehen kann (Pulsing).
-    soak_delta_stop: 4.0 # STOPP, wenn Boden > 3.0K wärmer als Luft
-    soak_delta_start: 3.0 # START erlaubt, wenn Delta < 2.0K gesunken ist
+    soak_delta_stop: 4.0 # STOPP, wenn Boden > 4.0K wärmer als Luft
+    soak_delta_start: 3.0 # START erlaubt, wenn Delta < 3.0K gesunken ist
 
     # PV and preheat parameters
     pv_forecast_w: "{{ states('sensor.filtered_exported_power_w') | float(0) }}"
@@ -27,7 +27,7 @@
     battery_support_until_hour: 18
     battery_support_from_hour: 6
     battery_above_min: "{{ battery_soc >= battery_min_soc }}"
-    battery_support_allowed_now: "{{ now().hour < (battery_support_until_hour | int(18)) and now().hour > (battery_support_from_hour | int(6)) }}"
+    battery_support_allowed_now: "{{ now().hour <= (battery_support_until_hour | int(18)) and now().hour >= (battery_support_from_hour | int(6)) }}"
     battery_support_w: "{{ 5000 if (battery_above_min and battery_support_allowed_now) else 0 }}"
     pv_thr_w: "{{ states('input_number.pv_excess_threshold_w') | float(0) }}"
     water_stage1_remaining_kwh: "{{ state_attr('sensor.pv_priority_next_day_budget', 'water_stage1_remaining_kwh') | float(0) }}"
@@ -63,10 +63,16 @@
       {{ ns.total | float(0) }}
     heating_need_next_day_kwh: >-
       {% set c = states('input_number.building_heat_capacity') | float(0) %}
-      {% set rooms = states.input_number
-             | selectattr('entity_id', 'match', 'input_number.heating_base_')
-             | map(attribute='state') | map('float') | list %}
-      {% set setpoint_mean = (rooms | sum / rooms | count) if (rooms | count > 0) else 0 %}
+      {% set weights = {'wohnzimmer': 11.9, 'kueche': 19.5, 'flur': 29.0, 'schlafzimmer': 9.1, 'buero_fabian': 6.6, 'buero_merja': 13.9, 'bad': 4.9, 'speisekammer': 5.1} %}
+      {% set wns = namespace(w_sum=0.0, w_total=0.0) %}
+      {% for room, w in weights.items() %}
+        {% set val = states('input_number.heating_base_' ~ room) | float(none) %}
+        {% if val is not none %}
+          {% set wns.w_sum = wns.w_sum + (val * w) %}
+          {% set wns.w_total = wns.w_total + w %}
+        {% endif %}
+      {% endfor %}
+      {% set setpoint_mean = (wns.w_sum / wns.w_total) if wns.w_total > 0 else 0 %}
       {% set inside_now = states('sensor.inside_temp_mean_now') | float(0) %}
       {% set missing_delta_k = [setpoint_mean - inside_now, 0] | max %}
       {% set off = preheat_offset_24h_max_k | float(0) %}
@@ -107,8 +113,8 @@
       {% set hyst = hysteresis_k | float(0.05) %}
 
       {# Soak Parameters import #}
-      {% set d_stop = soak_delta_stop | float(3.0) %}
-      {% set d_start = soak_delta_start | float(2.0) %}
+      {% set d_stop = soak_delta_stop | float(4.0) %}
+      {% set d_start = soak_delta_start | float(3.0) %}
 
       {% set invalid_states = ['unknown', 'unavailable', 'None', ''] %}
       {% set ns = namespace(rooms = {}) %}
@@ -199,10 +205,12 @@
         {# --- Security / Floor temperature sensor --- #}
         {% set security_sensor = 'sensor.security_temperature_' ~ room ~ '_max' %}
         {% set floor_temp = states(security_sensor) | float(0) %}
+        {# Note: 'bad' uses securitySameAsTemperature (air sensor), not a dedicated floor sensor #}
+        {% set has_floor_sensor = (room != 'bad') and (floor_temp > 0) %}
 
         {# --- Start/Stop thresholds with early cut-off when floor is warm --- #}
         {% set stop_margin = stop_margin_k | float(0.1) %}
-        {% set is_floor_warm = (floor_temp > 0) and ((floor_temp - current) > 1.2) %}
+        {% set is_floor_warm = has_floor_sensor and ((floor_temp - current) > 1.2) %}
         {% if preheat_enabled %}
           {% set stop_th  = (sp_now - stop_margin) if is_floor_warm else (sp_now + 0.05) %}
           {% set start_th = sp_now - 0.2 %}
@@ -221,9 +229,8 @@
         {# --- SOAK CHARGING CHECK (Floor vs Air) --- #}
 
         {% set delta_ok = true %}
-        {# Nur prüfen, wenn Bodensensor existiert (>0) und Preheat/PV aktiv (hohe Last) #}
-        {# oder auch im Normalbetrieb? Hier immer aktiv für Laminatschutz #}
-        {% if floor_temp > 0 %}
+        {# Nur prüfen, wenn echter Bodensensor existiert (>0) #}
+        {% if has_floor_sensor %}
             {% set delta = floor_temp - current %}
             {% if is_heating %}
                 {# Wenn wir heizen: Stoppen wenn Delta zu groß (Hitzestau) #}
@@ -247,8 +254,8 @@
           {% set needs_heating = cooldown_ok and ((current < start_th) or must_heat_start) and delta_ok %}
         {% endif %}
 
-        {# --- Absolute Security temperature check (cut-off >= 24.5C) --- #}
-        {% if floor_temp >= 24.5 %}
+        {# --- Absolute Security temperature check (floor cut-off >= 24.5C) --- #}
+        {% if has_floor_sensor and floor_temp >= 24.5 %}
           {% set needs_heating = false %}
         {% endif %}
 
@@ -350,62 +357,27 @@
       {{ (ns.selected | tojson) | string }}
 
     # ===================================================================
-    # SECTION 4: CLIMATE ENTITY MAPPING (for debug output)
+    # SECTION 4: CLIMATE ENTITY MAPPING (reuses sel_p1, sel_p2, sel_p3)
     # ===================================================================
     climates_on: >-
-      {% set rooms_data = room_data | from_json(default={}) %}
-      {% set max_amps = phase_max_amps | float(16.0) %}
-      {% set ns = namespace(selected_rooms = [], climates = [], total = 0.0, room_list = []) %}
-      {% for phase_num in [1, 2, 3] %}
-        {% set ns.room_list = [] %}
-        {% for room, data in rooms_data.items() %}
-          {% if data.phase == phase_num and data.needs_heating %}
-            {% set score = (1000 if data.must_heat else 0) + (data.error | float(0)) %}
-            {% set ns.room_list = ns.room_list + [{'room': room, 'score': score, 'amps': data.amps}] %}
-          {% endif %}
-        {% endfor %}
-        {% set sorted = ns.room_list | sort(attribute='score', reverse=True) %}
-        {% set ns.total = 0.0 %}
-        {% for item in sorted %}
-          {% if ns.total + item.amps <= max_amps %}
-            {% set ns.total = ns.total + item.amps %}
-            {% if item.room not in ns.selected_rooms %}
-              {% set ns.selected_rooms = ns.selected_rooms + [item.room] %}
-            {% endif %}
-          {% endif %}
-        {% endfor %}
-      {% endfor %}
-      {% for room in ns.selected_rooms %}
+      {% set s1 = sel_p1 | from_json(default=[]) if sel_p1 is string else sel_p1 %}
+      {% set s2 = sel_p2 | from_json(default=[]) if sel_p2 is string else sel_p2 %}
+      {% set s3 = sel_p3 | from_json(default=[]) if sel_p3 is string else sel_p3 %}
+      {% set ns = namespace(climates = []) %}
+      {% for room in (s1 + s2 + s3) %}
         {% set ns.climates = ns.climates + ['climate.climate_room_' ~ room] %}
       {% endfor %}
       {{ (ns.climates | tojson) | string }}
 
     climates_off: >-
-      {% set rooms_data = room_data | from_json(default={}) %}
-      {% set max_amps = phase_max_amps | float(16.0) %}
+      {% set s1 = sel_p1 | from_json(default=[]) if sel_p1 is string else sel_p1 %}
+      {% set s2 = sel_p2 | from_json(default=[]) if sel_p2 is string else sel_p2 %}
+      {% set s3 = sel_p3 | from_json(default=[]) if sel_p3 is string else sel_p3 %}
+      {% set selected_rooms = s1 + s2 + s3 %}
       {% set all_rooms = rooms_json | from_json(default=[]) %}
-      {% set ns = namespace(selected_rooms = [], climates = [], total = 0.0, room_list = []) %}
-      {% for phase_num in [1, 2, 3] %}
-        {% set ns.room_list = [] %}
-        {% for room, data in rooms_data.items() %}
-          {% if data.phase == phase_num and data.needs_heating %}
-            {% set score = (1000 if data.must_heat else 0) + (data.error | float(0)) %}
-            {% set ns.room_list = ns.room_list + [{'room': room, 'score': score, 'amps': data.amps}] %}
-          {% endif %}
-        {% endfor %}
-        {% set sorted = ns.room_list | sort(attribute='score', reverse=True) %}
-        {% set ns.total = 0.0 %}
-        {% for item in sorted %}
-          {% if ns.total + item.amps <= max_amps %}
-            {% set ns.total = ns.total + item.amps %}
-            {% if item.room not in ns.selected_rooms %}
-              {% set ns.selected_rooms = ns.selected_rooms + [item.room] %}
-            {% endif %}
-          {% endif %}
-        {% endfor %}
-      {% endfor %}
+      {% set ns = namespace(climates = []) %}
       {% for room in all_rooms %}
-        {% if room not in ns.selected_rooms %}
+        {% if room not in selected_rooms %}
           {% set ns.climates = ns.climates + ['climate.climate_room_' ~ room] %}
         {% endif %}
       {% endfor %}
@@ -432,7 +404,7 @@
             true
           {% elif allow_daytime_heat %}
             true
-          {% elif battery_above_min and (now().hour >= 6 and now().hour <= 18) %}
+          {% elif battery_above_min and battery_support_allowed_now %}
             true
           {% else %}
             false
@@ -459,22 +431,32 @@
                 {% endif %}
               offset_k: "{{ rd[room].offset | float(0) }}"
               target_sp: "{{ (base + offset_k) | float }}"
+              current_sp: "{{ state_attr('climate.climate_room_' ~ repeat.item, 'temperature') | float(0) }}"
+              current_off: "{{ states('input_number.heating_offset_' ~ repeat.item) | float(0) }}"
 
           - choose:
               - conditions:
                   - condition: template
                     value_template: "{{ offset_k > 0 }}"
                 sequence:
-                  - service: climate.set_temperature
-                    target:
-                      entity_id: "climate.climate_room_{{ repeat.item }}"
-                    data:
-                      temperature: "{{ target_sp }}"
-                  - service: input_number.set_value
-                    target:
-                      entity_id: "input_number.heating_offset_{{ repeat.item }}"
-                    data:
-                      value: "{{ offset_k }}"
+                  - if:
+                      - condition: template
+                        value_template: "{{ (current_sp - target_sp) | abs > 0.05 }}"
+                    then:
+                      - service: climate.set_temperature
+                        target:
+                          entity_id: "climate.climate_room_{{ repeat.item }}"
+                        data:
+                          temperature: "{{ target_sp }}"
+                  - if:
+                      - condition: template
+                        value_template: "{{ (current_off - offset_k) | abs > 0.01 }}"
+                    then:
+                      - service: input_number.set_value
+                        target:
+                          entity_id: "input_number.heating_offset_{{ repeat.item }}"
+                        data:
+                          value: "{{ offset_k }}"
 
               - conditions:
                   - condition: template
@@ -483,18 +465,22 @@
                   - choose:
                       - conditions:
                           - condition: template
-                            value_template: "{{ stored_base > 0 }}"
+                            value_template: "{{ stored_base > 0 and (current_sp - base) | abs > 0.05 }}"
                         sequence:
                           - service: climate.set_temperature
                             target:
                               entity_id: "climate.climate_room_{{ repeat.item }}"
                             data:
                               temperature: "{{ base }}"
-                  - service: input_number.set_value
-                    target:
-                      entity_id: "input_number.heating_offset_{{ repeat.item }}"
-                    data:
-                      value: 0
+                  - if:
+                      - condition: template
+                        value_template: "{{ current_off | abs > 0.01 }}"
+                    then:
+                      - service: input_number.set_value
+                        target:
+                          entity_id: "input_number.heating_offset_{{ repeat.item }}"
+                        data:
+                          value: 0
 
     - service: input_boolean.turn_off
       target: { entity_id: input_boolean.heating_planner_applying }
@@ -622,6 +608,8 @@
                   {% endfor %}
                   {{ ns.out }}
                 to_off: "{{ (planned_on + planned_off) | reject('in', phase_safe_on) | list }}"
+                to_heat_changed: "{{ phase_safe_on | reject('is_state', 'heat') | list }}"
+                to_off_changed: "{{ to_off | reject('is_state', 'off') | list }}"
                 cooldown_minutes: "{{ states('input_number.heating_cooldown_minutes')|int(10) }}"
                 to_off_rooms: >-
                   {% set rooms = to_off | map('regex_replace','^climate\\.climate_room_','') | list %}
@@ -633,22 +621,22 @@
                   {% endfor %}
                   {{ ns.out }}
 
-            # Heat the allowed ones
+            # Heat the allowed ones (only those not already in 'heat')
             - if:
                 - condition: template
-                  value_template: "{{ phase_safe_on | count > 0 }}"
+                  value_template: "{{ to_heat_changed | count > 0 }}"
               then:
                 - service: climate.set_hvac_mode
-                  target: { entity_id: "{{ phase_safe_on }}" }
+                  target: { entity_id: "{{ to_heat_changed }}" }
                   data: { hvac_mode: heat }
 
-            # Off for everybody else (incl. blocked by phase cap) value_template: "{{ to_off | count > 0 }}"
+            # Off for everybody else (only those not already in 'off')
             - if:
                 - condition: template
-                  value_template: "{{ to_off | count > 0 }}"
+                  value_template: "{{ to_off_changed | count > 0 }}"
               then:
                 - service: climate.set_hvac_mode
-                  target: { entity_id: "{{ to_off }}" }
+                  target: { entity_id: "{{ to_off_changed }}" }
                   data: { hvac_mode: "off" }
             - if:
                 - condition: template

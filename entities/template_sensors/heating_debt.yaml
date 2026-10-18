@@ -9,13 +9,32 @@ sensor:
     state: >
       {% set c_wh_k = states('input_number.building_heat_capacity') | float(13.28) * 1000 %}
       {% set t_in = states('sensor.inside_temp_mean_now') | float(none) %}
-      {% set setpoints = states.input_number
-          | selectattr('entity_id', 'match', 'input_number.heating_base_')
-          | map(attribute='state') | map('float') | list %}
-      {% set t_sp = (setpoints | sum / setpoints | count) if setpoints | count > 0 else none %}
-      
+      {% set weights = {
+        'wohnzimmer': 11.9,
+        'kueche': 19.5,
+        'flur': 29.0,
+        'schlafzimmer': 9.1,
+        'buero_fabian': 6.6,
+        'buero_merja': 13.9,
+        'bad': 4.9,
+        'speisekammer': 5.1
+      } %}
+      {% set ns = namespace(w_sum=0.0, w_total=0.0) %}
+      {% for room, w in weights.items() %}
+        {% set val = states('input_number.heating_base_' ~ room) | float(none) %}
+        {% if val is not none %}
+          {% set ns.w_sum = ns.w_sum + (val * w) %}
+          {% set ns.w_total = ns.w_total + w %}
+        {% endif %}
+      {% endfor %}
+      {% set t_sp = (ns.w_sum / ns.w_total) if ns.w_total > 0 else none %}
+
       {% if t_in is not none and t_sp is not none %}
-        {{ ((t_in - t_sp) * c_wh_k) | round(2) }}
+        {% if (t_in - t_sp) | abs <= 0.05 %}
+          0.0
+        {% else %}
+          {{ ((t_in - t_sp) * c_wh_k) | round(2) }}
+        {% endif %}
       {% else %}
         0.0
       {% endif %}
@@ -31,10 +50,25 @@ sensor:
         {{ (stored_wh / losses_w) | round(1) if losses_w > 0 and stored_wh > 0 else 0.0 }}
       building_heat_capacity_kwh_k: "{{ states('input_number.building_heat_capacity') }}"
       mean_setpoint: >
-        {% set setpoints = states.input_number
-            | selectattr('entity_id', 'match', 'input_number.heating_base_')
-            | map(attribute='state') | map('float') | list %}
-        {{ (setpoints | sum / setpoints | count) | round(2) if setpoints | count > 0 else 0 }}
+        {% set weights = {
+          'wohnzimmer': 11.9,
+          'kueche': 19.5,
+          'flur': 29.0,
+          'schlafzimmer': 9.1,
+          'buero_fabian': 6.6,
+          'buero_merja': 13.9,
+          'bad': 4.9,
+          'speisekammer': 5.1
+        } %}
+        {% set ns = namespace(w_sum=0.0, w_total=0.0) %}
+        {% for room, w in weights.items() %}
+          {% set val = states('input_number.heating_base_' ~ room) | float(none) %}
+          {% if val is not none %}
+            {% set ns.w_sum = ns.w_sum + (val * w) %}
+            {% set ns.w_total = ns.w_total + w %}
+          {% endif %}
+        {% endfor %}
+        {{ (ns.w_sum / ns.w_total) | round(2) if ns.w_total > 0 else 0 }}
       mean_inside_temp: "{{ states('sensor.inside_temp_mean_now') }}"
       status: >
         {% set net = states('sensor.heating_net_balance') | float(0) %}

@@ -1,7 +1,7 @@
 - id: heating_reset_debt_on_setpoint_crossing
   alias: "Heizung: Reset debt on setpoint crossing"
   description: >
-    Berechnet den mittleren Sollwert aller Räume und nullt das Konto bei Übereinstimmung.
+    Berechnet den gewichteten mittleren Sollwert aller Räume und nullt das Konto bei Übereinstimmung nach Sollwert-Änderung.
   mode: single
 
   trigger:
@@ -10,25 +10,43 @@
     - platform: time_pattern
       minutes: "/5"
 
+  condition:
+    - condition: state
+      entity_id: input_boolean.debt_reset_on_setpoint_hit
+      state: "on"
+
   action:
     - variables:
-        # Wir suchen alle Entitäten, die mit heating_base_ beginnen und berechnen den Schnitt
-        mean_setpoint: >
-          {% set rooms = states.input_number
-            | selectattr('entity_id', 'match', 'input_number.heating_base_')
-            | map(attribute='state') | map('float') | list %}
-          {{ (rooms | sum / rooms | count) | round(2) if rooms | count > 0 else 0 }}
+        # Gewichteter Schnitt der Raum-Sollwerte passend zu sensor.inside_temp_mean_now
+        mean_setpoint: >-
+          {% set weights = {
+            'wohnzimmer': 11.9,
+            'kueche': 19.5,
+            'flur': 29.0,
+            'schlafzimmer': 9.1,
+            'buero_fabian': 6.6,
+            'buero_merja': 13.9,
+            'bad': 4.9,
+            'speisekammer': 5.1
+          } %}
+          {% set ns = namespace(w_sum=0.0, w_total=0.0) %}
+          {% for room, w in weights.items() %}
+            {% set val = states('input_number.heating_base_' ~ room) | float(none) %}
+            {% if val is not none %}
+              {% set ns.w_sum = ns.w_sum + (val * w) %}
+              {% set ns.w_total = ns.w_total + w %}
+            {% endif %}
+          {% endfor %}
+          {{ (ns.w_sum / ns.w_total) | round(2) if ns.w_total > 0 else 0 }}
 
         current_temp: "{{ states('sensor.inside_temp_mean_now') | float(0) }}"
 
         # Prüfung auf Übereinstimmung mit 0.05K Toleranz
         is_at_setpoint: "{{ (current_temp - mean_setpoint) | abs <= 0.05 }}"
-        reset_requested: "{{ is_state('input_boolean.debt_reset_on_setpoint_hit', 'on') }}"
-        debt_not_zero: "{{ (states('sensor.heating_energy_debt_tracker') | float(0)) | abs > 10 }}"
 
     - if:
         - condition: template
-          value_template: "{{ is_at_setpoint and (reset_requested or debt_not_zero) }}"
+          value_template: "{{ is_at_setpoint }}"
       then:
         # 1. Das Konto mit dem Python-Script nullen
         - service: python_script.set_state
@@ -45,4 +63,3 @@
           data:
             title: "Heizungskonto kalibriert"
             message: "Das Konto wurde auf 0 Wh gesetzt (Soll: {{ mean_setpoint }}°C / Ist: {{ current_temp }}°C)."
-

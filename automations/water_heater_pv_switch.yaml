@@ -1,33 +1,21 @@
 - id: water_heater_pv_switch
   alias: Water Heater PV Switch Control
-  description: Controls water heater with PV forecast priorities (Stage 1 target 5kWh, then heating, then battery, then Stage 2 on PV surplus)
+  description: Controls water heater with PV forecast priorities (Stage 1 target 3kWh, then heating, then battery, then Stage 2 on PV surplus)
   mode: restart
   trigger:
     - platform: time_pattern
       minutes: "/5"
   variables:
     # Current PV balance
-    exported_power: >
-      {% set last_changed = states.sensor.filtered_exported_power_w.last_changed %}
-      {% if last_changed is not none and (now() - last_changed).total_seconds() < 30 %}
-        {{ states('sensor.filtered_exported_power_w') | float(0) }}
-      {% else %}
-        0
-      {% endif %}
-    imported_power: >
-      {% set last_changed = states.sensor.filtered_imported_power_w.last_changed %}
-      {% if last_changed is not none and (now() - last_changed).total_seconds() < 30 %}
-        {{ states('sensor.filtered_imported_power_w') | float(0) }}
-      {% else %}
-        0
-      {% endif %}
+    exported_power: "{{ states('sensor.filtered_exported_power_w') | float(0) }}"
+    imported_power: "{{ states('sensor.filtered_imported_power_w') | float(0) }}"
     battery_import_power: "{{ states('sensor.pv_battery1_power') | float(0) }}"
     battery_soc: "{{ states('sensor.pv_battery1_state_of_charge') | float(0) }}"
     battery_discharge_w: "{{ [(-1 * battery_import_power), 0] | max }}"
     stage2_import_equivalent_w: "{{ (imported_power | float(0)) + (battery_discharge_w | float(0)) }}"
 
     # Forecast budget (priority model)
-    stage1_target_kwh: "{{ state_attr('sensor.pv_priority_next_day_budget', 'water_stage1_target_kwh') | float(5) }}"
+    stage1_target_kwh: "{{ state_attr('sensor.pv_priority_next_day_budget', 'water_stage1_target_kwh') | float(3) }}"
     stage1_done_today_kwh: "{{ state_attr('sensor.pv_priority_next_day_budget', 'water_stage1_done_today_kwh') | float(0) }}"
     stage1_remaining_kwh: "{{ state_attr('sensor.pv_priority_next_day_budget', 'water_stage1_remaining_kwh') | float(0) }}"
     stage1_forecast_alloc_kwh: "{{ state_attr('sensor.pv_priority_next_day_budget', 'allocated_to_water_stage1_kwh') | float(0) }}"
@@ -73,11 +61,11 @@
       }}
     stage2_candidate: >-
       {{
-        (stage2_import_equivalent_w | float(0) < 100)
+        stage2_allowed_by_forecast
+        and (stage2_import_equivalent_w | float(0) < 100)
         and (
-          (stage_2_state and (stage2_import_equivalent_w | float(0) < 100))
-          or
-          (
+          stage_2_state
+          or (
             battery_ready_for_stage2
             and level_up_possible
           )

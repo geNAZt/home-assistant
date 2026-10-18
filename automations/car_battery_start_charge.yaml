@@ -16,7 +16,7 @@
   conditions:
     - condition: numeric_state
       entity_id: sensor.fiat_hexe_extrapolated_battery
-      below: 40
+      below: 35
   actions:
     - action: select.select_option
       data:

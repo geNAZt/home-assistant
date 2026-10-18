@@ -6,7 +6,7 @@
     - trigger: numeric_state
       entity_id:
         - sensor.fiat_hexe_extrapolated_battery
-      above: 35
+      above: 40
     - trigger: time
       at: "04:59:50"
       weekday:

@@ -17,19 +17,19 @@ set_temperature:
     target:
       entity_id: input_number.heating_final_buero_fabian
     data:
-      value: "{{ state_attr('climate.climate_room_buero_fabian', 'temperature') | float(0) }}"
+      value: "{{ (temperature if temperature is defined else state_attr('climate.climate_room_buero_fabian', 'temperature')) | float(0) }}"
 set_hvac_mode:
   - choose:
     - conditions:
       - condition: template
-        value_template: "{{ states('climate.climate_room_buero_fabian') == 'off' }}"
+        value_template: "{{ (hvac_mode if hvac_mode is defined else states('climate.climate_room_buero_fabian')) == 'off' }}"
       sequence:
         - action: switch.turn_off
           target:
             entity_id: switch.heating_buero_fabian
     - conditions:
       - condition: template
-        value_template: "{{ states('climate.climate_room_buero_fabian') == 'heat' }}"
+        value_template: "{{ (hvac_mode if hvac_mode is defined else states('climate.climate_room_buero_fabian')) in ['heat', 'auto'] }}"
       sequence:
         - action: switch.turn_on
           target:
