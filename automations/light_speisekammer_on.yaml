@@ -48,7 +48,7 @@
         saved_brightness: "{{ states('input_number.speisekammer_brightness') | int(0) }}"
         brightness: >
           {{ 255 if saved_brightness == 0 else ([saved_brightness, 255] | min) }}
-        color_temp: "{{ states('input_number.speisekammer_color_temp') | int(370) }}"
+        color_temp: "{{ states('input_number.speisekammer_color_temp') | int(2700) }}"
     - service: light.turn_on
       target:
         entity_id: light.speisekammer_lights

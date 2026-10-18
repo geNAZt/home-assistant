@@ -13,6 +13,9 @@
     - condition: state
       entity_id: sun.sun
       state: "below_horizon"
+    - condition: state
+      entity_id: input_boolean.cover_night_mode
+      state: "off"
     - condition: template
       value_template: >-
         {% set sunset_ts = as_timestamp(state_attr('sun.sun', 'next_setting')) %}
@@ -84,7 +87,9 @@
           {% if ns.timestamps | count == (lights | count) %}
             {% set min_ts = ns.timestamps | min %}
             {% set max_ts = ns.timestamps | max %}
-            {{ (max_ts - min_ts) <= 60 }}
+            {% set nm_st = states.input_boolean.cover_night_mode %}
+            {% set nm_ts = as_timestamp(nm_st.last_changed) if (nm_st is not none and nm_st.last_changed is not none) else 0 %}
+            {{ (max_ts - min_ts) <= 60 or max_ts >= nm_ts }}
           {% else %}
             false
           {% endif %}
@@ -96,7 +101,7 @@
       data:
         logger: automatic_cover_control
         level: info
-        message: "[Cover Night Mode] All wake-up lights detected within 1 minute after sunrise. Starting 10-minute wake-up delay."
+        message: "[Cover Night Mode] All wake-up lights active after sunrise. Starting 10-minute wake-up delay."
     - delay: "00:10:00"
     - action: input_boolean.turn_off
       target:

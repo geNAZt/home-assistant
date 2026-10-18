@@ -241,11 +241,13 @@
           {% set ns = namespace(evals=[]) %}
           {% set now_ts = as_timestamp(now()) %}
 
+          {% set trig_ent = trigger.entity_id if (trigger is defined and trigger.entity_id is defined) else '' %}
+          {% set is_config_trigger = trig_ent.startswith('input_number.cover_min_open_') or trig_ent.startswith('input_boolean.auto_cover_') or trig_ent in ['input_select.cover_mode', 'input_boolean.cover_night_mode', 'input_text.exempt_covers'] %}
+
           {% set global_dt_state = states('input_datetime.cover_last_global_move') %}
           {% set last_global_ts = as_timestamp(global_dt_state) if (global_dt_state not in ['unknown', 'unavailable', 'None', ''] and global_dt_state is not none) else 0 %}
           {% set last_global_ts = 0 if last_global_ts is none else last_global_ts | float(0) %}
           {% set global_elapsed = (now_ts - last_global_ts) | int %}
-          {% set global_cooldown_active = global_elapsed < 1800 %}
 
           {% for cov, data in cover_mapping.items() %}
             {% set r = data.room %}
@@ -276,6 +278,12 @@
 
             {% set cur_pos = state_attr(cov, 'current_position') %}
             {% set cur_pos = (0 if is_state(cov, 'closed') else 100) if cur_pos is none or cur_pos == '' else cur_pos | int %}
+
+            {# Per-cover cooldown since its own last state/position change #}
+            {% set cov_obj = states[cov] %}
+            {% set last_cov_ts = as_timestamp(cov_obj.last_changed) if (cov_obj is not none and cov_obj.last_changed is not none) else 0 %}
+            {% set cov_elapsed = [ (now_ts - last_cov_ts) | int, 0 ] | max %}
+            {% set cover_cooldown_active = (cov_elapsed < 1800) and (not is_config_trigger) %}
 
             {% set manual_dt_state = states('input_datetime.cover_manual_change_' ~ cov_suffix) %}
             {% set last_manual_ts = as_timestamp(manual_dt_state) if (manual_dt_state not in ['unknown', 'unavailable', 'None', ''] and manual_dt_state is not none) else 0 %}
@@ -389,12 +397,12 @@
             {% elif pos_diff <= 5 %}
               {% set status = "SKIPPED_DIFF_TOO_SMALL" if cur_pos != target_pos else "SKIPPED_ALREADY_AT_TARGET" %}
               {% set summary = "Skipped: Position difference (" ~ pos_diff ~ "%) <= 5% (Current: " ~ cur_pos ~ "%, Target: " ~ target_pos ~ "%). Reason: " ~ calc_reason if cur_pos != target_pos else "Skipped: Already at target position (" ~ cur_pos ~ "%). Reason: " ~ calc_reason %}
-            {% elif global_elapsed < 60 %}
+            {% elif global_elapsed < 60 and not is_config_trigger %}
               {% set status = "SKIPPED_GLOBAL_COOLDOWN" %}
               {% set summary = "Skipped: Global move was initiated recently (" ~ global_elapsed ~ "s < 60s cooldown). Target: " ~ target_pos ~ "%, Current: " ~ cur_pos ~ "%" %}
-            {% elif global_cooldown_active and not (is_night and cur_pos != 0) %}
-              {% set status = "SKIPPED_GLOBAL_COOLDOWN" %}
-              {% set summary = "Skipped: Global cooldown active (" ~ global_elapsed ~ "s < 1800s 30m global cooldown). Target: " ~ target_pos ~ "%, Current: " ~ cur_pos ~ "%" %}
+            {% elif cover_cooldown_active and not (is_night and cur_pos != 0) %}
+              {% set status = "SKIPPED_COVER_COOLDOWN" %}
+              {% set summary = "Skipped: Per-cover cooldown active (" ~ cov_elapsed ~ "s < 1800s 30m cover cooldown). Target: " ~ target_pos ~ "%, Current: " ~ cur_pos ~ "%" %}
             {% else %}
               {% set status = "UPDATING_POSITION" %}
               {% set summary = "Updating position from " ~ cur_pos ~ "% to " ~ target_pos ~ "%. Reason: " ~ calc_reason %}
@@ -419,15 +427,20 @@
         for_each: "{{ cover_evaluations }}"
         sequence:
           - choose:
-              - conditions: "{{ repeat.item.is_daylight_protection }}"
+              - conditions:
+                  - condition: template
+                    value_template: "{{ repeat.item.is_daylight_protection and is_state('input_boolean.cover_daylight_protection_' ~ repeat.item.cov_suffix, 'off') }}"
                 sequence:
                   - action: input_boolean.turn_on
                     target:
                       entity_id: "input_boolean.cover_daylight_protection_{{ repeat.item.cov_suffix }}"
-            default:
-              - action: input_boolean.turn_off
-                target:
-                  entity_id: "input_boolean.cover_daylight_protection_{{ repeat.item.cov_suffix }}"
+              - conditions:
+                  - condition: template
+                    value_template: "{{ (not repeat.item.is_daylight_protection) and is_state('input_boolean.cover_daylight_protection_' ~ repeat.item.cov_suffix, 'on') }}"
+                sequence:
+                  - action: input_boolean.turn_off
+                    target:
+                      entity_id: "input_boolean.cover_daylight_protection_{{ repeat.item.cov_suffix }}"
           - action: system_log.write
             data:
               logger: automatic_cover_control

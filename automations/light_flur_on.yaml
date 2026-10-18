@@ -28,7 +28,7 @@
     - condition: template
       value_template: >-
         {% set base_water_low = 140 %}
-        {% set prot_entities = states.input_boolean | selectattr('entity_id', 'search', 'cover_daylight_protection_.*' ~ 'flur') | selectattr('state', 'eq', 'on') | list %}
+        {% set prot_entities = states.input_boolean | selectattr('entity_id', 'search', 'cover_daylight_protection_.*(flur|hwr)') | selectattr('state', 'eq', 'on') | list %}
         {% set is_daylight_prot = prot_entities | length > 0 %}
         {% set effective_water_low = 250 if is_daylight_prot else base_water_low %}
         {{ (states('sensor.lux_flur') | float(0)) < effective_water_low }}
@@ -48,7 +48,7 @@
         saved_brightness: "{{ states('input_number.flur_brightness') | int(0) }}"
         brightness: >
           {{ 255 if saved_brightness == 0 else ([saved_brightness, 255] | min) }}
-        color_temp: "{{ states('input_number.flur_color_temp') | int(370) }}"
+        color_temp: "{{ states('input_number.flur_color_temp') | int(2700) }}"
     - service: light.turn_on
       target:
         entity_id: light.flur_lights

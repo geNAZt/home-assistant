@@ -7,6 +7,8 @@
   trigger:
     - platform: time_pattern
       minutes: "/30"
+    - platform: state
+      entity_id: input_boolean.charge_solar_battery_override
   variables:
     current_hour: "{{ now().hour }}"
     is_charge_window: "{{ current_hour >= 0 and current_hour < 5 }}"
@@ -24,15 +26,6 @@
     consumption_kw: "{{ pv_start_wattage / 1000.0 }}"
 
     # --- ROLLIERENDE ZEITBERECHNUNG ---
-    # Wenn es nach 5 Uhr morgens ist, berechnen wir für das NÄCHSTE Fenster (morgen früh)
-    next_charge_end: >-
-      {% set t = now().replace(hour=5, minute=0, second=0, microsecond=0) %}
-      {% if now().hour >= 5 %}
-        {{ as_timestamp(t + timedelta(days=1)) }}
-      {% else %}
-        {{ as_timestamp(t) }}
-      {% endif %}
-    
     # Wenn es nach 16 Uhr ist, schauen wir auf den PV Ertrag von morgen
     target_pv_end: >-
       {% set t = now().replace(hour=16, minute=0, second=0, microsecond=0) %}
@@ -83,11 +76,12 @@
       {% if pv_start_time_str != '' and pv_enough_to_charge %}
         {% set raw_hist = recent_consumption %}
         {% set history = raw_hist | from_json(default={}) if raw_hist is string else (raw_hist if raw_hist is mapping else {}) %}
-        {% set pv_start_hour = as_datetime(pv_start_time_str).hour %}
+        {% set pv_start_dt = as_datetime(pv_start_time_str) | as_local %}
+        {% set pv_start_hour = pv_start_dt.hour %}
         {% set start_hour = 5 %}
         {% set gap_hours = [pv_start_hour - start_hour, 0] | max %}
         {% if gap_hours > 0 %}
-          {% set target_date = as_datetime(pv_start_time_str).date() %}
+          {% set target_date = pv_start_dt.date() %}
           {% set ns = namespace(samples=[]) %}
           {% set lookback_days = [1] if is_state('binary_sensor.vacation_mode', 'on') else [1, 2, 3] %}
           {% for d in lookback_days %}
