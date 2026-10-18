@@ -191,7 +191,7 @@
         {% set is_heating = (st == 'heat') %}
 
         {# --- Safety band --- #}
-        {% set lower_safety_band_k = 1.0 %}
+        {% set lower_safety_band_k = 2.0 %}
         {% set sp_now = effective_target %}
 
         {% set must_heat_start = current <= (sp_now - lower_safety_band_k) %}
