@@ -196,6 +196,10 @@
 
         {% set must_heat_start = current <= (sp_now - lower_safety_band_k) %}
 
+        {# --- Security / Floor temperature sensor --- #}
+        {% set security_sensor = 'sensor.security_temperature_' ~ room ~ '_max' %}
+        {% set floor_temp = states(security_sensor) | float(0) %}
+
         {# --- Start/Stop thresholds with early cut-off when floor is warm --- #}
         {% set stop_margin = stop_margin_k | float(0.1) %}
         {% set is_floor_warm = (floor_temp > 0) and ((floor_temp - current) > 1.2) %}
@@ -215,8 +219,6 @@
         {% set cooldown_ok = (cd_ts == 0) or (nowts >= cd_ts) %}
 
         {# --- SOAK CHARGING CHECK (Floor vs Air) --- #}
-        {% set security_sensor = 'sensor.security_temperature_' ~ room ~ '_max' %}
-        {% set floor_temp = states(security_sensor) | float(0) %}
 
         {% set delta_ok = true %}
         {# Nur prüfen, wenn Bodensensor existiert (>0) und Preheat/PV aktiv (hohe Last) #}
