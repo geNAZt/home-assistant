@@ -12,14 +12,12 @@ from urllib.parse import quote
 
 from aiohttp import web
 from homeassistant.components import persistent_notification
-from homeassistant.components.http import HomeAssistantView
+from homeassistant.helpers.http import HomeAssistantView
 from homeassistant.helpers.storage import Store
 
 from .const import DOMAIN
 
 if TYPE_CHECKING:
-    from collections.abc import Container, Mapping
-
     from homeassistant.core import HomeAssistant
 
 _EXPORT_DIR = Path("octopus_germany") / "exports"
@@ -29,12 +27,11 @@ _DOWNLOAD_TOKEN_TTL = timedelta(days=30)
 
 
 class OctopusExportDownloadView(HomeAssistantView):
-    """Serve integration exports to authenticated Home Assistant users."""
+    """Serve integration exports with filename-scoped download tokens."""
 
     url = f"/api/{DOMAIN}/exports/{{filename}}"
     name = f"api:{DOMAIN}:exports"
-    requires_auth = True
-    use_query_token_for_auth = True
+    requires_auth = False
 
     def __init__(self, hass: HomeAssistant, export_directory: Path) -> None:
         """Initialize the view with the only directory it may serve."""
@@ -87,20 +84,25 @@ class OctopusExportDownloadView(HomeAssistantView):
         }
         await self._token_store.async_save(stored_tokens)
 
-    def get_valid_auth_tokens(self, match_info: Mapping[str, str]) -> Container[str]:
-        """Accept only the unexpired query token issued for this filename."""
-        filename = match_info.get("filename")
-        entry = self._download_tokens.get(filename or "")
+    def _has_valid_download_token(
+        self, filename: str, supplied_token: str | None
+    ) -> bool:
+        """Check the unexpired query token issued for this filename."""
+        entry = self._download_tokens.get(filename)
         if entry is None:
-            return ()
-        token, expires_at = entry
+            return False
+        expected_token, expires_at = entry
         if datetime.now(UTC) >= expires_at:
             self._download_tokens.pop(filename, None)
-            return ()
-        return (token,)
+            return False
+        return supplied_token is not None and secrets.compare_digest(
+            supplied_token, expected_token
+        )
 
-    async def get(self, _request: web.Request, filename: str) -> web.FileResponse:
-        """Download one generated CSV file, without allowing path traversal."""
+    async def get(self, request: web.Request, filename: str) -> web.FileResponse:
+        """Download one generated export file, without allowing path traversal."""
+        if not self._has_valid_download_token(filename, request.query.get("token")):
+            raise web.HTTPUnauthorized
         file_path = (self._export_directory / filename).resolve()
         if file_path.parent != self._export_directory or not file_path.is_file():
             raise web.HTTPNotFound
@@ -157,3 +159,27 @@ async def async_notify_export_ready(
         notification_id=f"{DOMAIN}_export_{filename}",
     )
     return url
+
+
+async def async_notify_export_package_ready(
+    hass: HomeAssistant, filenames: list[str], export_description: str
+) -> dict[str, str]:
+    """Create one notification with independently scoped links for a package."""
+    view = await async_register_export_download_view(hass)
+    urls = {}
+    links = []
+    for filename in filenames:
+        token = await view.async_issue_download_token(filename)
+        url = export_download_url(filename, token)
+        urls[filename] = url
+        links.append(
+            f'<a href="{escape(url, quote=True)}" target="_blank">'
+            f"Download {escape(filename)}</a>"
+        )
+    persistent_notification.async_create(
+        hass,
+        f"{escape(export_description)} is ready.\n\n" + "\n\n".join(links),
+        title="Octopus Germany export package ready",
+        notification_id=f"{DOMAIN}_export_{filenames[0]}",
+    )
+    return urls

@@ -37,6 +37,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, add_
 
 CC_P1: Final = re.compile(r"(.)([A-Z][a-z]+)")
 CC_P2: Final = re.compile(r"([a-z0-9])([A-Z])")
+NON_ALNUM_P: Final = re.compile(r"[^\w]+")
 
 class GoeChargerSensor(GoeChargerBaseEntity, SensorEntity, RestoreEntity):
 
@@ -45,8 +46,10 @@ class GoeChargerSensor(GoeChargerBaseEntity, SensorEntity, RestoreEntity):
 
     @staticmethod
     def _camel_to_snake(a_key: str):
-        a_key = re.sub(CC_P1, r'\1 \2', a_key)
-        return re.sub(CC_P2, r'\1 \2', a_key).lower()
+        a_key = NON_ALNUM_P.sub("_", a_key)
+        a_key = re.sub(CC_P1, r'\1_\2', a_key)
+        a_key = re.sub(CC_P2, r'\1_\2', a_key).lower()
+        return re.sub(r"_+", "_", a_key).strip("_")
 
     @property
     def state(self):
@@ -71,8 +74,7 @@ class GoeChargerSensor(GoeChargerBaseEntity, SensorEntity, RestoreEntity):
                     # very special handling for 'energy by card' sensor - since in firmware 60.0
                     # the go-e will deliver the values now directly in the 'root' object and does
                     # not provide a card object any longer...
-                    # 2026/02/15 - When we make use of the websocket, then the card info is
-                    if self.data_key == Tag.CARDS.key and self.coordinator.cards_as_single_entries():
+                    if self.data_key == Tag.CARDS.key and not self.coordinator.cards_as_object_present():
                         the_patched_key = None
                         # to my best knowledge, only 'energy' is currently in use - but let's
                         # prepare the code for all passible cases
