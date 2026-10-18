@@ -38,6 +38,8 @@
       {% set t0 = as_timestamp(now().replace(hour=0, minute=0, second=0, microsecond=0)) %}
       {% set t1 = as_timestamp(now().replace(hour=5, minute=0, second=0, microsecond=0)) %}
       {{ t0 <= nowts < t1 }}
+    nt_stage1_fallback_needed: >-
+      {{ is_nt_window and (stage1_remaining_kwh > 0.05) and (stage1_forecast_alloc_kwh < stage1_remaining_kwh) }}
     stage1_needed: "{{ stage1_remaining_kwh > 0.05 or exported_power > 450 }}"
     heating_priority_open: "{{ heating_uncovered_kwh > 0.10 }}"
     battery_above_min: "{{ battery_soc >= battery_min_soc }}"
@@ -46,18 +48,25 @@
     level_up_possible: "{{ (exported_power >= 1600) or (stage_1_state and exported_power >= 1200) }}"
     force_all_off: >-
       {{
-        imported_power > 100
-        or battery_import_power < -300
-        or (not battery_above_min and not battery_ready_for_stage2)
+        (not nt_stage1_fallback_needed)
+        and (
+          imported_power > 100
+          or battery_import_power < -300
+          or (not battery_above_min and not battery_ready_for_stage2)
+        )
       }}
 
     # Determine which stage should be active
     battery_ready_stage1: "{{ battery_above_min }}"
     stage1_candidate: >-
       {{
-        stage1_needed
-        and (stage1_forecast_alloc_kwh > 0 or is_nt_window)
-        and (battery_ready_stage1 or is_nt_window)
+        nt_stage1_fallback_needed
+        or (
+          stage1_needed
+          and stage1_forecast_alloc_kwh > 0
+          and battery_ready_stage1
+          and (stage_1_state or exported_power >= 450)
+        )
       }}
     stage2_candidate: >-
       {{

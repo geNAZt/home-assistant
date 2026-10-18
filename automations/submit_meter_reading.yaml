@@ -4,6 +4,11 @@
   trigger:
     - platform: time
       at: "23:45:00"
+  condition:
+    - condition: template
+      value_template: >-
+        {{ states('sensor.pv_m1_imported_kwh') | is_number
+           and (states('sensor.pv_m1_imported_kwh') | float(0)) > 2762 }}
   action:
     - action: rest_command.octopus_login
       data:

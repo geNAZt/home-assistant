@@ -393,7 +393,7 @@
           {{ topup_ok }}
         heating_allowed_now: >-
           {% if is_state('binary_sensor.vacation_mode_heating', 'on') %}
-            false
+            {{ is_preheat_window or has_pv_excess or (battery_above_min and battery_support_allowed_now) }}
           {% elif heating_block_enabled %}
             {{ is_preheat_window or allow_daytime_heat or (shift_heating_start_to_pv and (max_total_heating_w | float(0)) > (pv_thr_w | float(0))) }}
           {% elif shift_heating_start_to_pv %}
@@ -423,12 +423,7 @@
               rd: "{{ room_data | from_json(default={}) }}"
               base_ent: "input_number.heating_base_{{ repeat.item }}"
               stored_base: "{{ states(base_ent) | float(0) }}"
-              base: >-
-                {% if stored_base > 0 %}
-                  {{ stored_base }}
-                {% else %}
-                  {{ rd[room].base_target | float(22) }}
-                {% endif %}
+              base: "{{ rd[room].base_target | float(22) }}"
               offset_k: "{{ rd[room].offset | float(0) }}"
               target_sp: "{{ (base + offset_k) | float }}"
               current_sp: "{{ state_attr('climate.climate_room_' ~ repeat.item, 'temperature') | float(0) }}"

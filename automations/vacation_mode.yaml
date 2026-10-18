@@ -341,15 +341,9 @@
   triggers:
     - trigger: state
       entity_id: binary_sensor.vacation_mode_water_heater
+      from: "on"
       to: "off"
-    - trigger: time
-      at: "00:00:05"
-    - trigger: homeassistant
-      event: start
   conditions:
-    - condition: state
-      entity_id: binary_sensor.vacation_mode_water_heater
-      state: "off"
     - condition: state
       entity_id: switch.boiler_trinkwasser
       state: "off"

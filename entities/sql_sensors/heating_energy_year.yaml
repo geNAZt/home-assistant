@@ -15,8 +15,8 @@ query: >
       /* unit_of_measurement is typically in state_attributes.shared_attrs */
       sm.unit_of_measurement AS uom,
 
-      MAX(CAST(s.state AS DECIMAL(20,6))) AS max_v,
-      MIN(CAST(s.state AS DECIMAL(20,6))) AS min_v
+      MAX(COALESCE(s.sum, CAST(s.state AS DECIMAL(20,6)))) AS max_v,
+      MIN(COALESCE(s.sum, CAST(s.state AS DECIMAL(20,6)))) AS min_v
     FROM statistics s
     JOIN statistics_meta sm
       ON s.metadata_id = sm.id
@@ -33,11 +33,10 @@ query: >
       AND sm.statistic_id NOT LIKE '%total%'
       AND sm.statistic_id NOT LIKE '%gesamt%'
       AND s.start_ts >= UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 1 YEAR))
-
-      /* skip non-numeric states */
-      AND s.state REGEXP '^-?[0-9]+(\\.[0-9]+)?$'
+      AND (s.sum IS NOT NULL OR s.state REGEXP '^-?[0-9]+(\\.[0-9]+)?$')
     GROUP BY
-      sm.statistic_id
+      sm.statistic_id,
+      sm.unit_of_measurement
   ) t;
 column: "value"
 unit_of_measurement: "kWh"

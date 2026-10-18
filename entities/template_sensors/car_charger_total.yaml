@@ -1,7 +1,22 @@
-sensor: 
+sensor:
 - name: Car Charger Usage Total
+  unique_id: car_charger_usage_total
   unit_of_measurement: "Wh"
   device_class: "energy"
   state_class: total_increasing
+  availability: >
+    {{ states('sensor.car_charger_usage_l1') | is_number
+       and states('sensor.car_charger_usage_l2') | is_number
+       and states('sensor.car_charger_usage_l3') | is_number }}
   state: >
-    {{ states('sensor.car_charger_usage_l1') | float + states('sensor.car_charger_usage_l2') | float + states('sensor.car_charger_usage_l3') | float }}
+    {% set invalid = ['unknown', 'unavailable', 'none', '', None] %}
+    {% set prev_raw = this.state if this is defined else none %}
+    {% set prev = (prev_raw | float(none)) if prev_raw not in invalid else none %}
+    {% set computed = (states('sensor.car_charger_usage_l1') | float(0))
+                    + (states('sensor.car_charger_usage_l2') | float(0))
+                    + (states('sensor.car_charger_usage_l3') | float(0)) %}
+    {% if prev is not none %}
+      {{ [prev, computed] | max }}
+    {% else %}
+      {{ computed }}
+    {% endif %}

@@ -11,7 +11,8 @@ sensor:
     {% set tech = states('sensor.internal_gains_trockner') | float(0) +
                         states('sensor.internal_gains_waschmaschine') | float(0) +
                         states('sensor.internal_gains_dishwasher') | float(0) +
-                        states('sensor.internal_gains_heating_pump') | float(0) %}
+                        states('sensor.internal_gains_heating_pump') | float(0) +
+                        states('sensor.internal_gains_car_charger') | float(0) %}
 
     {# B: 100% Gewinne (Misc) #}
     {% set full_gains = states('sensor.internal_gains_misc') | float(0) %}

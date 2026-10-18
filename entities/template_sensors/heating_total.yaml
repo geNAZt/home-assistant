@@ -60,7 +60,10 @@ sensor:
         'sensor.heating_usage_bad',
         'sensor.towel_dryer_energie'
       ] %}
-      {{ src | select('in', src) | list
-         | reject('equalto', none) | list
-         | select('string') | list
-         | selectattr('', 'defined') | list }}
+      {% set ns = namespace(missing=[]) %}
+      {% for e in src %}
+        {% if states(e) in invalid %}
+          {% set ns.missing = ns.missing + [e] %}
+        {% endif %}
+      {% endfor %}
+      {{ ns.missing }}

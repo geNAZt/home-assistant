@@ -8,10 +8,22 @@
   condition:
     - condition: and
       conditions:
-        - condition: template
-          value_template: "{{ states('binary_sensor.goe_288025_car_0') == 'on' }}"
+        - condition: state
+          entity_id: binary_sensor.goe_288025_car_0
+          state: "on"
+        - condition: state
+          entity_id: select.goe_288025_frc
+          state: "0"
         - condition: template
           value_template: "{{ states('sensor.fiat_hexe_hvbattery_charge') | float(0) < 100 }}"
+        - condition: or
+          conditions:
+            - condition: state
+              entity_id: sun.sun
+              state: "above_horizon"
+            - condition: state
+              entity_id: binary_sensor.car_charge_from_pv_battery_allowed
+              state: "on"
   variables:
     # Current state (will be negative for import, positive for export)
     exported_power: "{{ states('sensor.pv_m1_ac_power') | float(0) }}"

@@ -130,6 +130,7 @@ cards:
       - entity: light.light_2_buero_merja
       - entity: light.light_1_flur
       - entity: light.light_2_flur
+      - entity: light.light_3_flur
       - entity: light.light_4_flur
       - entity: light.light_5_flur
       - entity: light.light_6_flur
@@ -227,17 +228,9 @@ cards:
           legend_value: true
           in_header: true
           in_chart: false
-      - entity: sensor.none_prognose_heute
+      - entity: sensor.pv_priority_next_day_budget
         yaxis_id: header_only
-        name: Today Forecast
-        color: Grey
-        show:
-          legend_value: true
-          in_header: true
-          in_chart: false
-      - entity: sensor.none_forecast_today_remaining
-        yaxis_id: header_only
-        name: Remaining
+        name: Next 24h Forecast
         color: Grey
         show:
           legend_value: true

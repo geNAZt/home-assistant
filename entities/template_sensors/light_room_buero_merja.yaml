@@ -23,17 +23,37 @@ light:
     - action: light.turn_off
       target:
         entity_id: light.buero_merja_lights
-  # Slider -> Helligkeits-Helper schreiben
+  # Slider -> Helligkeits-Helper schreiben (+ aktive Lampen live aktualisieren)
   set_level:
     - action: input_number.set_value
       target:
         entity_id: input_number.buero_merja_brightness
       data:
         value: "{{ brightness }}"
-  # Farbtemperatur-Slider -> Helper schreiben
+    - if:
+        - condition: state
+          entity_id: light.buero_merja_lights
+          state: "on"
+      then:
+        - action: light.turn_on
+          target:
+            entity_id: light.buero_merja_lights
+          data:
+            brightness: "{{ brightness }}"
+  # Farbtemperatur-Slider -> Helper schreiben (+ aktive Lampen live aktualisieren)
   set_temperature:
     - action: input_number.set_value
       target:
         entity_id: input_number.buero_merja_color_temp
       data:
         value: "{{ color_temp_kelvin }}"
+    - if:
+        - condition: state
+          entity_id: light.buero_merja_lights
+          state: "on"
+      then:
+        - action: light.turn_on
+          target:
+            entity_id: light.buero_merja_lights
+          data:
+            color_temp_kelvin: "{{ color_temp_kelvin }}"

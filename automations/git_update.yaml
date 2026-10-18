@@ -7,16 +7,35 @@
       allowed_methods:
       - POST
       local_only: false
+  condition:
+    - condition: template
+      value_template: "{{ trigger.json is defined and trigger.json.id_token is defined and (trigger.json.id_token | string | length > 20) }}"
   action:
     # Verify idToken
     - action: notify.send_message
       data:
-        message: '{"id_token": "{{ trigger.json.id_token }}"}'
+        message: '{{ {"id_token": trigger.json.id_token} | tojson }}'
         entity_id: notify.file
-    - action: shell_command.git_update     
-    - action: notify.mobile_app_poco_x7_pro_fabian
-      data:
-        message: Git update has been complete. Restarting now
-    - action: homeassistant.restart
-      metadata: {}
-      data: {}
+    - action: shell_command.git_update
+      response_variable: git_update_result
+    - choose:
+        - conditions:
+            - condition: template
+              value_template: "{{ git_update_result.returncode == 0 }}"
+          sequence:
+            - action: notify.mobile_app_poco_x7_pro_fabian
+              data:
+                message: Git update has been completed. Restarting now
+            - action: homeassistant.restart
+              metadata: {}
+              data: {}
+      default:
+        - action: system_log.write
+          data:
+            logger: git_update
+            level: error
+            message: "Git update failed (rc={{ git_update_result.returncode }}): {{ git_update_result.stderr }}"
+        - action: notify.mobile_app_poco_x7_pro_fabian
+          data:
+            title: "⚠️ Git Update Failed"
+            message: "Git update failed (rc={{ git_update_result.returncode }}). Home Assistant was NOT restarted."

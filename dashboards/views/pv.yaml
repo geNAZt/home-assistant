@@ -97,7 +97,7 @@ sections:
         content: >
           {% set ww_target =
           state_attr('sensor.pv_priority_next_day_budget','water_stage1_target_kwh')
-          | float(5) %}
+          | float(3) %}
 
           {% set ww_done =
           state_attr('sensor.pv_priority_next_day_budget','water_stage1_done_today_kwh')

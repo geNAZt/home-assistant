@@ -7,10 +7,13 @@ sensor:
     {% set p = states('sensor.goe_288025_nrg_11') | float(0) %}
     {% if p > 5 %}
       {% set R_per_phase = 0.0175 * 4 / 4 %}
-      
-      {% set i_l1 = (states('sensor.goe_288025_nrg_7') | float(0)) / (states('sensor.pv_ac_voltage_an') | float(230)) %}
-      {% set i_l2 = (states('sensor.goe_288025_nrg_8') | float(0)) / (states('sensor.pv_ac_voltage_bn') | float(230)) %}
-      {% set i_l3 = (states('sensor.goe_288025_nrg_9') | float(0)) / (states('sensor.pv_ac_voltage_cn') | float(230)) %}
+      {% set v_l1 = [states('sensor.pv_m1_ac_voltage_an') | float(230), 200.0] | max %}
+      {% set v_l2 = [states('sensor.pv_m1_ac_voltage_bn') | float(230), 200.0] | max %}
+      {% set v_l3 = [states('sensor.pv_m1_ac_voltage_cn') | float(230), 200.0] | max %}
+
+      {% set i_l1 = (states('sensor.goe_288025_nrg_7') | float(0)) / v_l1 %}
+      {% set i_l2 = (states('sensor.goe_288025_nrg_8') | float(0)) / v_l2 %}
+      {% set i_l3 = (states('sensor.goe_288025_nrg_9') | float(0)) / v_l3 %}
 
       {# Jede Phase einzeln: P = I^2 * R #}
       {% set P_loss_house = (i_l1**2 * R_per_phase) + (i_l2**2 * R_per_phase) + (i_l3**2 * R_per_phase) %}
@@ -24,10 +27,13 @@ sensor:
       {% if p > 5 %}
         {# Hier die vollen 15m für den Misc-Abzug #}
         {% set R_per_phase = 0.0175 * 15 / 4 %}
-        
-        {% set i_l1 = (states('sensor.goe_288025_nrg_7') | float(0)) / (states('sensor.pv_ac_voltage_an') | float(230)) %}
-        {% set i_l2 = (states('sensor.goe_288025_nrg_8') | float(0)) / (states('sensor.pv_ac_voltage_bn') | float(230)) %}
-        {% set i_l3 = (states('sensor.goe_288025_nrg_9') | float(0)) / (states('sensor.pv_ac_voltage_cn') | float(230)) %}
+        {% set v_l1 = [states('sensor.pv_m1_ac_voltage_an') | float(230), 200.0] | max %}
+        {% set v_l2 = [states('sensor.pv_m1_ac_voltage_bn') | float(230), 200.0] | max %}
+        {% set v_l3 = [states('sensor.pv_m1_ac_voltage_cn') | float(230), 200.0] | max %}
+
+        {% set i_l1 = (states('sensor.goe_288025_nrg_7') | float(0)) / v_l1 %}
+        {% set i_l2 = (states('sensor.goe_288025_nrg_8') | float(0)) / v_l2 %}
+        {% set i_l3 = (states('sensor.goe_288025_nrg_9') | float(0)) / v_l3 %}
 
         {% set P_loss_total = (i_l1**2 * R_per_phase) + (i_l2**2 * R_per_phase) + (i_l3**2 * R_per_phase) + p %}
         {{ P_loss_total | round(1) }}
