@@ -228,35 +228,6 @@
             level: info
             message: "[Cover Vacation Mode] Sunrise + 15m reached: Night mode deactivated, cooldowns reset, cover mode set to Automatic."
 
-- id: 'vacation_mode_keep_poe_off'
-  alias: "Vacation Mode: Keep PoE Off"
-  mode: parallel
-  triggers:
-    - trigger: state
-      entity_id:
-        - switch.usw_lite_16_poe_port_6_poe
-        - switch.usw_lite_16_poe_port_7_poe
-    - trigger: state
-      entity_id: binary_sensor.vacation_mode
-      to: "on"
-    - trigger: time
-      at: "00:00:05"
-    - trigger: homeassistant
-      event: start
-  conditions:
-    - condition: state
-      entity_id: binary_sensor.vacation_mode
-      state: "on"
-    - condition: template
-      value_template: >-
-        {{ trigger.platform != 'state' or trigger.entity_id == 'binary_sensor.vacation_mode' or not is_state(trigger.entity_id, 'off') }}
-  actions:
-    - action: switch.turn_off
-      target:
-        entity_id:
-          - switch.usw_lite_16_poe_port_6_poe
-          - switch.usw_lite_16_poe_port_7_poe
-
 - id: 'vacation_mode_keep_water_heater_off'
   alias: "Vacation Mode: Keep Water Heater Off"
   mode: parallel
