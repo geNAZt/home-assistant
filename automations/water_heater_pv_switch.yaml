@@ -1,24 +1,45 @@
 - id: water_heater_pv_switch
   alias: Water Heater PV Switch Control
-  description: Controls water heater with PV forecast priorities (Stage 1 target 3kWh, then heating, then battery, then Stage 2 on PV surplus)
+  description: >-
+    Controls aroSTOR VWL BM 270/5 water heater using weather forecast, PV forecast,
+    and Octopus Go tariff pricing to guarantee 60°C hot water for a bath + shower by 18:00
+    at minimum energy cost.
   mode: restart
   trigger:
     - platform: time_pattern
       minutes: "/5"
   variables:
-    # Current PV balance
+    # Current PV & battery balance
     exported_power: "{{ states('sensor.filtered_exported_power_w') | float(0) }}"
     imported_power: "{{ states('sensor.filtered_imported_power_w') | float(0) }}"
     battery_import_power: "{{ states('sensor.pv_battery1_power') | float(0) }}"
     battery_soc: "{{ states('sensor.pv_battery1_state_of_charge') | float(0) }}"
+    battery_capacity_kwh: "{{ (states('sensor.pv_battery1_size_max') | float(0)) / 1000.0 }}"
+    battery_available_kwh: "{{ [battery_capacity_kwh * ([battery_soc - 15.0, 0] | max) / 100.0, 0] | max }}"
     battery_discharge_w: "{{ [(-1 * battery_import_power), 0] | max }}"
     stage2_import_equivalent_w: "{{ (imported_power | float(0)) + (battery_discharge_w | float(0)) }}"
 
-    # Forecast budget (priority model)
-    stage1_target_kwh: "{{ state_attr('sensor.pv_priority_next_day_budget', 'water_stage1_target_kwh') | float(3) }}"
+    # Weather & Tariff Pricing (Octopus Go / dynamic provider)
+    outside_temp_c: "{{ states('sensor.outside_temperature') | float(12) }}"
+    outside_forecast_24h_c: "{{ states('input_number.outside_temp_forecast_24h_c') | float(outside_temp_c) }}"
+    price_now: "{{ states('sensor.power_price') | float(0.2820) }}"
+    price_nt: "{{ states('sensor.power_price_nt') | float(0.1821) }}"
+    price_ht: "{{ states('sensor.power_price_ht') | float(0.2820) }}"
+    # Standby heat loss of the 265L tank between 05:00 (end of NT) and 18:00 (13h @ ~35W thermal / COP ~3.2 ≈ 1.04x)
+    # Plus any daytime COP advantage if outside/ambient air is significantly warmer during the day (~1% per K)
+    temp_swing_cop_factor: "{{ 1.0 + ([outside_forecast_24h_c - outside_temp_c, 0] | max * 0.01) }}"
+    nt_storage_loss_factor: "{{ 1.04 * temp_swing_cop_factor }}"
+    # Using Octopus Go NT (0.1821 €/kWh) is cheaper than daytime HT (0.2820 €/kWh) whenever HT > NT * loss_factor (~0.19 €/kWh)
+    nt_cheaper_than_ht: "{{ (price_nt * nt_storage_loss_factor) < price_ht }}"
+    is_cheap_tariff_now: "{{ price_now <= (price_nt * 1.05) }}"
+
+    # Forecast budget (priority model + weather-adjusted Stage 1 target)
+    stage1_target_kwh: "{{ state_attr('sensor.pv_priority_next_day_budget', 'water_stage1_target_kwh') | float(4.2) }}"
     stage1_done_today_kwh: "{{ state_attr('sensor.pv_priority_next_day_budget', 'water_stage1_done_today_kwh') | float(0) }}"
     stage1_remaining_kwh: "{{ state_attr('sensor.pv_priority_next_day_budget', 'water_stage1_remaining_kwh') | float(0) }}"
     stage1_forecast_alloc_kwh: "{{ state_attr('sensor.pv_priority_next_day_budget', 'allocated_to_water_stage1_kwh') | float(0) }}"
+    pv_until_18h_kwh: "{{ state_attr('sensor.pv_priority_next_day_budget', 'pv_until_18h_kwh') | float(0) }}"
+    pv_surplus_until_18h_kwh: "{{ state_attr('sensor.pv_priority_next_day_budget', 'pv_surplus_until_18h_kwh') | float(0) }}"
     heating_uncovered_kwh: "{{ state_attr('sensor.pv_priority_next_day_budget', 'heating_uncovered_kwh') | float(0) }}"
     remaining_after_heating_kwh: "{{ state_attr('sensor.pv_priority_next_day_budget', 'remaining_after_heating_kwh') | float(0) }}"
     battery_needed_before_stage2_kwh: "{{ state_attr('sensor.pv_priority_next_day_budget', 'battery_needed_before_stage2_kwh') | float(0) }}"
@@ -30,17 +51,59 @@
     stage_2_state: "{{ is_state('switch.water_heater_pv_switch_powerr_usage_stage_2', 'on') }}"
     stage2_whitelist_active: "{{ is_state('input_boolean.water_heater_stage2_whitelist', 'on') }}"
 
-    # Priority flags
+    # Priority & Tariff Windows
     battery_min_soc: 15
     battery_stage2_soc: 90
     is_nt_window: >-
       {% set nowts = as_timestamp(now()) %}
       {% set t0 = as_timestamp(now().replace(hour=0, minute=0, second=0, microsecond=0)) %}
       {% set t1 = as_timestamp(now().replace(hour=5, minute=0, second=0, microsecond=0)) %}
-      {{ t0 <= nowts < t1 }}
+      {{ (t0 <= nowts < t1) or is_cheap_tariff_now }}
+
+    # 1. Night Tariff (Octopus Go 00:00–05:00 @ 18.21 ct/kWh) Smart Pre-Heating:
+    # Check if forecasted daytime PV surplus until 18:00 is enough to cover the weather-adjusted target.
+    # If PV surplus until 18:00 is insufficient AND NT is cheaper than HT (accounting for tank loss & weather COP),
+    # heat the uncovered deficit during the cheap Octopus Go window so we avoid expensive 28.20 ct/kWh HT grid imports in the afternoon.
+    pv_deficit_until_18h_kwh: "{{ [stage1_remaining_kwh - pv_surplus_until_18h_kwh, 0] | max }}"
     nt_stage1_fallback_needed: >-
-      {{ is_nt_window and (stage1_remaining_kwh > 0.05) and (stage1_forecast_alloc_kwh < stage1_remaining_kwh) }}
-    stage1_needed: "{{ stage1_remaining_kwh > 0.05 or exported_power > 450 }}"
+      {{
+        is_nt_window
+        and (not stage2_whitelist_active)
+        and nt_cheaper_than_ht
+        and (stage1_remaining_kwh > 0.05)
+        and (pv_deficit_until_18h_kwh > 0.15 or stage1_forecast_alloc_kwh < stage1_remaining_kwh)
+      }}
+
+    # 2. Afternoon 18:00 Bath & Shower Guarantee (265L @ 60°C -> ~362L @ 45°C mixed):
+    # Compressor power averages ~0.55 kW. Calculate hours needed to finish remaining kWh (min 1.5h check window if not yet confirmed at 60°C).
+    # If PV forecast stopped delivering or ran behind schedule, start Stage 1 in time to finish by 18:00 (using PV + battery if available, or grid as last resort).
+    hours_until_18: >-
+      {% set nowts = as_timestamp(now()) %}
+      {% set t18 = as_timestamp(now().replace(hour=18, minute=0, second=0, microsecond=0)) %}
+      {{ [(t18 - nowts) / 3600.0, 0] | max }}
+    bath_guarantee_pump_kw: 0.55
+    bath_guarantee_hours_needed: >-
+      {% set needed_kwh = [stage1_remaining_kwh, 0.75] | max %}
+      {{ (needed_kwh / bath_guarantee_pump_kw) + 0.5 }}
+    is_bath_guarantee_window: >-
+      {% set h = now().hour + (now().minute / 60.0) %}
+      {{ 10.0 <= h < 18.0 and (hours_until_18 <= bath_guarantee_hours_needed or h >= 15.5) }}
+    bath_guarantee_stage1_needed: >-
+      {{ is_bath_guarantee_window and (not stage2_whitelist_active) and (not stage_2_state) }}
+
+    # 3. Daytime PV / Battery Assisted Stage 1:
+    # When sunny or mild, allow Stage 1 to run smoothly through brief cloud transients if battery has plenty of buffer
+    # and PV forecast until 18:00 covers the remaining need.
+    pv_assisted_stage1_allowed: >-
+      {{
+        stage_1_state
+        and battery_soc >= 40
+        and pv_surplus_until_18h_kwh >= stage1_remaining_kwh
+        and imported_power <= 100
+        and battery_import_power >= -600
+      }}
+
+    stage1_needed: "{{ (not stage2_whitelist_active) and (stage1_remaining_kwh > 0.05 or exported_power > 450 or bath_guarantee_stage1_needed) }}"
     heating_priority_open: "{{ heating_uncovered_kwh > 0.10 }}"
     battery_above_min: "{{ battery_soc >= battery_min_soc }}"
     battery_ready_for_stage2: "{{ battery_soc >= battery_stage2_soc }}"
@@ -49,6 +112,8 @@
     force_all_off: >-
       {{
         (not nt_stage1_fallback_needed)
+        and (not bath_guarantee_stage1_needed)
+        and (not pv_assisted_stage1_allowed)
         and (
           imported_power > 100
           or battery_import_power < -300
@@ -61,6 +126,7 @@
     stage1_candidate: >-
       {{
         nt_stage1_fallback_needed
+        or bath_guarantee_stage1_needed
         or (
           stage1_needed
           and stage1_forecast_alloc_kwh > 0
@@ -127,10 +193,11 @@
                     message: >-
                       All OFF:
                       export={{ exported_power | round(0) }}W,
-                      stage1_remaining={{ stage1_remaining_kwh | round(2) }}kWh,
-                      heating_uncovered={{ heating_uncovered_kwh | round(2) }}kWh,
-                      battery_need={{ battery_needed_before_stage2_kwh | round(2) }}kWh,
-                      battery_alloc={{ allocated_to_battery_before_stage2_kwh | round(2) }}kWh
+                      stage1_rem={{ stage1_remaining_kwh | round(2) }}/{{ stage1_target_kwh | round(2) }}kWh,
+                      pv_surplus_18h={{ pv_surplus_until_18h_kwh | round(2) }}kWh,
+                      whitelist={{ stage2_whitelist_active }},
+                      price={{ price_now | round(4) }}€/kWh,
+                      heating_uncovered={{ heating_uncovered_kwh | round(2) }}kWh
         # Stage 2: >= 1600W - Turn on stage 2, turn off stage 1
         - conditions:
             - condition: template
@@ -160,7 +227,7 @@
                 - service: switch.turn_off
                   target:
                     entity_id: switch.water_heater_pv_switch_powerr_usage_stage_1
-        # Stage 1: >= 500W and < 1600W - Turn on stage 1, turn off stage 2
+        # Stage 1: >= 450W PV or NT pre-heat or 18:00 bath guarantee - Turn on stage 1, turn off stage 2
         - conditions:
             - condition: template
               value_template: "{{ should_stage_1 }}"
@@ -178,10 +245,13 @@
                     message: >-
                       Stage 1 ON:
                       today={{ stage1_done_today_kwh | round(2) }}/{{ stage1_target_kwh | round(2) }}kWh,
-                      remaining={{ stage1_remaining_kwh | round(2) }}kWh,
+                      rem={{ stage1_remaining_kwh | round(2) }}kWh,
+                      pv_surplus_18h={{ pv_surplus_until_18h_kwh | round(2) }}kWh,
                       export={{ exported_power | round(0) }}W,
                       battery_soc={{ battery_soc | round(1) }}%,
-                      nt_window={{ is_nt_window }}
+                      price={{ price_now | round(4) }}€/kWh,
+                      nt_fallback={{ nt_stage1_fallback_needed }},
+                      bath_guarantee={{ bath_guarantee_stage1_needed }}
             - if:
                 - condition: template
                   value_template: "{{ stage_2_state }}"
