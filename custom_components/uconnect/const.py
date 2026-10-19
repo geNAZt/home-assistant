@@ -1,5 +1,7 @@
 """Constants for the Uconnect integration"""
 
+from datetime import timedelta
+
 from py_uconnect.brands import (
     ALFA_ROMEO_ASIA,
     ALFA_ROMEO_EU,
@@ -25,6 +27,7 @@ DOMAIN: str = "uconnect"
 CONF_BRAND_REGION: str = "brand_region"
 CONF_DISABLE_TLS_VERIFICATION: str = "disable_tls_verification"
 CONF_ADD_COMMAND_ENTITIES: str = "add_command_entities"
+CONF_CHARGING_REFRESH_INTERVAL: str = "charging_refresh_interval"
 
 BRANDS = {
     1: FIAT_EU.name,
@@ -48,5 +51,11 @@ BRANDS = {
 
 DEFAULT_PIN: str = ""
 DEFAULT_SCAN_INTERVAL: int = 5
+DEFAULT_CHARGING_REFRESH_INTERVAL: int = 30
+MIN_CHARGING_REFRESH_INTERVAL: int = 15
+
+# How often the data that rarely changes (health report, maintenance, stolen
+# vehicle status) is refreshed
+EXTRA_DATA_INTERVAL = timedelta(minutes=30)
 
 UNIT_DYNAMIC: str = "dynamic"
