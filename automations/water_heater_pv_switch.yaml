@@ -1,9 +1,9 @@
 - id: water_heater_pv_switch
   alias: Water Heater PV Switch Control
   description: >-
-    Controls aroSTOR VWL BM 270/5 water heater using weather forecast, PV compressor-hour forecast,
-    and Octopus Go tariff pricing to guarantee 60°C hot water for a bath + shower by 18:00
-    at minimum energy cost.
+    Controls aroSTOR VWL BM 270/5 water heater (hipped-roof air intake) using weather forecast,
+    PV compressor-hour forecast, and Octopus Go tariff pricing to guarantee 60°C hot water
+    for a bath + shower by 18:00 at minimum energy cost.
   mode: restart
   trigger:
     - platform: time_pattern
@@ -19,22 +19,8 @@
     battery_discharge_w: "{{ [(-1 * battery_import_power), 0] | max }}"
     stage2_import_equivalent_w: "{{ (imported_power | float(0)) + (battery_discharge_w | float(0)) }}"
 
-    # Weather & Tariff Pricing (Octopus Go / dynamic provider)
-    outside_temp_c: "{{ states('sensor.outside_temperature') | float(12) }}"
-    outside_forecast_24h_c: "{{ states('input_number.outside_temp_forecast_24h_c') | float(outside_temp_c) }}"
-    price_now: "{{ states('sensor.power_price') | float(0.2820) }}"
-    price_nt: "{{ states('sensor.power_price_nt') | float(0.1821) }}"
-    price_ht: "{{ states('sensor.power_price_ht') | float(0.2820) }}"
-    # Standby heat loss of the 265L tank between 05:00 (end of NT) and 18:00 (13h @ ~35W thermal / COP ~3.2 ≈ 1.04x)
-    # Plus any daytime COP advantage if outside/ambient air is significantly warmer during the day (~1% per K)
-    temp_swing_cop_factor: "{{ 1.0 + ([outside_forecast_24h_c - outside_temp_c, 0] | max * 0.01) }}"
-    nt_storage_loss_factor: "{{ 1.04 * temp_swing_cop_factor }}"
-    # Using Octopus Go NT (0.1821 €/kWh) is cheaper than daytime HT (0.2820 €/kWh) whenever HT > NT * loss_factor (~0.19 €/kWh)
-    nt_cheaper_than_ht: "{{ (price_nt * nt_storage_loss_factor) < price_ht }}"
-    is_cheap_tariff_now: "{{ price_now <= (price_nt * 1.05) }}"
-
-    # Forecast budget (priority model + weather-adjusted Stage 1 target)
-    stage1_target_kwh: "{{ state_attr('sensor.pv_priority_next_day_budget', 'water_stage1_target_kwh') | float(4.3) }}"
+    # Forecast budget (priority model + weather & hipped-roof solar-adjusted Stage 1 target)
+    stage1_target_kwh: "{{ state_attr('sensor.pv_priority_next_day_budget', 'water_stage1_target_kwh') | float(3.95) }}"
     stage1_done_today_kwh: "{{ state_attr('sensor.pv_priority_next_day_budget', 'water_stage1_done_today_kwh') | float(0) }}"
     stage1_remaining_kwh: "{{ state_attr('sensor.pv_priority_next_day_budget', 'water_stage1_remaining_kwh') | float(0) }}"
     stage1_forecast_alloc_kwh: "{{ state_attr('sensor.pv_priority_next_day_budget', 'allocated_to_water_stage1_kwh') | float(0) }}"
@@ -46,6 +32,23 @@
     battery_needed_before_stage2_kwh: "{{ state_attr('sensor.pv_priority_next_day_budget', 'battery_needed_before_stage2_kwh') | float(0) }}"
     allocated_to_battery_before_stage2_kwh: "{{ state_attr('sensor.pv_priority_next_day_budget', 'allocated_to_battery_before_stage2_kwh') | float(0) }}"
     remaining_after_battery_kwh: "{{ state_attr('sensor.pv_priority_next_day_budget', 'remaining_after_battery_kwh') | float(0) }}"
+
+    # Weather, Hipped-Roof Solar Gain & Tariff Pricing (Octopus Go / dynamic provider)
+    outside_temp_c: "{{ states('sensor.outside_temperature') | float(12) }}"
+    outside_forecast_24h_c: "{{ states('input_number.outside_temp_forecast_24h_c') | float(outside_temp_c) }}"
+    price_now: "{{ states('sensor.power_price') | float(0.2820) }}"
+    price_nt: "{{ states('sensor.power_price_nt') | float(0.1821) }}"
+    price_ht: "{{ states('sensor.power_price_ht') | float(0.2820) }}"
+    # Standby heat loss of the 265L tank between 05:00 (end of NT) and 18:00 (~4%),
+    # PLUS daytime COP advantage from the hipped roof heating up in the sun (+10..18K warmer intake air during the day -> ~15% higher COP on sunny days)
+    roof_solar_cop_advantage: "{{ [[pv_until_18h_kwh / 20.0, 0.0] | max, 1.0] | min * 0.15 }}"
+    temp_swing_cop_factor: "{{ 1.0 + ([outside_forecast_24h_c - outside_temp_c, 0] | max * 0.01) + roof_solar_cop_advantage }}"
+    nt_storage_loss_factor: "{{ 1.04 * temp_swing_cop_factor }}"
+    # Even with a sunny roof (+15% daytime COP) and 4% standby loss (1.04 * 1.18 = 1.23x),
+    # Octopus Go NT (0.1821 * 1.23 = 0.224 €/kWh) is still cheaper than daytime HT grid import (0.2820 €/kWh),
+    # while free PV + solar-heated roof air is always prioritized first!
+    nt_cheaper_than_ht: "{{ (price_nt * nt_storage_loss_factor) < price_ht }}"
+    is_cheap_tariff_now: "{{ price_now <= (price_nt * 1.05) }}"
 
     # Current switch states
     stage_1_state: "{{ is_state('switch.water_heater_pv_switch_powerr_usage_stage_1', 'on') }}"
@@ -61,18 +64,18 @@
       {% set t1 = as_timestamp(now().replace(hour=5, minute=0, second=0, microsecond=0)) %}
       {{ (t0 <= nowts < t1) or is_cheap_tariff_now }}
 
-    # Measured aroSTOR VWL BM 270/5 compressor power is ~0.38 kW average (ramps from 250W cold to 480W @ 60°C).
-    # Because the compressor is rate-limited to ~0.38 kW, a full 4.3 kWh cycle takes ~11.3 hours!
-    # In autumn/winter, sunny hours (e.g. 6.5h between 10:30 and 17:00) can only deliver 6.5h * 0.38 kW ≈ 2.47 kWh,
+    # Measured aroSTOR VWL BM 270/5 compressor power is ~0.39 kW average (ramps from 250W cold @ 12°C to 480W @ 60°C).
+    # Because the compressor is rate-limited to ~0.39 kW, a full 3.95 kWh cycle takes ~10.1 hours.
+    # In autumn/winter, sunny hours (e.g. 6.5h between 10:30 and 17:00) can only deliver 6.5h * 0.39 kW ≈ 2.54 kWh,
     # even if total PV surplus kWh is 20 kWh.
-    bath_guarantee_pump_kw: 0.38
+    bath_guarantee_pump_kw: 0.39
     pv_deliverable_stage1_until_18h_kwh: >-
       {{ [pv_surplus_until_18h_kwh, pv_compressor_hours_until_18h * bath_guarantee_pump_kw] | min }}
 
     # 1. Night Tariff (Octopus Go 00:00–05:00 @ 18.21 ct/kWh) Smart Pre-Heating:
-    # Check if deliverable PV compressor energy before 18:00 can cover the weather-adjusted target.
-    # Any deficit that cannot physically be pushed into the tank during sunny hours before 18:00
-    # is pre-heated during the cheap 00:00–05:00 Octopus Go window!
+    # Why pre-heating the deficit at night is doubly smart with a hipped roof:
+    # - In the first stage of heating (12°C -> ~30°C), condenser temp is so low that COP is already ~4.0+ even with cool night attic air.
+    # - The hardest part of heating (35°C -> 60°C) is then shifted into the sunny midday/afternoon hours when the hipped roof is hot!
     pv_deficit_until_18h_kwh: "{{ [stage1_remaining_kwh - pv_deliverable_stage1_until_18h_kwh, 0] | max }}"
     nt_stage1_fallback_needed: >-
       {{
@@ -84,9 +87,9 @@
       }}
 
     # 2. Daytime / Afternoon 18:00 Bath & Shower Guarantee (265L @ 60°C -> ~362L @ 45°C mixed):
-    # Calculate exact hours needed at 0.38 kW average compressor draw (+ 0.5h buffer) to finish before 18:00.
-    # Starts as early as 07:00 if night pre-heat was skipped or tank has a large deficit, and runs until 18:00
-    # (or slightly past 18:00 if still finishing up) until the compressor shuts off (<50W -> stage2_whitelist_active).
+    # Calculate exact hours needed at 0.39 kW average compressor draw (+ 0.5h buffer) to finish before 18:00.
+    # Starts during the day if night pre-heat was skipped or PV started late, and runs while the hipped roof is warm
+    # until the compressor shuts off (<50W -> stage2_whitelist_active).
     hours_until_18: >-
       {% set nowts = as_timestamp(now()) %}
       {% set t18 = as_timestamp(now().replace(hour=18, minute=0, second=0, microsecond=0)) %}
