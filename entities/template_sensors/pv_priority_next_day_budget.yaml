@@ -73,6 +73,29 @@ sensor:
           {% endfor %}
         {% endif %}
         {{ ns.total | round(3) }}
+      pv_compressor_hours_until_18h: >
+        {% set pv_predictions_raw = state_attr('sensor.solar_prediction_kwh', 'predictions') %}
+        {% set pv_predictions = pv_predictions_raw | from_json(default={}) if pv_predictions_raw is string else pv_predictions_raw %}
+        {% set t0 = as_timestamp(now()) %}
+        {% set t18_today = as_timestamp(now().replace(hour=18, minute=0, second=0, microsecond=0)) %}
+        {% set t18 = t18_today if t0 < t18_today else (t18_today + 86400) %}
+        {% set base_load_kw = 0.45 %}
+        {% set pump_kw = 0.38 %}
+        {% set ns = namespace(hours=0.0) %}
+        {% if pv_predictions is mapping %}
+          {% for ts_str, val in pv_predictions.items() %}
+            {% set ts = as_timestamp(ts_str) %}
+            {% if ts is number and t0 <= ts < t18 %}
+              {% set excess = (val | float(0)) - base_load_kw %}
+              {% if excess >= pump_kw %}
+                {% set ns.hours = ns.hours + 1.0 %}
+              {% elif excess > 0.15 %}
+                {% set ns.hours = ns.hours + (excess / pump_kw) %}
+              {% endif %}
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+        {{ ns.hours | round(2) }}
       water_stage1_target_kwh: >
         {% set t_out = states('input_number.outside_temp_forecast_24h_c') | float(states('sensor.outside_temperature') | float(12)) %}
         {% set t_clamped = [[-5.0, t_out] | max, 25.0] | min %}

@@ -1,11 +1,11 @@
 - id: water_heater_stage2_whitelist
   alias: Water Heater Stage2 Whitelist
-  description: Whitelists stage 2 when stage 1 is enabled for at least 3 minutes and power stays below 300W (60°C reached).
+  description: Whitelists stage 2 when stage 1 is enabled for at least 3 minutes and power drops below 50W (compressor finished / 60°C reached).
   mode: restart
   trigger:
     - platform: numeric_state
       entity_id: sensor.water_heating_pump_power
-      below: 300
+      below: 50
       for: "00:01:00"
     - platform: time_pattern
       minutes: "/1"
@@ -25,7 +25,7 @@
               for: "00:03:00"
             - condition: numeric_state
               entity_id: sensor.water_heating_pump_power
-              below: 300
+              below: 50
             - condition: state
               entity_id: input_boolean.water_heater_stage2_whitelist
               state: "off"
@@ -37,7 +37,7 @@
               data:
                 name: Water Heater Stage2 Whitelist
                 message: >-
-                  Stage 2 whitelisted (60°C reached): stage1=on for >=3m and pump power below 300W
+                  Stage 2 whitelisted (60°C reached): stage1=on for >=3m and pump power below 50W
         - conditions:
             - condition: template
               value_template: >-
@@ -45,7 +45,7 @@
                   trigger.platform == 'time'
                   or (
                     trigger.platform == 'state'
-                    and (states('sensor.water_heating_pump_power') | float(0) >= 300)
+                    and (states('sensor.water_heating_pump_power') | float(0) >= 50)
                   )
                 }}
             - condition: state
