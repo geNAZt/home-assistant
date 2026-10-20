@@ -238,11 +238,15 @@ class EcowittLocalDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
         and devices of other config entries are left alone.
 
         Sensors in the ch_ec block are WH52s, which get_sensors_info reports as
-        WH51 (issue #279). They are marked in the mapper, which gives them the
-        WH52 name and model before their entities register the device.
+        WH51 (issue #279), and ch_aisle sensors without humidity are WN30/WN36
+        temperature sensors reported as WH31. They are marked in the mapper,
+        which gives them their name and model before their entities register
+        the device.
         """
         titles: Dict[str, str] = {}
         ec_devices: Set[str] = set()
+        aisle_without_humidity: Set[str] = set()
+        aisle_with_humidity: Set[str] = set()
         for block, key_template in _TITLE_BLOCKS.items():
             for item in raw_data.get(block, []) or []:
                 if not isinstance(item, dict):
@@ -257,11 +261,24 @@ class EcowittLocalDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                     continue
                 if block == "ch_ec":
                     ec_devices.add(unique_id)
+                if block == "ch_aisle":
+                    # Same tests as the temperature and humidity entities in
+                    # _process_live_data. An item without a temperature carries
+                    # no data yet and says nothing about the sensor type.
+                    humidity = item.get("humidity")
+                    temp = item.get("temp")
+                    if humidity and humidity != "None":
+                        aisle_with_humidity.add(unique_id)
+                    elif temp and temp != "None":
+                        aisle_without_humidity.add(unique_id)
                 title = str(item.get("name") or "").strip()
                 if title:
                     titles[unique_id] = title
         self.sensor_mapper.set_live_titles(titles)
         self.sensor_mapper.mark_ec_devices(ec_devices)
+        self.sensor_mapper.mark_aisle_humidity(
+            aisle_without_humidity, aisle_with_humidity
+        )
 
         changed = {
             unique_id
@@ -1499,6 +1516,7 @@ class EcowittLocalDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                 sensors_data[signal_entity_id] = {
                     "entity_id": signal_entity_id,
                     "name": "Signal Strength",
+                    "entity_name": "Signal Strength",
                     "state": signal_pct,
                     "unit_of_measurement": "%",
                     "device_class": None,
@@ -1540,6 +1558,7 @@ class EcowittLocalDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                 sensors_data[rssi_entity_id] = {
                     "entity_id": rssi_entity_id,
                     "name": "RSSI",
+                    "entity_name": "RSSI",
                     "state": rssi_val,
                     "unit_of_measurement": "dBm",
                     "device_class": "signal_strength",
@@ -1563,6 +1582,7 @@ class EcowittLocalDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                 sensors_data[quality_entity_id] = {
                     "entity_id": quality_entity_id,
                     "name": "Signal Quality",
+                    "entity_name": "Signal Quality",
                     "state": quality_pct,
                     "unit_of_measurement": "%",
                     "device_class": None,
@@ -1592,6 +1612,7 @@ class EcowittLocalDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
             sensors_data[hardware_id_entity_id] = {
                 "entity_id": hardware_id_entity_id,
                 "name": "Hardware ID",
+                "entity_name": "Hardware ID",
                 "state": hardware_id,
                 "unit_of_measurement": None,
                 "device_class": None,
@@ -1692,6 +1713,7 @@ class EcowittLocalDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                 sensors_data[channel_entity_id] = {
                     "entity_id": channel_entity_id,
                     "name": "Channel",
+                    "entity_name": "Channel",
                     "state": channel,
                     "unit_of_measurement": None,
                     "device_class": None,
