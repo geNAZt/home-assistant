@@ -27,13 +27,13 @@
     battery_support_until_hour: 18
     battery_support_from_hour: 6
     battery_above_min: "{{ battery_soc >= battery_min_soc }}"
-    battery_support_allowed_now: "{{ now().hour <= (battery_support_until_hour | int(18)) and now().hour >= (battery_support_from_hour | int(6)) }}"
+    battery_support_allowed_now: "{{ not is_state('input_boolean.heating_block_daytime', 'on') and now().hour <= (battery_support_until_hour | int(18)) and now().hour >= (battery_support_from_hour | int(6)) }}"
     battery_support_w: "{{ 5000 if (battery_above_min and battery_support_allowed_now) else 0 }}"
     pv_thr_w: "{{ states('input_number.pv_excess_threshold_w') | float(0) }}"
     water_stage1_remaining_kwh: "{{ state_attr('sensor.pv_priority_next_day_budget', 'water_stage1_remaining_kwh') | float(0) }}"
     water_stage1_reserve_w: "{{ 500 if water_stage1_remaining_kwh > 0.05 else 0 }}"
     has_pv_excess: "{{ pv_forecast_w > (pv_thr_w + water_stage1_reserve_w) }}"
-    max_total_heating_w: "{{ (pv_generation_w * 0.8) if has_pv_excess else (pv_generation_w + battery_support_w) }}"
+    max_total_heating_w: "{{ (pv_generation_w * 0.8) if (has_pv_excess or (battery_support_w | float(0)) == 0) else (pv_generation_w + battery_support_w) }}"
     pv_surplus_w: "{{ [pv_forecast_w - pv_thr_w - water_stage1_reserve_w, 0] | max }}"
     pv_offset_k: >-
       {% if has_pv_excess and is_midday_topup_window %}
@@ -98,7 +98,15 @@
     # Turn this switch ON to block heating outside preheat window
     preheat_enabled: "{{ is_state('binary_sensor.preheat_erlaubt_demand_weighted', 'on') }}"
     heating_block_enabled: "{{ is_state('input_boolean.heating_block_daytime', 'on') and preheat_enabled }}"
-    pv_shift_active_now: "{{ shift_heating_start_to_pv and (max_total_heating_w | float(0)) > (pv_thr_w | float(0)) }}"
+    pv_shift_active_now: >-
+      {% set rooms_list = rooms_json | from_json(default=[]) %}
+      {% set ns = namespace(any_heating=false) %}
+      {% for r in rooms_list %}
+        {% if is_state('climate.climate_room_' ~ r, 'heat') %}
+          {% set ns.any_heating = true %}
+        {% endif %}
+      {% endfor %}
+      {{ shift_heating_start_to_pv and ((pv_generation_w * 0.8) > ((pv_thr_w | float(0)) + (water_stage1_reserve_w | float(0)))) and (has_pv_excess or ns.any_heating) }}
     offset_allowed_now: "{{ has_pv_excess or (is_preheat_window and preheat_enabled and not shift_heating_start_to_pv) or pv_shift_active_now }}"
 
     # --- Preheat goal (room-specific) ---
@@ -395,9 +403,9 @@
           {% if is_state('binary_sensor.vacation_mode_heating', 'on') %}
             {{ is_preheat_window or has_pv_excess or (battery_above_min and battery_support_allowed_now) }}
           {% elif heating_block_enabled %}
-            {{ is_preheat_window or allow_daytime_heat or (shift_heating_start_to_pv and (max_total_heating_w | float(0)) > (pv_thr_w | float(0))) }}
+            {{ is_preheat_window or allow_daytime_heat or pv_shift_active_now }}
           {% elif shift_heating_start_to_pv %}
-            {{ (max_total_heating_w | float(0)) > (pv_thr_w | float(0)) }}
+            {{ pv_shift_active_now or (battery_above_min and battery_support_allowed_now) }}
           {% elif not preheat_enabled %}
             true
           {% elif is_preheat_window %}
