@@ -1,0 +1,150 @@
+{
+  "entity": {
+    "sensor": {
+      "voltage_status": {
+        "name": "Grid voltage status",
+        "state": {
+          "normal": "Normal",
+          "warning": "Warning",
+          "critical": "Critical"
+        }
+      },
+      "storage_recommendation": {
+        "name": "Battery storage recommendation",
+        "state": {
+          "charge": "Charge",
+          "discharge": "Discharge",
+          "none": "No action"
+        }
+      }
+    }
+  },
+  "config": {
+    "step": {
+      "user": {
+        "title": "Local grid utilization",
+        "description": "Select the three voltage sensors and the target API.",
+        "data": {
+          "api_url": "API URL",
+          "grid_frequency_entity": "Grid frequency (Hz) – optional",
+          "battery_soc_percent_entity": "Battery state of charge / SOC (%) – optional",
+          "battery_capacity": "Usable battery capacity (kWh) – optional",
+          "grid_power_w_entity": "Total grid power (W) – optional",
+          "plant_capacity_kwp": "PV system size (kWp) – optional",
+          "pv_forecast_entity": "PV forecast today (kWh) – optional, requires PV system size",
+          "smartmeter_model": "Smart meter manufacturer / model – optional",
+          "latitude": "Latitude",
+          "longitude": "Longitude"
+        },
+        "data_description": {
+          "smartmeter_model": "Select a model or enter your own name (maximum 120 characters). Optional; the list does not guarantee compatibility.",
+          "battery_capacity": "Enter the actual usable capacity, not the current energy content.",
+          "grid_power_w_entity": "At the grid connection: positive = import, negative = export. Do not select inverter output power."
+        },
+        "sections": {
+          "phase_voltages": {
+            "name": "Phase voltages (V)",
+            "description": "Select the three voltage values from your PV system's smart meter.",
+            "data": {
+              "l1_entity": "Phase L1 voltage (V)",
+              "l2_entity": "Phase L2 voltage (V)",
+              "l3_entity": "Phase L3 voltage (V)"
+            }
+          },
+          "additional_measurements": {
+            "name": "Additional measurements (optional)",
+            "description": "Select existing sensors only; otherwise leave blank. Minimum, maximum and mean must cover the same five-minute interval.",
+            "data": {
+              "power_factor_entity": "Total power factor (0–1) – optional",
+              "apparent_power_va_entity": "Total apparent power (VA) – optional",
+              "l1_a_entity": "Phase L1 current (A) – optional",
+              "l2_a_entity": "Phase L2 current (A) – optional",
+              "l3_a_entity": "Phase L3 current (A) – optional",
+              "l1_v_min_entity": "Phase L1 minimum voltage (V) – optional",
+              "l1_v_max_entity": "Phase L1 maximum voltage (V) – optional",
+              "l1_v_avg_entity": "Phase L1 mean voltage (V) – optional",
+              "l2_v_min_entity": "Phase L2 minimum voltage (V) – optional",
+              "l2_v_max_entity": "Phase L2 maximum voltage (V) – optional",
+              "l2_v_avg_entity": "Phase L2 mean voltage (V) – optional",
+              "l3_v_min_entity": "Phase L3 minimum voltage (V) – optional",
+              "l3_v_max_entity": "Phase L3 maximum voltage (V) – optional",
+              "l3_v_avg_entity": "Phase L3 mean voltage (V) – optional",
+              "grid_frequency_hz_min_entity": "Minimum grid frequency (Hz) – optional",
+              "grid_frequency_hz_max_entity": "Maximum grid frequency (Hz) – optional",
+              "grid_frequency_hz_avg_entity": "Mean grid frequency (Hz) – optional"
+            }
+          }
+        }
+      }
+    },
+    "error": {
+      "invalid_smartmeter_model": "Use at most 120 characters for the manufacturer and model.",
+      "invalid_api_url": "Enter a valid HTTPS URL.",
+      "invalid_battery_capacity": "Enter a valid battery capacity greater than 0 kWh."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Configure local grid utilization",
+        "description": "Change transmission and sensor settings.",
+        "data": {
+          "api_url": "API URL",
+          "grid_frequency_entity": "Grid frequency (Hz) – optional",
+          "battery_soc_percent_entity": "Battery state of charge / SOC (%) – optional",
+          "battery_capacity": "Usable battery capacity (kWh) – optional",
+          "grid_power_w_entity": "Total grid power (W) – optional",
+          "plant_capacity_kwp": "PV system size (kWp) – optional",
+          "pv_forecast_entity": "PV forecast today (kWh) – optional, requires PV system size",
+          "smartmeter_model": "Smart meter manufacturer / model – optional",
+          "latitude": "Latitude",
+          "longitude": "Longitude"
+        },
+        "data_description": {
+          "smartmeter_model": "Select a model or enter your own name (maximum 120 characters). Optional; the list does not guarantee compatibility.",
+          "battery_capacity": "Enter the actual usable capacity, not the current energy content.",
+          "grid_power_w_entity": "At the grid connection: positive = import, negative = export. Do not select inverter output power."
+        },
+        "sections": {
+          "phase_voltages": {
+            "name": "Phase voltages (V)",
+            "description": "Select the three voltage values from your PV system's smart meter.",
+            "data": {
+              "l1_entity": "Phase L1 voltage (V)",
+              "l2_entity": "Phase L2 voltage (V)",
+              "l3_entity": "Phase L3 voltage (V)"
+            }
+          },
+          "additional_measurements": {
+            "name": "Additional measurements (optional)",
+            "description": "Select existing sensors only; otherwise leave blank. Minimum, maximum and mean must cover the same five-minute interval.",
+            "data": {
+              "power_factor_entity": "Total power factor (0–1) – optional",
+              "apparent_power_va_entity": "Total apparent power (VA) – optional",
+              "l1_a_entity": "Phase L1 current (A) – optional",
+              "l2_a_entity": "Phase L2 current (A) – optional",
+              "l3_a_entity": "Phase L3 current (A) – optional",
+              "l1_v_min_entity": "Phase L1 minimum voltage (V) – optional",
+              "l1_v_max_entity": "Phase L1 maximum voltage (V) – optional",
+              "l1_v_avg_entity": "Phase L1 mean voltage (V) – optional",
+              "l2_v_min_entity": "Phase L2 minimum voltage (V) – optional",
+              "l2_v_max_entity": "Phase L2 maximum voltage (V) – optional",
+              "l2_v_avg_entity": "Phase L2 mean voltage (V) – optional",
+              "l3_v_min_entity": "Phase L3 minimum voltage (V) – optional",
+              "l3_v_max_entity": "Phase L3 maximum voltage (V) – optional",
+              "l3_v_avg_entity": "Phase L3 mean voltage (V) – optional",
+              "grid_frequency_hz_min_entity": "Minimum grid frequency (Hz) – optional",
+              "grid_frequency_hz_max_entity": "Maximum grid frequency (Hz) – optional",
+              "grid_frequency_hz_avg_entity": "Mean grid frequency (Hz) – optional"
+            }
+          }
+        }
+      }
+    },
+    "error": {
+      "invalid_smartmeter_model": "Use at most 120 characters for the manufacturer and model.",
+      "invalid_api_url": "Enter a valid HTTPS URL.",
+      "invalid_battery_capacity": "Enter a valid battery capacity greater than 0 kWh."
+    }
+  }
+}

@@ -1,0 +1,150 @@
+{
+  "entity": {
+    "sensor": {
+      "voltage_status": {
+        "name": "Netzspannungsstatus",
+        "state": {
+          "normal": "Normal",
+          "warning": "Warnung",
+          "critical": "Kritisch"
+        }
+      },
+      "storage_recommendation": {
+        "name": "Batteriespeicherempfehlung",
+        "state": {
+          "charge": "Laden",
+          "discharge": "Entladen",
+          "none": "Keine Aktion"
+        }
+      }
+    }
+  },
+  "config": {
+    "step": {
+      "user": {
+        "title": "Ortsnetz-Auslastung",
+        "description": "Wähle die drei Spannungs-Sensoren und die Ziel-API.",
+        "data": {
+          "api_url": "API-Adresse",
+          "grid_frequency_entity": "Netzfrequenz (Hz) – optional",
+          "battery_soc_percent_entity": "Batterie-Ladezustand / SOC (%) – optional",
+          "battery_capacity": "Nutzbare Batteriekapazität (kWh) – optional",
+          "grid_power_w_entity": "Netzleistung gesamt (W) – optional",
+          "plant_capacity_kwp": "Anlagengröße (kWp) – optional",
+          "pv_forecast_entity": "PV-Forecast heute (kWh) – optional, benötigt Anlagengröße",
+          "smartmeter_model": "Smartmeter Hersteller / Typ – optional",
+          "latitude": "Breitengrad",
+          "longitude": "Längengrad"
+        },
+        "data_description": {
+          "smartmeter_model": "Modell auswählen oder eigenen Namen eingeben (maximal 120 Zeichen). Optional; die Liste ist keine Kompatibilitätsgarantie.",
+          "battery_capacity": "Die tatsächliche nutzbare Kapazität eintragen, nicht den aktuellen Energieinhalt.",
+          "grid_power_w_entity": "Am Hausanschluss: positiv = Netzbezug, negativ = Einspeisung. Nicht die Wechselrichterleistung auswählen."
+        },
+        "sections": {
+          "phase_voltages": {
+            "name": "Phasenspannungen (V)",
+            "description": "Wähle die drei Spannungswerte vom Smartmeter deiner PV-Anlage.",
+            "data": {
+              "l1_entity": "Netzspannung Phase L1 (V)",
+              "l2_entity": "Netzspannung Phase L2 (V)",
+              "l3_entity": "Netzspannung Phase L3 (V)"
+            }
+          },
+          "additional_measurements": {
+            "name": "Weitere Messfelder (optional)",
+            "description": "Nur vorhandene Sensoren zuordnen; sonst leer lassen. Min/Max/Mittelwert müssen dasselbe 5-Minuten-Intervall abbilden.",
+            "data": {
+              "power_factor_entity": "Leistungsfaktor gesamt (0–1) – optional",
+              "apparent_power_va_entity": "Scheinleistung gesamt (VA) – optional",
+              "l1_a_entity": "Stromstärke L1 (A) – optional",
+              "l2_a_entity": "Stromstärke L2 (A) – optional",
+              "l3_a_entity": "Stromstärke L3 (A) – optional",
+              "l1_v_min_entity": "Spannung L1 Minimum (V) – optional",
+              "l1_v_max_entity": "Spannung L1 Maximum (V) – optional",
+              "l1_v_avg_entity": "Spannung L1 Mittelwert (V) – optional",
+              "l2_v_min_entity": "Spannung L2 Minimum (V) – optional",
+              "l2_v_max_entity": "Spannung L2 Maximum (V) – optional",
+              "l2_v_avg_entity": "Spannung L2 Mittelwert (V) – optional",
+              "l3_v_min_entity": "Spannung L3 Minimum (V) – optional",
+              "l3_v_max_entity": "Spannung L3 Maximum (V) – optional",
+              "l3_v_avg_entity": "Spannung L3 Mittelwert (V) – optional",
+              "grid_frequency_hz_min_entity": "Netzfrequenz Minimum (Hz) – optional",
+              "grid_frequency_hz_max_entity": "Netzfrequenz Maximum (Hz) – optional",
+              "grid_frequency_hz_avg_entity": "Netzfrequenz Mittelwert (Hz) – optional"
+            }
+          }
+        }
+      }
+    },
+    "error": {
+      "invalid_smartmeter_model": "Verwende höchstens 120 Zeichen für Hersteller und Modell.",
+      "invalid_api_url": "Gib eine gültige HTTPS-Adresse ein.",
+      "invalid_battery_capacity": "Trage eine gültige Batteriekapazität größer als 0 kWh ein."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Ortsnetz-Auslastung konfigurieren",
+        "description": "Ändere die Übertragungs- und Sensor-Einstellungen.",
+        "data": {
+          "api_url": "API-Adresse",
+          "grid_frequency_entity": "Netzfrequenz (Hz) – optional",
+          "battery_soc_percent_entity": "Batterie-Ladezustand / SOC (%) – optional",
+          "battery_capacity": "Nutzbare Batteriekapazität (kWh) – optional",
+          "grid_power_w_entity": "Netzleistung gesamt (W) – optional",
+          "plant_capacity_kwp": "Anlagengröße (kWp) – optional",
+          "pv_forecast_entity": "PV-Forecast heute (kWh) – optional, benötigt Anlagengröße",
+          "smartmeter_model": "Smartmeter Hersteller / Typ – optional",
+          "latitude": "Breitengrad",
+          "longitude": "Längengrad"
+        },
+        "data_description": {
+          "smartmeter_model": "Modell auswählen oder eigenen Namen eingeben (maximal 120 Zeichen). Optional; die Liste ist keine Kompatibilitätsgarantie.",
+          "battery_capacity": "Die tatsächliche nutzbare Kapazität eintragen, nicht den aktuellen Energieinhalt.",
+          "grid_power_w_entity": "Am Hausanschluss: positiv = Netzbezug, negativ = Einspeisung. Nicht die Wechselrichterleistung auswählen."
+        },
+        "sections": {
+          "phase_voltages": {
+            "name": "Phasenspannungen (V)",
+            "description": "Wähle die drei Spannungswerte vom Smartmeter deiner PV-Anlage.",
+            "data": {
+              "l1_entity": "Netzspannung Phase L1 (V)",
+              "l2_entity": "Netzspannung Phase L2 (V)",
+              "l3_entity": "Netzspannung Phase L3 (V)"
+            }
+          },
+          "additional_measurements": {
+            "name": "Weitere Messfelder (optional)",
+            "description": "Nur vorhandene Sensoren zuordnen; sonst leer lassen. Min/Max/Mittelwert müssen dasselbe 5-Minuten-Intervall abbilden.",
+            "data": {
+              "power_factor_entity": "Leistungsfaktor gesamt (0–1) – optional",
+              "apparent_power_va_entity": "Scheinleistung gesamt (VA) – optional",
+              "l1_a_entity": "Stromstärke L1 (A) – optional",
+              "l2_a_entity": "Stromstärke L2 (A) – optional",
+              "l3_a_entity": "Stromstärke L3 (A) – optional",
+              "l1_v_min_entity": "Spannung L1 Minimum (V) – optional",
+              "l1_v_max_entity": "Spannung L1 Maximum (V) – optional",
+              "l1_v_avg_entity": "Spannung L1 Mittelwert (V) – optional",
+              "l2_v_min_entity": "Spannung L2 Minimum (V) – optional",
+              "l2_v_max_entity": "Spannung L2 Maximum (V) – optional",
+              "l2_v_avg_entity": "Spannung L2 Mittelwert (V) – optional",
+              "l3_v_min_entity": "Spannung L3 Minimum (V) – optional",
+              "l3_v_max_entity": "Spannung L3 Maximum (V) – optional",
+              "l3_v_avg_entity": "Spannung L3 Mittelwert (V) – optional",
+              "grid_frequency_hz_min_entity": "Netzfrequenz Minimum (Hz) – optional",
+              "grid_frequency_hz_max_entity": "Netzfrequenz Maximum (Hz) – optional",
+              "grid_frequency_hz_avg_entity": "Netzfrequenz Mittelwert (Hz) – optional"
+            }
+          }
+        }
+      }
+    },
+    "error": {
+      "invalid_smartmeter_model": "Verwende höchstens 120 Zeichen für Hersteller und Modell.",
+      "invalid_api_url": "Gib eine gültige HTTPS-Adresse ein.",
+      "invalid_battery_capacity": "Trage eine gültige Batteriekapazität größer als 0 kWh ein."
+    }
+  }
+}
