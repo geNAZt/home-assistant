@@ -164,6 +164,14 @@ sensor:
   icon: mdi:home
   state: >             
     {{(states('sensor.solar_panel_to_house_w') | float(0)) + (states('sensor.solar_battery_to_house_w') | float(0)) + (states('sensor.solar_grid_to_house_w') | float(0))}}  
+- name: "Solar Grid Power W"
+  unique_id: solar_grid_power_w
+  device_class: power
+  state_class: measurement
+  unit_of_measurement: 'W'
+  icon: mdi:transmission-tower
+  state: >
+    {{ (states('sensor.pv_m1_ac_power') | float(0)) * -1 }}
 - name: "Solar Imported Power W"
   unique_id: solar_imported_power_w
   device_class: power
