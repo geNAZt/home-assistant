@@ -8,13 +8,98 @@ query: >
     ) AS hourly_consumption
   FROM (
     SELECT
-      DATE_FORMAT(FROM_UNIXTIME(start_ts), '%Y-%m-%d %H:00') AS hour_key,
-      GREATEST(ROUND(sum - LAG(sum) OVER (ORDER BY start_ts), 4), 0) AS kwh
-    FROM statistics s
-    JOIN statistics_meta sm ON s.metadata_id = sm.id
-    WHERE sm.statistic_id = 'sensor.solar_house_consumption_kwh'
-      AND s.start_ts >= UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 4 DAY))
-    ORDER BY start_ts ASC
-  ) sub
-  WHERE kwh IS NOT NULL;
+      CAST(ROUND(h.start_ts) AS CHAR) AS hour_key,
+      GREATEST(
+        ROUND(
+          h.house_kwh
+          - GREATEST(COALESCE(c.car_kwh, 0), 0)
+          - GREATEST(
+              COALESCE(
+                opp.opp_kwh,
+                GREATEST(COALESCE(w.water_kwh, 0) - 0.50, 0)
+                + (CASE
+                     WHEN COALESCE(ex.export_kwh, 0) > 0.05 OR COALESCE(pv.pv_kwh, 0) >= 1.0
+                     THEN GREATEST(COALESCE(ht.heat_kwh, 0), 0)
+                     ELSE 0
+                   END)
+              ),
+              0
+            ),
+          4
+        ),
+        0
+      ) AS kwh
+    FROM (
+      SELECT
+        s.start_ts,
+        (s.sum - LAG(s.sum) OVER (ORDER BY s.start_ts)) *
+          (CASE WHEN sm.unit_of_measurement = 'Wh' THEN 0.001 ELSE 1.0 END) AS house_kwh
+      FROM statistics s
+      JOIN statistics_meta sm ON s.metadata_id = sm.id
+      WHERE sm.statistic_id = 'sensor.solar_house_consumption_kwh'
+        AND s.start_ts >= UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 4 DAY)) - 3600
+    ) h
+    LEFT JOIN (
+      SELECT
+        s.start_ts,
+        (s.sum - LAG(s.sum) OVER (ORDER BY s.start_ts)) *
+          (CASE WHEN sm.unit_of_measurement = 'kWh' THEN 1.0 ELSE 0.001 END) AS car_kwh
+      FROM statistics s
+      JOIN statistics_meta sm ON s.metadata_id = sm.id
+      WHERE sm.statistic_id = 'sensor.car_charger_usage_total'
+        AND s.start_ts >= UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 4 DAY)) - 3600
+    ) c ON ROUND(h.start_ts) = ROUND(c.start_ts)
+    LEFT JOIN (
+      SELECT
+        s.start_ts,
+        (s.sum - LAG(s.sum) OVER (ORDER BY s.start_ts)) *
+          (CASE WHEN sm.unit_of_measurement = 'Wh' THEN 0.001 ELSE 1.0 END) AS opp_kwh
+      FROM statistics s
+      JOIN statistics_meta sm ON s.metadata_id = sm.id
+      WHERE sm.statistic_id = 'sensor.pv_excess_opportunistic_kwh'
+        AND s.start_ts >= UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 4 DAY)) - 3600
+    ) opp ON ROUND(h.start_ts) = ROUND(opp.start_ts)
+    LEFT JOIN (
+      SELECT
+        s.start_ts,
+        (s.sum - LAG(s.sum) OVER (ORDER BY s.start_ts)) *
+          (CASE WHEN sm.unit_of_measurement = 'kWh' THEN 1.0 ELSE 0.001 END) AS water_kwh
+      FROM statistics s
+      JOIN statistics_meta sm ON s.metadata_id = sm.id
+      WHERE sm.statistic_id = 'sensor.water_heating_pump_usage'
+        AND s.start_ts >= UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 4 DAY)) - 3600
+    ) w ON ROUND(h.start_ts) = ROUND(w.start_ts)
+    LEFT JOIN (
+      SELECT
+        s.start_ts,
+        (s.sum - LAG(s.sum) OVER (ORDER BY s.start_ts)) *
+          (CASE WHEN sm.unit_of_measurement = 'Wh' THEN 0.001 ELSE 1.0 END) AS heat_kwh
+      FROM statistics s
+      JOIN statistics_meta sm ON s.metadata_id = sm.id
+      WHERE sm.statistic_id = 'sensor.heating_usage_total'
+        AND s.start_ts >= UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 4 DAY)) - 3600
+    ) ht ON ROUND(h.start_ts) = ROUND(ht.start_ts)
+    LEFT JOIN (
+      SELECT
+        s.start_ts,
+        (s.sum - LAG(s.sum) OVER (ORDER BY s.start_ts)) *
+          (CASE WHEN sm.unit_of_measurement = 'Wh' THEN 0.001 ELSE 1.0 END) AS export_kwh
+      FROM statistics s
+      JOIN statistics_meta sm ON s.metadata_id = sm.id
+      WHERE sm.statistic_id = 'sensor.solar_exported_power_kwh'
+        AND s.start_ts >= UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 4 DAY)) - 3600
+    ) ex ON ROUND(h.start_ts) = ROUND(ex.start_ts)
+    LEFT JOIN (
+      SELECT
+        s.start_ts,
+        (s.sum - LAG(s.sum) OVER (ORDER BY s.start_ts)) *
+          (CASE WHEN sm.unit_of_measurement = 'Wh' THEN 0.001 ELSE 1.0 END) AS pv_kwh
+      FROM statistics s
+      JOIN statistics_meta sm ON s.metadata_id = sm.id
+      WHERE sm.statistic_id = 'sensor.solar_panel_production_kwh'
+        AND s.start_ts >= UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 4 DAY)) - 3600
+    ) pv ON ROUND(h.start_ts) = ROUND(pv.start_ts)
+    WHERE h.house_kwh IS NOT NULL
+    ORDER BY h.start_ts ASC
+  ) sub;
 column: "state"

@@ -1,132 +1,204 @@
 - id: battery_charging_decision
   alias: Battery Charging Decision
-  description: Decides when to charge the battery based on SQLite PV forecast (Fixed Time Rolling)
+  description: >-
+    Decides when and how much to charge the battery in the 00:00-05:00 charge window
+    for full charge-window-to-charge-window coverage (05:00 until 00:00 midnight)
+    using hourly SQLite PV forecasts and recent hourly mandatory house consumption.
   mode: single
   trace:
     stored_traces: 100
   trigger:
     - platform: time_pattern
-      minutes: "/30"
+      minutes: "/15"
     - platform: state
       entity_id: input_boolean.charge_solar_battery_override
+    - platform: homeassistant
+      event: start
   variables:
     current_hour: "{{ now().hour }}"
-    is_charge_window: "{{ current_hour >= 0 and current_hour < 5 }}"
+    charge_window_start_hour: 0
+    charge_window_end_hour: 5
+    is_charge_window: "{{ current_hour >= charge_window_start_hour and current_hour < charge_window_end_hour }}"
     battery_charge_enabled: "{{ is_state('binary_sensor.preheat_erlaubt_demand_weighted', 'on') }}"
 
-    # Batterie-Parameter
+    # Battery parameters (15% reserve above 10% hardware cutoff as safety margin)
     battery_soc: "{{ states('sensor.pv_battery1_state_of_charge') | float(0) }}"
     battery_max_capacity_kwh: "{{ (states('sensor.pv_battery1_size_max') | float(0)) / 1000.0 }}"
     battery_current_energy_kwh: "{{ (battery_max_capacity_kwh * battery_soc / 100.0) | float(0) }}"
+    min_soc: 15.0
     target_soc: 95.0
+    min_energy_kwh: "{{ (battery_max_capacity_kwh * min_soc / 100.0) | float(0) }}"
     target_energy_kwh: "{{ (battery_max_capacity_kwh * target_soc / 100.0) | float(0) }}"
-    
-    # PV Schwellenwert (Standard-Verbrauch als Fallback)
-    pv_start_wattage: 500
-    consumption_kw: "{{ pv_start_wattage / 1000.0 }}"
+    usable_capacity_kwh: "{{ [target_energy_kwh - min_energy_kwh, 0.0] | max }}"
+    battery_efficiency: "{{ [[states('sensor.solar_battery_effectiveness') | float(0.95), 0.85] | max, 1.0] | min }}"
 
-    # --- ROLLIERENDE ZEITBERECHNUNG ---
-    # Wenn es nach 16 Uhr ist, schauen wir auf den PV Ertrag von morgen
-    target_pv_end: >-
-      {% set t = now().replace(hour=16, minute=0, second=0, microsecond=0) %}
-      {% if now().hour >= 16 %}
-        {{ as_timestamp(t + timedelta(days=1)) }}
-      {% else %}
-        {{ as_timestamp(t) }}
-      {% endif %}
+    # Fallback consumption and planned thermal loads
+    fallback_hourly_kwh: 0.5
+    water_stage1_remaining_kwh: "{{ state_attr('sensor.pv_priority_next_day_budget', 'water_stage1_remaining_kwh') | float(0) }}"
+    heating_need_next_day_kwh: "{{ state_attr('sensor.pv_priority_next_day_budget', 'heating_need_next_day_kwh') | float(0) }}"
 
-    # --- SQL DATEN VERARBEITUNG ---
-    predictions: "{{ state_attr('sensor.solar_prediction_kwh', 'predictions') }}"
-    
-    # PV Ertrag bis zum nächsten relevanten 16-Uhr-Zeitpunkt
-    pv_total_until_16h_kwh: >-
-      {% set ns = namespace(total=0.0) %}
-      {% if predictions is not none %}
-        {% for ts_str, val in predictions.items() %}
-          {% set item_ts = as_timestamp(ts_str) %}
-          {# Wir zählen alles ab jetzt bis zum nächsten Target-Ende (morgen 16h) #}
-          {% if item_ts >= as_timestamp(now()) and item_ts <= target_pv_end | float %}
-            {% set excess = val | float(0) - consumption_kw %}
-            {% if excess > 0 %}
-              {% set ns.total = ns.total + excess %}
+    # --- CHARGE-WINDOW-TO-CHARGE-WINDOW BALANCE (05:00 -> 00:00 midnight) ---
+    # Backward simulation hour by hour from 24:00 (next charge window) back to 05:00 (end of current charge window).
+    # `hourly_consumption` from SQL already excludes pure PV-excess sinks (EV charging, Water Heater Stage 2,
+    # and IR heating running on PV offset/excess), while retaining mandatory house demand (base load, cooking/appliances,
+    # Water Heater Stage 1, and base-setpoint IR maintenance heating).
+    window_plan: >-
+      {% set window_date = now().date() if current_hour < charge_window_end_hour else (now() + timedelta(days=1)).date() %}
+      {% set window_date_str = window_date.strftime('%Y-%m-%d') %}
+
+      {# 1. Hourly PV forecast for target day (05:00 to 24:00) #}
+      {% set raw_pred = state_attr('sensor.solar_prediction_kwh', 'predictions') %}
+      {% set predictions = raw_pred | from_json(default={}) if raw_pred is string else (raw_pred if raw_pred is mapping else {}) %}
+      {% set pv_ns = namespace(by_hour={}, total_05_24=0.0) %}
+      {% for ts_str, val in predictions.items() %}
+        {% set dt_raw = as_datetime(ts_str) %}
+        {% if dt_raw is not none %}
+          {% set dt_loc = dt_raw | as_local %}
+          {% if dt_loc.strftime('%Y-%m-%d') == window_date_str %}
+            {% set h = dt_loc.hour %}
+            {% set h_key = h | string %}
+            {% set p_val = [val | float(0), 0.0] | max %}
+            {% set prev_p = pv_ns.by_hour.get(h_key, 0.0) | float(0) %}
+            {% set pv_ns.by_hour = pv_ns.by_hour | combine({h_key: prev_p + p_val}) %}
+            {% if h >= charge_window_end_hour %}
+              {% set pv_ns.total_05_24 = pv_ns.total_05_24 + p_val %}
             {% endif %}
           {% endif %}
-        {% endfor %}
-      {% endif %}
-      {{ ns.total | float(0) }}
-
-    pv_enough_to_charge: "{{ pv_total_until_16h_kwh >= (target_energy_kwh - battery_current_energy_kwh) }}"
-
-    # PV Startzeitpunkt finden (ab jetzt)
-    pv_start_time_str: >-
-      {% set ns = namespace(found='') %}
-      {% if predictions is not none %}
-        {% for ts_str, val in predictions.items() | sort %}
-          {% if ns.found == '' and as_timestamp(ts_str) > as_timestamp(now()) and val | float(0) >= consumption_kw %}
-            {% set ns.found = ts_str %}
-          {% endif %}
-        {% endfor %}
-      {% endif %}
-      {{ ns.found }}
-
-    # Historischer Verbrauch (3 Tage im Normalbetrieb, 1 Tag im Urlaubsmodus)
-    recent_consumption: "{{ state_attr('sensor.house_consumption_recent_hourly', 'hourly_consumption') }}"
-
-    energy_until_pv_start_kwh: >-
-      {% if pv_start_time_str != '' and pv_enough_to_charge %}
-        {% set raw_hist = recent_consumption %}
-        {% set history = raw_hist | from_json(default={}) if raw_hist is string else (raw_hist if raw_hist is mapping else {}) %}
-        {% set pv_start_dt = as_datetime(pv_start_time_str) | as_local %}
-        {% set pv_start_hour = pv_start_dt.hour %}
-        {% set start_hour = 5 %}
-        {% set gap_hours = [pv_start_hour - start_hour, 0] | max %}
-        {% if gap_hours > 0 %}
-          {% set target_date = pv_start_dt.date() %}
-          {% set ns = namespace(samples=[]) %}
-          {% set lookback_days = [1] if is_state('binary_sensor.vacation_mode', 'on') else [1, 2, 3] %}
-          {% for d in lookback_days %}
-            {% set day_str = (target_date - timedelta(days=d)).strftime('%Y-%m-%d') %}
-            {% for h in range(start_hour, pv_start_hour) %}
-              {% set key = day_str ~ ' ' ~ ('%02d' % h) ~ ':00' %}
-              {% if key in history and history[key] is not none %}
-                {% set ns.samples = ns.samples + [history[key] | float(0)] %}
-              {% endif %}
-            {% endfor %}
-          {% endfor %}
-          {% if ns.samples | count > 0 %}
-            {% set avg_hourly = (ns.samples | sum) / (ns.samples | count) %}
-            {{ (avg_hourly * gap_hours) | round(3) }}
-          {% else %}
-            {{ (consumption_kw * gap_hours) | round(3) }}
-          {% endif %}
-        {% else %}
-          0.0
         {% endif %}
-      {% else %}
-        0.0
-      {% endif %}
+      {% endfor %}
 
-    calculated_target_energy_kwh: >-
-      {% if pv_enough_to_charge %}
-        {{ [energy_until_pv_start_kwh | float(0), target_energy_kwh | float(0)] | min }}
-      {% else %}
-        {{ target_energy_kwh }}
-      {% endif %}
+      {# Check if IR preheating shifts from the night window into daytime PV hours today #}
+      {% set shift_heating_to_pv = (
+        battery_charge_enabled
+        and (pv_ns.total_05_24 - water_stage1_remaining_kwh) >= heating_need_next_day_kwh
+        and heating_need_next_day_kwh > 0
+      ) %}
+      {% set pv_active_ns = namespace(total=0.0) %}
+      {% for h in range(charge_window_end_hour, 24) %}
+        {% set p_h = pv_ns.by_hour.get(h | string, 0.0) | float(0) %}
+        {% if p_h > 0.1 %}
+          {% set pv_active_ns.total = pv_active_ns.total + p_h %}
+        {% endif %}
+      {% endfor %}
 
-    energy_needed_kwh: "{{ max(0.0, calculated_target_energy_kwh - battery_current_energy_kwh) }}"
-    
+      {# 2. Cleaned historical hourly profile (3 days normal, 1 day vacation; anchored to 00:00 inside charge window) #}
+      {% set raw_cons = state_attr('sensor.house_consumption_recent_hourly', 'hourly_consumption') %}
+      {% set history = raw_cons | from_json(default={}) if raw_cons is string else (raw_cons if raw_cons is mapping else {}) %}
+      {% set lookback_days = 1 if is_state('binary_sensor.vacation_mode', 'on') else 3 %}
+      {% set ref_end_ts = (
+        as_timestamp(now().replace(hour=0, minute=0, second=0, microsecond=0))
+        if current_hour < charge_window_end_hour
+        else as_timestamp(now())
+      ) %}
+      {% set ref_start_ts = ref_end_ts - (lookback_days * 86400) %}
+
+      {% set hist_ns = namespace(sum_base={}, cnt={}) %}
+      {% for key, val in history.items() %}
+        {% if val is not none %}
+          {% set key_str = key | string %}
+          {% if key_str | regex_match('^[0-9]+(\\.[0-9]+)?$') %}
+            {% set s_ts = key_str | float(0) %}
+            {% set s_dt_raw = as_datetime(s_ts | int) %}
+            {% set s_dt = (s_dt_raw | as_local) if s_dt_raw is not none else none %}
+          {% else %}
+            {% set s_dt_raw = as_datetime(key_str ~ ':00') %}
+            {% set s_dt = (s_dt_raw | as_local) if s_dt_raw is not none else none %}
+            {% set s_ts = as_timestamp(s_dt, default=0) if s_dt is not none else 0 %}
+          {% endif %}
+          {% if s_dt is not none and ref_start_ts <= s_ts < ref_end_ts %}
+            {% set h_key = s_dt.hour | string %}
+            {% set c_kwh = [val | float(0), 0.0] | max %}
+            {% set hist_ns.sum_base = hist_ns.sum_base | combine({h_key: (hist_ns.sum_base.get(h_key, 0.0) | float(0)) + c_kwh}) %}
+            {% set hist_ns.cnt = hist_ns.cnt | combine({h_key: (hist_ns.cnt.get(h_key, 0) | int(0)) + 1}) %}
+          {% endif %}
+        {% endif %}
+      {% endfor %}
+
+      {# 3. Backward DP from 23:00..24:00 down to 05:00..06:00 #}
+      {% set sim = namespace(
+        req_usable_kwh=0.0,
+        demand_05_24_kwh=0.0,
+        demand_18_24_kwh=0.0,
+        demand_05_09_kwh=0.0
+      ) %}
+      {% for h in range(23, charge_window_end_hour - 1, -1) %}
+        {% set h_key = h | string %}
+        {% set p_h = pv_ns.by_hour.get(h_key, 0.0) | float(0) %}
+        {% set n_samples = hist_ns.cnt.get(h_key, 0) | int(0) %}
+        {% if n_samples > 0 %}
+          {% set base_h = (hist_ns.sum_base.get(h_key, 0.0) | float(0)) / n_samples %}
+        {% else %}
+          {% set base_h = fallback_hourly_kwh | float(0.5) %}
+        {% endif %}
+
+        {# Add today's planned PV-shifted preheat across sunny hours if active #}
+        {% set shifted_heat_h = (
+          heating_need_next_day_kwh * (p_h / pv_active_ns.total)
+          if (shift_heating_to_pv and p_h > 0.1 and pv_active_ns.total > 0)
+          else 0.0
+        ) %}
+        {% set l_h = base_h + shifted_heat_h %}
+
+        {% set sim.demand_05_24_kwh = sim.demand_05_24_kwh + l_h %}
+        {% if h >= 18 %}
+          {% set sim.demand_18_24_kwh = sim.demand_18_24_kwh + l_h %}
+        {% elif h < 9 %}
+          {% set sim.demand_05_09_kwh = sim.demand_05_09_kwh + l_h %}
+        {% endif %}
+
+        {% if p_h >= l_h %}
+          {% set delta_h = (p_h - l_h) * battery_efficiency %}
+        {% else %}
+          {% set delta_h = -((l_h - p_h) / battery_efficiency) %}
+        {% endif %}
+        {% set sim.req_usable_kwh = [usable_capacity_kwh, [0.0, sim.req_usable_kwh - delta_h] | max] | min %}
+      {% endfor %}
+
+      {% set calc_target_kwh = [min_energy_kwh + sim.req_usable_kwh, target_energy_kwh] | min %}
+      {% set calc_target_soc = (calc_target_kwh / battery_max_capacity_kwh * 100.0) if battery_max_capacity_kwh > 0 else target_soc %}
+      {{ {
+        'window_date': window_date_str,
+        'pv_05_24_kwh': pv_ns.total_05_24 | round(2),
+        'demand_05_24_kwh': sim.demand_05_24_kwh | round(2),
+        'demand_05_09_kwh': sim.demand_05_09_kwh | round(2),
+        'demand_18_24_kwh': sim.demand_18_24_kwh | round(2),
+        'shift_heating_to_pv': shift_heating_to_pv,
+        'req_usable_at_05h_kwh': sim.req_usable_kwh | round(3),
+        'target_energy_kwh': calc_target_kwh | round(3),
+        'target_soc_pct': calc_target_soc | round(1)
+      } }}
+
+    calculated_target_energy_kwh: "{{ window_plan.target_energy_kwh | float(target_energy_kwh) }}"
+    calculated_target_soc_pct: "{{ window_plan.target_soc_pct | float(target_soc) }}"
+    energy_needed_kwh: "{{ [calculated_target_energy_kwh - battery_current_energy_kwh, 0.0] | max }}"
+
+    # Hysteresis inside the charge window:
+    # - Charge until target reached (energy_needed_kwh > 0.15 kWh)
+    # - Hold ("Off") once target reached so battery does not discharge during cheap NT hours (00:00-05:00)
+    # - Excess solar carried over from yesterday above (target + 0.35 kWh) may still power the house
+    should_charge_now: "{{ is_charge_window and battery_charge_enabled and (energy_needed_kwh > 0.15) }}"
+    should_hold_now: >-
+      {{
+        is_charge_window
+        and battery_charge_enabled
+        and (not should_charge_now)
+        and (battery_current_energy_kwh <= (calculated_target_energy_kwh + 0.35))
+      }}
+
     charging_power_w: >-
-      {% if energy_needed_kwh > 0.01 and is_charge_window %}
-        {# Im Ladefenster: Restenergie durch Reststunden bis 5 Uhr #}
-        {% set remaining_hours = (as_timestamp(now().replace(hour=5, minute=0, second=0)) - as_timestamp(now())) / 3600.0 %}
-        {{ [ (energy_needed_kwh / max(0.1, remaining_hours) * 1000.0) | int, 5000 ] | min }}
+      {% if should_charge_now %}
+        {# Spread remaining energy including ~7% charging loss over remaining hours until 05:00 #}
+        {% set end_ts = as_timestamp(now().replace(hour=charge_window_end_hour, minute=0, second=0, microsecond=0)) %}
+        {% set remaining_hours = [(end_ts - as_timestamp(now())) / 3600.0, 0.25] | max %}
+        {% set raw_w = ((energy_needed_kwh / 0.93) / remaining_hours * 1000.0) | round(0) | int %}
+        {{ [[raw_w, 500] | max, 5000] | min }}
       {% else %}
         0
       {% endif %}
 
   action:
     - choose:
-        # 1. Manueller Override (unverändert)
+        # 1. Manual override (unchanged)
         - conditions:
             - condition: template
               value_template: "{{ is_state('input_boolean.charge_solar_battery_override', 'on') }}"
@@ -137,23 +209,20 @@
             - service: number.set_value
               target: { entity_id: number.pv_storage_remote_charge_limit }
               data: { value: 5000 }
-        
-        # 2. Automatisches Laden im Fenster (0-5 Uhr)
+
+        # 2. Automatic charging in window (00:00-05:00) toward the 05:00->24:00 target
         - conditions:
             - condition: template
-              value_template: "{{ is_charge_window }}"
-            - condition: template
-              value_template: "{{ energy_needed_kwh > 0.01 }}"
-            - condition: template
-              value_template: "{{ battery_charge_enabled }}"
+              value_template: "{{ should_charge_now }}"
           sequence:
             - service: logbook.log
               data:
                 name: "Battery Charging"
                 message: >-
-                  Target: {{ calculated_target_energy_kwh | round(2) }} kWh, 
-                  Needed: {{ energy_needed_kwh | round(2) }} kWh, 
-                  PV Forecast (to 16h): {{ pv_total_until_16h_kwh | round(2) }} kWh
+                  Target 05h: {{ calculated_target_energy_kwh | round(2) }} kWh ({{ calculated_target_soc_pct | round(1) }}%),
+                  Needed: {{ energy_needed_kwh | round(2) }} kWh @ {{ charging_power_w }} W,
+                  Demand 05-24h: {{ window_plan.demand_05_24_kwh }} kWh (18-24h: {{ window_plan.demand_18_24_kwh }} kWh),
+                  PV 05-24h: {{ window_plan.pv_05_24_kwh }} kWh
             - service: select.select_option
               target: { entity_id: select.pv_storage_remote_command_mode }
               data: { option: "Charge from PV and AC" }
@@ -161,7 +230,25 @@
               target: { entity_id: number.pv_storage_remote_charge_limit }
               data: { value: "{{ charging_power_w }}" }
 
-        # 3. Default: Eigenverbrauch maximieren
+        # 3. Target reached inside charge window: hold charge until 05:00 (no NT discharge)
+        - conditions:
+            - condition: template
+              value_template: "{{ should_hold_now }}"
+          sequence:
+            - service: logbook.log
+              data:
+                name: "Battery Charging"
+                message: >-
+                  Holding battery at {{ battery_soc | round(1) }}% (Target 05h: {{ calculated_target_soc_pct | round(1) }}%,
+                  Demand 18-24h: {{ window_plan.demand_18_24_kwh }} kWh, PV 05-24h: {{ window_plan.pv_05_24_kwh }} kWh)
+            - service: select.select_option
+              target: { entity_id: select.pv_storage_remote_command_mode }
+              data: { option: "Off" }
+            - service: number.set_value
+              target: { entity_id: number.pv_storage_remote_charge_limit }
+              data: { value: 0 }
+
+        # 4. Default (05:00-24:00 or excess carryover PV): Maximize self consumption
         - conditions: []
           sequence:
             - service: select.select_option

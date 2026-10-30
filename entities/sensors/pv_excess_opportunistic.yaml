@@ -1,0 +1,9 @@
+platform: integration
+source: sensor.pv_excess_opportunistic_power_w
+name: pv_excess_opportunistic_kwh
+unique_id: pv_excess_opportunistic_kwh
+unit_prefix: k
+round: 4
+method: left
+max_sub_interval:
+  minutes: 5

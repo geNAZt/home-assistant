@@ -1,0 +1,51 @@
+sensor:
+- name: "PV Excess Opportunistic Power W"
+  unique_id: pv_excess_opportunistic_power_w
+  unit_of_measurement: "W"
+  device_class: power
+  state_class: measurement
+  icon: mdi:solar-power-variant
+  state: >
+    {% set water_stage2_w = (states('sensor.water_heating_pump_power') | float(0))
+       if is_state('switch.water_heater_pv_switch_powerr_usage_stage_2', 'on')
+       else 0.0 %}
+    {% set pv_active = (now().hour >= 5) and ((states('sensor.solar_panel_production_w') | float(0)) > 50) %}
+    {% set rooms = ['wohnzimmer', 'kueche', 'flur', 'schlafzimmer', 'buero_merja', 'buero_fabian', 'speisekammer', 'bad'] %}
+    {% set ns = namespace(ir_pv_w=0.0) %}
+    {% if pv_active %}
+      {% for room in rooms %}
+        {% if (states('input_number.heating_offset_' ~ room) | float(0)) > 0.01 %}
+          {% set ns.ir_pv_w = ns.ir_pv_w + (states('sensor.heating_power_' ~ room) | float(0)) %}
+        {% endif %}
+      {% endfor %}
+    {% endif %}
+    {{ ([water_stage2_w, 0.0] | max + [ns.ir_pv_w, 0.0] | max) | round(1) }}
+  attributes:
+    water_stage2_w: >
+      {{ ((states('sensor.water_heating_pump_power') | float(0))
+         if is_state('switch.water_heater_pv_switch_powerr_usage_stage_2', 'on')
+         else 0.0) | round(1) }}
+    ir_pv_excess_w: >
+      {% set pv_active = (now().hour >= 5) and ((states('sensor.solar_panel_production_w') | float(0)) > 50) %}
+      {% set rooms = ['wohnzimmer', 'kueche', 'flur', 'schlafzimmer', 'buero_merja', 'buero_fabian', 'speisekammer', 'bad'] %}
+      {% set ns = namespace(ir_pv_w=0.0) %}
+      {% if pv_active %}
+        {% for room in rooms %}
+          {% if (states('input_number.heating_offset_' ~ room) | float(0)) > 0.01 %}
+            {% set ns.ir_pv_w = ns.ir_pv_w + (states('sensor.heating_power_' ~ room) | float(0)) %}
+          {% endif %}
+        {% endfor %}
+      {% endif %}
+      {{ [ns.ir_pv_w, 0.0] | max | round(1) }}
+    active_ir_pv_rooms: >
+      {% set pv_active = (now().hour >= 5) and ((states('sensor.solar_panel_production_w') | float(0)) > 50) %}
+      {% set rooms = ['wohnzimmer', 'kueche', 'flur', 'schlafzimmer', 'buero_merja', 'buero_fabian', 'speisekammer', 'bad'] %}
+      {% set ns = namespace(active=[]) %}
+      {% if pv_active %}
+        {% for room in rooms %}
+          {% if (states('input_number.heating_offset_' ~ room) | float(0)) > 0.01 and (states('sensor.heating_power_' ~ room) | float(0)) > 0 %}
+            {% set ns.active = ns.active + [room] %}
+          {% endif %}
+        {% endfor %}
+      {% endif %}
+      {{ ns.active }}
