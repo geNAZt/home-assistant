@@ -3,7 +3,7 @@
 from datetime import timedelta
 
 DOMAIN = "solar_forecast_eai"
-VERSION = "48.0.0"
+VERSION = "52.0.8"
 CONFIG_ENTRY_VERSION = 4
 CONF_LICENSE_KEY = "license_key"
 CONF_LICENSE_STATUS = "license_status"
@@ -100,6 +100,7 @@ CONF_FEED_IN_TARIFF_ENTITY = "feed_in_tariff_entity"
 CONF_FEED_IN_TARIFF_UNIT = "feed_in_tariff_unit"
 CONF_LOW_PRICE_THRESHOLD_CT = "low_price_threshold_ct"
 CONF_WALLBOX_ENABLED = "wallbox_enabled"
+CONF_HEATING_ENABLED = "heating_enabled"
 CONF_WALLBOX_NAME = "wallbox_name"
 CONF_WALLBOX_POWER_ENTITY = "wallbox_power_entity"
 CONF_WALLBOX_ENERGY_TODAY_ENTITY = "wallbox_energy_today_entity"
@@ -152,6 +153,9 @@ SUPPORTED_WP_TYPES = frozenset(
 DEFAULT_WP_TYPE = WP_TYPE_AIR_WATER
 DEFAULT_HEATING_CAPACITY_KW = 10.0
 DEFAULT_COP_RATED = 4.0
+# Whole local day: space heating is off when the mean wind-effective outdoor
+# temperature is at or above this value. Domestic hot water is unchanged.
+HEATING_LIMIT_DAILY_MEAN_C = 15.0
 ELECTRICAL_TOPOLOGY_LEGACY_AGGREGATE = "legacy_aggregate"
 ELECTRICAL_TOPOLOGY_SEPARATE = "separate"
 DEFAULT_ELECTRICAL_MEASUREMENT_TOPOLOGY = ELECTRICAL_TOPOLOGY_LEGACY_AGGREGATE
@@ -192,6 +196,34 @@ SINK_ORIGIN_UNCONFIGURED = "unconfigured"
 
 COP_MODE_HEATING = "heating"
 COP_MODE_DHW = "dhw"
+
+# DHW generator-circuit check. A condenser outlet during a charge sits above
+# return and close to the tank. 3 K covers probe error and mild stratification;
+# a heating-circuit sensor behind a buffer is typically much colder.
+GENERATOR_FLOW_TOLERANCE_K = 3.0
+# Once the hint is on, flow must come this much closer than the trip line
+# before a charge counts as plausible again. A reading on the threshold
+# then cannot toggle the hint.
+GENERATOR_FLOW_HYSTERESIS_K = 2.0
+# The outlet and the diverter valve need the first minutes of a charge.
+# Judging earlier flags a correct sensor while flow is still rising.
+GENERATOR_FLOW_STARTUP_S = 180
+# Samples land about every five minutes. The hint arms and clears only
+# after this dwell, so one sample cannot set or clear it.
+GENERATOR_FLOW_HINT_PERSIST_S = 600
+GENERATOR_FLOW_HINT_CLEAR_S = 600
+# Same idle ceiling as the heating inversion check. At or below this the
+# compressor is not charging; a heating element alone must not qualify.
+GENERATOR_FLOW_STANDBY_MAX_W = 150.0
+GENERATOR_FLOW_THERMAL_REASON = "generator_circuit_flow_implausible"
+GENERATOR_FLOW_HINT_DE = (
+    "Vorlauffühler liegt vermutlich nicht im Erzeugerkreis – "
+    "Wärmepumpen-Vorlauf zuordnen."
+)
+GENERATOR_FLOW_HINT_EN = (
+    "The flow sensor is probably not on the generator circuit – "
+    "assign the heat pump flow."
+)
 
 ISSUE_HYDRAULICS_SETUP_INCOMPLETE = "hydraulics_setup_incomplete"
 ENERGY_TODAY_STATE_CLASS_FORBIDDEN = "total"
@@ -293,17 +325,6 @@ HEATING_SEASON_MONTHS = [1, 2, 3, 4, 10, 11, 12]
 WINTER_MONTHS = [11, 12, 1, 2]
 WINTER_CLOUD_PENALTY_FACTOR = 1.25
 WINTER_LOW_SUN_THRESHOLD = 25
-
-SERVICE_RETRAIN_AI_MODEL = "retrain_ai_model"
-SERVICE_RESET_AI_MODEL = "reset_ai_model"
-SERVICE_RUN_GRID_SEARCH = "run_grid_search"
-SERVICE_ANALYZE_FEATURE_IMPORTANCE = "analyze_feature_importance"
-SERVICE_RUN_ALL_DAY_END_TASKS = "run_all_day_end_tasks"
-SERVICE_TEST_MORNING_ROUTINE = "test_morning_routine"
-SERVICE_RUN_ADAPTIVE_FORECAST = "run_adaptive_forecast"
-SERVICE_RUN_WEATHER_CORRECTION = "run_weather_correction"
-SERVICE_REFRESH_MULTI_WEATHER = "refresh_multi_weather"
-SERVICE_SEND_DAILY_BRIEFING = "send_daily_briefing"
 
 REQUIRED_SENSORS = (
     CONF_WP_POWER_ENTITY,

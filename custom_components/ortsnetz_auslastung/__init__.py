@@ -63,7 +63,7 @@ def _add_optional_measurements(hass: HomeAssistant, data: dict, payload: dict) -
     if CONF_BATTERY_CAPACITY in data and capacity is None:
         payload[CONF_BATTERY_CAPACITY] = None
     elif capacity is not None:
-        if isinstance(capacity, (int, float)) and math.isfinite(capacity) and capacity > 0:
+        if isinstance(capacity, (int, float)) and math.isfinite(capacity) and 0 <= capacity <= 150:
             payload[CONF_BATTERY_CAPACITY] = capacity
         else:
             _LOGGER.warning("Batteriekapazität ist ungültig und wird nicht gesendet")
@@ -121,7 +121,10 @@ def _publish(hass: HomeAssistant, entry: ConfigEntry, status: dict | None = None
 async def _send(hass: HomeAssistant, entry: ConfigEntry) -> None:
     # Options override the initial setup data.
     data = {**entry.data, **entry.options}
-    values = [_value(hass, data[key], "V") for key in (CONF_L1_ENTITY, CONF_L2_ENTITY, CONF_L3_ENTITY)]
+    values = [
+        -1.0 if data.get(key) in (None, "", "-1", -1) else _value(hass, data[key], "V")
+        for key in (CONF_L1_ENTITY, CONF_L2_ENTITY, CONF_L3_ENTITY)
+    ]
     if any(value is None for value in values):
         _LOGGER.warning("Spannungssensor für Ortsnetz-Auslastung ist nicht verfügbar")
         _publish(hass, entry)
@@ -155,6 +158,9 @@ async def _send(hass: HomeAssistant, entry: ConfigEntry) -> None:
     smartmeter_model = (data.get(CONF_SMARTMETER_MODEL) or "").strip()
     if CONF_SMARTMETER_MODEL in data:
         payload[CONF_SMARTMETER_MODEL] = smartmeter_model or None
+
+    # Forecast and Frequency
+    forecast_kwh = None
     forecast_entity = data.get(CONF_PV_FORECAST_ENTITY)
     if forecast_entity:
         forecast_kwh = _value(hass, forecast_entity, "kWh")
@@ -168,6 +174,8 @@ async def _send(hass: HomeAssistant, entry: ConfigEntry) -> None:
             _LOGGER.warning("PV-Forecast %g kWh überschreitet 10 kWh/kWp pro Tag bei %g kWp und wird nicht gesendet", forecast_kwh, capacity_kwp)
         else:
             payload["pv_forecast_kwh"] = forecast_kwh
+
+    frequency_hz = None
     frequency_entity = data.get(CONF_GRID_FREQUENCY_ENTITY)
     if frequency_entity:
         frequency_hz = _value(hass, frequency_entity, "Hz")
@@ -185,6 +193,7 @@ async def _send(hass: HomeAssistant, entry: ConfigEntry) -> None:
     if not url.lower().startswith("https://"):
         _LOGGER.error("Ortsnetz-Auslastung sendet keine Messung: Die API-Adresse muss mit https:// beginnen; bitte unter Konfigurieren korrigieren")
         return
+
     session = async_get_clientsession(hass)
     for attempt in range(2):
         try:
@@ -217,13 +226,11 @@ async def _send(hass: HomeAssistant, entry: ConfigEntry) -> None:
                 if response.status in (403, 422):
                     if response.status == 403:
                         _LOGGER.error(
-                            "Ortsnetz-API hat den Standort gesperrt (HTTP 403); "
-                            "Standortangaben prüfen oder den Server-Admin kontaktieren"
+                            "Ortsnetz-API hat den Standort gesperrt (HTTP 403); Standortangaben prüfen oder den Server-Admin kontaktieren"
                         )
                     else:
                         _LOGGER.error(
-                            "Ortsnetz-API hat die Messung abgelehnt (HTTP 422); "
-                            "Sensorwerte und Konfiguration prüfen"
+                            "Ortsnetz-API hat die Messung abgelehnt (HTTP 422); Sensorwerte und Konfiguration prüfen"
                         )
                     _publish(hass, entry)
                     return

@@ -97,17 +97,34 @@ from .const import (
     DEFAULT_BILLING_GRID_FEES,
     DEFAULT_BILLING_FIXED_PRICE,
 )
+from .core.smc_enable import EMS_ORIGIN, bind_enable_writer, current_origin
 from .storage import DataValidator
 from .storage.db_connection_manager import DatabaseConnectionManager, get_manager
 from .api import async_setup_views, async_setup_websocket
 
 _LOGGER = logging.getLogger(__name__)
 
-LOVELACE_CARD_URL = f"/api/sfml_stats/static/sfml-stats-card.js?v={VERSION}"
+LOVELACE_CARD_URLS = (
+    "/api/sfml_stats/static/sfml-card.js",
+    "/api/sfml_stats/static/stats-flow-card.js",
+    "/api/sfml_stats/static/sfml-weather-card.js",
+    "/api/sfml_stats/static/sfml-warning-card.js",
+    "/api/sfml_stats/static/sfml-price-card.js",
+    "/api/sfml_stats/static/sfml-heating-card.js",
+    "/api/sfml_stats/static/sfml-shadow-card.js",
+    "/api/sfml_stats/static/sfml-trust-card.js",
+)
+# Retired card resources: the v9 energy flow card from early SFML releases and the removed STATS card
+LEGACY_LOVELACE_CARD_URLS = frozenset({
+    "/local/community/solar-forecast-ml/solar-forecast-ml-card.js",
+    "/api/sfml_stats/static/sfml-stats-card.js",
+})
 CORRECTIONS_PANEL_PATH = "sfml-stats-corrections-bridge"
 CORRECTIONS_PANEL_URL = f"/api/sfml_stats/static/corrections-bridge.js?v={VERSION}"
 EMS_BRIDGE_PANEL_PATH = "sfml-stats-ems-bridge"
 EMS_BRIDGE_PANEL_URL = f"/api/sfml_stats/static/ems-bridge.js?v={VERSION}"
+HEATING_BRIDGE_PANEL_PATH = "sfml-stats-heating-bridge"
+HEATING_BRIDGE_PANEL_URL = f"/api/sfml_stats/static/heating-bridge.js?v={VERSION}"
 API_BRIDGE_PANEL_PATH = "sfml-stats-api-bridge"
 API_BRIDGE_PANEL_URL = f"/api/sfml_stats/static/api-bridge.js?v={VERSION}"
 
@@ -174,6 +191,29 @@ async def _async_register_ems_bridge_panel(hass: HomeAssistant) -> None:
                 "embed_iframe": False,
                 "trust_external": False,
                 "module_url": EMS_BRIDGE_PANEL_URL,
+            }
+        },
+        require_admin=True,
+        show_in_sidebar=False,
+    )
+
+
+async def _async_register_heating_bridge_panel(hass: HomeAssistant) -> None:
+    """Register the hidden authenticated admin-only heating control bridge."""
+    from homeassistant.components import frontend
+
+    if frontend.async_panel_exists(hass, HEATING_BRIDGE_PANEL_PATH):
+        return
+    frontend.async_register_built_in_panel(
+        hass,
+        component_name="custom",
+        frontend_url_path=HEATING_BRIDGE_PANEL_PATH,
+        config={
+            "_panel_custom": {
+                "name": "sfml-stats-heating-bridge",
+                "embed_iframe": False,
+                "trust_external": False,
+                "module_url": HEATING_BRIDGE_PANEL_URL,
             }
         },
         require_admin=True,
@@ -460,8 +500,12 @@ class GPMProviderView:
                     "solar_forecast_tomorrow": None,
                 }
             else:
+                from homeassistant.util import dt as dt_util
+
+                from .core.grid_charge_gate import grid_charge_allowed
+
                 current_price = provider_data.get("total_price")
-                is_cheap = bool(provider_data.get("is_cheap"))
+                is_cheap = grid_charge_allowed(provider_data, dt_util.now())
                 is_force_price = bool(provider_data.get("is_force_price"))
                 future_slots = self._future_price_slots(provider_data)
                 state = await manager.async_update(
@@ -503,7 +547,7 @@ class GPMProviderView:
 
 
 async def _async_register_lovelace_card(hass: HomeAssistant) -> None:
-    """Register the STATS Lovelace card resource when storage mode is available."""
+    """Register the SFML Lovelace cards and drop retired card resources (storage mode only)."""
     try:
         lovelace = hass.data.get("lovelace")
         resources = (
@@ -511,22 +555,27 @@ async def _async_register_lovelace_card(hass: HomeAssistant) -> None:
         )
         if resources is None:
             return
-        mode = getattr(lovelace, "mode", None)
+        mode = getattr(lovelace, "resource_mode", None) or getattr(lovelace, "mode", None)
         if mode is not None and mode != "storage":
             return
-        info = await resources.async_get_info()
-        base_url = LOVELACE_CARD_URL.split("?", 1)[0]
-        if any(
-            item.get("url", "").split("?", 1)[0] == base_url
-            for item in info.get("resources", [])
-            if isinstance(item, dict)
-        ):
-            return
-        await resources.async_create_item(
-            {"res_type": "module", "url": LOVELACE_CARD_URL}
-        )
+        # async_get_info loads the collection before async_items is read
+        await resources.async_get_info()
+        registered: set[str] = set()
+        for item in list(resources.async_items()):
+            if not isinstance(item, dict):
+                continue
+            base_url = str(item.get("url", "")).split("?", 1)[0]
+            if base_url in LEGACY_LOVELACE_CARD_URLS and item.get("id"):
+                await resources.async_delete_item(item["id"])
+                _LOGGER.info("Removed retired Lovelace card resource %s", base_url)
+                continue
+            registered.add(base_url)
+        for url in LOVELACE_CARD_URLS:
+            if url not in registered:
+                await resources.async_create_item({"res_type": "module", "url": url})
+                _LOGGER.info("Registered SFML Lovelace card resource %s", url)
     except Exception as err:
-        _LOGGER.debug("Could not register STATS Lovelace card resource: %s", err)
+        _LOGGER.warning("Could not update SFML Lovelace card resources: %s", err)
 
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
@@ -752,6 +801,15 @@ async def async_update_smart_charging_settings(
         schedule = getattr(gpm_coordinator, "_schedule_smart_charging", None)
         if callable(schedule):
             schedule()
+        if (
+            CONF_SMART_CHARGING_ENABLED in changes
+            and current_origin() != EMS_ORIGIN
+        ):
+            note = getattr(
+                runtime.get("ems_manager"), "note_external_smc_enable", None
+            )
+            if callable(note):
+                await note(bool(new_data.get(CONF_SMART_CHARGING_ENABLED, False)))
     return {
         CONF_SMART_CHARGING_ENABLED: bool(
             new_data.get(CONF_SMART_CHARGING_ENABLED, False)
@@ -763,6 +821,18 @@ async def async_update_smart_charging_settings(
         CONF_MAX_SOC: new_data.get(CONF_MAX_SOC, DEFAULT_MAX_SOC),
         CONF_TARGET_SOC: new_data.get(CONF_TARGET_SOC, DEFAULT_MAX_SOC),
     }
+
+
+async def _write_smc_enabled_for_ems(
+    hass: HomeAssistant, enabled: bool
+) -> dict[str, object]:
+    """EMS entry point. The context variable, not a settings key, marks the caller."""
+    return await async_update_smart_charging_settings(
+        hass, **{CONF_SMART_CHARGING_ENABLED: bool(enabled)}
+    )
+
+
+bind_enable_writer(_write_smc_enabled_for_ems)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -865,6 +935,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await gpm_coordinator.async_configure(entry_config)
     ems_manager = EMSManager(hass, entry, entry_config)
     await ems_manager.async_setup()
+    from .core.heating import HeatingManager
+
+    heating_manager = HeatingManager(hass, entry)
+    await heating_manager.async_setup()
 
     # --- Store everything ---
     hass.data[DOMAIN][entry.entry_id] = {
@@ -881,6 +955,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "hourly_aggregator": hourly_aggregator,
         "energy_context_provider": energy_context_provider,
         "ems_manager": ems_manager,
+        "heating_manager": heating_manager,
     }
 
     # --- Forward sensor platforms ---
@@ -889,6 +964,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await _async_register_api_bridge_panel(hass)
     await _async_register_corrections_panel(hass)
     await _async_register_ems_bridge_panel(hass)
+    await _async_register_heating_bridge_panel(hass)
 
     # --- Update listener ---
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
@@ -1012,6 +1088,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             await async_reprice_from_revision(hass, config=entry_config)
         except Exception as err:
             _LOGGER.debug("Initial STATS reprice skipped: %s", err)
+        try:
+            from .core.grid_split_backfill import (
+                async_backfill_daily_grid_split,
+                async_backfill_grid_split,
+            )
+
+            await async_backfill_grid_split(hass, config=entry_config)
+            await async_backfill_daily_grid_split(hass)
+        except Exception as err:
+            _LOGGER.error("Grid-split backfill failed: %s", err)
 
     task_reprice = hass.async_create_background_task(
         _initial_reprice(), f"{DOMAIN}_initial_reprice"
@@ -1054,33 +1140,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     )
     hass.data[DOMAIN][entry.entry_id]["_task_forecast"] = task_fc
 
-    # Lovelace Resources Auto-Registration
-    try:
-        lovelace = hass.data.get("lovelace")
-        if lovelace and getattr(lovelace, "mode", "storage") == "storage":
-            registered_urls = {
-                res.get("url") for res in lovelace.resources.async_items()
-            }
-
-            sfml_url = f"/api/{DOMAIN}/static/sfml-card.js"
-            if sfml_url not in registered_urls:
-                await lovelace.resources.async_create_item(
-                    {"res_type": "module", "url": sfml_url}
-                )
-                _LOGGER.info("SFML Lovelace card registered successfully")
-
-            stats_url = f"/api/{DOMAIN}/static/stats-flow-card.js"
-            if stats_url not in registered_urls:
-                await lovelace.resources.async_create_item(
-                    {"res_type": "module", "url": stats_url}
-                )
-                _LOGGER.info("STATS Flow Lovelace card registered successfully")
-    except Exception as err:
-        _LOGGER.warning("Could not auto-register Lovelace resources: %s", err)
-
     from .sensor_mapping_provider import SensorMappingProvider, register_provider
 
-    sensor_mapping_provider = SensorMappingProvider(entry.entry_id, entry_config)
+    from .core.eai_wp_sources import mapping_config
+
+    sensor_mapping_provider = SensorMappingProvider(
+        entry.entry_id, mapping_config(hass, entry_config)
+    )
     sensor_mapping_providers = hass.data[DOMAIN].setdefault(
         "sensor_mapping_providers", {}
     )
@@ -1099,6 +1165,10 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         return True
 
     entry_data = hass.data[DOMAIN][entry.entry_id]
+    heating_manager = entry_data.get("heating_manager")
+    if heating_manager is not None:
+        await heating_manager.async_shutdown()
+
     ems_manager = entry_data.get("ems_manager")
     if ems_manager is not None and not await ems_manager.async_shutdown():
         _LOGGER.error(
@@ -1195,6 +1265,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         frontend.async_remove_panel(hass, CORRECTIONS_PANEL_PATH, warn_if_unknown=False)
         frontend.async_remove_panel(hass, API_BRIDGE_PANEL_PATH, warn_if_unknown=False)
         frontend.async_remove_panel(hass, EMS_BRIDGE_PANEL_PATH, warn_if_unknown=False)
+        frontend.async_remove_panel(hass, HEATING_BRIDGE_PANEL_PATH, warn_if_unknown=False)
     return unload_ok
 
 
@@ -1259,7 +1330,11 @@ async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> Non
 
     from .sensor_mapping_provider import SensorMappingProvider, register_provider
 
-    sensor_mapping_provider = SensorMappingProvider(entry.entry_id, new_config)
+    from .core.eai_wp_sources import mapping_config
+
+    sensor_mapping_provider = SensorMappingProvider(
+        entry.entry_id, mapping_config(hass, new_config)
+    )
     sensor_mapping_providers = hass.data[DOMAIN].setdefault(
         "sensor_mapping_providers", {}
     )

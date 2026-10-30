@@ -1,4 +1,11 @@
 {
+  "selector": {
+    "phase_sensor": {
+      "options": {
+        "not_measured": "Phase not measured (-1)"
+      }
+    }
+  },
   "entity": {
     "sensor": {
       "voltage_status": {
@@ -23,7 +30,7 @@
     "step": {
       "user": {
         "title": "Local grid utilization",
-        "description": "Select the three voltage sensors and the target API.",
+        "description": "Select at least one voltage sensor and the target API. Leave unmeasured phases empty or enter -1.",
         "data": {
           "api_url": "API URL",
           "grid_frequency_entity": "Grid frequency (Hz) – optional",
@@ -38,13 +45,13 @@
         },
         "data_description": {
           "smartmeter_model": "Select a model or enter your own name (maximum 120 characters). Optional; the list does not guarantee compatibility.",
-          "battery_capacity": "Enter the actual usable capacity, not the current energy content.",
+          "battery_capacity": "Enter the usable capacity from 0 to 150 kWh, not the current energy content.",
           "grid_power_w_entity": "At the grid connection: positive = import, negative = export. Do not select inverter output power."
         },
         "sections": {
           "phase_voltages": {
             "name": "Phase voltages (V)",
-            "description": "Select the three voltage values from your PV system's smart meter.",
+            "description": "Select a sensor or enter -1; an empty field also excludes the phase. At least one phase must be assigned to a sensor.",
             "data": {
               "l1_entity": "Phase L1 voltage (V)",
               "l2_entity": "Phase L2 voltage (V)",
@@ -78,9 +85,11 @@
       }
     },
     "error": {
+      "invalid_phase_selection": "Select a sensor or enter -1 for an excluded phase.",
+      "no_measured_phase": "At least one phase must be assigned to a voltage sensor.",
       "invalid_smartmeter_model": "Use at most 120 characters for the manufacturer and model.",
       "invalid_api_url": "Enter a valid HTTPS URL.",
-      "invalid_battery_capacity": "Enter a valid battery capacity greater than 0 kWh."
+      "invalid_battery_capacity": "Enter a valid battery capacity between 0 and 150 kWh (inclusive)."
     }
   },
   "options": {
@@ -102,13 +111,13 @@
         },
         "data_description": {
           "smartmeter_model": "Select a model or enter your own name (maximum 120 characters). Optional; the list does not guarantee compatibility.",
-          "battery_capacity": "Enter the actual usable capacity, not the current energy content.",
+          "battery_capacity": "Enter the usable capacity from 0 to 150 kWh, not the current energy content.",
           "grid_power_w_entity": "At the grid connection: positive = import, negative = export. Do not select inverter output power."
         },
         "sections": {
           "phase_voltages": {
             "name": "Phase voltages (V)",
-            "description": "Select the three voltage values from your PV system's smart meter.",
+            "description": "Select a sensor or enter -1; an empty field also excludes the phase. At least one phase must be assigned to a sensor.",
             "data": {
               "l1_entity": "Phase L1 voltage (V)",
               "l2_entity": "Phase L2 voltage (V)",
@@ -142,9 +151,11 @@
       }
     },
     "error": {
+      "invalid_phase_selection": "Select a sensor or enter -1 for an excluded phase.",
+      "no_measured_phase": "At least one phase must be assigned to a voltage sensor.",
       "invalid_smartmeter_model": "Use at most 120 characters for the manufacturer and model.",
       "invalid_api_url": "Enter a valid HTTPS URL.",
-      "invalid_battery_capacity": "Enter a valid battery capacity greater than 0 kWh."
+      "invalid_battery_capacity": "Enter a valid battery capacity between 0 and 150 kWh (inclusive)."
     }
   }
 }

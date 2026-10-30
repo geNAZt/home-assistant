@@ -11,7 +11,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, Mapping
 
 import voluptuous as vol
 
@@ -41,11 +41,6 @@ from .const import (
     CONF_AMORTIZATION_DEGRADATION_PERCENT,
     CONF_PANEL_GROUP_NAMES,
     CONF_SHOW_PANEL_GROUPS,
-    CONF_UI_MODE,
-    DEFAULT_UI_MODE,
-    UI_MODE_CLASSIC,
-    UI_MODE_MODERN,
-    normalize_ui_mode,
     CONF_SMART_CHARGING_SWITCH,
     CONF_EMS_SURPLUS_SWITCH,
     CONF_EMS_WALLBOX_SWITCH,
@@ -110,6 +105,57 @@ MONTHS_EN = {
     5: "May", 6: "June", 7: "July", 8: "August",
     9: "September", 10: "October", 11: "November", 12: "December",
 }
+
+
+def _sinv_menu_available(hass: Any) -> bool:
+    """Show the S-INV options step only when that integration is set up."""
+    try:
+        from .api.sinv import sinv_feature_enabled
+    except Exception:
+        return False
+    try:
+        return bool(sinv_feature_enabled(hass))
+    except Exception:
+        return False
+
+
+def _suggested(value: Any) -> dict[str, Any]:
+    if value is None or value == "":
+        return {}
+    return {"suggested_value": value}
+
+
+SINV_MAX_DEVICES = 4
+SINV_MODULE_FIELDS = tuple(
+    f"module_temperature_{device}_{index}"
+    for device in range(1, SINV_MAX_DEVICES + 1)
+    for index in range(1, 5)
+)
+
+
+def _sinv_devices(slots: list[dict[str, Any]]) -> list[list[dict[str, Any]]]:
+    """MPPT slots grouped per device, in slot order, at most SINV_MAX_DEVICES devices."""
+    devices: dict[str, list[dict[str, Any]]] = {}
+    for slot in slots:
+        devices.setdefault(str(slot["serial"]), []).append(slot)
+    return list(devices.values())[:SINV_MAX_DEVICES]
+
+
+def _sinv_module_slots(slots: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    """Form field ``module_temperature_<device>_<mppt>`` -> MPPT slot."""
+    fields: dict[str, dict[str, Any]] = {}
+    for device_number, device in enumerate(_sinv_devices(slots), start=1):
+        for slot in device:
+            fields[f"module_temperature_{device_number}_{slot['index']}"] = slot
+    return fields
+
+
+def _sinv_device_names(slots: list[dict[str, Any]]) -> str:
+    devices = _sinv_devices(slots)
+    names = [device[0].get("name") or "S-INV" for device in devices]
+    if len(names) == 1:
+        return names[0]
+    return " · ".join(f"{number}: {name}" for number, name in enumerate(names, start=1))
 
 
 def _entity(*, domain: str = "sensor", device_class: str | None = None) -> selector.EntitySelector:
@@ -216,20 +262,9 @@ def _consumer_schema(defaults: dict[str, Any] | None = None) -> vol.Schema:
 
 
 def _consumer_detail_schema(defaults: dict[str, Any] | None = None) -> vol.Schema:
-    """Build the optional heat-pump and wallbox detail schema."""
+    """Build the optional wallbox detail schema. Heat-pump details live in EAI."""
     current = defaults or {}
     return vol.Schema({
-        _optional_entity_key(CONF_SENSOR_HP_HEATING_MODE, current): _entity(domain="select"),
-        _optional_entity_key(CONF_SENSOR_HP_DHW_MODE, current): _entity(domain="select"),
-        _optional_entity_key(CONF_SENSOR_HP_DHW_CHARGING, current): _entity(domain="binary_sensor"),
-        _optional_entity_key(CONF_SENSOR_HP_PV_ACTIVE, current): _entity(domain="binary_sensor"),
-        _optional_entity_key(CONF_SENSOR_HP_ELECTRIC_POWER, current): _entity(device_class="power"),
-        _optional_entity_key(CONF_SENSOR_HP_THERMAL_POWER, current): _entity(device_class="power"),
-        _optional_entity_key(CONF_SENSOR_HP_GRID_ENERGY_DAILY, current): _entity(device_class="energy"),
-        _optional_entity_key(CONF_SENSOR_HP_PV_ENERGY_DAILY, current): _entity(device_class="energy"),
-        _optional_entity_key(CONF_SENSOR_HP_JAZ, current): _entity(domain="sensor"),
-        _optional_entity_key(CONF_SENSOR_HP_COMPRESSOR_STARTS, current): _entity(domain="sensor"),
-        _optional_entity_key(CONF_SENSOR_HP_STORAGE_TEMP, current): _entity(device_class="temperature"),
         _optional_entity_key(CONF_SENSOR_WB_CHARGE_MODE, current): _entity(domain="select"),
         _optional_entity_key(CONF_SENSOR_WB_ENERGY_SESSION, current): _entity(device_class="energy"),
     })
@@ -262,7 +297,7 @@ CONSUMER_KEYS = [
     CONF_SENSOR_WALLBOX_POWER,
     CONF_SENSOR_WALLBOX_STATE,
 ]
-CONSUMER_DETAIL_KEYS = HP_DETAIL_SENSORS + WB_DETAIL_SENSORS
+CONSUMER_DETAIL_KEYS = list(WB_DETAIL_SENSORS)
 
 
 # ---------------------------------------------------------------------------
@@ -485,24 +520,81 @@ class SFMLStatsOptionsFlow(config_entries.OptionsFlow):
                 return await self.async_step_amortization()
             if choice == "smart_charging":
                 return await self.async_step_smart_charging()
-            if choice == "appearance":
-                return await self.async_step_appearance()
             if choice == "advanced":
                 return await self.async_step_advanced()
+            if choice == "sinv":
+                return await self.async_step_sinv()
 
-        return self.async_show_form(
+        menu_options = [
+            "sensors",
+            "consumers",
+            "pricing",
+            "amortization",
+            "smart_charging",
+            "advanced",
+        ]
+        if _sinv_menu_available(self.hass):
+            menu_options.append("sinv")
+        return self.async_show_menu(
             step_id="init",
-            data_schema=vol.Schema({
-                vol.Required("menu_choice", default="sensors"): vol.In({
-                    "sensors": "Sensors",
-                    "consumers": "Consumer Details (WP/Wallbox)",
-                    "pricing": "Pricing",
-                    "amortization": "Amortisation",
-                    "smart_charging": "Batterie",
-                    "appearance": "Interface",
-                    "advanced": "Advanced",
-                }),
-            }),
+            menu_options=menu_options,
+        )
+
+    # ----- S-INV module temperature -----
+
+    async def async_step_sinv(
+        self, user_input: dict[str, Any] | None = None,
+    ) -> FlowResult:
+        """Outdoor sensors and optional module sensors for the S-INV page. @zara"""
+        from datetime import datetime, timezone
+
+        from .api.sinv import devices_from_registry, mppt_slots, parse_sinv_options
+
+        slots = mppt_slots(devices_from_registry(self.hass))
+        module_slots = _sinv_module_slots(slots)
+        current = self._config_entry.data
+        if user_input is not None:
+            flat = {
+                key: user_input.get(key)
+                for key in ("sinv_outdoor_temperature", "sinv_wind_speed")
+            }
+            for field, slot in module_slots.items():
+                flat[f"{slot['key']}:module_temperature"] = user_input.get(field)
+            stored = parse_sinv_options(
+                flat,
+                slots,
+                previous=current if isinstance(current, Mapping) else {},
+                now=datetime.now(timezone.utc),
+            )
+            new_data = {**current}
+            for key in list(new_data):
+                if key in ("sinv_outdoor_temperature", "sinv_wind_speed") or (
+                    isinstance(key, str) and ":" in key and key.split(":", 1)[1] in {"1", "2", "3", "4"}
+                ):
+                    new_data.pop(key, None)
+            new_data.update(stored)
+            return self._save(new_data)
+        schema: dict[Any, Any] = {
+            vol.Optional(
+                "sinv_outdoor_temperature",
+                description=_suggested(current.get("sinv_outdoor_temperature")),
+            ): _entity(domain="sensor", device_class="temperature"),
+            vol.Optional(
+                "sinv_wind_speed",
+                description=_suggested(current.get("sinv_wind_speed")),
+            ): _entity(domain="sensor", device_class="wind_speed"),
+        }
+        for field, slot in module_slots.items():
+            record = current.get(str(slot["key"]))
+            record = record if isinstance(record, Mapping) else {}
+            schema[vol.Optional(
+                field,
+                description=_suggested(record.get("module_temperature")),
+            )] = _entity(domain="sensor", device_class="temperature")
+        return self.async_show_form(
+            step_id="sinv",
+            data_schema=vol.Schema(schema),
+            description_placeholders={"devices": _sinv_device_names(slots) or "S-INV"},
         )
 
     # ----- Sensors (merged Step 1 + 2) -----
@@ -580,8 +672,8 @@ class SFMLStatsOptionsFlow(config_entries.OptionsFlow):
     async def async_step_consumers(
         self, user_input: dict[str, Any] | None = None,
     ) -> FlowResult:
-        """Configure consumer detail sensors (WP, Heizstab, Wallbox). @zara"""
-        consumer_keys = HP_DETAIL_SENSORS + WB_DETAIL_SENSORS
+        """Configure wallbox detail sensors. Stored heat-pump keys stay untouched. @zara"""
+        consumer_keys = list(WB_DETAIL_SENSORS)
 
         if user_input is not None:
             new_data = {**self._config_entry.data}
@@ -600,19 +692,6 @@ class SFMLStatsOptionsFlow(config_entries.OptionsFlow):
         return self.async_show_form(
             step_id="consumers",
             data_schema=vol.Schema({
-                # Heat Pump Detail
-                vol.Optional(CONF_SENSOR_HP_HEATING_MODE, description=_sv(CONF_SENSOR_HP_HEATING_MODE)): _entity(domain="select"),
-                vol.Optional(CONF_SENSOR_HP_DHW_MODE, description=_sv(CONF_SENSOR_HP_DHW_MODE)): _entity(domain="select"),
-                vol.Optional(CONF_SENSOR_HP_DHW_CHARGING, description=_sv(CONF_SENSOR_HP_DHW_CHARGING)): _entity(domain="binary_sensor"),
-                vol.Optional(CONF_SENSOR_HP_PV_ACTIVE, description=_sv(CONF_SENSOR_HP_PV_ACTIVE)): _entity(domain="binary_sensor"),
-                vol.Optional(CONF_SENSOR_HP_ELECTRIC_POWER, description=_sv(CONF_SENSOR_HP_ELECTRIC_POWER)): _entity(device_class="power"),
-                vol.Optional(CONF_SENSOR_HP_THERMAL_POWER, description=_sv(CONF_SENSOR_HP_THERMAL_POWER)): _entity(device_class="power"),
-                vol.Optional(CONF_SENSOR_HP_GRID_ENERGY_DAILY, description=_sv(CONF_SENSOR_HP_GRID_ENERGY_DAILY)): _entity(device_class="energy"),
-                vol.Optional(CONF_SENSOR_HP_PV_ENERGY_DAILY, description=_sv(CONF_SENSOR_HP_PV_ENERGY_DAILY)): _entity(device_class="energy"),
-                vol.Optional(CONF_SENSOR_HP_JAZ, description=_sv(CONF_SENSOR_HP_JAZ)): _entity(domain="sensor"),
-                vol.Optional(CONF_SENSOR_HP_COMPRESSOR_STARTS, description=_sv(CONF_SENSOR_HP_COMPRESSOR_STARTS)): _entity(domain="sensor"),
-                vol.Optional(CONF_SENSOR_HP_STORAGE_TEMP, description=_sv(CONF_SENSOR_HP_STORAGE_TEMP)): _entity(device_class="temperature"),
-                # Wallbox Detail
                 vol.Optional(CONF_SENSOR_WB_CHARGE_MODE, description=_sv(CONF_SENSOR_WB_CHARGE_MODE)): _entity(domain="select"),
                 vol.Optional(CONF_SENSOR_WB_ENERGY_SESSION, description=_sv(CONF_SENSOR_WB_ENERGY_SESSION)): _entity(device_class="energy"),
             }),
@@ -783,43 +862,6 @@ class SFMLStatsOptionsFlow(config_entries.OptionsFlow):
                         DEFAULT_AMORTIZATION_DEGRADATION_PERCENT,
                     ),
                 ): _number(0, 10, 0.1, unit="%/Jahr"),
-            }),
-        )
-
-    # ----- Appearance -----
-
-    async def async_step_appearance(
-        self, user_input: dict[str, Any] | None = None,
-    ) -> FlowResult:
-        """Select the dashboard interface."""
-        if user_input is not None:
-            new_data = {**self._config_entry.data}
-            new_data[CONF_UI_MODE] = normalize_ui_mode(user_input.get(CONF_UI_MODE))
-            return self._save(new_data)
-
-        return self.async_show_form(
-            step_id="appearance",
-            data_schema=vol.Schema({
-                vol.Required(
-                    CONF_UI_MODE,
-                    default=normalize_ui_mode(
-                        self._current(CONF_UI_MODE, DEFAULT_UI_MODE),
-                    ),
-                ): selector.SelectSelector(
-                    selector.SelectSelectorConfig(
-                        options=[
-                            selector.SelectOptionDict(
-                                value=UI_MODE_CLASSIC,
-                                label="Classic",
-                            ),
-                            selector.SelectOptionDict(
-                                value=UI_MODE_MODERN,
-                                label="Modern",
-                            ),
-                        ],
-                        mode=selector.SelectSelectorMode.DROPDOWN,
-                    )
-                ),
             }),
         )
 

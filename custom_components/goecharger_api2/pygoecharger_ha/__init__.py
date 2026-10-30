@@ -133,7 +133,10 @@ class GoeChargerApiV2Bridge:
     def __init__(self, web_session, intg_type:str,
                  host:str|None=None, access_password:str|None=None, serial:str|None=None, token:str|None=None,
                  lang:str = "en") -> None:
+
+        self.host_url = None
         self.ws_url = None
+
         if host is not None:
             # THIS IS LAN ACCESS...
             self.token = None
@@ -232,6 +235,8 @@ class GoeChargerApiV2Bridge:
         return len(self._versions) + len(self._states) + len(self._config) + len(self._ws_states)
 
     def clear_data(self):
+        if self._ws_debounced_update_task is not None and not self._ws_debounced_update_task.done():
+            self._ws_debounced_update_task.cancel()
         self._LAST_CONFIG_UPDATE_TS = 0
         self._LAST_FULL_STATE_UPDATE_TS = 0
         self._REQUEST_IDS_DATA = False
@@ -274,7 +279,9 @@ class GoeChargerApiV2Bridge:
             self._versions = self._read_filtered_data_from_ws_source(filters=self._FILTER_VERSIONS, log_info="read_versions (via websocket)")
         else:
             for attempt in range(5):
-                self._versions = await self._read_filtered_data(filters=self._FILTER_VERSIONS, log_info=f"read_versions (attempt {attempt+1})")
+                ret = await self._read_filtered_data(filters=self._FILTER_VERSIONS, log_info=f"read_versions (attempt {attempt+1})")
+                if ret is not None and len(ret) > 0 and isinstance(ret, NonNullDict):
+                    self._versions = ret
                 if self._versions is not None and len(self._versions) > 0:
                     break
                 if attempt < 4:
@@ -364,7 +371,9 @@ class GoeChargerApiV2Bridge:
             if self.ws_connected:
                 self._states = self._read_filtered_data_from_ws_source(filters=self._FILTER_ALL_STATES, log_info="read_all_states")
             else:
-                self._states = await self._read_filtered_data(filters=self._FILTER_ALL_STATES, log_info="read_all_states")
+                ret = await self._read_filtered_data(filters=self._FILTER_ALL_STATES, log_info="read_all_states")
+                if ret is not None and len(ret) > 0 and isinstance(ret, NonNullDict):
+                    self._states = ret
             if len(self._states) > 0:
                 self._LAST_FULL_STATE_UPDATE_TS = time.time()
 
@@ -380,7 +389,9 @@ class GoeChargerApiV2Bridge:
             if self.ws_connected:
                 self._config = self._read_filtered_data_from_ws_source(filters=self._FILTER_ALL_CONFIG, log_info="read_all_config")
             else:
-                self._config = await self._read_filtered_data(filters=self._FILTER_ALL_CONFIG, log_info="read_all_config")
+                ret = await self._read_filtered_data(filters=self._FILTER_ALL_CONFIG, log_info="read_all_config")
+                if ret is not None and len(ret) > 0 and isinstance(ret, NonNullDict):
+                    self._config = ret
 
             if len(self._config) > 0:
                 self._LAST_CONFIG_UPDATE_TS = time.time()
@@ -493,20 +504,19 @@ class GoeChargerApiV2Bridge:
     async def write_value_to_key(self, key, value) -> dict:
         is_button_press = value is not None and str(value) == IS_TRIGGER
 
-        if not is_button_press and self.ws_connected and self._ws_connection is not None:
-            await self._ws_send_command(key, value)
-            self._ws_LAST_NEW_DATA_NOTIFY = 0
-            return None
+        if self.ws_connected and self._ws_connection is not None:
+            if is_button_press:
+                # ignoring button presses when connected via WebSockets
+                return {key: value}
+            else:
+                if await self._ws_send_command(key, value):
+                    self._ws_LAST_NEW_DATA_NOTIFY = 0
+                    return {key: value}
+                else:
+                    return {}
         else:
-            if value is None:
-                args = f"{key}=null"
-            elif isinstance(value, (bool, int, float)):
-                args = {key: str(value).lower()}
-            elif isinstance(value, dict):
-                args = {key: json.dumps(value).replace(' ','')}
-            elif isinstance(value, str) and value == IS_TRIGGER:
+            if is_button_press:
                 # BUTTON's have only effect for POLLING (will not do anything when connected via WebSockets)
-
                 # these are special trigger actions that we want to call from the FE...
                 match key:
                     case Tag.INTERNAL_FORCE_CONFIG_READ.key:
@@ -519,9 +529,16 @@ class GoeChargerApiV2Bridge:
 
                 return {key: value}
             else:
-                args = {key: '"'+str(value)+'"'}
+                if value is None:
+                    args = f"{key}=null"
+                elif isinstance(value, (bool, int, float)):
+                    args = {key: str(value).lower()}
+                elif isinstance(value, dict):
+                    args = {key: json.dumps(value).replace(' ','')}
+                else:
+                    args = {key: '"'+str(value)+'"'}
 
-            return await self._write_values_int(args, a_result_key = key, a_result_value = value)
+                return await self._write_values_int(args, a_result_key = key, a_result_value = value)
 
     async def write_multiple_values_to_keys(self, args, key, value) -> dict:
         if self.ws_connected and self._ws_connection is not None:
@@ -530,7 +547,7 @@ class GoeChargerApiV2Bridge:
                 await asyncio.sleep(0.75)
 
             self._ws_LAST_NEW_DATA_NOTIFY = 0
-            return None
+            return {}
         else:
             params = {}
             for a_key, a_value in args.items():
@@ -574,7 +591,7 @@ class GoeChargerApiV2Bridge:
                     except aiohttp.ClientResponseError as io_exc:
                         _LOGGER.warning(f"_write_values_int(): ClientResponseError while 'await res.json(): {io_exc}")
 
-                elif res.status == 500 and int(res.headers['Content-Length']) > 0:
+                elif res.status == 500 and (res.content_length or 0) > 0:
                     try:
                         r_json = await res.json()
                         return {"err": r_json}
@@ -853,7 +870,7 @@ class GoeChargerApiV2Bridge:
 
                 self._ws_hashed_password = self._ws_compute_hashed_password(hash_type, self.access_password, serial)
                 _logging_pwd = self._ws_hashed_password.decode('utf-8')
-                _LOGGER.debug(f"ws_connect(): Computed hashed password {hash_type}: {_logging_pwd[:6]}...{_logging_pwd[-6:]}")
+                _LOGGER.debug(f"ws_connect(): Computed hashed password {hash_type}: {_logging_pwd[:3]}...{_logging_pwd[-3:]}")
 
                 token1 = normalized_auth.get('token1')
                 token2 = normalized_auth.get('token2')

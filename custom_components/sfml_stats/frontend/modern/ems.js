@@ -163,7 +163,10 @@ const ModernEMSPage = {
                 <div>
                     <span class="ems-eyebrow">Energiemanagement</span>
                     <h2 id="ems-title">Was jetzt tun <span class="ems-beta">BETA v2!</span></h2>
-                    <p>{{ statusHint }}</p>
+                    <div v-if="statusLines.length" class="ems-status-lines">
+                        <p v-for="(line, index) in statusLines" :key="index">{{ line }}</p>
+                    </div>
+                    <p v-else>{{ statusHint }}</p>
                 </div>
                 <div class="ems-status-pills">
                     <span :class="['ems-pill', data?.mode === 'live' ? 'live' : 'mock']">{{ availabilityLabel }}</span>
@@ -181,10 +184,11 @@ const ModernEMSPage = {
 
                 <section class="ems-card ems-now-card" aria-labelledby="ems-now-title">
                     <div class="ems-section-head">
-                        <div><span class="ems-eyebrow">Jetzt</span><h3 id="ems-now-title">{{ primaryAction.device }}</h3></div>
-                        <span>{{ primaryAction.when_label || "Jetzt" }}</span>
+                        <div><span class="ems-eyebrow">{{ primaryAction.when_heading || "Jetzt" }}</span><h3 id="ems-now-title">{{ primaryAction.status || primaryAction.device }}</h3></div>
+                        <span>{{ primaryAction.when_label || primaryAction.when_heading || "Jetzt" }}</span>
                     </div>
-                    <p class="ems-now-why">{{ primaryAction.why }}</p>
+                    <p v-if="primaryAction.later_hint">{{ primaryAction.later_hint }}</p>
+                    <p v-if="devOn && primaryAction.why" class="ems-now-why">{{ primaryAction.why }}</p>
                     <p v-if="primaryAction.detail" class="ems-now-detail">{{ primaryAction.detail }}</p>
                     <div class="ems-now-meta">
                         <strong :class="primaryAction.tone || 'waiting'">{{ primaryAction.status }}</strong>
@@ -195,7 +199,7 @@ const ModernEMSPage = {
                     </button>
                 </section>
 
-                <section v-if="showIntelligence" class="ems-card ems-intel-card" aria-labelledby="ems-intel-title">
+                <section v-if="devOn && showIntelligence" class="ems-card ems-intel-card" aria-labelledby="ems-intel-title">
                     <div class="ems-section-head">
                         <div><span class="ems-eyebrow">Intelligenz</span><h3 id="ems-intel-title">Warum das EMS so entscheidet</h3></div>
                         <span v-if="definedPercent(intelligence.forecast_confidence_percent)">Prognosegüte {{ percent(intelligence.forecast_confidence_percent) }}</span>
@@ -235,12 +239,12 @@ const ModernEMSPage = {
                             <small>{{ intelligence.economics.detail }}</small>
                         </article>
                         <article v-if="intelligence.mobility">
-                            <span>Abfahrt{{ intelligence.mobility.is_demo ? " · Demo" : "" }}</span>
+                            <span>Abfahrt{{ intelligence.mobility.sample_reason === "no_license" || (!intelligence.mobility.sample_reason && intelligence.mobility.is_demo) ? " · Demo" : intelligence.mobility.sample_reason === "feature_off" || intelligence.mobility.sample_reason === "learning" ? " · Beispieldaten" : "" }}</span>
                             <strong>{{ percent(intelligence.mobility.departure_readiness_percent) }} bereit</strong>
                             <small>{{ intelligence.mobility.detail }}</small>
                         </article>
                         <article v-if="intelligence.comfort">
-                            <span>Komfort{{ intelligence.comfort.is_demo ? " · Demo" : "" }}</span>
+                            <span>Komfort{{ intelligence.comfort.sample_reason === "no_license" || (!intelligence.comfort.sample_reason && intelligence.comfort.is_demo) ? " · Demo" : intelligence.comfort.sample_reason === "feature_off" || intelligence.comfort.sample_reason === "learning" ? " · Beispieldaten" : "" }}</span>
                             <strong>{{ intelligence.comfort.indoor_c != null ? intelligence.comfort.indoor_c.toFixed(1) + " °C" : "Gebäude" }}</strong>
                             <small>{{ intelligence.comfort.detail }}</small>
                         </article>
@@ -252,7 +256,7 @@ const ModernEMSPage = {
                     <div class="ems-next-list">
                         <article v-for="item in nextActions" :key="item.id">
                             <div><span>{{ item.when_label || "Später" }}</span><strong>{{ item.device }}</strong></div>
-                            <p>{{ item.why }}</p>
+                            <p v-if="devOn && item.why">{{ item.why }}</p>
                             <b :class="item.tone">{{ item.status }}</b>
                         </article>
                     </div>
@@ -348,9 +352,9 @@ const ModernEMSPage = {
                     <div class="ems-section-head"><div><span class="ems-eyebrow">Geräte</span><h3>Freigaben und Sollzustand</h3></div><span>Nur freigegebene Geräte dürfen geschaltet werden</span></div>
                     <div class="ems-actor-grid">
                         <article v-for="actor in visibleActors" :key="actor.id" :class="['ems-card', 'ems-actor', actor.ready ? 'ready' : 'blocked']">
-                            <div class="ems-actor-head"><div><span>{{ actor.source }}</span><h4>{{ actor.label }}</h4></div><span v-if="actor.is_demo" class="ems-pill mock">Demo</span><span v-else-if="actor.paused" class="ems-pill quiet">Pausiert</span><button type="button" class="ems-toggle" :class="{ on: actor.enabled }" :disabled="busy || data.mode !== 'live' || !actor.configured || actor.is_demo" :aria-pressed="actor.enabled" @click="setActor(actor)"><i></i>{{ actor.enabled ? "Freigegeben" : "Gesperrt" }}</button></div>
+                            <div class="ems-actor-head"><div><span>{{ actor.source }}</span><h4>{{ actor.label }}</h4></div><span v-if="actor.sample_reason === 'no_license' || (!actor.sample_reason && actor.is_demo)" class="ems-pill mock">Demo</span><span v-else-if="actor.sample_reason === 'feature_off' || actor.sample_reason === 'learning'" class="ems-pill mock">Beispieldaten</span><span v-else-if="actor.paused" class="ems-pill quiet">Pausiert</span><button type="button" class="ems-toggle" :class="{ on: actor.enabled }" :disabled="busy || data.mode !== 'live' || !actor.configured || actor.is_demo" :aria-pressed="actor.enabled" @click="setActor(actor)"><i></i>{{ actor.enabled ? "Freigegeben" : "Gesperrt" }}</button></div>
                             <div class="ems-actor-state"><span>Ist <strong>{{ state(actor.current) }}</strong></span><span>Soll <strong>{{ decision(actor) }}</strong></span></div>
-                            <p>{{ actor.detail }}</p><small>{{ actor.reason_label || reason(actor.reason) }}</small>
+                            <p>{{ customerText(actor.detail) }}</p><small>{{ customerText(actor.reason_label) || reason(actor.reason) }}</small>
                             <button v-if="data.control_mode === 'confirm' && actor.confirm_token" type="button" class="ems-action" :disabled="busy" @click="confirmActor(actor)">{{ actor.desired ? "Einschalten bestätigen" : "Ausschalten bestätigen" }}</button>
                             <div v-else-if="!actor.configured" class="ems-actor-note">In den Einstellungen ist noch kein Schalter hinterlegt.</div>
                             <div v-else-if="!actor.ready" class="ems-actor-note">Noch nicht schaltbereit: Daten, Konfiguration oder eine Schutzregel blockieren den Schritt.</div>
@@ -374,6 +378,7 @@ const ModernEMSPage = {
                     </div>
                 </details>
             </template>
+            <modern-page-guide page="ems"></modern-page-guide>
         </section>
     `,
     setup() {
@@ -409,11 +414,12 @@ const ModernEMSPage = {
         const enabledActorLabels = computed(() => visibleActors.value.filter((actor) => actor.configured && actor.enabled).map((actor) => actor.label));
         const actionPlan = computed(() => Array.isArray(data.value?.action_plan) ? data.value.action_plan : []);
         const primaryAction = computed(() => actionPlan.value[0] || {
-            device: "Keine Aktion nötig",
+            device: "EMS",
             why: "Ertrag, Bedarf und Geräte werden weiter beobachtet.",
             detail: "",
-            status: "Beobachten",
+            status: "Keine Aktion nötig",
             tone: "waiting",
+            when_heading: "Jetzt",
             when_label: "Jetzt",
             source: "EMS",
         });
@@ -424,6 +430,7 @@ const ModernEMSPage = {
         const adminLocked = computed(() => /admin/i.test(String(locked.value || "")));
         const operationKpis = computed(() => Array.isArray(operations.value?.kpis) ? operations.value.kpis : []);
         const intelligence = computed(() => data.value?.intelligence && typeof data.value.intelligence === "object" ? data.value.intelligence : null);
+        const devOn = computed(() => window.sfmlDevState?.active === true);
         const showIntelligence = computed(() => !!(intelligence.value?.available || intelligence.value?.why?.length || intelligence.value?.allocation?.length));
         const allocationStory = computed(() => (intelligence.value?.allocation || []).map((row) => `${row.label} ${energy(row.kwh)}`).join(" · ") || "PV-Allokation nach Priorität");
         const hasAllocation = computed(() => {
@@ -445,6 +452,7 @@ const ModernEMSPage = {
         const dayValueScope = computed(() => selectedDay.value?.complete ? "00–24 Uhr" : `Teilsumme ${selectedDay.value?.complete_hours || 0}/24 h`);
         const selectedDayCaption = computed(() => selectedDay.value ? dayCaption(selectedDay.value) : "Tag");
         const availabilityLabel = computed(() => data.value?.mode === "live" ? "Aktiv" : data.value?.mode === "mock" ? "Demo" : "Nicht verfügbar");
+        const statusLines = computed(() => Array.isArray(data.value?.status_lines) ? data.value.status_lines.filter(Boolean) : []);
         const statusHint = computed(() => data.value?.summary_text || "Empfehlungen aus Prognose und Gerätezustand.");
         const currentModeLabel = computed(() => data.value?.control_mode === "automatic" ? "Automatik" : data.value?.control_mode === "confirm" ? "Bestätigen" : "Beobachten");
         const currentModeScope = computed(() => {
@@ -484,10 +492,18 @@ const ModernEMSPage = {
         const state = (value) => value === true ? "EIN" : value === false ? "AUS" : "–";
         const decision = (actor) => actor.desired === true ? "EIN" : actor.desired === false ? "AUS" : "HALTEN";
         const dateTime = (value) => value ? new Intl.DateTimeFormat(undefined, { dateStyle: "short", timeStyle: "medium" }).format(new Date(value)) : "–";
+        const customerText = (value) => {
+            const text = value == null ? "" : String(value);
+            const german = "Smart Charging ist von dir ausgeschaltet. Das EMS greift nicht ein, bis du es wieder einschaltest.";
+            if (text !== german) return text;
+            const translated = window.SFMLI18n?.t?.("ems.userSmcOff");
+            return translated && translated !== "ems.userSmcOff" ? translated : text;
+        };
         const reason = (value) => {
             const labels = {
                 license_required: "Ohne Freigabe bleibt die Steuerung gesperrt.",
                 no_decision: "Noch keine belastbare Empfehlung.",
+                user_smc_off: "Smart Charging ist von dir ausgeschaltet. Das EMS greift nicht ein, bis du es wieder einschaltest.",
                 signal_unavailable: "Das Überschusssignal fehlt gerade.",
                 external_owner: "Ein anderer Automationspfad steuert diesen Schalter bereits.",
                 data_unavailable: "Die nötigen Sensordaten fehlen noch.",
@@ -529,33 +545,33 @@ const ModernEMSPage = {
             const valueFormatter = (value) => value == null ? "fehlend" : `${Number(value).toFixed(2)} kWh`;
             const energySeries = [
                 { name: "PV direkt ins Haus", type: "line", data: hours.map((point) => point.covered_kwh),
-                    lineStyle: { width: 0 }, areaStyle: { color: "rgba(80, 210, 156, .28)" }, symbol: "none", z: 1,
+                    lineStyle: { width: 0 }, areaStyle: { color: "rgba(80, 210, 156, .28)" }, itemStyle: { color: "#50d29c" }, symbol: "none", z: 1,
                     tooltip: { valueFormatter } },
                 ...(data.value?.components?.battery && hours.some((point) => point.battery_to_house_actual_kwh != null) ? [
                     { name: "Akku → Haus (IST)", type: "line", data: hours.map((point) => point.battery_to_house_actual_kwh),
-                        connectNulls: false, symbol: "none", lineStyle: { width: 3, color: "#b879ff" }, z: 3, tooltip: { valueFormatter } },
+                        connectNulls: false, symbol: "none", lineStyle: { width: 3, color: "#b879ff" }, itemStyle: { color: "#b879ff" }, z: 3, tooltip: { valueFormatter } },
                 ] : []),
                 ...(data.value?.components?.battery && hours.some((point) => point.battery_to_house_forecast_kwh != null) ? [
                     { name: "Akku → Haus (Prognose)", type: "line", data: hours.map((point) => point.battery_to_house_forecast_kwh),
-                        connectNulls: false, symbol: "none", lineStyle: { width: 2, type: "dashed", color: "#b879ff" }, z: 2, tooltip: { valueFormatter } },
+                        connectNulls: false, symbol: "none", lineStyle: { width: 2, type: "dashed", color: "#b879ff" }, itemStyle: { color: "#b879ff" }, z: 2, tooltip: { valueFormatter } },
                 ] : []),
                 { name: "PV-Ertrag", type: "line", data: hours.map((point) => point.pv_kwh),
-                    smooth: .25, symbol: "none", lineStyle: { width: 3, color: "#ffbf2f" }, areaStyle: { color: "rgba(255,191,47,.12)" }, z: 3,
+                    smooth: .25, symbol: "none", lineStyle: { width: 3, color: "#ffbf2f" }, areaStyle: { color: "rgba(255,191,47,.12)" }, itemStyle: { color: "#ffbf2f" }, z: 3,
                     tooltip: { valueFormatter } },
                 { name: "Bedarf", type: "line", data: hours.map((point) => point.demand_kwh),
-                    smooth: .2, symbol: "circle", symbolSize: 5, lineStyle: { width: 3, color: "#60c5ff" }, z: 4,
+                    smooth: .2, symbol: "circle", symbolSize: 5, lineStyle: { width: 3, color: "#60c5ff" }, itemStyle: { color: "#60c5ff" }, z: 4,
                     tooltip: { valueFormatter } },
             ];
             const gridSeries = [
                 { name: "Erwarteter Netzbezug", type: "line", data: hours.map((point) => point.expected_grid_import_kwh),
-                    connectNulls: false, symbol: "circle", symbolSize: 5, lineStyle: { width: 3, color: "#ff7f8f" }, areaStyle: { color: "rgba(255,127,143,.12)" }, z: 3,
+                    connectNulls: false, symbol: "circle", symbolSize: 5, lineStyle: { width: 3, color: "#ff7f8f" }, areaStyle: { color: "rgba(255,127,143,.12)" }, itemStyle: { color: "#ff7f8f" }, z: 3,
                     tooltip: { valueFormatter } },
                 { name: "PV-Potenzial nach Direktdeckung", type: "line", data: hours.map((point) => point.pv_potential_after_direct_kwh),
-                    connectNulls: false, symbol: "none", lineStyle: { width: 3, type: "dashed", color: "#61e2af" }, areaStyle: { color: "rgba(97,226,175,.1)" }, z: 2,
+                    connectNulls: false, symbol: "none", lineStyle: { width: 3, type: "dashed", color: "#61e2af" }, areaStyle: { color: "rgba(97,226,175,.1)" }, itemStyle: { color: "#61e2af" }, z: 2,
                     tooltip: { valueFormatter } },
                 ...(hours.some((point) => point.price_ct_kwh != null) ? [{
                     name: "Strompreis", type: "line", yAxisIndex: 1, data: hours.map((point) => point.price_ct_kwh),
-                    symbol: "none", lineStyle: { width: 2, type: "dotted", color: "#ffc95b" }, z: 5,
+                    symbol: "none", lineStyle: { width: 2, type: "dotted", color: "#ffc95b" }, itemStyle: { color: "#ffc95b" }, z: 5,
                     tooltip: { valueFormatter: (value) => value == null ? "fehlend" : `${Number(value).toFixed(2)} ct/kWh` },
                 }] : []),
             ];
@@ -574,7 +590,7 @@ const ModernEMSPage = {
                     itemStyle: { color: "#61e2af" }, z: 1, tooltip: { valueFormatter } },
                 ...(hours.some((point) => point.historical_grid_import_kwh != null) ? [{
                     name: "Typischer Netzbezug (90 Tage)", type: "line", data: hours.map((point) => point.historical_grid_import_kwh),
-                    connectNulls: false, symbol: "none", lineStyle: { width: 2, type: "dashed", color: "#ff7f8f" }, z: 4, tooltip: { valueFormatter },
+                    connectNulls: false, symbol: "none", lineStyle: { width: 2, type: "dashed", color: "#ff7f8f" }, itemStyle: { color: "#ff7f8f" }, z: 4, tooltip: { valueFormatter },
                 }] : []),
             ];
             const series = chartView.value === "grid" ? gridSeries : chartView.value === "allocation" ? allocationSeries : energySeries;
@@ -746,9 +762,9 @@ const ModernEMSPage = {
             selectedSummary, selectedDayCaption, dayValueScope, demandComponentsLabel, coverageRows, coverageStory,
             chartView, chartAriaLabel, chartSummary, loading, locked, adminLocked, busy, message,
             messageError, detailsOpen, modes, primaryAction, nextActions, todayBrief, forecastWindows,
-            operations, operationKpis, intelligence, showIntelligence, allocationStory, hasAllocation,
-            canConfirmPrimary, visibleActors, availabilityLabel, statusHint, currentModeLabel, currentModeScope,
-            definedPercent, energy, percent, price, currency, state, decision, dateTime, reason, eventLabel, dayCaption, dayDate, selectDay,
+            operations, operationKpis, intelligence, showIntelligence, devOn, allocationStory, hasAllocation,
+            canConfirmPrimary, visibleActors, availabilityLabel, statusHint, statusLines, currentModeLabel, currentModeScope,
+            definedPercent, energy, percent, price, currency, state, decision, dateTime, reason, customerText, eventLabel, dayCaption, dayDate, selectDay,
             shiftDay, handleDayKeydown, setChartView, handleChartKeydown, onDetailsToggle, refresh,
             setMode, setActor, confirmActor, confirmPlanItem };
     },

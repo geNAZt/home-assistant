@@ -23,7 +23,7 @@ DOMAIN: Final = "goecharger_api2"
 ISSUE_URL: Final = "https://github.com/marq24/ha-goecharger-api2/issues"
 
 CONFIG_VERSION: Final = 2
-CONFIG_MINOR_VERSION: Final = 0
+CONFIG_MINOR_VERSION: Final = 1
 
 STARTUP_MESSAGE: Final = f"""
 -------------------------------------------------------------------
@@ -542,8 +542,8 @@ NUMBER_SENSORS = [
     # pgt
     ExtNumberEntityDescription(
         key=Tag.PGT.key,
-        native_max_value=5000,
-        native_min_value=-5000,
+        native_max_value=35000,
+        native_min_value=-35000,
         native_step=1,
         #entity_category=EntityCategory.CONFIG,
         native_unit_of_measurement=UnitOfPower.WATT,

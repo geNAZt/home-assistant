@@ -9,12 +9,35 @@ const {
     nextTick,
 } = Vue;
 
+window.sfmlDevState = reactive({
+    active: false,
+    expires_at: null,
+    install_hash: "",
+    loaded: false,
+});
+
+const SPOCK_QUOTES = [
+    "Insufficient facts always invite danger.",
+    "Highly illogical.",
+    "Fascinating.",
+    "Logic is the beginning of wisdom, not the end.",
+];
+
+function spockQuote(now = new Date()) {
+    const start = Date.UTC(now.getFullYear(), 0, 0);
+    const day = Math.floor((now.getTime() - start) / 86400000);
+    const index = ((day % SPOCK_QUOTES.length) + SPOCK_QUOTES.length) % SPOCK_QUOTES.length;
+    return SPOCK_QUOTES[index];
+}
+
 const ICON_PATHS = {
     home: "M3 11.5 12 4l9 7.5M5.5 10v10h13V10M9.5 20v-6h5v6",
     solar: "M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8",
     weather: "M17.5 19H7a5 5 0 1 1 1.8-9.67A6 6 0 0 1 20 12a3.5 3.5 0 0 1-2.5 7ZM8 5l1-2M4.5 7.5 2-1M3 12H1",
     energy: "M13 2 4.5 13H11l-1 9 8.5-11H12l1-9Z",
+    inverter: "M3 7h18v12H3zM7 7V4h10v3M8 13h3M13 13h3M12 13v3",
     heatpump: "M4 7h10v10H4zM14 10h4l2 2v5h-6M7 10h4M7 13h4M6 20h2M16 20h2",
+    heating: "M6 3v18M10 3v18M14 3v18M18 3v18M4 7h16M4 17h16",
     mobility: "M5 15h14l-1.5-5h-11L5 15Zm2-5 2-4h6l2 4M7 15v3M17 15v3M8 18h.01M16 18h.01M20 9h2v5M22 9V6",
     charge: "M7 7V3M17 7V3M5 7h14v4a7 7 0 0 1-7 7v3M8 21h8",
     settings: "M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8ZM19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21h-4v-.09A1.7 1.7 0 0 0 8.6 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H3v-4h.09A1.7 1.7 0 0 0 4.6 8.6a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V3h4v.09A1.7 1.7 0 0 0 15.4 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9c.38.2.73.32 1.1.4h.5v4h-.09A1.7 1.7 0 0 0 19.4 15Z",
@@ -60,6 +83,8 @@ const UiIcon = {
 const COPY = {
     de: {
         product: "Solar Forecast Stats",
+        devUntil: "gültig bis {date}",
+        devSubline: "DEV-Mode: alle Fakten, ungefiltert. Deuten nur mit Sachkenntnis.",
         sections: { overview: "Übersicht", analysis: "Analyse", control: "Steuerung", system: "System" },
         mobile: { dashboard: "Cockpit", home: "Übersicht", solar: "Solar", energy: "Energie" },
         pages: {
@@ -69,6 +94,7 @@ const COPY = {
             solar: ["Solar & Prognose", "Ertrag, Modelle, Abweichungen und Schatten"],
             weather: ["Wetter", "Wetterlage, Prognose, Strahlung und Ertrag"],
             energy: ["Energie & Finanzen", "Bilanz, Verbraucher, Tarife und Amortisation"],
+            sinv: ["S-INV", "Wechselrichter live: MPPT, Netz, Akku"],
             gpm: ["Strompreis (GPM)", "Tarif, Kurve und Lizenzstatus"],
             smart_charging: ["Smart Charging", "Ladeentscheidung, Preise und Batterieziel"],
             hybrid_forecast: ["Hybrid-Prognose", "Was gilt, was heute gelaufen ist, und die Einstellung"],
@@ -79,6 +105,7 @@ const COPY = {
             quality: ["Forecast Intelligence", "Qualität, Modelle und Entwicklung nachvollziehen"],
             weather_energy: ["Wetter & Energie", "Bedingungen, Prognose und Ertrag gemeinsam analysieren"],
             eai: ["Wärmepumpe", "Verbrauch, Betrieb, Effizienz und Gebäudeverhalten"],
+            heating: ["Heizung", "Räume, Thermostate und Absenkung bei Abwesenheit"],
             mobility: ["E-Mobilität & Wallbox", "PV, Preise, Wärmepumpe und Abfahrtsziel gemeinsam planen"],
             eai_weather: ["Weather Intelligence", "Lokale Prognose, Historie, Genauigkeit und Wetterrisiken"],
             support: ["Fehler melden", "Direkter Kanal zum Entwickler – mit Log-Auszug, ohne persönliche Daten"],
@@ -97,6 +124,8 @@ const COPY = {
     },
     en: {
         product: "Solar Forecast Stats",
+        devUntil: "valid until {date}",
+        devSubline: "DEV mode: every fact, unfiltered. Interpret only with expertise.",
         sections: { overview: "Overview", analysis: "Analysis", control: "Control", system: "System" },
         mobile: { dashboard: "Cockpit", home: "Overview", solar: "Solar", energy: "Energy" },
         pages: {
@@ -106,6 +135,7 @@ const COPY = {
             solar: ["Solar & Forecast", "Yield, models, deviations and shading"],
             weather: ["Weather", "Conditions, forecast, radiation and yield"],
             energy: ["Energy & Finance", "Balance, consumers, tariffs and payback"],
+            sinv: ["S-INV", "Inverter live: MPPT, grid, battery"],
             gpm: ["Grid prices (GPM)", "Tariff, curve and licence status"],
             smart_charging: ["Smart Charging", "Charge decision, prices and battery target"],
             hybrid_forecast: ["Hybrid forecast", "What applies, what ran today, and the setting"],
@@ -116,6 +146,7 @@ const COPY = {
             quality: ["Forecast Intelligence", "Understand quality, models and development"],
             weather_energy: ["Weather & Energy", "Analyse conditions, forecast and yield together"],
             eai: ["Heat Pump", "Consumption, operation, efficiency and building response"],
+            heating: ["Heating", "Rooms, thermostats and setback while away"],
             mobility: ["E-Mobility & Wallbox", "Plan PV, prices, heat-pump demand and departure target together"],
             eai_weather: ["Weather Intelligence", "Local forecast, history, accuracy and weather risks"],
             support: ["Report a defect", "Direct channel to the developer – with log excerpt, without personal data"],
@@ -134,6 +165,8 @@ const COPY = {
     },
     pl: {
         product: "Solar Forecast Stats",
+        devUntil: "ważny do {date}",
+        devSubline: "Tryb DEV: wszystkie fakty, bez filtra. Interpretuj tylko ze znajomością rzeczy.",
         sections: { overview: "Przegląd", analysis: "Analiza", control: "Sterowanie", system: "System" },
         mobile: { dashboard: "Kokpit", home: "Przegląd", solar: "Solar", energy: "Energia" },
         pages: {
@@ -143,6 +176,7 @@ const COPY = {
             solar: ["Energia słoneczna", "Produkcja, modele, odchylenia i cień"],
             weather: ["Pogoda", "Warunki, prognoza, promieniowanie i uzysk"],
             energy: ["Energia i finanse", "Bilans, odbiorniki, taryfy i amortyzacja"],
+            sinv: ["S-INV", "Falownik na żywo: MPPT, sieć, akumulator"],
             gpm: ["Ceny energii (GPM)", "Taryfa, wykres i status licencji"],
             smart_charging: ["Smart Charging", "Decyzja ładowania, ceny i cel baterii"],
             hybrid_forecast: ["Prognoza hybrydowa", "Co obowiązuje, co dziś się wykonało i ustawienie"],
@@ -153,6 +187,7 @@ const COPY = {
             quality: ["Forecast Intelligence", "Jakość, modele i długoterminowy rozwój"],
             weather_energy: ["Pogoda i energia", "Wspólna analiza warunków, prognozy i uzysku"],
             eai: ["Pompa ciepła", "Zużycie, praca, efektywność i reakcja budynku"],
+            heating: ["Ogrzewanie", "Pomieszczenia, termostaty i obniżenie przy nieobecności"],
             mobility: ["E-mobilność i wallbox", "Wspólne planowanie PV, cen, pompy ciepła i wyjazdu"],
             eai_weather: ["Weather Intelligence", "Lokalna prognoza, historia, dokładność i ryzyka pogodowe"],
             support: ["Zgłoś błąd", "Bezpośredni kanał do dewelopera – z fragmentem logu, bez danych osobowych"],
@@ -168,6 +203,21 @@ const COPY = {
         more: "Więcej",
         help: "Pomoc",
         licenseLabel: "Licencja",
+    },
+};
+
+const PUBLIC_PAGE_SUBTITLES = {
+    de: {
+        solar: "Ertrag, Abweichungen und Schatten",
+        quality: "Qualität und Entwicklung nachvollziehen",
+    },
+    en: {
+        solar: "Yield, deviations and shading",
+        quality: "Understand quality and development",
+    },
+    pl: {
+        solar: "Produkcja, odchylenia i cień",
+        quality: "Jakość i długoterminowy rozwój",
     },
 };
 
@@ -353,8 +403,10 @@ const ModernApp = {
     template: `
         <div class="modern-app" :class="{
             'drawer-open': drawerOpen,
+            'nav-collapsed': navCollapsed && currentPage !== 'dashboard',
             'orbit-mode': currentPage === 'dashboard',
             'premium-mode': currentPage === 'eai',
+            'dev-mode': devActive,
         }">
             <a class="skip-link" href="#main-content">{{ copy.skip }}</a>
 
@@ -390,6 +442,11 @@ const ModernApp = {
                 </nav>
 
                 <div class="sidebar-footer">
+                    <div v-if="devActive" class="dev-tag" role="status" :title="devHint">
+                        <strong>🖖 DEV</strong>
+                        <span v-if="devUntilLabel">{{ devUntilLabel }}</span>
+                        <span class="sr-only">{{ devHint }}</span>
+                    </div>
                     <a class="nav-item sidebar-help-link" :href="handbookUrl"
                        target="_blank" rel="noopener noreferrer">
                         <ui-icon name="help"></ui-icon>
@@ -421,7 +478,8 @@ const ModernApp = {
                 <header class="topbar">
                     <div class="topbar-title">
                         <button class="icon-button menu-button" type="button" :aria-label="copy.navigation"
-                                @click="drawerOpen = true">
+                                :aria-expanded="String(drawerOpen || (!navCollapsed && currentPage !== 'dashboard'))"
+                                @click="toggleNavigation">
                             <ui-icon name="menu"></ui-icon>
                         </button>
                         <div>
@@ -484,8 +542,10 @@ const ModernApp = {
                                        @mode-change="handleDashboardMode"
                                        @change-theme="handlePageTheme" />
                             <modern-intelligence-overview
-                                v-if="currentPage === 'home'"
+                                v-if="currentPage === 'home' && devActive"
                                 @navigate="navigate" />
+                            <modern-forecast-guide
+                                v-if="currentPage === 'home' && !devActive" />
                         </div>
                     </transition>
                 </main>
@@ -517,6 +577,7 @@ const ModernApp = {
         const dashboardMode = ref("loading");
         const premiumCorrections = ref(false);
         const drawerOpen = ref(false);
+        const navCollapsed = ref(readNavCollapsed());
         const hasLoaded = ref(false);
         const requestPending = ref(false);
         const connectionState = ref("loading");
@@ -558,6 +619,7 @@ const ModernApp = {
                     { id: "weather", icon: "weather" },
                     { id: "eai_weather", icon: "weather", premium: true },
                     { id: "energy", icon: "energy" },
+                    { id: "sinv", icon: "inverter" },
                     { id: "gpm", icon: "energy", premium: true },
                     { id: "statistics", icon: "quality", premium: true },
                     { id: "tomorrow", icon: "play", premium: true, panel: true },
@@ -567,6 +629,7 @@ const ModernApp = {
                 id: "control",
                 items: [
                     { id: "eai", icon: "heatpump", premium: true, feature: "heat_pump" },
+                    { id: "heating", icon: "heating", premium: true, admin: true, feature: "heating" },
                     { id: "mobility", icon: "mobility", premium: true, feature: "wallbox" },
                     { id: "smart_charging", icon: "charge" },
                     { id: "hybrid_forecast", icon: "trend" },
@@ -581,7 +644,16 @@ const ModernApp = {
                 ],
             },
         ];
-        const navigation = computed(() => navigationDefinition);
+        const heatingFeatureEnabled = ref(false);
+        const sinvFeatureEnabled = ref(false);
+        const navigation = computed(() => navigationDefinition.map((section) => ({
+            ...section,
+            items: section.items.filter((item) => {
+                if (item.id === "heating") return heatingFeatureEnabled.value;
+                if (item.id === "sinv") return sinvFeatureEnabled.value;
+                return true;
+            }),
+        })));
         const isAdmin = computed(() => {
             try {
                 if (window.parent === window || window.top !== window.parent) return true;
@@ -613,9 +685,11 @@ const ModernApp = {
             quality: window.ModernQualityPage,
             weather: window.ModernWeatherPage,
             energy: window.EnergyPage,
+            sinv: window.SinvPage,
             gpm: window.GPMPage,
             tomorrow: window.TomorrowPage,
             eai: window.ModernEAIPage,
+            heating: window.HeatingPage,
             mobility: window.ModernMobilityPage,
             eai_weather: window.ModernEAIWeatherPage,
             smart_charging: window.SmartChargingPage,
@@ -639,7 +713,10 @@ const ModernApp = {
         });
 
         function pageCopy(page) {
-            return copy.pages[page] || copy.pages.home;
+            const pair = copy.pages[page] || copy.pages.home;
+            if (window.sfmlDevState.active === true) return pair;
+            const subtitle = PUBLIC_PAGE_SUBTITLES[locale]?.[page];
+            return subtitle ? [pair[0], subtitle] : pair;
         }
 
         function formatPower(value) {
@@ -761,6 +838,29 @@ const ModernApp = {
             drawerOpen.value = false;
         }
 
+        function readNavCollapsed() {
+            try {
+                return localStorage.getItem("sfml-stats-modern-nav-collapsed") === "1";
+            } catch (_error) {
+                return false;
+            }
+        }
+
+        // Desktop pages pin or unpin the sidebar; the cockpit and narrow screens keep the overlay drawer.
+        function toggleNavigation() {
+            const docked = window.matchMedia("(min-width: 961px)").matches;
+            if (!docked || currentPage.value === "dashboard") {
+                drawerOpen.value = true;
+                return;
+            }
+            navCollapsed.value = !navCollapsed.value;
+            try {
+                localStorage.setItem("sfml-stats-modern-nav-collapsed", navCollapsed.value ? "1" : "0");
+            } catch (_error) {
+                // Storage can be blocked; the toggle still works for this session.
+            }
+        }
+
         function handleKeydown(event) {
             if (event.key === "Escape") closeDrawer();
         }
@@ -876,8 +976,49 @@ const ModernApp = {
             if (themeMode.value === "auto") applyTheme();
         };
 
+        async function loadHeatingFeature() {
+            try {
+                const payload = await SFMLApi.fetch("/api/sfml_stats/heating/status", { authenticated: true });
+                const body = payload && payload.data ? payload.data : payload;
+                heatingFeatureEnabled.value = body?.feature_enabled === true;
+            } catch (_error) {
+                heatingFeatureEnabled.value = false;
+            }
+        }
+
+        async function loadSinvFeature() {
+            try {
+                const payload = await SFMLApi.fetch("/api/sfml_stats/sinv/status", { authenticated: true });
+                const body = payload && payload.data ? payload.data : payload;
+                sinvFeatureEnabled.value = body?.feature_enabled === true;
+            } catch (_error) {
+                sinvFeatureEnabled.value = false;
+            }
+        }
+
+        const devActive = computed(() => window.sfmlDevState.active === true);
+        const devHint = computed(() => `${spockQuote()} — ${copy.devSubline}`);
+        const devUntilLabel = computed(() => {
+            const raw = window.sfmlDevState.expires_at;
+            if (!raw) return "";
+            const parsed = new Date(raw);
+            if (Number.isNaN(parsed.getTime())) return "";
+            const formatted = new Intl.DateTimeFormat(locale, {
+                dateStyle: "medium",
+                timeStyle: "short",
+            }).format(parsed);
+            return copy.devUntil.replace("{date}", formatted);
+        });
+
+        async function loadDevMode() {
+            await SFMLApi.ensureDevMode(true);
+        }
+
         onMounted(() => {
             applyTheme();
+            loadDevMode();
+            loadHeatingFeature();
+            loadSinvFeature();
             handleHashChange();
             window.addEventListener("hashchange", handleHashChange);
             window.addEventListener("keydown", handleKeydown);
@@ -913,6 +1054,7 @@ const ModernApp = {
             themeOptions,
             themeMode,
             drawerOpen,
+            navCollapsed,
             hasLoaded,
             connectionState,
             lastUpdated,
@@ -924,10 +1066,14 @@ const ModernApp = {
             formatPrice,
             navigate,
             closeDrawer,
+            toggleNavigation,
             setThemeMode,
             handlePageTheme,
             handleDashboardMode,
             fetchData,
+            devActive,
+            devHint,
+            devUntilLabel,
         };
     },
 };
@@ -935,6 +1081,8 @@ const ModernApp = {
 installModernChartDefaults();
 const sfmlStatsModernApp = createApp(ModernApp);
 sfmlStatsModernApp.component("ui-icon", UiIcon);
+sfmlStatsModernApp.component("modern-page-guide", window.ModernPageGuide);
+sfmlStatsModernApp.component("modern-forecast-guide", window.ModernForecastGuide);
 sfmlStatsModernApp.component("modern-intelligence-overview", window.ModernIntelligenceOverview);
 sfmlStatsModernApp.config.globalProperties.$t = window.SFMLI18n?.t || ((key) => key);
 sfmlStatsModernApp.mount("#app");

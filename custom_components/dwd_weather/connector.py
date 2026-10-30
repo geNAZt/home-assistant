@@ -169,6 +169,7 @@ class DWDWeatherData:
         self._airquality_hourly = None
         self._airquality_daily = None
         self._radar_precipitation_forecast = None
+        self._radar_next_precipitation_5_minutes = None
         self._radar_next_precipitation = None
         self._sunshine_store = Store(
             hass,
@@ -503,6 +504,7 @@ class DWDWeatherData:
     def _update_radar_precipitation(self) -> None:
         """Refresh radar precipitation data during connector update cycle only."""
         self._radar_precipitation_forecast = None
+        self._radar_next_precipitation_5_minutes = None
         self._radar_next_precipitation = None
 
         if not self._config.get(CONF_DOWNLOAD_PRECIPITATION_SENSORS, False):
@@ -526,6 +528,21 @@ class DWDWeatherData:
             )
         except Exception as error:
             _LOGGER.warning("Failed to update radar precipitation forecast: %s", error)
+
+        try:
+            # Reuse freshly downloaded data from forecast call where possible.
+            kwargs = {"shouldUpdate": False}
+            if lat is not None and lon is not None:
+                kwargs["lat"] = lat
+                kwargs["lon"] = lon
+            self._radar_next_precipitation_5_minutes = (
+                self.dwd_weather.get_radar_precipitation_next_5_minutes(**kwargs)
+            )
+        except Exception as error:
+            _LOGGER.warning(
+                "Failed to update radar precipitation next 5 minutes details: %s",
+                error,
+            )
 
         try:
             # Reuse freshly downloaded data from forecast call where possible.
@@ -712,6 +729,14 @@ class DWDWeatherData:
                         False,
                     )
 
+                    # MOSMIX-S RR1c is the precipitation of the hour ending at its
+                    # label, so the hour starting at timestep is labelled timestep+1h
+                    precipitation_timestep = (
+                        timestep + timedelta(hours=1)
+                        if self._config[CONF_HOURLY_UPDATE]
+                        else timestep
+                    )
+
                     data_item = {
                         ATTR_FORECAST_TIME: timestep.strftime("%Y-%m-%dT%H:00:00Z"),
                         ATTR_FORECAST_CLOUD_COVERAGE: self.dwd_weather.get_timeframe_max(
@@ -726,7 +751,7 @@ class DWDWeatherData:
                         else None,
                         ATTR_FORECAST_NATIVE_PRECIPITATION: self.dwd_weather.get_timeframe_sum(
                             WeatherDataType.PRECIPITATION,
-                            timestep,
+                            precipitation_timestep,
                             weather_interval,
                             False,
                         ),
@@ -1086,8 +1111,20 @@ class DWDWeatherData:
             if not hasattr(self, "_interpolate_value"):
                 self._interpolate_value = {}
             now_time_actual = datetime.now(timezone.utc)
-            if data_type not in self._interpolate_value:
+            if not hasattr(self, "_interpolate_report_stamp"):
+                self._interpolate_report_stamp = {}
+            report_data = getattr(self.dwd_weather, "report_data", None)
+            report_stamp = (
+                (report_data.get("date"), report_data.get("time"))
+                if isinstance(report_data, dict)
+                else None
+            )
+            if (
+                data_type not in self._interpolate_value
+                or self._interpolate_report_stamp.get(data_type) != report_stamp
+            ):
                 self._interpolate_value[data_type] = (value, now_time_actual)
+                self._interpolate_report_stamp[data_type] = report_stamp
             next_value = self.dwd_weather.get_forecast_data(
                 data_type,
                 now_time_actual + timedelta(hours=1),
@@ -1255,6 +1292,32 @@ class DWDWeatherData:
         if start is None:
             return None
         return start.strftime("%Y-%m-%dT%H:%M:%S+00:00")
+
+    def get_radar_precipitation_next_5_minutes_intensity(self):
+        if not isinstance(self._radar_next_precipitation_5_minutes, dict):
+            return None
+
+        intensity = self._radar_next_precipitation_5_minutes.get("intensity")
+        if intensity is None:
+            return None
+
+        return round(intensity, 1)
+
+    def get_radar_precipitation_next_5_minutes_attributes(self):
+        if not isinstance(self._radar_next_precipitation_5_minutes, dict):
+            return {}
+
+        result = {}
+
+        radar_time = self._radar_next_precipitation_5_minutes.get("time")
+        if radar_time is not None:
+            result["time"] = radar_time.strftime("%Y-%m-%dT%H:%M:%S+00:00")
+
+        amount = self._radar_next_precipitation_5_minutes.get("amount")
+        if amount is not None:
+            result["amount"] = round(amount, 2)
+
+        return result
 
     def get_radar_next_precipitation_attributes(self):
         if not isinstance(self._radar_next_precipitation, dict):
@@ -2007,7 +2070,7 @@ class DWDMapData:
                             boxcolor = (225, 225, 225)
                             textcolor = (0, 0, 0)
 
-                        time_str = display_timestamp.astimezone().strftime(
+                        time_str = dt.as_local(display_timestamp).strftime(
                             "%d.%m.%Y %H:%M"
                         )
                         display_text = time_str

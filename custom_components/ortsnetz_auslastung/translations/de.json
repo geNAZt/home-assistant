@@ -1,4 +1,11 @@
 {
+  "selector": {
+    "phase_sensor": {
+      "options": {
+        "not_measured": "Phase nicht gemessen (-1)"
+      }
+    }
+  },
   "entity": {
     "sensor": {
       "voltage_status": {
@@ -23,7 +30,7 @@
     "step": {
       "user": {
         "title": "Ortsnetz-Auslastung",
-        "description": "Wähle die drei Spannungs-Sensoren und die Ziel-API.",
+        "description": "Wähle mindestens einen Spannungs-Sensor und die Ziel-API. Nicht gemessene Phasen können leer bleiben oder -1 erhalten.",
         "data": {
           "api_url": "API-Adresse",
           "grid_frequency_entity": "Netzfrequenz (Hz) – optional",
@@ -38,13 +45,13 @@
         },
         "data_description": {
           "smartmeter_model": "Modell auswählen oder eigenen Namen eingeben (maximal 120 Zeichen). Optional; die Liste ist keine Kompatibilitätsgarantie.",
-          "battery_capacity": "Die tatsächliche nutzbare Kapazität eintragen, nicht den aktuellen Energieinhalt.",
+          "battery_capacity": "Nutzbare Kapazität von 0 bis 150 kWh eintragen, nicht den aktuellen Energieinhalt.",
           "grid_power_w_entity": "Am Hausanschluss: positiv = Netzbezug, negativ = Einspeisung. Nicht die Wechselrichterleistung auswählen."
         },
         "sections": {
           "phase_voltages": {
             "name": "Phasenspannungen (V)",
-            "description": "Wähle die drei Spannungswerte vom Smartmeter deiner PV-Anlage.",
+            "description": "Sensor auswählen oder -1 eingeben; ein leeres Feld schließt die Phase ebenfalls aus. Mindestens eine Phase muss einem Sensor zugeordnet sein.",
             "data": {
               "l1_entity": "Netzspannung Phase L1 (V)",
               "l2_entity": "Netzspannung Phase L2 (V)",
@@ -78,9 +85,11 @@
       }
     },
     "error": {
+      "invalid_phase_selection": "Wähle einen Sensor oder gib -1 für eine ausgeschlossene Phase ein.",
+      "no_measured_phase": "Mindestens eine Phase muss einem Spannungs-Sensor zugeordnet sein.",
       "invalid_smartmeter_model": "Verwende höchstens 120 Zeichen für Hersteller und Modell.",
       "invalid_api_url": "Gib eine gültige HTTPS-Adresse ein.",
-      "invalid_battery_capacity": "Trage eine gültige Batteriekapazität größer als 0 kWh ein."
+      "invalid_battery_capacity": "Trage eine gültige Batteriekapazität von 0 bis einschließlich 150 kWh ein."
     }
   },
   "options": {
@@ -102,13 +111,13 @@
         },
         "data_description": {
           "smartmeter_model": "Modell auswählen oder eigenen Namen eingeben (maximal 120 Zeichen). Optional; die Liste ist keine Kompatibilitätsgarantie.",
-          "battery_capacity": "Die tatsächliche nutzbare Kapazität eintragen, nicht den aktuellen Energieinhalt.",
+          "battery_capacity": "Nutzbare Kapazität von 0 bis 150 kWh eintragen, nicht den aktuellen Energieinhalt.",
           "grid_power_w_entity": "Am Hausanschluss: positiv = Netzbezug, negativ = Einspeisung. Nicht die Wechselrichterleistung auswählen."
         },
         "sections": {
           "phase_voltages": {
             "name": "Phasenspannungen (V)",
-            "description": "Wähle die drei Spannungswerte vom Smartmeter deiner PV-Anlage.",
+            "description": "Sensor auswählen oder -1 eingeben; ein leeres Feld schließt die Phase ebenfalls aus. Mindestens eine Phase muss einem Sensor zugeordnet sein.",
             "data": {
               "l1_entity": "Netzspannung Phase L1 (V)",
               "l2_entity": "Netzspannung Phase L2 (V)",
@@ -142,9 +151,11 @@
       }
     },
     "error": {
+      "invalid_phase_selection": "Wähle einen Sensor oder gib -1 für eine ausgeschlossene Phase ein.",
+      "no_measured_phase": "Mindestens eine Phase muss einem Spannungs-Sensor zugeordnet sein.",
       "invalid_smartmeter_model": "Verwende höchstens 120 Zeichen für Hersteller und Modell.",
       "invalid_api_url": "Gib eine gültige HTTPS-Adresse ein.",
-      "invalid_battery_capacity": "Trage eine gültige Batteriekapazität größer als 0 kWh ein."
+      "invalid_battery_capacity": "Trage eine gültige Batteriekapazität von 0 bis einschließlich 150 kWh ein."
     }
   }
 }

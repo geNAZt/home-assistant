@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "defaults": {
+    "reference_price_ct": 26.0,
+    "feed_in_tariff_ct": 8.1,
+    "fixed_price_ct": 35.0,
+    "eeg_import_price_ct": 18.0,
+    "eeg_feed_in_ct": 12.0,
+    "grid_fee_base_ct": 13.0,
+    "grid_fee_scaling_enabled": true
+  },
+  "months": {
+    "2026-09": {
+      "overrides": {},
+      "fixed_fallbacks": {
+        "import_price_ct": 35.0,
+        "feed_in_tariff_ct": 8.1,
+        "base_fee_eur": 0.0
+      },
+      "fixed_at": "2026-10-30T11:47:00.012805+01:00"
+    },
+    "2026-10": {
+      "overrides": {},
+      "fixed_fallbacks": {
+        "import_price_ct": 35.0,
+        "feed_in_tariff_ct": 8.1,
+        "base_fee_eur": 0.0
+      },
+      "fixed_at": "2026-10-30T11:47:00.013371+01:00"
+    }
+  }
+}

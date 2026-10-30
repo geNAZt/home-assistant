@@ -189,7 +189,33 @@
       "max_soc": 18.0,
       "peak_battery_power_w": 4928.18878504673,
       "price_mode": "dynamic"
+    },
+    "2026-10-30": {
+      "solar_yield_kwh": 4.7847,
+      "grid_import_kwh": 0,
+      "grid_export_kwh": 0,
+      "solar_to_house_kwh": 1.692828,
+      "solar_to_battery_kwh": 4.536558,
+      "battery_to_house_kwh": 0.01033,
+      "grid_to_house_kwh": 0.0,
+      "grid_to_battery_kwh": 0.0,
+      "home_consumption_kwh": 4.919584,
+      "smartmeter_import_kwh": 0.0,
+      "smartmeter_export_kwh": 0.0,
+      "autarkie_percent": 34.619959736432996,
+      "self_consumption_kwh": 6.229386,
+      "consumer_heatpump_kwh": 2.053938,
+      "consumer_heatingrod_kwh": 0.0,
+      "consumer_wallbox_kwh": 0.0,
+      "yield_groups": {
+        "Gruppe 1": 4.7847
+      },
+      "battery_charge_solar_kwh": 4.536558,
+      "battery_charge_grid_kwh": 0.0,
+      "timestamp": "2026-10-30T11:43:17.708653+01:00",
+      "grid_import_extra_kwh": 3.228,
+      "price_mode": "none"
     }
   },
-  "last_updated": "2026-02-11T22:18:16.731185"
+  "last_updated": "2026-10-30T11:43:17.734494+01:00"
 }
