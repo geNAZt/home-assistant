@@ -793,6 +793,8 @@ class FlaschenpostApiClient:
         password: str,
         session: aiohttp.ClientSession | None = None,
         base_url: str = BASE_URL,
+        default_payment_method: str | None = None,
+        stored_payment_id: str | None = None,
     ) -> None:
         """Initialize the client with credentials and dedicated cookie session."""
         self._email = email
@@ -808,6 +810,8 @@ class FlaschenpostApiClient:
         self._customer_id: int | None = None
         self._categories_cache: dict[int, list[dict[str, Any]]] = {}
         self._auth_lock = asyncio.Lock()
+        self.default_payment_method: str | None = default_payment_method
+        self.stored_payment_id: str | None = stored_payment_id
 
     @property
     def web_user_guid(self) -> str | None:
@@ -2178,13 +2182,37 @@ class FlaschenpostApiClient:
     async def async_place_order(
         self,
         *,
-        payment_method: str = PAYMENT_SEPA,
+        payment_method: str | None = None,
         iban_last4: str | None = None,
         stored_payment_id: str | None = None,
         slot_type: str | None = None,
         slot_from: str | None = None,
     ) -> dict[str, Any]:
         """Place the current cart order headlessly using saved Credit Card, PayPal, SEPA, or Invoice."""
+        if not payment_method:
+            payment_method = self.default_payment_method
+        if not stored_payment_id:
+            stored_payment_id = self.stored_payment_id
+
+        if not payment_method and stored_payment_id:
+            payment_method = PAYMENT_CREDIT_CARD
+
+        if not payment_method:
+            try:
+                saved = await self.async_get_saved_payment_methods()
+                with_stored = next((m for m in saved if m.get("stored_payment_id")), None)
+                if with_stored:
+                    payment_method = with_stored["payment_method"]
+                    if not stored_payment_id:
+                        stored_payment_id = with_stored["stored_payment_id"]
+                elif saved:
+                    payment_method = saved[0]["payment_method"]
+            except Exception as err:
+                _LOGGER.debug("Could not determine saved payment method: %s", err)
+
+        if not payment_method:
+            payment_method = PAYMENT_CREDIT_CARD
+
         if payment_method not in ALL_PAYMENT_METHODS:
             raise FlaschenpostOrderError(
                 f"Unsupported payment_method '{payment_method}' (must be one of: {', '.join(ALL_PAYMENT_METHODS)})"

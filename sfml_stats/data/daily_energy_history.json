@@ -347,31 +347,31 @@
       "price_mode": "gpm_time_of_use"
     },
     "2026-11-05": {
-      "solar_yield_kwh": 11.6771,
-      "grid_import_kwh": 6.37070403055403,
-      "grid_export_kwh": 0.04809855711601064,
-      "solar_to_house_kwh": 4.898926,
-      "solar_to_battery_kwh": 11.536718,
-      "battery_to_house_kwh": 0.970148,
-      "grid_to_house_kwh": 2.3427040305540276,
+      "solar_yield_kwh": 15.648399999999999,
+      "grid_import_kwh": 6.549848283989014,
+      "grid_export_kwh": 0.04914872614293377,
+      "solar_to_house_kwh": 7.162546,
+      "solar_to_battery_kwh": 13.030868,
+      "battery_to_house_kwh": 3.108504,
+      "grid_to_house_kwh": 2.396848283989014,
       "grid_to_battery_kwh": 0.0,
-      "home_consumption_kwh": 8.241868,
-      "smartmeter_import_kwh": 6.37070403055403,
-      "smartmeter_export_kwh": 0.04809855711601064,
-      "autarkie_percent": 71.21048286626285,
-      "self_consumption_kwh": 16.435644,
-      "consumer_heatpump_kwh": 2.250006,
+      "home_consumption_kwh": 12.722203,
+      "smartmeter_import_kwh": 6.549848283989014,
+      "smartmeter_export_kwh": 0.04914872614293377,
+      "autarkie_percent": 80.73326608607015,
+      "self_consumption_kwh": 20.193414,
+      "consumer_heatpump_kwh": 2.715512,
       "consumer_heatingrod_kwh": 0.0,
-      "consumer_wallbox_kwh": 0.2811248942255238,
+      "consumer_wallbox_kwh": 3.3702995993842113,
       "yield_groups": {
-        "Gruppe 1": 11.6771
+        "Gruppe 1": 15.648399999999999
       },
-      "battery_charge_solar_kwh": 11.536718,
+      "battery_charge_solar_kwh": 13.030868,
       "battery_charge_grid_kwh": 0.0,
-      "timestamp": "2026-11-05T12:50:54.938082+01:00",
-      "grid_import_extra_kwh": 4.101,
+      "timestamp": "2026-11-05T13:56:58.321953+01:00",
+      "grid_import_extra_kwh": 4.179,
       "price_mode": "gpm_time_of_use"
     }
   },
-  "last_updated": "2026-11-05T12:50:55.147157+01:00"
+  "last_updated": "2026-11-05T13:56:58.494518+01:00"
 }

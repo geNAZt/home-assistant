@@ -25,7 +25,6 @@ from .const import (
     ALL_PAYMENT_METHODS,
     CONF_DEFAULT_PAYMENT,
     CONF_EMAIL,
-    CONF_IBAN_LAST4,
     CONF_INITIAL_SHOPPING_LISTS,
     CONF_PASSWORD,
     CONF_STORED_PAYMENT_ID,
@@ -59,7 +58,7 @@ from .const import (
     STORAGE_VERSION,
     UNIT_TYPE_UNIT,
 )
-from .coordinator import FlaschenpostCoordinator
+from .coordinator import FlaschenpostCoordinator, async_resolve_payment_parameters
 from .shopping_list import (
     FlaschenpostShoppingListManager,
     parse_shopping_item_spec,
@@ -268,9 +267,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Flaschenpost from a config entry."""
     hass.data.setdefault(DOMAIN, {})
 
+    default_payment = entry.options.get(
+        CONF_DEFAULT_PAYMENT,
+        entry.data.get(CONF_DEFAULT_PAYMENT, PAYMENT_CREDIT_CARD),
+    )
+    stored_payment_id = entry.options.get(
+        CONF_STORED_PAYMENT_ID,
+        entry.data.get(CONF_STORED_PAYMENT_ID),
+    )
     client = FlaschenpostApiClient(
         email=entry.data[CONF_EMAIL],
         password=entry.data[CONF_PASSWORD],
+        default_payment_method=default_payment,
+        stored_payment_id=stored_payment_id,
     )
     db_path = hass.config.path("flaschenpost.db") if hasattr(hass, "config") and hasattr(hass.config, "path") else "flaschenpost.db"
     storage = FlaschenpostSqliteStorage(db_path=db_path, hass=hass)
@@ -317,6 +326,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await coordinator.async_config_entry_first_refresh()
 
     hass.data[DOMAIN][entry.entry_id] = coordinator
+
+    async def _async_update_listener(hass: HomeAssistant, updated_entry: ConfigEntry) -> None:
+        """Update client payment settings when config entry options change."""
+        coord = hass.data[DOMAIN].get(updated_entry.entry_id)
+        if coord and coord.client:
+            coord.client.default_payment_method = updated_entry.options.get(
+                CONF_DEFAULT_PAYMENT,
+                updated_entry.data.get(CONF_DEFAULT_PAYMENT, PAYMENT_CREDIT_CARD),
+            )
+            coord.client.stored_payment_id = updated_entry.options.get(
+                CONF_STORED_PAYMENT_ID,
+                updated_entry.data.get(CONF_STORED_PAYMENT_ID),
+            )
+
+    entry.async_on_unload(entry.add_update_listener(_async_update_listener))
+
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     _async_register_services(hass)
     async_register_websocket_commands(hass)
@@ -665,23 +690,13 @@ def _async_register_services(hass: HomeAssistant) -> None:
                 "Refusing to place a paid order without 'confirm: true'"
             )
         coord = _resolve_coordinator(hass, call.data.get("config_entry_id"))
-        opts = coord.config_entry.options
-        payment_method = (
-            call.data.get("payment_method")
-            or opts.get(CONF_DEFAULT_PAYMENT)
-            or coord.config_entry.data.get(CONF_DEFAULT_PAYMENT, PAYMENT_CREDIT_CARD)
-        )
-        stored_payment_id = (
-            call.data.get("stored_payment_id")
-            or opts.get(CONF_STORED_PAYMENT_ID)
-            or coord.config_entry.data.get(CONF_STORED_PAYMENT_ID)
-            or None
-        )
-        iban_last4 = (
-            call.data.get("iban_last4")
-            or opts.get(CONF_IBAN_LAST4)
-            or coord.config_entry.data.get(CONF_IBAN_LAST4)
-            or None
+        payment_method, stored_payment_id, iban_last4 = (
+            await async_resolve_payment_parameters(
+                coord,
+                payment_method=call.data.get("payment_method"),
+                stored_payment_id=call.data.get("stored_payment_id"),
+                iban_last4=call.data.get("iban_last4"),
+            )
         )
         # Check and apply next active coupon code from DB
         applied_coupon = None

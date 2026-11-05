@@ -13,11 +13,11 @@ from homeassistant.core import HomeAssistant
 
 from .const import (
     CONF_DEFAULT_PAYMENT,
-    CONF_IBAN_LAST4,
     CONF_STORED_PAYMENT_ID,
     DOMAIN,
     PAYMENT_CREDIT_CARD,
 )
+from .coordinator import async_resolve_payment_parameters
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -506,24 +506,13 @@ async def ws_buy_cart(
             connection.send_error(msg["id"], "unconfirmed", "Payment confirmation required")
             return
         coord = _resolve_coord(hass, msg.get("config_entry_id"))
-        opts = coord.config_entry.options
-        data = coord.config_entry.data
-        payment_method = (
-            msg.get("payment_method")
-            or opts.get(CONF_DEFAULT_PAYMENT)
-            or data.get(CONF_DEFAULT_PAYMENT, PAYMENT_CREDIT_CARD)
-        )
-        stored_payment_id = (
-            msg.get("stored_payment_id")
-            or opts.get(CONF_STORED_PAYMENT_ID)
-            or data.get(CONF_STORED_PAYMENT_ID)
-            or None
-        )
-        iban_last4 = (
-            msg.get("iban_last4")
-            or opts.get(CONF_IBAN_LAST4)
-            or data.get(CONF_IBAN_LAST4)
-            or None
+        payment_method, stored_payment_id, iban_last4 = (
+            await async_resolve_payment_parameters(
+                coord,
+                payment_method=msg.get("payment_method"),
+                stored_payment_id=msg.get("stored_payment_id"),
+                iban_last4=msg.get("iban_last4"),
+            )
         )
         # Check and apply next active coupon code from DB
         applied_coupon = None

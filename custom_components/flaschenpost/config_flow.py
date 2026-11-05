@@ -75,7 +75,8 @@ class FlaschenpostConfigFlow(ConfigFlow, domain=DOMAIN):
         self._email: str = ""
         self._password: str = ""
         self._user_guid: str = ""
-        self._default_payment: str = PAYMENT_SEPA
+        self._default_payment: str = PAYMENT_CREDIT_CARD
+        self._stored_payment_id: str = ""
         self._iban_last4: str = ""
         self._manage_lists_now: bool = False
         self._client: FlaschenpostApiClient | None = None
@@ -122,7 +123,7 @@ class FlaschenpostConfigFlow(ConfigFlow, domain=DOMAIN):
                 self._password = password
                 self._user_guid = user_guid
                 self._default_payment = user_input.get(
-                    CONF_DEFAULT_PAYMENT, PAYMENT_SEPA
+                    CONF_DEFAULT_PAYMENT, PAYMENT_CREDIT_CARD
                 )
                 self._iban_last4 = user_input.get(CONF_IBAN_LAST4, "").strip()
                 self._manage_lists_now = bool(
@@ -131,6 +132,17 @@ class FlaschenpostConfigFlow(ConfigFlow, domain=DOMAIN):
                 self._client = client
                 self._account_data = account_data
                 self._temp_mgr = FlaschenpostShoppingListManager(client=client)
+
+                try:
+                    saved_methods = await client.async_get_saved_payment_methods()
+                    for sm in saved_methods:
+                        if sm.get("stored_payment_id"):
+                            self._stored_payment_id = sm["stored_payment_id"]
+                            if CONF_DEFAULT_PAYMENT not in user_input:
+                                self._default_payment = sm["payment_method"]
+                            break
+                except Exception as sm_err:
+                    _LOGGER.debug("Could not query saved payment methods during setup: %s", sm_err)
 
                 # Extract discovered warehouse ID
                 wh_cart = ((cart.get("custom") or {}).get("fields") or {}).get(
@@ -257,6 +269,7 @@ class FlaschenpostConfigFlow(ConfigFlow, domain=DOMAIN):
             data=data,
             options={
                 CONF_DEFAULT_PAYMENT: self._default_payment,
+                CONF_STORED_PAYMENT_ID: self._stored_payment_id,
                 CONF_IBAN_LAST4: self._iban_last4,
             },
         )

@@ -16,7 +16,15 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from homeassistant.util import dt as dt_util
 
 from .api import FlaschenpostApiClient, FlaschenpostAuthError, FlaschenpostError
-from .const import DOMAIN, SCAN_INTERVAL_ACTIVE_DELIVERY, SCAN_INTERVAL_IDLE
+from .const import (
+    CONF_DEFAULT_PAYMENT,
+    CONF_IBAN_LAST4,
+    CONF_STORED_PAYMENT_ID,
+    DOMAIN,
+    PAYMENT_CREDIT_CARD,
+    SCAN_INTERVAL_ACTIVE_DELIVERY,
+    SCAN_INTERVAL_IDLE,
+)
 from .shopping_list import FlaschenpostShoppingListManager
 
 _LOGGER = logging.getLogger(__name__)
@@ -74,6 +82,20 @@ class FlaschenpostCoordinator(DataUpdateCoordinator[FlaschenpostSnapshot]):
                 listener(event_data)
             except Exception as err:
                 _LOGGER.warning("Error in item consumed listener: %s", err)
+
+    async def async_resolve_payment_parameters(
+        self,
+        payment_method: str | None = None,
+        stored_payment_id: str | None = None,
+        iban_last4: str | None = None,
+    ) -> tuple[str, str | None, str | None]:
+        """Resolve payment parameters using explicit params, options, or data."""
+        return await async_resolve_payment_parameters(
+            self,
+            payment_method=payment_method,
+            stored_payment_id=stored_payment_id,
+            iban_last4=iban_last4,
+        )
 
     def register_item_consumed_listener(
         self, listener: Callable[[dict[str, Any]], None]
@@ -182,3 +204,65 @@ class FlaschenpostCoordinator(DataUpdateCoordinator[FlaschenpostSnapshot]):
             raise ConfigEntryAuthFailed(str(err)) from err
         except FlaschenpostError as err:
             raise UpdateFailed(f"Error communicating with Flaschenpost: {err}") from err
+
+
+async def async_resolve_payment_parameters(
+    coord: Any,
+    payment_method: str | None = None,
+    stored_payment_id: str | None = None,
+    iban_last4: str | None = None,
+) -> tuple[str, str | None, str | None]:
+    """Resolve payment method, stored payment id, and IBAN from explicit params or config entry."""
+    entry = getattr(coord, "config_entry", None)
+    opts = entry.options if entry and hasattr(entry, "options") else {}
+    data = entry.data if entry and hasattr(entry, "data") else {}
+
+    method = (
+        payment_method
+        or opts.get(CONF_DEFAULT_PAYMENT)
+        or data.get(CONF_DEFAULT_PAYMENT)
+    )
+    stored_id = (
+        stored_payment_id
+        or opts.get(CONF_STORED_PAYMENT_ID)
+        or data.get(CONF_STORED_PAYMENT_ID)
+        or None
+    )
+    iban = (
+        iban_last4
+        or opts.get(CONF_IBAN_LAST4)
+        or data.get(CONF_IBAN_LAST4)
+        or None
+    )
+
+    if not method and stored_id:
+        method = PAYMENT_CREDIT_CARD
+
+    client = getattr(coord, "client", None)
+    if (not method or (method == PAYMENT_CREDIT_CARD and not stored_id)) and client and hasattr(client, "async_get_saved_payment_methods"):
+        try:
+            saved_methods = await client.async_get_saved_payment_methods()
+            if stored_id:
+                matching = next(
+                    (m for m in saved_methods if m.get("stored_payment_id") == stored_id),
+                    None,
+                )
+                if matching:
+                    method = matching["payment_method"]
+            else:
+                with_stored = next(
+                    (m for m in saved_methods if m.get("stored_payment_id")),
+                    None,
+                )
+                if with_stored:
+                    method = with_stored["payment_method"]
+                    stored_id = with_stored["stored_payment_id"]
+                elif saved_methods and not method:
+                    method = saved_methods[0]["payment_method"]
+        except Exception as err:
+            _LOGGER.debug("Could not resolve saved payment methods: %s", err)
+
+    if not method:
+        method = PAYMENT_CREDIT_CARD
+
+    return method, stored_id, iban
