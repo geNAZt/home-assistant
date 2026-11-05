@@ -16,13 +16,27 @@
 
 - id: flaschenpost_bring_sync_open_items
   alias: "Bring: Sync Pomvilla to Flaschenpost"
-  description: "Syncs open items from the Pomvilla to-do list into the Flaschenpost Bring shopping list, parsing amounts from description"
+  description: "Syncs open items from the Pomvilla to-do list into the Flaschenpost Bring shopping list, detecting changesnamesordescriptions and notifying on conflicts"
   triggers:
     - trigger: state
       entity_id: todo.pomvilla
       not_to:
         - unavailable
         - unknown
+    - trigger: event
+      event_type: call_service
+      event_data:
+        domain: todo
+        service: update_item
+    - trigger: event
+      event_type: call_service
+      event_data:
+        domain: todo
+        service: add_item
+    - trigger: time_pattern
+      minutes: "/1"
+    - trigger: homeassistant
+      event: start
   actions:
     - action: todo.get_items
       target:
@@ -30,32 +44,91 @@
       data:
         status: needs_action
       response_variable: bring_list
-    - action: flaschenpost.save_shopping_list
-      data:
-        name: "Bring"
-        replace: true
-        items: >
-          {% set ns = namespace(items=[]) %}
+    - variables:
+        parsed_result: >
+          {% set ns = namespace(items=[], conflicts=[]) %}
           {% for it in bring_list['todo.pomvilla']['items'] %}
             {% set desc = (it.description | default('', true)) | trim %}
             {% set name = it.summary | trim %}
             {% if desc %}
-              {# Raw number or unit count like '2', '2x', '2 stk' -> unit count (e.g. '2x Bananen') #}
-              {% if desc | regex_match('^\\d+(?:[.,]\\d+)?(?:\\s*(?:x|stk|stück))?$', ignorecase=true) %}
-                {% set num = (desc | regex_findall('\\d+(?:[.,]\\d+)?'))[0] %}
-                {% set line = num ~ 'x ' ~ name %}
-              {# Number with supported unit suffixes (g, kg, l, ml, etc.) -> e.g. '500g Reis', '1.5l Milch' #}
-              {% elif desc | regex_match('^\\d+(?:[.,]\\d+)?\\s*(?:kg|kilo|kilogramm|g|gr|gramm|l|ltr|liter|ml|milliliter|kiste|kisten|flasche|flaschen|pkg|packung|dose|dosen)$', ignorecase=true) %}
-                {% set line = desc ~ ' ' ~ name %}
-              {% else %}
-                {% set line = name %}
+              {# Normalize decimal comma between digits (e.g. 1,5kg -> 1.5kg) so it is not split #}
+              {% set norm_desc = desc | regex_replace('(\\d+),(\\d+)', '\\g<1>.\\g<2>') %}
+              {% set raw_parts = norm_desc.split(',') %}
+              {% set ns_item = namespace(amounts=[], descriptors=[]) %}
+              {% for p in raw_parts %}
+                {% set trimmed = p | trim %}
+                {% if trimmed | length > 0 %}
+                  {% if trimmed | regex_match('^\\d+(?:[.,]\\d+)?(?:\\s*(?:x|stk|stück))?$', ignorecase=true) %}
+                    {% set num = (trimmed | regex_findall('\\d+(?:[.,]\\d+)?'))[0] %}
+                    {% set ns_item.amounts = ns_item.amounts + [num ~ 'x'] %}
+                  {% elif trimmed | regex_match('^\\d+(?:[.,]\\d+)?\\s*(?:kg|kilo|kilogramm|g|gr|gramm|l|ltr|liter|ml|milliliter|kiste|kisten|flasche|flaschen|pkg|packung|dose|dosen)$', ignorecase=true) %}
+                    {% set ns_item.amounts = ns_item.amounts + [trimmed] %}
+                  {% else %}
+                    {% set ns_item.descriptors = ns_item.descriptors + [trimmed] %}
+                  {% endif %}
+                {% endif %}
+              {% endfor %}
+              {% set prefix = ns_item.amounts[0] if ns_item.amounts | length > 0 else '' %}
+              {% set full_name = (ns_item.descriptors + [name]) | join(' ') if ns_item.descriptors | length > 0 else name %}
+              {% set line = (prefix ~ ' ' ~ full_name) | trim %}
+              {% if ns_item.amounts | length > 1 %}
+                {% set ns.conflicts = ns.conflicts + [{'item': name, 'desc': desc, 'amounts': ns_item.amounts, 'chosen': prefix}] %}
               {% endif %}
             {% else %}
               {% set line = name %}
             {% endif %}
             {% set ns.items = ns.items + [line] %}
           {% endfor %}
-          {{ ns.items }}
+          {{ {'items': ns.items, 'conflicts': ns.conflicts} }}
+        items_hash: "{{ (parsed_result.items | string) | sha256 }}"
+        conflicts_hash: "{{ (parsed_result.conflicts | string) | sha256 if parsed_result.conflicts | length > 0 else '' }}"
+    - if:
+        - condition: template
+          value_template: "{{ items_hash != states('input_text.flaschenpost_bring_last_hash') }}"
+      then:
+        - action: flaschenpost.save_shopping_list
+          data:
+            name: "Bring"
+            replace: true
+            items: "{{ parsed_result.items }}"
+        - action: input_text.set_value
+          target:
+            entity_id: input_text.flaschenpost_bring_last_hash
+          data:
+            value: "{{ items_hash }}"
+    - if:
+        - condition: template
+          value_template: "{{ conflicts_hash != states('input_text.flaschenpost_bring_conflict_hash') }}"
+      then:
+        - if:
+            - condition: template
+              value_template: "{{ parsed_result.conflicts | length > 0 }}"
+          then:
+            - action: notify.mobile_app_poco_x7_pro_fabian
+              data:
+                title: "⚠️ Bring: Mehrere Mengen erkannt"
+                message: >
+                  {% set ns_msg = namespace(lines=[]) %}
+                  {% for c in parsed_result.conflicts %}
+                    {% set line = '• ' ~ c.item ~ ' (\"' ~ c.desc ~ '\"): ' ~ (c.amounts | join(', ')) ~ ' -> ' ~ c.chosen ~ ' gewählt' %}
+                    {% set ns_msg.lines = ns_msg.lines + [line] %}
+                  {% endfor %}
+                  In Bring wurden mehrere Mengenangaben erkannt:
+
+                  {{ ns_msg.lines | join('\n') }}
+
+                  Bitte in Bring prüfen und korrigieren!
+            - action: input_text.set_value
+              target:
+                entity_id: input_text.flaschenpost_bring_conflict_hash
+              data:
+                value: "{{ conflicts_hash }}"
+          else:
+            - action: input_text.set_value
+              target:
+                entity_id: input_text.flaschenpost_bring_conflict_hash
+              data:
+                value: ""
   mode: restart
 
 - id: flaschenpost_bring_mark_item_complete
@@ -68,11 +141,26 @@
         - unavailable
         - unknown
   actions:
+    - action: todo.get_items
+      target:
+        entity_id: todo.pomvilla
+      data:
+        status: needs_action
+      response_variable: open_items
     - action: todo.update_item
       target:
         entity_id: todo.pomvilla
       data:
-        item: "{{ state_attr('event.flaschenpost_bring_item_consumed', 'query') }}"
+        item: >
+          {% set q = (state_attr('event.flaschenpost_bring_item_consumed', 'query') | default('', true)) | lower | trim %}
+          {% set ns = namespace(matched_item='') %}
+          {% for it in open_items['todo.pomvilla']['items'] %}
+            {% set s = it.summary | lower | trim %}
+            {% if s == q or s in q or q in s %}
+              {% set ns.matched_item = it.uid | default(it.summary, true) %}
+            {% endif %}
+          {% endfor %}
+          {{ ns.matched_item if ns.matched_item else state_attr('event.flaschenpost_bring_item_consumed', 'query') }}
         status: completed
   mode: queued
   max: 50
