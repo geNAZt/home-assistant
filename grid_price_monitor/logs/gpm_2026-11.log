@@ -2448,3 +2448,13 @@
 2026-11-05 16:16:42 - INFO - [grid_price_monitor.gpm.5156717525024] Price Update: Spot=0.00 ct/kWh, Total=28.20 ct/kWh [CHEAP]
 2026-11-05 16:21:42 - INFO - [grid_price_monitor.gpm.5156717525024] API Fetch: Success - 48 entries for DE
 2026-11-05 16:21:42 - INFO - [grid_price_monitor.gpm.5156717525024] Price Update: Spot=0.00 ct/kWh, Total=28.20 ct/kWh [CHEAP]
+2026-11-05 16:26:34 - INFO - [grid_price_monitor.gpm.5637583996064] ============================================================
+2026-11-05 16:26:34 - INFO - [grid_price_monitor.gpm.5637583996064] Solar Forecast GPM logging initialized
+2026-11-05 16:26:34 - INFO - [grid_price_monitor.gpm.5637583996064] Log file: /config/grid_price_monitor/logs/gpm_2026-11.log
+2026-11-05 16:26:34 - INFO - [grid_price_monitor.gpm.5637583996064] ============================================================
+2026-11-05 16:26:34 - INFO - [grid_price_monitor.gpm.5637583996064] Loaded 48 prices from cache
+2026-11-05 16:26:34 - INFO - [grid_price_monitor.gpm.5637583996064] Configuration changed: {'vat_rate': 19, 'grid_fee': 8.0, 'taxes_fees': 5.0, 'provider_markup': 1.0, 'max_price': 30.0}
+2026-11-05 16:26:34 - INFO - [grid_price_monitor.gpm.5637583996064] API Fetch: Success - 48 entries for DE
+2026-11-05 16:26:34 - INFO - [grid_price_monitor.gpm.5637583996064] Price Update: Spot=0.00 ct/kWh, Total=28.20 ct/kWh [CHEAP]
+2026-11-05 16:31:35 - INFO - [grid_price_monitor.gpm.5637583996064] API Fetch: Success - 48 entries for DE
+2026-11-05 16:31:35 - INFO - [grid_price_monitor.gpm.5637583996064] Price Update: Spot=0.00 ct/kWh, Total=28.20 ct/kWh [CHEAP]
