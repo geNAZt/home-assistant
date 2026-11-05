@@ -5,6 +5,7 @@ appdaemon/appdaemon.yaml
 *.pyc
 *.log
 *.cache
+.env
 
 # Exclude .db and .json files not inside custom_components
 *.db*

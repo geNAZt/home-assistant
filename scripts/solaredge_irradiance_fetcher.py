@@ -2,10 +2,11 @@
 """
 SolarEdge Individual Optimizer Irradiance Fetcher
 
-Logs in directly to SolarEdge Monitoring Portal, requests real-time 15-minute
-production power telemetry for all 31 site optimizers via the devices-measurements
-endpoint, finds the peak optimizer wattage for the MOST RECENT time slot (unclipped by inverter AC limits),
-and calculates real-time solar irradiance (W/m²) based on a 415W STC module rating.
+Authenticates with SolarEdge Monitoring via modern Cognito OAuth (PKCE flow),
+requests real-time 15-minute production power telemetry for all 31 site optimizers
+via the devices-measurements endpoint, finds the peak optimizer wattage for the
+MOST RECENT time slot (unclipped by inverter AC limits), and calculates real-time
+solar irradiance (W/m²) based on a 415W STC module rating.
 
 Formula: Irradiance = (Latest_Slot_Max_Optimizer_Watts / 415.0) * 1000.0
 """
@@ -16,10 +17,18 @@ import json
 import urllib.request
 import urllib.parse
 import http.cookiejar
+import re
+import html
+import base64
+import hashlib
 from datetime import datetime
 
 MODULE_RATING_WATTS = 415.0
 MAX_IRRADIANCE_CAP = 1200.0
+
+COGNITO_CLIENT_ID = "ugfnsujd3384sshcjehaphlh3"
+COGNITO_DOMAIN = "login.solaredge.com"
+REDIRECT_URI = "https://monitoring.solaredge.com/mfe/auth/callback"
 
 # Pre-configured 31 site optimizers for Site 4514701
 OPTIMIZER_DEVICES_PAYLOAD = [
@@ -90,47 +99,106 @@ def load_secrets():
     return secrets
 
 
+class NoRedirectHandler(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
 def fetch_optimizer_measurements(site_id, username, password):
     """
-    Authenticate with SolarEdge Monitoring APIGW and fetch live optimizer measurements.
+    Authenticate with SolarEdge Monitoring via Cognito OAuth (PKCE)
+    and fetch live optimizer measurements.
     Returns (peak_optimizer_name, peak_optimizer_watts, timestamp).
     """
     cj = http.cookiejar.CookieJar()
-    opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
+    opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj), NoRedirectHandler)
     opener.addheaders = [
-        ("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"),
-        ("Accept", "application/json, text/plain, */*"),
-        ("Origin", "https://monitoring.solaredge.com"),
-        ("Referer", "https://monitoring.solaredge.com/one")
+        ("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"),
+        ("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
     ]
 
-    # 1. Login to APIGW
-    login_url = "https://monitoring.solaredge.com/solaredge-apigw/api/login"
-    login_data = urllib.parse.urlencode({"j_username": username, "j_password": password}).encode("utf-8")
-    l_req = urllib.request.Request(login_url, data=login_data, method="POST")
-    l_req.add_header("Content-Type", "application/x-www-form-urlencoded")
+    # 1. Setup PKCE
+    verifier = base64.urlsafe_b64encode(os.urandom(32)).rstrip(b"=").decode("utf-8")
+    challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode("utf-8")).digest()).rstrip(b"=").decode("utf-8")
+    login_page_url = f"https://{COGNITO_DOMAIN}/login?lang=en&response_type=code&client_id={COGNITO_CLIENT_ID}&scope=email+openid&redirect_uri={REDIRECT_URI}&code_challenge_method=S256&code_challenge={challenge}"
 
-    csrf_token = None
-    with opener.open(l_req, timeout=15) as resp:
-        csrf_token = dict(resp.headers).get("x-csrf-token")
+    # 2. Fetch Cognito login page to extract CSRF token and form action
+    resp = opener.open(login_page_url, timeout=15)
+    page_html = resp.read().decode("utf-8")
+    csrf_match = re.search(r"<input[^>]*name=[\"']csrf[\"'][^>]*value=[\"']([^\"']*)[\"']", page_html)
+    if not csrf_match:
+        raise ValueError("Failed to extract CSRF token from Cognito login page")
+    csrf = csrf_match.group(1)
 
-    cookie_header = "; ".join([f"{c.name}={c.value}" for c in cj])
+    action_match = re.search(r"<form[^>]*action=[\"']([^\"']*)[\"']", page_html)
+    action_path = html.unescape(action_match.group(1)) if action_match else f"/login?lang=en&response_type=code&client_id={COGNITO_CLIENT_ID}&scope=email+openid&redirect_uri={REDIRECT_URI}&code_challenge_method=S256&code_challenge={challenge}"
+    action_url = action_path if action_path.startswith("http") else f"https://{COGNITO_DOMAIN}{action_path}"
 
-    # 2. Query devices-measurements
+    # 3. Post login credentials
+    post_data = urllib.parse.urlencode({
+        "csrf": csrf,
+        "username": username,
+        "password": password,
+        "cognitoAsfData": ""
+    }).encode("utf-8")
+
+    req = urllib.request.Request(action_url, data=post_data, method="POST")
+    req.add_header("Content-Type", "application/x-www-form-urlencoded")
+    req.add_header("Referer", login_page_url)
+
+    auth_code = None
+    try:
+        opener.open(req, timeout=15)
+    except urllib.error.HTTPError as e:
+        loc = e.headers.get("Location") or e.headers.get("location")
+        if loc and "code=" in loc:
+            auth_code = urllib.parse.parse_qs(urllib.parse.urlparse(loc).query).get("code", [None])[0]
+
+    if not auth_code:
+        raise ValueError("Authentication failed: No authorization code received from SolarEdge SSO")
+
+    # 4. Exchange authorization code for Cognito tokens
+    token_url = f"https://{COGNITO_DOMAIN}/oauth2/token"
+    token_payload = urllib.parse.urlencode({
+        "grant_type": "authorization_code",
+        "client_id": COGNITO_CLIENT_ID,
+        "redirect_uri": REDIRECT_URI,
+        "code": auth_code,
+        "code_verifier": verifier
+    }).encode("utf-8")
+
+    token_req = urllib.request.Request(token_url, data=token_payload, method="POST")
+    token_req.add_header("Content-Type", "application/x-www-form-urlencoded")
+    token_resp = opener.open(token_req, timeout=15)
+    tokens = json.loads(token_resp.read().decode("utf-8"))
+
+    # 5. Establish Monitoring portal session via /services/auth/token
+    auth_token_url = "https://monitoring.solaredge.com/services/auth/token?legacy=false"
+    auth_payload = json.dumps({
+        "id_token": tokens.get("id_token"),
+        "access_token": tokens.get("access_token"),
+        "refresh_token": tokens.get("refresh_token"),
+        "expires_in": tokens.get("expires_in"),
+        "token_type": tokens.get("token_type")
+    }).encode("utf-8")
+
+    auth_req = urllib.request.Request(auth_token_url, data=auth_payload, method="POST")
+    auth_req.add_header("Content-Type", "application/json")
+    opener.open(auth_req, timeout=15)
+
+    # 6. Fetch 15-minute optimizer telemetry
     today_str = datetime.now().strftime("%Y-%m-%d")
     measurements_url = f"https://monitoring.solaredge.com/services/charts/site/{site_id}/devices-measurements?start-date={today_str}&end-date={today_str}"
-
     body_data = json.dumps(OPTIMIZER_DEVICES_PAYLOAD).encode("utf-8")
     m_req = urllib.request.Request(measurements_url, data=body_data, method="POST")
     m_req.add_header("Content-Type", "application/json")
-    m_req.add_header("Cookie", cookie_header)
-    if csrf_token:
-        m_req.add_header("X-CSRF-TOKEN", csrf_token)
+    m_req.add_header("Accept", "application/json, text/plain, */*")
+    m_req.add_header("Referer", "https://monitoring.solaredge.com/one")
 
-    with opener.open(m_req, timeout=15) as resp:
+    with opener.open(m_req, timeout=20) as resp:
         data = json.loads(resp.read().decode("utf-8"))
 
-    # Group measurements by time slot
+    # 7. Group measurements by time slot
     ts_map = {}
     for opt in data:
         d_name = opt.get("deviceName", "")

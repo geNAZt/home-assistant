@@ -1,17 +1,11 @@
-sensor:
 - name: "Heating Preheat Offset Dynamic Uncapped"
   unit_of_measurement: "K"
   availability: >
-    {% set rooms = states.input_number
-        | selectattr('entity_id', 'match', 'input_number.heating_base_')
-        | map(attribute='state') | list %}
     {{ states('sensor.H_kW_per_K_effective') | is_number
-       and states('input_number.building_heat_capacity') | is_number
-       and (rooms | count > 0)
-       and (rooms | select('is_number') | list | count == rooms | count) }}
+       and states('input_number.outside_temp_forecast_24h_c') | is_number }}
   state: >
     {% set h_eff = states('sensor.H_kW_per_K_effective') | float(0.08) %}
-    {% set c_real = states('input_number.building_heat_capacity') | float(13.28) %}
+    {% set c_real = states('input_number.building_heat_capacity') | float(9.5) %}
     {% set weights = {'wohnzimmer': 11.9, 'kueche': 19.5, 'flur': 29.0, 'schlafzimmer': 9.1, 'buero_fabian': 6.6, 'buero_merja': 13.9, 'bad': 4.9, 'speisekammer': 5.1} %}
     {% set wns = namespace(w_sum=0.0, w_total=0.0) %}
     {% for room, w in weights.items() %}
@@ -27,12 +21,17 @@ sensor:
     {% set hours_to_bridge = 19 %}
     {% set total_energy_loss = h_eff * delta_t * hours_to_bridge %}
     
-    {# Prefer next-day PV forecast if available, fallback to 24h moving average #}
-    {% set pv_budget = state_attr('sensor.pv_priority_next_day_budget', 'pv_next_24h_kwh') | float(none) %}
-    {% if pv_budget is not none and pv_budget > 0 %}
-      {% set solar_gains_kwh = pv_budget * 0.40 %}
+    {# Automated physical solar window gain forecast from PV prediction and window geometry #}
+    {% set sim_solar_gains = states('sensor.solar_gains_forecast') | float(none) %}
+    {% if sim_solar_gains is not none and sim_solar_gains >= 0 %}
+      {% set solar_gains_kwh = sim_solar_gains %}
     {% else %}
-      {% set solar_gains_kwh = (states('sensor.solar_gains_average') | float(0) * hours_to_bridge) / 1000 %}
+      {% set pv_budget = state_attr('sensor.pv_priority_next_day_budget', 'pv_next_24h_kwh') | float(none) %}
+      {% if pv_budget is not none and pv_budget > 0 %}
+        {% set solar_gains_kwh = pv_budget * 0.10 %}
+      {% else %}
+        {% set solar_gains_kwh = (states('sensor.solar_gains_average') | float(0) * hours_to_bridge) / 1000 %}
+      {% endif %}
     {% endif %}
     
     {% set internal_gains_kwh = (states('sensor.internal_gains_average') | float(0) * hours_to_bridge) / 1000 %}
@@ -53,7 +52,11 @@ sensor:
       {% endfor %}
       {% set t_sp_mean = (wns.w_sum / wns.w_total) if wns.w_total > 0 else 21.0 %}
       {{ (states('sensor.H_kW_per_K_effective') | float(0.08) * [t_sp_mean - (states('input_number.outside_temp_forecast_24h_c') | float(0)), 0] | max * 19) | round(2) }}
-    forecast_gains_kwh: "{{ (((states('sensor.solar_gains_average') | float(0)) + (states('sensor.internal_gains_average') | float(0))) * 19 / 1000) | round(2) }}"
+    forecast_gains_kwh: >-
+      {% set sim_solar = states('sensor.solar_gains_forecast') | float(none) %}
+      {% set solar = sim_solar if (sim_solar is not none and sim_solar >= 0) else ((states('sensor.solar_gains_average') | float(0) * 19) / 1000) %}
+      {% set internal = (states('sensor.internal_gains_average') | float(0) * 19) / 1000 %}
+      {{ (solar + internal) | round(2) }}
 - name: "Heating Preheat Offset Dynamic"
   unit_of_measurement: "K"
   availability: >

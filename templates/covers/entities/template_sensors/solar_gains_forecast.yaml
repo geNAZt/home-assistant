@@ -1,0 +1,145 @@
+triggers:
+- trigger: time_pattern
+  minutes: "/5"
+sensor:
+- name: "Solar Gains Forecast"
+  unique_id: solar_gains_forecast
+  unit_of_measurement: 'kWh'
+  device_class: energy
+  icon: mdi:sun-wireless
+  state: >
+    {% set pv_preds = state_attr('sensor.solar_prediction_kwh', 'predictions') %}
+    {% set pv_preds = pv_preds | from_json(default={}) if pv_preds is string else pv_preds %}
+    {% set t0 = as_timestamp(now()) %}
+    {% set t1 = t0 + 24 * 3600 %}
+    {% set rad2deg = 57.2957795 %}
+    {% set deg2rad = 0.0174532925 %}
+    {% set lat = 52.3 * deg2rad %}
+    {% set doy = now().strftime('%j') | int %}
+    {% set decl = (23.45 * sin((360 / 365) * (doy - 81) * deg2rad)) * deg2rad %}
+    {% set lon_offset_h = (9.46 * 4) / 60 %}
+    {% set cloud = (states('sensor.barsinghausen_hohenb_bewolkungsgrad') | float(0)) / 100 %}
+    {% set ns = namespace(solar_gain_kwh=0.0) %}
+
+    {% if pv_preds is mapping %}
+      {% for ts_str, pv_kwh in pv_preds.items() %}
+        {% set ts = as_timestamp(ts_str) %}
+        {% if ts is number and t0 <= ts < t1 and (pv_kwh | float(0)) > 0 %}
+          {% set pv_val = pv_kwh | float(0) %}
+          {% set dt = strptime(ts_str[:13] ~ ':30:00', '%Y-%m-%dT%H:%M:%S') %}
+          {% set hour_utc = dt.hour - 1 %}
+          {% set sol_time = hour_utc + lon_offset_h %}
+          {% set ha = ((sol_time - 12) * 15) * deg2rad %}
+          {% set sin_ele = sin(lat) * sin(decl) + cos(lat) * cos(decl) * cos(ha) %}
+          {% set sin_ele_clamped = [ [sin_ele, -1.0] | max, 1.0 ] | min %}
+          {% set ele = asin(sin_ele_clamped) %}
+
+          {% if ele > 0 %}
+            {% set cos_ele = cos(ele) %}
+            {% set cos_azi = (sin(decl) - sin(lat) * sin_ele_clamped) / ([cos(lat) * cos_ele, 0.001] | max) %}
+            {% set cos_azi_clamped = [ [cos_azi, -1.0] | max, 1.0 ] | min %}
+            {% set azi = (acos(cos_azi_clamped) * rad2deg) %}
+            {% set azi = (360.0 - azi) if ha > 0 else azi %}
+            {% set rad_eff = (pv_val / 12.865) * 1000.0 %}
+            {% set h_gain = namespace(w=0.0) %}
+
+            [[% set azi_map = {'south': 180, 'east': 90, 'west': 270, 'north': 0} %]]
+            [[% for room in rooms %]]
+              [[% for window in room.windows %]]
+                [[% set target_azi = azi_map[window.direction] %]]
+                [[% set w_area = (window.area.height * window.area.width) | round(4) %]]
+                [[% set base_s_factor = 0.15 %]]
+                [[% if window.shading %]]
+                  [[% for shade in window.shading %]]
+                    [[% if shade.factor %]] [[% set base_s_factor = shade.factor %]] [[% endif %]]
+                  [[% endfor %]]
+                [[% endif %]]
+                {% if ((azi - [[ target_azi ]] + 180) % 360 - 180) | abs < 90 %}
+                  {% set cos_f = ((azi - [[ target_azi ]]) * deg2rad) | cos | abs %}
+                  {% set rel_azi = ((azi - [[ target_azi ]] + 180) % 360 - 180) %}
+                  {% set cos_aoi = cos_ele * cos_f %}
+                  {% set term = 1.0 - cos_aoi %}
+                  {% set g_mod = 1.0 - term * term * term %}
+                  {% set g_dir = [[ window.g ]] * g_mod %}
+                  {% set g_diff = [[ window.g ]] * 0.87 %}
+                  {% set s_factor = [[ base_s_factor ]] + (1.0 - [[ base_s_factor ]]) * cloud %}
+                  {% set tan_prof = tan(ele) / ([cos_f, 0.05] | max) %}
+                  {% set df_bottom = 1.0 %}
+                  {% set df_top = 1.0 %}
+                  {% set df_side = 1.0 %}
+                  {% set diffuse_factor = 1.0 %}
+
+                  [[% if window.shading %]]
+                  [[% for shade in window.shading %]]
+                    [[% if shade.direction == 'bottom' %]]
+                      {% set shadow_h = [[ shade.height ]] - ([[ shade.distance ]] * tan_prof) %}
+                      {% set win_top = [[ window.position.bottom + window.area.height ]] %}
+                      {% set win_bottom = [[ window.position.bottom ]] %}
+                      {% set sun_h = [0, win_top - [win_bottom, shadow_h]|max]|max %}
+                      {% set df_bottom = [df_bottom, sun_h / [[ window.area.height ]]] | min %}
+                    [[% elif shade.direction == 'top' %]]
+                      {% set shadow_h = [[ shade.height ]] - ([[ shade.distance ]] * tan_prof) %}
+                      {% set win_top = [[ window.position.bottom + window.area.height ]] %}
+                      {% set win_bottom = [[ window.position.bottom ]] %}
+                      {% set sun_h = [0, [shadow_h, win_top]|min - win_bottom]|max %}
+                      {% set cur_df_top = sun_h / [[ window.area.height ]] %}
+                      {% set df_top = [df_top, cur_df_top] | min %}
+                      {% set diffuse_factor = [diffuse_factor, 0.3 + 0.7 * cur_df_top] | min %}
+                    [[% elif shade.direction == 'left' %]]
+                      {% if rel_azi < 0 %}
+                        {% set shadow_w = [[ shade.distance ]] * ((-rel_azi * deg2rad) | tan) %}
+                        {% set df_side = [df_side, [0, 1 - (shadow_w / [[ window.area.width ]])] | max] | min %}
+                      {% endif %}
+                    [[% endif %]]
+                  [[% endfor %]]
+                  [[% endif %]]
+
+                  {% set sun_part = [0.0, df_top + df_bottom - 1.0] | max * df_side %}
+                  {% set direct = cos_aoi * sun_part * (1.0 - s_factor) * g_dir %}
+                  {% set diffuse = 0.5 * s_factor * g_diff * diffuse_factor %}
+                  {% set ground = 0.10 * g_diff * diffuse_factor %}
+                  {% set h_gain.w = h_gain.w + ([[ w_area ]] * rad_eff * (direct + diffuse + ground)) %}
+                {% endif %}
+              [[% endfor %]]
+            [[% endfor %]]
+
+            {% set ns.solar_gain_kwh = ns.solar_gain_kwh + (h_gain.w / 1000.0) %}
+          {% endif %}
+        {% endif %}
+      {% endfor %}
+    {% endif %}
+    {{ ns.solar_gain_kwh | round(3) }}
+  attributes:
+    solar_gain_next_24h_kwh: >
+      {{ states('sensor.solar_gains_forecast') | float(0) }}
+    solar_gain_ratio_next_24h: >
+      {% set pv_preds = state_attr('sensor.solar_prediction_kwh', 'predictions') %}
+      {% set pv_preds = pv_preds | from_json(default={}) if pv_preds is string else pv_preds %}
+      {% set t0 = as_timestamp(now()) %}
+      {% set t1 = t0 + 24 * 3600 %}
+      {% set ns = namespace(pv_sum=0.0) %}
+      {% if pv_preds is mapping %}
+        {% for ts_str, pv_kwh in pv_preds.items() %}
+          {% set ts = as_timestamp(ts_str) %}
+          {% if ts is number and t0 <= ts < t1 %}
+            {% set ns.pv_sum = ns.pv_sum + (pv_kwh | float(0)) %}
+          {% endif %}
+        {% endfor %}
+      {% endif %}
+      {% set gain = states('sensor.solar_gains_forecast') | float(0) %}
+      {{ ((gain / ns.pv_sum) | round(3)) if ns.pv_sum > 0 else 0.10 }}
+    pv_next_24h_kwh: >
+      {% set pv_preds = state_attr('sensor.solar_prediction_kwh', 'predictions') %}
+      {% set pv_preds = pv_preds | from_json(default={}) if pv_preds is string else pv_preds %}
+      {% set t0 = as_timestamp(now()) %}
+      {% set t1 = t0 + 24 * 3600 %}
+      {% set ns = namespace(pv_sum=0.0) %}
+      {% if pv_preds is mapping %}
+        {% for ts_str, pv_kwh in pv_preds.items() %}
+          {% set ts = as_timestamp(ts_str) %}
+          {% if ts is number and t0 <= ts < t1 %}
+            {% set ns.pv_sum = ns.pv_sum + (pv_kwh | float(0)) %}
+          {% endif %}
+        {% endfor %}
+      {% endif %}
+      {{ ns.pv_sum | round(3) }}
