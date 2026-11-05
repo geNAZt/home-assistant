@@ -1,0 +1,137 @@
+- id: flaschenpost_monday_cart_fill
+  alias: "Flaschenpost: Montag 06:00 Warenkorb befüllen & Benachrichtigen"
+  description: "Befüllt montags um 6:00 Uhr den Warenkorb aus den Listen (Every Week, Every Month am 1. Montag, Süßes, Bring) und sendet eine interaktive Benachrichtigung."
+  triggers:
+    - trigger: time
+      at: "06:00:00"
+  conditions:
+    - condition: time
+      weekday:
+        - mon
+  actions:
+    - action: input_boolean.turn_off
+      target:
+        entity_id: input_boolean.flaschenpost_order_declined
+    - action: input_boolean.turn_on
+      target:
+        entity_id: input_boolean.flaschenpost_order_pending
+    - action: flaschenpost.add_shopping_lists_to_cart
+      data:
+        shopping_lists: >
+          {{ ['Every Week'] + (['Every Month'] if now().day <= 7 else []) + ['Süßes', 'Bring'] }}
+        clear_cart_first: true
+        default_sort_by: price
+    - delay:
+        seconds: 5
+    - choose:
+        - conditions:
+            - condition: template
+              value_template: "{{ states('sensor.flaschenpost_cart_total') | float(0) > 0 }}"
+          sequence:
+            - action: notify.mobile_app_poco_x7_pro_fabian
+              data:
+                title: "🛒 Flaschenpost: Warenkorb befüllt"
+                message: >
+                  Warenkorb-Gesamtsumme: {{ states('sensor.flaschenpost_cart_total') }} €
+                  
+                  Wird um 12:00 Uhr automatisch im nächsten verfügbaren Lieferfenster bestellt, sofern nicht abgelehnt.
+                data:
+                  tag: "flaschenpost_cart_weekly"
+                  actions:
+                    - action: "FLASCHENPOST_ORDER_ACCEPT"
+                      title: "Bestellen"
+                    - action: "FLASCHENPOST_ORDER_DECLINE"
+                      title: "Ablehnen"
+      default:
+        - action: input_boolean.turn_off
+          target:
+            entity_id: input_boolean.flaschenpost_order_pending
+        - action: notify.mobile_app_poco_x7_pro_fabian
+          data:
+            title: "🛒 Flaschenpost: Warenkorb ist leer"
+            message: "Für die heutige Zusammenstellung wurden keine offenen Artikel gefunden (0,00 €). Automatische Bestellung ausgesetzt."
+            data:
+              tag: "flaschenpost_cart_weekly"
+  mode: single
+
+- id: flaschenpost_order_accept
+  alias: "Flaschenpost: Bestellung per Benachrichtigung bestätigen"
+  description: "Bestellt den Warenkorb sofort im nächsten Lieferfenster, wenn in der Benachrichtigung 'Bestellen' geklickt wird."
+  triggers:
+    - trigger: event
+      event_type: mobile_app_notification_action
+      event_data:
+        action: FLASCHENPOST_ORDER_ACCEPT
+  actions:
+    - action: flaschenpost.place_order
+      data:
+        confirm: true
+    - action: input_boolean.turn_off
+      target:
+        entity_id: input_boolean.flaschenpost_order_pending
+    - action: notify.mobile_app_poco_x7_pro_fabian
+      data:
+        title: "✅ Flaschenpost: Bestellung aufgegeben"
+        message: "Die Flaschenpost-Bestellung wurde erfolgreich im nächsten verfügbaren Zeitfenster aufgegeben."
+        data:
+          tag: "flaschenpost_cart_weekly"
+  mode: single
+
+- id: flaschenpost_order_decline
+  alias: "Flaschenpost: Bestellung per Benachrichtigung ablehnen"
+  description: "Leert den Warenkorb und verhindert die automatische Bestellung zum Mittag."
+  triggers:
+    - trigger: event
+      event_type: mobile_app_notification_action
+      event_data:
+        action: FLASCHENPOST_ORDER_DECLINE
+  actions:
+    - action: input_boolean.turn_on
+      target:
+        entity_id: input_boolean.flaschenpost_order_declined
+    - action: input_boolean.turn_off
+      target:
+        entity_id: input_boolean.flaschenpost_order_pending
+    - action: flaschenpost.create_new_cart
+    - action: notify.mobile_app_poco_x7_pro_fabian
+      data:
+        title: "❌ Flaschenpost: Bestellung abgelehnt"
+        message: "Die Flaschenpost-Bestellung wurde abgelehnt und der Warenkorb geleert."
+        data:
+          tag: "flaschenpost_cart_weekly"
+  mode: single
+
+- id: flaschenpost_lunch_auto_order
+  alias: "Flaschenpost: Automatische Bestellung zum Mittag"
+  description: "Bestellt den Warenkorb automatisch um 12:00 Uhr im nächsten verfügbaren Zeitfenster, falls bis dahin nicht abgelehnt wurde."
+  triggers:
+    - trigger: time
+      at: "12:00:00"
+  conditions:
+    - condition: time
+      weekday:
+        - mon
+    - condition: state
+      entity_id: input_boolean.flaschenpost_order_pending
+      state: "on"
+    - condition: state
+      entity_id: input_boolean.flaschenpost_order_declined
+      state: "off"
+    - condition: template
+      value_template: "{{ states('sensor.flaschenpost_cart_total') | float(0) > 0 }}"
+  actions:
+    - action: flaschenpost.place_order
+      data:
+        confirm: true
+    - action: input_boolean.turn_off
+      target:
+        entity_id: input_boolean.flaschenpost_order_pending
+    - action: notify.mobile_app_poco_x7_pro_fabian
+      data:
+        title: "🚀 Flaschenpost: Automatisch bestellt"
+        message: >
+          Der Flaschenpost-Warenkorb wurde um 12:00 Uhr automatisch im nächsten verfügbaren Zeitfenster bestellt.
+          Gesamtsumme: {{ states('sensor.flaschenpost_cart_total') }} €
+        data:
+          tag: "flaschenpost_cart_weekly"
+  mode: single

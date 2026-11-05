@@ -1,0 +1,78 @@
+- id: flaschenpost_configure_bring_list
+  alias: "Flaschenpost: Configure Bring shopping list auto-consume"
+  description: "Ensures the Bring list has auto-consume on order enabled"
+  triggers:
+    - trigger: homeassistant
+      event: start
+  actions:
+    - delay:
+        seconds: 15
+    - action: flaschenpost.set_shopping_list_config
+      data:
+        list_name: "Bring"
+        consume_on_order: true
+        consume_action: "delete"
+  mode: single
+
+- id: flaschenpost_bring_sync_open_items
+  alias: "Bring: Sync Pomvilla to Flaschenpost"
+  description: "Syncs open items from the Pomvilla to-do list into the Flaschenpost Bring shopping list, parsing amounts from description"
+  triggers:
+    - trigger: state
+      entity_id: todo.pomvilla
+      not_to:
+        - unavailable
+        - unknown
+  actions:
+    - action: todo.get_items
+      target:
+        entity_id: todo.pomvilla
+      data:
+        status: needs_action
+      response_variable: bring_list
+    - action: flaschenpost.save_shopping_list
+      data:
+        name: "Bring"
+        replace: true
+        items: >
+          {% set ns = namespace(items=[]) %}
+          {% for it in bring_list['todo.pomvilla']['items'] %}
+            {% set desc = (it.description | default('', true)) | trim %}
+            {% set name = it.summary | trim %}
+            {% if desc %}
+              {# Raw number or unit count like '2', '2x', '2 stk' -> unit count (e.g. '2x Bananen') #}
+              {% if desc | regex_match('^\\d+(?:[.,]\\d+)?(?:\\s*(?:x|stk|stück))?$', ignorecase=true) %}
+                {% set num = (desc | regex_findall('\\d+(?:[.,]\\d+)?'))[0] %}
+                {% set line = num ~ 'x ' ~ name %}
+              {# Number with supported unit suffixes (g, kg, l, ml, etc.) -> e.g. '500g Reis', '1.5l Milch' #}
+              {% elif desc | regex_match('^\\d+(?:[.,]\\d+)?\\s*(?:kg|kilo|kilogramm|g|gr|gramm|l|ltr|liter|ml|milliliter|kiste|kisten|flasche|flaschen|pkg|packung|dose|dosen)$', ignorecase=true) %}
+                {% set line = desc ~ ' ' ~ name %}
+              {% else %}
+                {% set line = name %}
+              {% endif %}
+            {% else %}
+              {% set line = name %}
+            {% endif %}
+            {% set ns.items = ns.items + [line] %}
+          {% endfor %}
+          {{ ns.items }}
+  mode: restart
+
+- id: flaschenpost_bring_mark_item_complete
+  alias: "Flaschenpost: Mark Pomvilla item complete on order"
+  description: "Marks bought items as completed in the Pomvilla to-do list when an order is placed"
+  triggers:
+    - trigger: state
+      entity_id: event.flaschenpost_bring_item_consumed
+      not_to:
+        - unavailable
+        - unknown
+  actions:
+    - action: todo.update_item
+      target:
+        entity_id: todo.pomvilla
+      data:
+        item: "{{ state_attr('event.flaschenpost_bring_item_consumed', 'query') }}"
+        status: completed
+  mode: queued
+  max: 50
