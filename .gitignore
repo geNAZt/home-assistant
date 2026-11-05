@@ -4,6 +4,7 @@ core
 appdaemon/appdaemon.yaml
 *.pyc
 zigbee.db
+flaschenpost.db*
 *.cache
 
 # Ignore folders.
