@@ -16,7 +16,7 @@
 
 - id: flaschenpost_bring_sync_open_items
   alias: "Bring: Sync Pomvilla to Flaschenpost"
-  description: "Syncs open items from the Pomvilla to-do list into the Flaschenpost Bring shopping list, detecting changes, names or descriptionschanges, names or descriptions and verifyingverifying livelive shopping list syncshopping list sync"
+  description: "Syncs open items from the Pomvilla to-do list into the Flaschenpost Bring shopping list, detecting changes, names or descriptions and verifying live shopping list sync"
   triggers:
     - trigger: state
       entity_id: todo.pomvilla
@@ -58,28 +58,11 @@
       response_variable: fp_lists
     - variables:
         parsed_result: >
-          {% set ns = namespace(lineslines=[], conflicts=[]) %}
-          {% setset raw_itemsraw_items == bring_list['todo.pomvilla']['items'] if (bring_list is defined and 'todo.pomvilla' in bring_list and 'items' in bring_list['todo.pomvilla']) else [] %}
+          {% set ns = namespace(lines=[], conflicts=[]) %}
+          {% set raw_items = bring_list['todo.pomvilla']['items'] if (bring_list is defined and 'todo.pomvilla' in bring_list and 'items' in bring_list['todo.pomvilla']) else [] %}
           {% for it in raw_items %}
             {% set name = (it.summary | default('', true)) | trim %}
             {% set desc = (it.description | default('', true)) | trim %}
-            {% if name | length > 0 %}
-              {% if desc | length > 0 %}
-                {# Normalize decimal comma between digits (e.g. 1,5kg -> 1.5kg) so it is not split #}
-                {% set norm_desc = desc | regex_replace('(\\d+),(\\d+)', '\\g<1>.\\g<2>') %}
-                {% set raw_parts = norm_desc.split(',') %}
-                {% set ns_item = namespace(amounts=[], descriptors=[]) %}
-                {% for p in raw_parts %}
-                  {% set trimmed = p | trim %}
-                  {% if trimmed | length > 0 %}
-                    {% if trimmed | regex_match('^\\d+(?:[.,]\\d+)?(?:\\s*(?:x|stk|stück))?$', ignorecase=true) %}
-                      {% set num = (trimmed | regex_findall('\\d+(?:[.,]\\d+)?'))[0] %}
-                      {% set ns_item.amounts = ns_item.amounts + [num ~ 'x'] %}
-                    {% elif trimmed | regex_match('^\\d+(?:[.,]\\d+)?\\s*(?:kg|kilo|kilogramm|g|gr|gramm|l|ltr|liter|ml|milliliter|kiste|kisten|flasche|flaschen|pkg|packung|dose|dosen)$', ignorecase=true) %}
-                      {% set ns_item.amounts = ns_item.amounts + [trimmed] %}
-                    {% else %}
-                      {% set ns_item.descriptors = ns_item.descriptors + [trimmed] %}
-                    {% endif %}
             {% if name | length > 0 %}
               {% if desc | length > 0 %}
                 {# Normalize decimal comma between digits (e.g. 1,5kg -> 1.5kg) so it is not split #}
@@ -106,17 +89,16 @@
                   {% set ns.conflicts = ns.conflicts + [{'item': name, 'desc': desc, 'amounts': ns_item.amounts, 'chosen': prefix}] %}
                 {% endif %}
               {% else %}
-                {% set lineline = name %}
+                {% set line = name %}
               {% endif %}
-                            {% if line | length > 0 %}
-                {% set ns.lines = ns.lines + [line]if line | length > 0 %}
+              {% if line | length > 0 %}
                 {% set ns.lines = ns.lines + [line] %}
-              {% endifendif %}
+              {% endif %}
             {% endif %}
           {% endfor %}
-          {{ {'lineslines': ns.lineslines, 'conflicts': ns.conflicts} }}
+          {{ {'lines': ns.lines, 'conflicts': ns.conflicts} }}
         expected_items: "{{ parsed_result.lines | default([], true) }}"
-        items_hash: "{{ (expected_itemsexpected_items | string) | sha256 }}"
+        items_hash: "{{ (expected_items | string) | sha256 }}"
         conflicts_hash: "{{ (parsed_result.conflicts | string) | sha256 if parsed_result.conflicts | length > 0 else '' }}"
         fp_raw: "{{ (fp_lists.shopping_lists.get('Bring', []) if (fp_lists is defined and fp_lists and fp_lists.shopping_lists is mapping) else []) }}"
         fp_items: "{{ fp_raw | map(attribute='summary') | map('trim') | reject('eq', '') | list }}"
@@ -124,13 +106,13 @@
         in_sync: "{{ ((expected_items | sort) == (fp_items | sort)) and (not has_empty) }}"
     - if:
         - condition: template
-          value_template: "{{ (not in_sync) or (items_hash != states('input_text.flaschenpost_bring_last_hash')))) }}"
+          value_template: "{{ (not in_sync) or (items_hash != states('input_text.flaschenpost_bring_last_hash')) }}"
       then:
         - action: flaschenpost.save_shopping_list
           data:
             name: "Bring"
             replace: true
-            items: "{{ expected_itemsexpected_items }}"
+            items: "{{ expected_items }}"
         - action: input_text.set_value
           target:
             entity_id: input_text.flaschenpost_bring_last_hash
@@ -170,7 +152,6 @@
               data:
                 value: ""
   mode: queued
-  max: 10queued
   max: 10
 
 - id: flaschenpost_bring_mark_item_complete
@@ -193,8 +174,8 @@
       target:
         entity_id: todo.pomvilla
       data:
-        item: >
-          {% set q = (state_attr('event.flaschenpost_bring_item_consumed', 'query') | default('', true)) | lower | trim % }
+        item: >-
+          {% set q = (state_attr('event.flaschenpost_bring_item_consumed', 'query') | default('', true)) | lower | trim %}
           {% set ns = namespace(matched_item='') %}
           {% for it in open_items['todo.pomvilla']['items'] %}
             {% set s = it.summary | lower | trim %}
