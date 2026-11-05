@@ -1,0 +1,247 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "flaschenpost-Konto verbinden",
+        "description": "Melde dich mit deinen flaschenpost-Zugangsdaten an.",
+        "data": {
+          "email": "E-Mail",
+          "password": "Passwort",
+          "default_payment_method": "Standard-Zahlungsart (Kreditkarte, PayPal, SEPA, Rechnung)",
+          "iban_last4": "Letzte 4 Ziffern der gespeicherten SEPA-IBAN (optional)",
+          "manage_lists_now": "Einkaufslisten jetzt direkt mit interaktiver Vorschau-Suche verwalten"
+        }
+      },
+      "location": {
+        "title": "Lieferort & Lager prüfen",
+        "description": "Prüfe deinen Lieferort auf der Karte. flaschenpost verwendet diese Koordinaten, um das zuständige Lager zuzuordnen (Zugewiesenes Lager: {warehouse_id}).",
+        "data": {
+          "delivery_location": "Lieferort"
+        }
+      },
+      "manage_menu": {
+        "title": "Einkaufslisten verwalten",
+        "description": "Wähle eine Aktion, um deine Einkaufslisten zu konfigurieren oder zu prüfen.",
+        "data": {
+          "action": "Aktion"
+        }
+      },
+      "preview_search": {
+        "title": "Interaktive Vorschau-Suche",
+        "description": "Teste Suchbegriffe direkt gegen deinen lokalen Lagerbestand. Das System ermittelt aktuelle Preise, Kategorien und berechnet die Packungsanzahl für deine gewünschte Menge.",
+        "data": {
+          "query": "Suchbegriff (z. B. 'Milchreis', 'Naturjoghurt', 'Pepsi Zero')",
+          "amount_prefix": "Optionale Mengen-Angabe (z. B. '500g', '1kg', '1,5kg', '1 Kiste')",
+          "category": "Kategorie-Filter (optional)",
+          "sort_by": "Sortierung"
+        }
+      },
+      "preview_result": {
+        "title": "Vorschau & Packungsberechnung",
+        "description": "{preview_markdown}\n\nWähle, ob der flexible Suchbegriff oder ein festes Produkt zur Einkaufsliste hinzugefügt werden soll:",
+        "data": {
+          "chosen_option": "Eintrag hinzufügen",
+          "target_list": "Ziel-Einkaufsliste",
+          "new_list_name": "Neuer Listenname (falls '+ Neue Liste...' gewählt)",
+          "sort_by": "Sortierung"
+        }
+      },
+      "edit_list": {
+        "title": "Einkaufsliste bearbeiten",
+        "description": "Gib Einträge zeilenweise ein (z. B. '1kg Naturjoghurt', '500g Reis & Getreide::Milchreis', '1 Kiste Pepsi Zero').",
+        "data": {
+          "list_name": "Listenname",
+          "items_text": "Einträge (eine Zeile pro Artikel)"
+        }
+      },
+      "view_summary": {
+        "title": "Zusammenfassung der Einkaufslisten",
+        "description": "{summary_markdown}"
+      },
+      "reauth_confirm": {
+        "title": "flaschenpost erneut authentifizieren",
+        "description": "Bitte gib das aktuelle Passwort für {email} ein.",
+        "data": {
+          "password": "Passwort"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Verbindung zu flaschenpost fehlgeschlagen",
+      "invalid_auth": "E-Mail oder Passwort ungültig",
+      "outside_delivery_area": "Der ausgewählte Standort befindet sich außerhalb des flaschenpost-Liefergebiets",
+      "empty_query": "Bitte gib einen Suchbegriff ein",
+      "no_custom_lists": "Keine benutzerdefinierten Listen vorhanden (die Standardliste kann nicht gelöscht werden)",
+      "unknown": "Unerwarteter Fehler"
+    },
+    "abort": {
+      "already_configured": "Dieses Konto ist bereits eingerichtet",
+      "reauth_successful": "Erneute Anmeldung erfolgreich",
+      "cannot_connect": "Integration ist aktuell nicht verbunden"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "flaschenpost Verwaltung",
+        "description": "Verwalte deine Einkaufslisten, nutze die interaktive Vorschau-Suche mit Packungsberechnung oder passe Zahlungsoptionen an.",
+        "data": {
+          "action": "Aktion"
+        }
+      },
+      "location_map": {
+        "title": "Lieferort & Lager anpassen",
+        "description": "Passe die Stecknadel auf der Karte an, um das Liefergebiet und das zuständige flaschenpost-Lager zu bestätigen (Aktuelles Lager: {warehouse_id}).",
+        "data": {
+          "delivery_location": "Lieferort"
+        }
+      },
+      "preview_search": {
+        "title": "Interaktive Vorschau-Suche",
+        "description": "Teste Suchbegriffe direkt gegen deinen lokalen Lagerbestand. Das System ermittelt aktuelle Preise, Kategorien und berechnet die Packungsanzahl für deine gewünschte Menge.",
+        "data": {
+          "query": "Suchbegriff (z. B. 'Milchreis', 'Naturjoghurt', 'Pepsi Zero')",
+          "amount_prefix": "Optionale Mengen-Angabe (z. B. '500g', '1kg', '1,5kg', '1 Kiste')",
+          "category": "Kategorie-Filter (optional)",
+          "sort_by": "Sortierung"
+        }
+      },
+      "preview_result": {
+        "title": "Vorschau & Packungsberechnung",
+        "description": "{preview_markdown}\n\nWähle, ob der flexible Suchbegriff oder ein festes Produkt zur Einkaufsliste hinzugefügt werden soll:",
+        "data": {
+          "chosen_option": "Eintrag hinzufügen",
+          "target_list": "Ziel-Einkaufsliste",
+          "new_list_name": "Neuer Listenname (falls '+ Neue Liste...' gewählt)",
+          "sort_by": "Sortierung"
+        }
+      },
+      "add_item": {
+        "title": "Schnell hinzufügen",
+        "description": "Füge einen Eintrag direkt zu einer Liste hinzu (z. B. '500g Reis & Getreide::Milchreis', '1kg Naturjoghurt', '1 Kiste Pepsi Zero').",
+        "data": {
+          "item_spec": "Eintrag",
+          "target_list": "Ziel-Einkaufsliste",
+          "new_list_name": "Neuer Listenname (falls '+ Neue Liste...' gewählt)"
+        }
+      },
+      "select_list_to_edit": {
+        "title": "Zu bearbeitende Liste auswählen",
+        "data": {
+          "list_to_edit": "Einkaufsliste"
+        }
+      },
+      "edit_list_content": {
+        "title": "Listeninhalt bearbeiten",
+        "description": "Gib Einträge zeilenweise ein.",
+        "data": {
+          "list_name": "Listenname",
+          "items_text": "Einträge (eine Zeile pro Artikel)"
+        }
+      },
+      "delete_list": {
+        "title": "Einkaufsliste löschen",
+        "description": "Wähle eine benannte Liste aus, um sie zu entfernen.",
+        "data": {
+          "list_name": "Einkaufsliste"
+        }
+      },
+      "view_summary": {
+        "title": "Zusammenfassung der Einkaufslisten",
+        "description": "{summary_markdown}"
+      },
+      "order_prefs": {
+        "title": "flaschenpost Zahlungs- & Bestell-Einstellungen",
+        "description": "Wähle deine bevorzugte Zahlungsart. Gespeicherte Zahlungsmittel (Kreditkarten, PayPal, SEPA) werden direkt aus deinem flaschenpost-Profil geladen.",
+        "data": {
+          "chosen_payment_method": "Zahlungsart",
+          "default_payment_method": "Standard-Zahlungsart",
+          "iban_last4": "Letzte 4 Ziffern der SEPA-IBAN oder Karte (optional)"
+        }
+      }
+    },
+    "error": {
+      "outside_delivery_area": "Der ausgewählte Standort befindet sich außerhalb des flaschenpost-Liefergebiets",
+      "empty_query": "Bitte gib einen Suchbegriff ein",
+      "no_custom_lists": "Keine benutzerdefinierten Listen vorhanden (die Standardliste kann nicht gelöscht werden)"
+    }
+  },
+  "entity": {
+    "sensor": {
+      "order_status": {
+        "name": "Bestellstatus"
+      },
+      "stops_remaining": {
+        "name": "Stopps bis Ankunft"
+      },
+      "delivery_eta": {
+        "name": "Voraussichtliche Lieferung"
+      },
+      "order_history": {
+        "name": "Gelieferte Bestellungen"
+      },
+      "cart_total": {
+        "name": "Warenkorb Summe"
+      },
+      "next_delivery_slot": {
+        "name": "Nächster Lieferzeitraum"
+      },
+      "next_update": {
+        "name": "Nächstes Update"
+      },
+      "last_update": {
+        "name": "Letztes Update"
+      },
+      "weekly_spent": {
+        "name": "Ausgaben diese Woche"
+      },
+      "monthly_spent": {
+        "name": "Ausgaben diesen Monat"
+      },
+      "yearly_spent": {
+        "name": "Ausgaben dieses Jahr"
+      },
+      "total_spent": {
+        "name": "Ausgaben gesamt"
+      },
+      "list_weekly_spent": {
+        "name": "{list_name} Ausgaben diese Woche"
+      },
+      "list_monthly_spent": {
+        "name": "{list_name} Ausgaben diesen Monat"
+      },
+      "list_yearly_spent": {
+        "name": "{list_name} Ausgaben dieses Jahr"
+      },
+      "list_total_spent": {
+        "name": "{list_name} Ausgaben gesamt"
+      }
+    },
+    "binary_sensor": {
+      "active_delivery": {
+        "name": "Aktive Lieferung"
+      }
+    },
+    "todo": {
+      "shopping_list": {
+        "name": "Einkaufsliste"
+      },
+      "cart": {
+        "name": "Warenkorb"
+      }
+    },
+    "button": {
+      "sync_shopping_list": {
+        "name": "Einkaufsliste in Warenkorb übertragen"
+      },
+      "refresh": {
+        "name": "Daten aktualisieren"
+      }
+    },
+    "event": {
+      "list_item_consumed": {
+        "name": "{list_name} Artikel verbraucht"
+      }
+    }
+  }
+}

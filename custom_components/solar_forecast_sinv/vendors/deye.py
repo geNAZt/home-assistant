@@ -67,6 +67,14 @@ TYPE_MICRO = 0x0400
 TYPE_LV = 0x0500
 TYPE_HV = 0x0600
 # (model, high-voltage battery/PV scale). The flag is only meaningful for 3P.
+# Some firmwares report the family in the low byte (community map). 0x0006 stays out:
+# it does not reliably mean the same device as 0x0600 and the wrong family scales power by 10.
+_LOW_BYTE_TYPES: dict[int, int] = {
+    0x0002: TYPE_STRING,
+    0x0003: TYPE_1P,
+    0x0004: TYPE_MICRO,
+    0x0005: TYPE_LV,
+}
 DEVICE_TYPES: dict[int, tuple[str, bool]] = {
     TYPE_STRING: ("String", False),
     TYPE_1P: ("1P Hybrid", False),
@@ -103,7 +111,8 @@ LP1_MPPT = (
     (186, 109, 110),
     (187, 111, 112),
 )
-# (voltage, current) for string and micro. Per-input power is marked computed.
+# (voltage, current) shared by string and micro. String publishes the pair only.
+# Micro power is U×I from this same block.
 PV_VI = (
     (109, 110),
     (111, 112),
@@ -235,8 +244,14 @@ def _serial(regs: dict[int, int]) -> str:
     )
 
 
+def family_code(regs: dict[int, int]) -> int | None:
+    """Register 0 with the low-byte spelling mapped to its family. @zara"""
+    raw = _word(regs, 0)
+    return _LOW_BYTE_TYPES.get(raw, raw)
+
+
 def _high_voltage(regs: dict[int, int]) -> bool:
-    return _word(regs, 0) == TYPE_HV
+    return family_code(regs) == TYPE_HV
 
 
 def _power_scale(regs: dict[int, int]) -> int:
@@ -258,7 +273,7 @@ def mppt_count(regs: dict[int, int]) -> int:
 def reject_reason(regs: dict[int, int]) -> str:
     """Why ``build_devices`` produced nothing, or an empty string. @zara"""
     try:
-        device_type = _word(regs, 0) if isinstance(regs, dict) else None
+        device_type = family_code(regs)
         if device_type is None:
             return "Deye register 0 did not contain a device type"
         if device_type not in DEVICE_TYPES:
@@ -277,7 +292,7 @@ def reject_reason(regs: dict[int, int]) -> str:
 def identity(regs: dict[int, int]) -> dict[str, str] | None:
     """Return serial and model, or None when the type or the serial is unusable. @zara"""
     try:
-        known = DEVICE_TYPES.get(_word(regs, 0) or -1)
+        known = DEVICE_TYPES.get(family_code(regs) or -1)
         serial = _serial(regs)
     except Exception:
         return None
@@ -333,7 +348,7 @@ def optional_blocks(device_type: int | None) -> tuple[tuple[int, int], ...]:
 
 def _build(regs: dict[int, int]) -> dict[str, DeyeDevice]:
     """Dispatch on register 0. The three-phase path is unchanged. @zara"""
-    device_type = _word(regs, 0) if isinstance(regs, dict) else None
+    device_type = family_code(regs)
     if device_type in (TYPE_LV, TYPE_HV):
         return _build_three_phase(regs)
     if device_type == TYPE_1P:
@@ -529,13 +544,46 @@ def _build_string(regs: dict[int, int]) -> dict[str, DeyeDevice]:
     return {device.serial: device}
 
 
+def _micro_pv(device: DeyeDevice, regs: dict[int, int]) -> None:
+    """Publish each micro PV voltage and current, and U×I when both are live. @zara
+
+    Voltage and current are set on their own, as for the string family. Power
+    of an input and the sum need both values inside the same bounds. 0 V is 0 W.
+    """
+    solar = 0.0
+    solar_seen = False
+    for index, (voltage_reg, current_reg) in enumerate(PV_VI, start=1):
+        # community map: 0.1 V and 0.1 A
+        voltage = _scaled(_word(regs, voltage_reg), 0.1, 0, MAX_PV_V)
+        current = _scaled(_word(regs, current_reg), 0.1, 0, MAX_PV_A)
+        _set(device, indexed_role("voltage_solar_mppt", index), voltage)
+        _set(device, indexed_role("current_solar_mppt", index), current)
+        if voltage is None or current is None:
+            continue
+        power = _between(voltage * current, 0, MAX_MPPT_W)
+        if power is None:
+            continue
+        role = indexed_role("power_solar_mppt", index)
+        _set(device, role, power, 0)
+        device.derived.add(role)
+        solar += round(power, 0)
+        solar_seen = True
+    if not solar_seen:
+        return
+    total = _between(solar, 0, MAX_POWER_W)
+    if total is None:
+        return
+    _set(device, "power_solar", total, 0)
+    device.derived.add("power_solar")
+
+
 def _build_micro(regs: dict[int, int]) -> dict[str, DeyeDevice]:
     """Build a microinverter from the community micro table. @zara"""
     device = _shell(regs)
     if device is None:
         return {}
     _rated(device, regs)
-    _pv_channels(device, regs)
+    _micro_pv(device, regs)
     # community map: production today 60 and total 63/64, 0.1 kWh, low word first
     _set(device, "energy_solar_today", _energy(regs, 60, None, MAX_ENERGY_TODAY))
     _set(device, "energy_solar_total", _energy(regs, 63, 64, MAX_ENERGY_TOTAL))
@@ -551,7 +599,7 @@ def _build_micro(regs: dict[int, int]) -> dict[str, DeyeDevice]:
     _set(device, "frequency_grid", _scaled(_word(regs, 79), 0.01, 45, 65), 2)
     # community map: radiator temperature 90, factor 0.01 °C on this family
     _set(device, "temperature_inverter", _scaled(_word(regs, 90), 0.01, 0, 120))
-    # PV power and DC total power are marked computed. No grid-power register.
+    # No grid-power register on this family.
     return {device.serial: device}
 
 

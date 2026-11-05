@@ -1,0 +1,238 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect Flaschenpost Account",
+        "description": "Sign in with your Flaschenpost B2C account credentials.",
+        "data": {
+          "email": "Email",
+          "password": "Password",
+          "default_payment_method": "Default payment method (Credit Card, PayPal, SEPA, Invoice)",
+          "iban_last4": "Saved SEPA IBAN last 4 digits (optional)",
+          "manage_lists_now": "Manage shopping lists with interactive preview search right now"
+        }
+      },
+      "location": {
+        "title": "Verify Delivery Location & Warehouse",
+        "description": "Verify your delivery location on the map. Flaschenpost uses this to route orders to the correct warehouse (Assigned Warehouse: {warehouse_id}).",
+        "data": {
+          "delivery_location": "Delivery location"
+        }
+      },
+      "manage_menu": {
+        "title": "Manage Shopping Lists",
+        "description": "Choose an action to configure and inspect your shopping lists.",
+        "data": {
+          "action": "Action"
+        }
+      },
+      "preview_search": {
+        "title": "Interactive Preview Search",
+        "description": "Test product queries against your local warehouse catalog. The system will look up real stock, category hierarchies, and simulate pack counts needed to reach your target amount.",
+        "data": {
+          "query": "Product query (e.g. 'Milchreis', 'Naturjoghurt', 'Pepsi Zero')",
+          "amount_prefix": "Optional amount prefix (e.g. '500g', '1kg', '1,5kg', '1 Kiste')",
+          "category": "Category filter (optional)",
+          "sort_by": "Sort by"
+        }
+      },
+      "preview_result": {
+        "title": "Search Preview & Simulated Pack Plan",
+        "description": "{preview_markdown}\n\nSelect whether to add the lazy spec or pin a specific product to a shopping list:",
+        "data": {
+          "chosen_option": "Item to add",
+          "target_list": "Target shopping list",
+          "new_list_name": "New list name (if '+ Create new list...' selected)",
+          "sort_by": "Sort order"
+        }
+      },
+      "edit_list": {
+        "title": "Edit Shopping List",
+        "description": "Enter or paste items one per line (supports amounts like '1kg Naturjoghurt', '500g Reis & Getreide::Milchreis', or '1 Kiste Pepsi Zero').",
+        "data": {
+          "list_name": "Shopping list name",
+          "items_text": "Items (one per line)"
+        }
+      },
+      "view_summary": {
+        "title": "Shopping Lists Summary",
+        "description": "{summary_markdown}"
+      },
+      "reauth_confirm": {
+        "title": "Reauthenticate Flaschenpost",
+        "description": "Please enter the updated password for {email}.",
+        "data": {
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to Flaschenpost",
+      "invalid_auth": "Invalid email or password",
+      "outside_delivery_area": "The selected location is outside the Flaschenpost delivery area",
+      "empty_query": "Please enter a product query to search",
+      "no_custom_lists": "No custom lists found to delete (the default list cannot be deleted)",
+      "unknown": "Unexpected error"
+    },
+    "abort": {
+      "already_configured": "Account is already configured",
+      "reauth_successful": "Reauthentication was successful",
+      "cannot_connect": "Integration coordinator is not currently connected"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Flaschenpost Management",
+        "description": "Manage your shopping lists, run interactive preview searches with simulated pack plans, or configure payment options.",
+        "data": {
+          "action": "Action"
+        }
+      },
+      "location_map": {
+        "title": "Adjust Delivery Location & Warehouse",
+        "description": "Adjust your pin on the map to confirm you are within the delivery area and connected to the correct warehouse (Current Warehouse: {warehouse_id}).",
+        "data": {
+          "delivery_location": "Delivery location"
+        }
+      },
+      "preview_search": {
+        "title": "Interactive Preview Search",
+        "description": "Test product queries against your local warehouse catalog. The system will look up real stock, category hierarchies, and simulate pack counts needed to reach your target amount.",
+        "data": {
+          "query": "Product query (e.g. 'Milchreis', 'Naturjoghurt', 'Pepsi Zero')",
+          "amount_prefix": "Optional amount prefix (e.g. '500g', '1kg', '1,5kg', '1 Kiste')",
+          "category": "Category filter (optional)",
+          "sort_by": "Sort by"
+        }
+      },
+      "preview_result": {
+        "title": "Search Preview & Simulated Pack Plan",
+        "description": "{preview_markdown}\n\nSelect whether to add the lazy spec or pin a specific product to a shopping list:",
+        "data": {
+          "chosen_option": "Item to add",
+          "target_list": "Target shopping list",
+          "new_list_name": "New list name (if '+ Create new list...' selected)",
+          "sort_by": "Sort order"
+        }
+      },
+      "add_item": {
+        "title": "Quick Add Item",
+        "description": "Add an item spec directly to a shopping list (e.g. '500g Reis & Getreide::Milchreis', '1kg Naturjoghurt', '1 Kiste Pepsi Zero').",
+        "data": {
+          "item_spec": "Item specification",
+          "target_list": "Target shopping list",
+          "new_list_name": "New list name (if '+ Create new list...' selected)"
+        }
+      },
+      "select_list_to_edit": {
+        "title": "Select Shopping List to Edit",
+        "data": {
+          "list_to_edit": "Shopping list"
+        }
+      },
+      "edit_list_content": {
+        "title": "Edit Shopping List Content",
+        "description": "Enter or paste items one per line.",
+        "data": {
+          "list_name": "Shopping list name",
+          "items_text": "Items (one per line)"
+        }
+      },
+      "delete_list": {
+        "title": "Delete Shopping List",
+        "description": "Choose a named list to remove completely.",
+        "data": {
+          "list_name": "Shopping list"
+        }
+      },
+      "view_summary": {
+        "title": "Shopping Lists Summary",
+        "description": "{summary_markdown}"
+      },
+      "order_prefs": {
+        "title": "Flaschenpost Payment & Ordering Preferences",
+        "description": "Choose your default payment method. Saved instruments (Credit Cards, PayPal, SEPA) are automatically fetched from your Flaschenpost profile.",
+        "data": {
+          "chosen_payment_method": "Payment method",
+          "default_payment_method": "Default payment method",
+          "iban_last4": "Saved SEPA IBAN or card last 4 digits (optional)"
+        }
+      }
+    },
+    "error": {
+      "outside_delivery_area": "The selected location is outside the Flaschenpost delivery area",
+      "empty_query": "Please enter a product query to search",
+      "no_custom_lists": "No custom lists found to delete (the default list cannot be deleted)"
+    }
+  },
+  "entity": {
+    "sensor": {
+      "order_status": {
+        "name": "Order status"
+      },
+      "stops_remaining": {
+        "name": "Stops remaining"
+      },
+      "delivery_eta": {
+        "name": "Delivery ETA"
+      },
+      "order_history": {
+        "name": "Delivered orders"
+      },
+      "cart_total": {
+        "name": "Cart total"
+      },
+      "next_delivery_slot": {
+        "name": "Next delivery slot"
+      },
+      "weekly_spent": {
+        "name": "Spent this week"
+      },
+      "monthly_spent": {
+        "name": "Spent this month"
+      },
+      "yearly_spent": {
+        "name": "Spent this year"
+      },
+      "total_spent": {
+        "name": "Total spent"
+      },
+      "list_weekly_spent": {
+        "name": "{list_name} spent this week"
+      },
+      "list_monthly_spent": {
+        "name": "{list_name} spent this month"
+      },
+      "list_yearly_spent": {
+        "name": "{list_name} spent this year"
+      },
+      "list_total_spent": {
+        "name": "{list_name} total spent"
+      }
+    },
+    "binary_sensor": {
+      "active_delivery": {
+        "name": "Active delivery"
+      }
+    },
+    "todo": {
+      "shopping_list": {
+        "name": "Shopping list"
+      },
+      "cart": {
+        "name": "Cart"
+      }
+    },
+    "button": {
+      "sync_shopping_list": {
+        "name": "Sync shopping list to cart"
+      }
+    },
+    "event": {
+      "list_item_consumed": {
+        "name": "{list_name} item consumed"
+      }
+    }
+  }
+}

@@ -53,6 +53,7 @@ from .const import (
     STARTUP_MESSAGE,
     SERVICE_SET_PV_DATA,
     SERVICE_STOP_CHARGING,
+    SERVICE_SET_TEMPORARY_CURRENT,
     CONF_11KWLIMIT,
     CONF_INTEGRATION_TYPE,
     CONFIG_VERSION, CONFIG_MINOR_VERSION
@@ -129,6 +130,8 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
                 raise ConfigEntryNotReady(lang_map["coord_no_device_data"])
 
         except BaseException as exc:
+            if isinstance(exc, ConfigEntryNotReady):
+                raise exc
             _LOGGER.error(f"async_setup_entry(): Error starting websocket connection: {type(exc).__name__} - {exc}", stack_info=True)
             raise ConfigEntryNotReady(lang_map["websocket_start_failed"])
     else:
@@ -155,19 +158,13 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
             service = GoeChargerApiV2Service(hass, config_entry, coordinator)
             hass.services.async_register(DOMAIN, SERVICE_SET_PV_DATA, service.set_pv_data,
                                          supports_response=SupportsResponse.OPTIONAL)
+            hass.services.async_register(DOMAIN, SERVICE_SET_TEMPORARY_CURRENT, service.set_temporary_current_limit,
+                                         supports_response=SupportsResponse.OPTIONAL)
             hass.services.async_register(DOMAIN, SERVICE_STOP_CHARGING, service.stop_charging,
                                          supports_response=SupportsResponse.OPTIONAL)
         else:
             # we need to let the service know the config-entry...
             add_config_entry_to_service(config_entry, coordinator)
-
-    # start the limit to 16a limiiter...
-    if coordinator.limit_to16a:
-        config_entry.async_create_background_task(
-            hass,
-            coordinator.check_for_16a_limit(hass, config_entry.entry_id),
-            name="coordinator-check_for_16a_limit-task",
-        )
 
     # finally, register the websocket-connection watchdog...
     if use_websocket:
@@ -194,14 +191,16 @@ async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> 
             coordinator.stop_watchdog()
             coordinator.clear_data()
             hass.data[DOMAIN].pop(config_entry.entry_id)
-            hass.data[DOMAIN][ACTIVE_CHARGER_COUNTER] = hass.data[DOMAIN][ACTIVE_CHARGER_COUNTER] - 1
-            remove_config_entry_from_service(config_entry)
+            if coordinator.intg_type == INTG_TYPE.CHARGER.value:
+                hass.data[DOMAIN][ACTIVE_CHARGER_COUNTER] = hass.data[DOMAIN][ACTIVE_CHARGER_COUNTER] - 1
+                remove_config_entry_from_service(config_entry)
 
-        # ONLY remove the SERVICES if this is the LAST ACTIVE config_entry that will be unloaded!
-        if hass.data[DOMAIN][ACTIVE_CHARGER_COUNTER] == 0:
-            _LOGGER.info(f"async_unload_entry(): Unloading last active go-eCharger - will remove SERVICES")
-            hass.services.async_remove(DOMAIN, SERVICE_SET_PV_DATA)
-            hass.services.async_remove(DOMAIN, SERVICE_STOP_CHARGING)
+                # ONLY remove the SERVICES if this is the LAST ACTIVE config_entry that will be unloaded!
+                if hass.data[DOMAIN][ACTIVE_CHARGER_COUNTER] == 0:
+                    _LOGGER.info(f"async_unload_entry(): Unloading last active go-eCharger - will remove SERVICES")
+                    hass.services.async_remove(DOMAIN, SERVICE_SET_PV_DATA)
+                    hass.services.async_remove(DOMAIN, SERVICE_STOP_CHARGING)
+                    hass.services.async_remove(DOMAIN, SERVICE_SET_TEMPORARY_CURRENT)
 
     return unload_ok
 
@@ -209,86 +208,6 @@ async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> 
 async def entry_update_listener(hass: HomeAssistant, config_entry: ConfigEntry) -> None:
     _LOGGER.debug(f"entry_update_listener(): called for entry: {config_entry.entry_id}")
     await hass.config_entries.async_reload(config_entry.entry_id)
-
-
-@staticmethod
-async def check_and_write_to_16a(hass: HomeAssistant, config_entry_id: str, bridge: GoeChargerApiV2Bridge, is_lbgroup_id_set: bool):
-    _LOGGER.info(f"checking entities")
-    tags = []
-    if hass is not None:
-        a_entity_reg = entity_reg.async_get(hass)
-        if a_entity_reg is not None:
-            MAX_A: Final = 16
-            # we query from the HA entity registry all entities that are created by this
-            # 'config_entry' -> we use here just default api calls [no more hacks!]
-            key_list = []
-            for entity in entity_reg.async_entries_for_config_entry(registry=a_entity_reg, config_entry_id=config_entry_id):
-                if entity.original_device_class == NumberDeviceClass.CURRENT:
-                    if "max" in entity.capabilities:
-                        if entity.capabilities["max"] == MAX_A:
-                            # we must check if the entity is disabled, or if it is orphaned...
-                            if entity.disabled is None or entity.disabled is False:
-                                if hasattr(entity, "orphaned_timestamp") is False or entity.orphaned_timestamp is None:
-                                    if entity.translation_key not in key_list:
-                                        key_list.append(entity.translation_key)
-                                        _LOGGER.info(f"16A checker: adding entity {entity.translation_key} to list")
-                                    else:
-                                        _LOGGER.debug(f"16A checker: entity {entity.translation_key} already in list")
-                                else:
-                                    _LOGGER.debug(f"16A checker: ignoring entity {entity.translation_key} because it is orphaned")
-                            else:
-                                _LOGGER.debug(f"16A checker: ignoring entity {entity.translation_key} because it is disabled")
-
-            if len(key_list) > 0:
-                _LOGGER.info(f"16A checker: found {len(key_list)} entities with max current of {MAX_A}A - {key_list}")
-                final_key_list = []
-                final_dics = {}
-                for a_key in key_list:
-                    if '_' in a_key:
-                        res = a_key.split('_')
-                        if res[0] not in final_dics:
-                            final_dics[res[0]] = []
-                        final_dics[res[0]].append(res[1])
-                        a_key = res[0]
-
-                    if a_key not in final_key_list:
-                        final_key_list.append(a_key)
-
-                try:
-                    res = await bridge._read_filtered_data(filters=",".join(final_key_list), log_info="16A checker")
-                    keys_to_patch = []
-                    for a_res_key in res.keys():
-                        res_obj = res[a_res_key]
-                        if isinstance(res_obj, int):
-                            # WE MUST/SHOULD check, if this is really a value, that MUST be adjusted to 16A limit
-                            # since we have some ExtNumberEntityDescription where the 'check_16a_limit is FALSE'
-                            #
-                            # mhhhh - thinking - but then in the EntityDescription.check_16a_limit = False, then
-                            # the entity.capabilities["max"] will not be set to 16A ?! - so this might already
-                            # solve my problem...
-                            if res_obj > MAX_A:
-                                res[a_res_key] = MAX_A
-                                if a_res_key not in keys_to_patch:
-                                    keys_to_patch.append(a_res_key)
-                        elif isinstance(res_obj, dict):
-                            #_LOGGER.warning(f"found dict in 16A check: {res_obj}")
-                            vals_to_check = final_dics.get(a_res_key)
-                            for val in vals_to_check:
-                                # WE MUST/SHOULD check, if this... see comment #216+
-                                if res_obj[val] > MAX_A:
-                                    res[a_res_key][val] = MAX_A
-                                    if a_res_key not in keys_to_patch:
-                                        keys_to_patch.append(a_res_key)
-
-                    _LOGGER.info(f"16A checker: reduce the following keys: {keys_to_patch}")
-                    for a_key in keys_to_patch:
-                        if is_lbgroup_id_set and a_key in [Tag.LOT.key]:
-                            _LOGGER.debug(f"16A checker: skipping key {a_key}, since loadbalancer group id is set")
-                            continue
-                        _LOGGER.info(f"reduce {a_key} to 16A -> writing {res[a_key]}")
-                        await bridge.write_value_to_key(a_key, res[a_key])
-                except Exception as e:
-                    _LOGGER.error(f"16A checker: Error while forcing 16A settings: {type(e).__name__} - {e}")
 
 
 class GoeChargerDataUpdateCoordinator(DataUpdateCoordinator):
@@ -446,7 +365,7 @@ class GoeChargerDataUpdateCoordinator(DataUpdateCoordinator):
         self._ws_start_task = self._config_entry.async_create_background_task(self.hass, target, "ws_connection")
 
         if self._ws_start_task is None:
-            raise ConfigEntryNotReady("start_websocket_and_wait_for_first_data(): Could not create websocket connect task!")
+            raise ConfigEntryNotReady(self.lang_map["ws_start_task_is_none"])
 
         # 3. Wait ONLY until the first message is processed (or time out)
         try:
@@ -457,7 +376,7 @@ class GoeChargerDataUpdateCoordinator(DataUpdateCoordinator):
             _LOGGER.warning("start_websocket_and_wait_for_first_data(): Connection to websocket timed out after one minute!")
             self._ws_start_task.cancel()
             # NOT SURE WHAT TO DO NOW ???!
-            raise ConfigEntryNotReady("start_websocket_and_wait_for_first_data(): Could not fetch essential data")
+            raise ConfigEntryNotReady(self.lang_map["ws_fetch_essential_data_timed_out"])
 
         # we must check, if connected_event has errors...
         if connected_event.has_errors():
@@ -559,7 +478,7 @@ class GoeChargerDataUpdateCoordinator(DataUpdateCoordinator):
         await self.async_refresh()
 
     def handle_write_result(self, a_type, value, key, result, entity):
-        if result is None and self.bridge.ws_connected:
+        if self.bridge.ws_connected and (result is None or len(result) == 0):
             # when using websocket - the writing result will be handled
             # already in the ws-response processor...
             return
@@ -639,7 +558,7 @@ class GoeChargerDataUpdateCoordinator(DataUpdateCoordinator):
                 _LOGGER.error(f"_async_update_data(): unexpected: {type(other).__name__} - {other}")
                 raise UpdateFailed() from other
 
-    async def async_write_key(self, key: str, value, entity: Entity = None) -> dict:
+    async def async_write_key(self, key: str, value, entity: Entity = None, require_ack: bool = False) -> dict:
         if self._CLIENT_COMMUNICATION_ERROR_TS + CLIENT_COMMUNICATION_ERROR_DELAY_IN_SECONDS > time.time():
             time_info = CLIENT_COMMUNICATION_ERROR_DELAY_IN_SECONDS - (time.time() - self._CLIENT_COMMUNICATION_ERROR_TS)
             _LOGGER.info(f"async_write_key(): skipping due to client communication error for the next {time_info} seconds")
@@ -649,7 +568,7 @@ class GoeChargerDataUpdateCoordinator(DataUpdateCoordinator):
             raise ValueError("async_write_key(): RESTART is TRIGGERED (waiting for random sleep delay)")
 
         try:
-            result = await self.bridge.write_value_to_key(key, value)
+            result = await self.bridge.write_value_to_key(key, value, require_ack=require_ack)
             self.handle_write_result("single", value, key, result, entity)
             return result
 
@@ -744,46 +663,62 @@ class GoeChargerDataUpdateCoordinator(DataUpdateCoordinator):
             else:
                 _LOGGER.info(f"active cards {self.available_cards_idx}")
 
-            # check for the 16A limiter...
-            # we now always try to read a possible ccl object and use there the 'cableCurrentLimit' - if there
-            # is no ccl or we have an error, we make use of the adi as fallback (if it's not core_wallbox)...
-            wb_has_16a_cable_limit = None
-            use_adi_as_fallback = not self._is_core_wallbox
-            if Tag.CLL.key in self.bridge._versions:
-                ccl_obj = self.bridge._versions.none_null_get(Tag.CLL.key, {})
-                if len(ccl_obj) > 0:
-                    ccl_cable_limit_val = ccl_obj.get("cableCurrentLimit", "-1")
-                    _LOGGER.debug(f"read_versions(): read CLL:cableCurrentLimit: '{ccl_cable_limit_val}'")
-                    try:
-                        ccl_cable_limit_int = int(ccl_cable_limit_val)
-                        if ccl_cable_limit_int > 0:
-                            wb_has_16a_cable_limit = ccl_cable_limit_int <= 16
-                            use_adi_as_fallback = False
-                        else:
-                            _LOGGER.debug(f"read_versions(): no 'cableCurrentLimit' found in {ccl_obj}")
-                    except BaseException as exc:
-                        _LOGGER.debug(f"read_versions(): try to handle CLL:cableCurrentLimit caused: {type(exc).__name__} - {exc}")
-                        if self._is_core_wallbox:
-                            wb_has_16a_cable_limit = True
-                else:
-                    _LOGGER.debug(f"read_versions(): CLL object is empty! {ccl_obj}")
+            # # check for the 16A limiter...
+            # # we now always try to read a possible ccl object and use there the 'cableCurrentLimit' - if there
+            # # is no ccl or we have an error, we make use of the adi as fallback (if it's not core_wallbox)...
+            # wb_has_16a_cable_limit = None
+            # use_adi_as_fallback = not self._is_core_wallbox
+            # if Tag.CLL.key in self.bridge._versions:
+            #     ccl_obj = self.bridge._versions.none_null_get(Tag.CLL.key, {})
+            #     if len(ccl_obj) > 0:
+            #         ccl_cable_limit_val = ccl_obj.get("cableCurrentLimit", "-1")
+            #         try:
+            #             ccl_cable_limit_int = int(ccl_cable_limit_val)
+            #             if ccl_cable_limit_int > 0:
+            #                 _LOGGER.debug(f"read_versions(): read CLL:cableCurrentLimit: '{ccl_cable_limit_val}'")
+            #                 wb_has_16a_cable_limit = ccl_cable_limit_int <= 16
+            #                 use_adi_as_fallback = False
+            #             else:
+            #                 _LOGGER.debug(f"read_versions(): no 'cableCurrentLimit' found in CLL object, but there IS content: {ccl_obj} - will not enforce the 16A CABLE limit")
+            #                 # 20266/10/28 this is astounding for me - as reported in #176 a 'go-eCharger_V5' running
+            #                 # FW '59.4' does NOT contain the key 'cableCurrentLimit' - I even installed the '59.4' FW
+            #                 # on my Flex and there the key is still present also in that 'old' FW... so I must assume,
+            #                 # that ONLY a FLEX Wallbox will contain this 'cableCurrentLimit' key :-/
+            #                 wb_has_16a_cable_limit = False
+            #                 use_adi_as_fallback = False
+            #
+            #         except BaseException as exc:
+            #             _LOGGER.debug(f"read_versions(): try to handle CLL:cableCurrentLimit caused: {type(exc).__name__} - {exc}")
+            #     else:
+            #         _LOGGER.debug(f"read_versions(): CLL object is empty! {ccl_obj} (or was not present) - we probably check ADI key...")
+            #
+            # # checking the cbl value
+            # # if wb_has_16a_cable_limit is None and Tag.CBL in self.bridge._versions:
+            # #     cbl_value = int(self.bridge._versions.none_null_get(Tag.CBL.key, 9999999))
+            # #     if cbl_value < 9999999:
+            # #         _LOGGER.debug(f"read_versions(): CBL fallback -> read value is '{cbl_value}'")
+            # #         wb_has_16a_cable_limit = cbl_value <= 16
+            #
+            # # so the cll AND the cbl check did not work...
+            # if wb_has_16a_cable_limit is None:
+            #     if use_adi_as_fallback:
+            #         wb_has_16a_cable_limit = self.bridge._versions.none_null_get(Tag.ADI.key, False)
+            #         _LOGGER.debug(f"read_versions(): USE Fallback to API-ADI key in order to set a possible 16A limit - with the result ADI is: {wb_has_16a_cable_limit} (or not present)")
+            #
+            # # if we haven't seen any 'wb_has_16a_cable_limit' yet, then we ENFORCE the limit
+            # # since I assume it's better to have a limit before doing any harm... (sorry 22Kw Owners)
+            # if wb_has_16a_cable_limit is None:
+            #     _LOGGER.debug(f"read_versions(): enforcing 'wb_has_16a_cable_limit=True' cause previously the code did not set any value")
+            #     wb_has_16a_cable_limit = True
 
-            if wb_has_16a_cable_limit is None and use_adi_as_fallback:
-                wb_has_16a_cable_limit = self.bridge._versions.none_null_get(Tag.ADI.key, False)
-
-            # if we haven't seen any 'wb_has_16a_cable_limit' yet, then we enable the limit just to be sure...
-            if wb_has_16a_cable_limit is None:
-                _LOGGER.debug(f"read_versions(): enforcing 'wb_has_16a_cable_limit=True' cause previously the code did not set any value")
-                wb_has_16a_cable_limit = True
-
-            self.limit_to16a = (self._config_entry.data.get(CONF_11KWLIMIT, False)
-                                or self.bridge._versions.none_null_get(Tag.VAR.key, -1) == 11
-                                or wb_has_16a_cable_limit)
+            a = self._config_entry.data.get(CONF_11KWLIMIT, False)
+            b = self.bridge._versions.none_null_get(Tag.VAR.key, -1) == 11
+            self.limit_to16a = a or b #or wb_has_16a_cable_limit
 
             if (self.limit_to16a):
-                _LOGGER.info(f"read_versions(): Charger LIMIT to 16A is active")
+                _LOGGER.info(f"read_versions(): Charger LIMIT to 16A is active [CONF_11KWLIMIT: {a}, VAR==11: {b}]")#, DETECTED CABLE-LIMIT: {wb_has_16a_cable_limit}]")
             else:
-                _LOGGER.info(f"read_versions(): Charger NO LIMIT detected")
+                _LOGGER.info(f"read_versions(): Charger NO LIMIT detected [CONF_11KWLIMIT: {a}, VAR==11: {b}]")#, DETECTED CABLE-LIMIT: {wb_has_16a_cable_limit}]")
         else:
             # no additional controller stuff... but we need to init some variables
             self.limit_to16a = False
@@ -825,11 +760,11 @@ class GoeChargerDataUpdateCoordinator(DataUpdateCoordinator):
 
         return True
 
-    async def check_for_16a_limit(self, hass, entry_id):
-        _LOGGER.debug(f"check relevant entities for 16A limit... in 15sec")
-        await asyncio.sleep(15)
-        _LOGGER.debug(f"check relevant entities for 16A limit NOW!")
-        await check_and_write_to_16a(hass=hass, config_entry_id=entry_id, bridge=self.bridge, is_lbgroup_id_set=self.is_loadbalancer_group_id_set)
+    # async def check_for_16a_limit(self, hass, entry_id):
+    #     _LOGGER.debug(f"check relevant entities for 16A limit... in 15sec")
+    #     await asyncio.sleep(15)
+    #     _LOGGER.debug(f"check relevant entities for 16A limit NOW!")
+    #     await check_and_write_to_16a(hass=hass, config_entry_id=entry_id, bridge=self.bridge, is_lbgroup_id_set=self.is_loadbalancer_group_id_set)
 
     def is_valid_charger_entity(self, description: EntityDescription) -> bool:
         if description.key == Tag.TMA.key and hasattr(description, "idx"):
@@ -860,6 +795,9 @@ class GoeChargerBaseEntity(CustomFriendlyNameEntity):
 
         # make sure that we keep the CASE of the key!
         self.data_key = description.key
+
+        if hasattr(description, "tag"):
+            self.tag:Tag = description.tag
 
         # tuple_idx must have description.translation_key !
         if hasattr(description, "tuple_idx") and description.tuple_idx is not None:

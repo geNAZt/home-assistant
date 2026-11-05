@@ -1,0 +1,511 @@
+get_categories:
+  name: Get warehouse categories
+  description: Fetch the full Flaschenpost category and subcategory tree for your local warehouse (useful for Category::Product filters).
+  fields:
+    config_entry_id:
+      name: Account config entry ID
+      selector:
+        config_entry:
+          integration: flaschenpost
+
+search_products:
+  name: Search products
+  description: Search products stocked in your local Flaschenpost warehouse by name, category, €/unit, €/kg, €/L, or crate.
+  fields:
+    query:
+      name: Search query
+      description: Product name or keyword, optionally prefixed with Category::Product (e.g. "Reis & Getreide::Milchreis" or "Joghurt 1,5% fett").
+      required: true
+      example: "Reis & Getreide::Milchreis"
+      selector:
+        text:
+    category:
+      name: Category filter
+      description: Optional Flaschenpost category, subcategory, product group, or hierarchical path (e.g. "Reis & Getreide" or "Kochen & Vorrat::Reis & Getreide").
+      example: "Reis & Getreide"
+      selector:
+        text:
+    name_contains:
+      name: Name contains filter
+      description: Optional case-insensitive substring that must appear in the product name or pack description.
+      example: "Naturjoghurt"
+      selector:
+        text:
+    sort_by:
+      name: Sort by
+      description: Sort matching products by relevance, total pack price, €/unit, €/kg, or €/L.
+      default: "relevance"
+      selector:
+        select:
+          options:
+            - label: "Relevance"
+              value: "relevance"
+            - label: "Cheapest pack price (€)"
+              value: "price"
+            - label: "Cheapest per unit (€/unit)"
+              value: "price_per_unit"
+            - label: "Cheapest per kg (€/kg)"
+              value: "price_per_kg"
+            - label: "Cheapest per liter (€/L)"
+              value: "price_per_liter"
+    only_crates:
+      name: Only beverage crates (Kisten)
+      description: Restrict search to full beverage crates.
+      default: false
+      selector:
+        boolean:
+    max_price_eur:
+      name: Max pack price (€)
+      selector:
+        number:
+          min: 0.01
+          max: 500
+          step: 0.01
+          mode: box
+    max_price_per_unit_eur:
+      name: Max price per unit (€/unit)
+      selector:
+        number:
+          min: 0.01
+          max: 500
+          step: 0.01
+          mode: box
+    max_price_per_kg_eur:
+      name: Max price per kg (€/kg)
+      selector:
+        number:
+          min: 0.01
+          max: 500
+          step: 0.01
+          mode: box
+    max_price_per_liter_eur:
+      name: Max price per liter (€/L)
+      selector:
+        number:
+          min: 0.01
+          max: 500
+          step: 0.01
+          mode: box
+    only_available:
+      name: Only in-stock products
+      default: true
+      selector:
+        boolean:
+    limit:
+      name: Result limit
+      default: 10
+      selector:
+        number:
+          min: 1
+          max: 50
+          mode: box
+    config_entry_id:
+      name: Account config entry ID
+      selector:
+        config_entry:
+          integration: flaschenpost
+
+get_favorites:
+  name: Get favorite products
+  description: Fetch your personal Flaschenpost favorite / frequently bought items ("Meine Getränke").
+  fields:
+    limit:
+      name: Result limit
+      default: 25
+      selector:
+        number:
+          min: 1
+          max: 50
+          mode: box
+    config_entry_id:
+      name: Account config entry ID
+      selector:
+        config_entry:
+          integration: flaschenpost
+
+create_new_cart:
+  name: Create new clean cart
+  description: Clear all existing line items, discount codes, and delivery slot selections to start a fresh cart.
+  fields:
+    config_entry_id:
+      name: Account config entry ID
+      selector:
+        config_entry:
+          integration: flaschenpost
+
+add_to_cart:
+  name: Add or update item in cart
+  description: Add a product to the cart by article ID or query (supports units and categories like "500g Reis & Getreide::Milchreis", "1,5kg Puten Schnitzel", or "1 Kiste Pepsi Zero").
+  fields:
+    article_id:
+      name: Article ID
+      example: 28242
+      selector:
+        number:
+          min: 1
+          mode: box
+    query:
+      name: Product query (with optional amount/unit and Category::Product)
+      example: "500g Reis & Getreide::Milchreis"
+      selector:
+        text:
+    category:
+      name: Category filter
+      description: Optional Flaschenpost category or subcategory (e.g. "Reis & Getreide").
+      example: "Reis & Getreide"
+      selector:
+        text:
+    name_contains:
+      name: Name contains filter
+      selector:
+        text:
+    sort_by:
+      name: Product selection sort
+      selector:
+        select:
+          options:
+            - label: "Relevance"
+              value: "relevance"
+            - label: "Cheapest pack price (€)"
+              value: "price"
+            - label: "Cheapest per unit (€/unit)"
+              value: "price_per_unit"
+            - label: "Cheapest per kg (€/kg)"
+              value: "price_per_kg"
+            - label: "Cheapest per liter (€/L)"
+              value: "price_per_liter"
+    quantity:
+      name: Quantity multiplier
+      default: 1
+      selector:
+        number:
+          min: 0
+          max: 99
+          mode: box
+    additive:
+      name: Additive quantity
+      default: true
+      selector:
+        boolean:
+    clear_cart_first:
+      name: Create new clean cart first
+      default: false
+      selector:
+        boolean:
+    config_entry_id:
+      name: Account config entry ID
+      selector:
+        config_entry:
+          integration: flaschenpost
+
+save_shopping_list:
+  name: Save named shopping list
+  description: Create, replace, or append a named shopping list (stored lazily; products and category filters are resolved at add-to-cart time).
+  fields:
+    name:
+      name: Shopping list name
+      description: Name of the shopping list (e.g. "Every week", "Every even week", "Every odd week").
+      required: true
+      example: "Every week"
+      selector:
+        text:
+    items:
+      name: Items
+      description: List of item lines (supports g, kg, ml, L, Kiste, x, and Category::Product filters, e.g. "500g Reis & Getreide::Milchreis", "1kg Naturjoghurt", "1 Kiste Pepsi Zero").
+      required: true
+      example: |
+        1kg Naturjoghurt
+        1,5kg Puten Schnitzel
+        500g Heidelbeeren
+        500g Haferflocken
+        1 Kiste Pepsi Zero
+        1 Kiste Schwipp Schwapp Zero
+        500g Reis & Getreide::Milchreis
+      selector:
+        object:
+    replace:
+      name: Replace existing items
+      description: Replace all existing items in this list (false appends to existing items).
+      default: true
+      selector:
+        boolean:
+    sort_by:
+      name: Optional default sort override
+      selector:
+        select:
+          options:
+            - label: "Cheapest per kg (€/kg)"
+              value: "price_per_kg"
+            - label: "Cheapest per liter (€/L)"
+              value: "price_per_liter"
+            - label: "Cheapest per unit (€/unit)"
+              value: "price_per_unit"
+            - label: "Cheapest pack price (€)"
+              value: "price"
+            - label: "Relevance"
+              value: "relevance"
+    config_entry_id:
+      name: Account config entry ID
+      selector:
+        config_entry:
+          integration: flaschenpost
+
+delete_shopping_list:
+  name: Delete named shopping list
+  description: Remove a named shopping list by name.
+  fields:
+    name:
+      name: Shopping list name
+      required: true
+      example: "Every odd week"
+      selector:
+        text:
+    config_entry_id:
+      name: Account config entry ID
+      selector:
+        config_entry:
+          integration: flaschenpost
+
+get_shopping_lists:
+  name: Get all named shopping lists
+  description: Return all saved named Flaschenpost shopping lists and their item definitions.
+  fields:
+    config_entry_id:
+      name: Account config entry ID
+      selector:
+        config_entry:
+          integration: flaschenpost
+
+add_shopping_lists_to_cart:
+  name: Add N named shopping lists to cart
+  description: Merge one or more shopping lists by name (or HA todo entity name/ID), lazily resolve the cheapest items right now (respecting kg, g, L, ml, Kiste units, and Category::Product filters), and add them to the cart.
+  fields:
+    shopping_lists:
+      name: Shopping list names
+      description: List of shopping list names (e.g. ["Every week", "Every even week"]) or Home Assistant todo entity IDs/names.
+      required: true
+      example:
+        - "Every week"
+        - "Every even week"
+      selector:
+        object:
+    clear_cart_first:
+      name: Create new clean cart first
+      description: Clear existing cart contents before adding the merged shopping lists.
+      default: false
+      selector:
+        boolean:
+    mark_completed:
+      name: Mark items completed
+      description: Keep false for recurring weekly lists so items stay active for future runs.
+      default: false
+      selector:
+        boolean:
+    default_sort_by:
+      name: Optional sort override
+      description: Overrides automatic unit-based cheapest selection (kg -> €/kg, Kiste/L -> €/L, count -> price).
+      selector:
+        select:
+          options:
+            - label: "Cheapest pack price (€)"
+              value: "price"
+            - label: "Cheapest per unit (€/unit)"
+              value: "price_per_unit"
+            - label: "Cheapest per kg (€/kg)"
+              value: "price_per_kg"
+            - label: "Cheapest per liter (€/L)"
+              value: "price_per_liter"
+            - label: "Relevance"
+              value: "relevance"
+    config_entry_id:
+      name: Account config entry ID
+      selector:
+        config_entry:
+          integration: flaschenpost
+
+sync_shopping_list_to_cart:
+  name: Sync shopping list to cart
+  description: Push open items from the default (or specified) shopping lists into the live Flaschenpost cart.
+  fields:
+    shopping_lists:
+      name: Optional shopping list names
+      selector:
+        object:
+    mark_completed:
+      name: Mark synced items completed
+      default: true
+      selector:
+        boolean:
+    clear_cart_first:
+      name: Create new clean cart first
+      default: false
+      selector:
+        boolean:
+    config_entry_id:
+      name: Account config entry ID
+      selector:
+        config_entry:
+          integration: flaschenpost
+
+reorder_last_order:
+  name: Reorder past order
+  description: Add all items from your most recent order (or a specific historical order ID) into the cart.
+  fields:
+    order_id:
+      name: Order UUID
+      selector:
+        text:
+    config_entry_id:
+      name: Account config entry ID
+      selector:
+        config_entry:
+          integration: flaschenpost
+
+select_delivery_slot:
+  name: Select delivery slot
+  description: Select a delivery window on the cart (defaults to immediate DIRECT 120-min slot or next open slot).
+  fields:
+    slot_type:
+      name: Slot type
+      example: "DIRECT"
+      selector:
+        text:
+    slot_from:
+      name: Slot start timestamp
+      selector:
+        text:
+    config_entry_id:
+      name: Account config entry ID
+      selector:
+        config_entry:
+          integration: flaschenpost
+
+get_stored_payment_id:
+  name: Get stored payment methods & IDs
+  description: Fetch saved payment instruments (Credit Cards with stored_payment_id, PayPal customer IDs, SEPA direct debits, and invoice) from your Flaschenpost profile.
+  fields:
+    config_entry_id:
+      name: Account config entry ID
+      description: Optional config entry ID if multiple Flaschenpost accounts are configured.
+      selector:
+        config_entry:
+          integration: flaschenpost
+
+get_payment_methods:
+  name: Get payment methods
+  description: Alias for get_stored_payment_id. Fetch all saved payment methods on the account.
+  fields:
+    config_entry_id:
+      name: Account config entry ID
+      selector:
+        config_entry:
+          integration: flaschenpost
+
+place_order:
+  name: Place order
+  description: Finalize checkout and place a real paid Flaschenpost order using saved Credit Card, PayPal, SEPA, or Invoice.
+  fields:
+    confirm:
+      name: Confirm paid order placement
+      required: true
+      default: false
+      selector:
+        boolean:
+    payment_method:
+      name: Payment method
+      selector:
+        select:
+          options:
+            - label: "Kreditkarte (Credit Card)"
+              value: "credit_card"
+            - label: "PayPal"
+              value: "paypal"
+            - label: "SEPA Lastschrift"
+              value: "sepa"
+            - label: "Rechnung (Direct Invoice)"
+              value: "invoice"
+    stored_payment_id:
+      name: Stored payment method ID
+      selector:
+        text:
+    iban_last4:
+      name: SEPA IBAN last 4 digits
+      example: "1234"
+      selector:
+        text:
+    slot_type:
+      name: Slot type
+      selector:
+        text:
+    slot_from:
+      name: Slot start timestamp
+      selector:
+        text:
+    config_entry_id:
+      name: Account config entry ID
+      selector:
+        config_entry:
+          integration: flaschenpost
+
+import_cart_to_list:
+  name: Import cart into shopping list
+  description: Import all items currently in your Flaschenpost cart into a new shopping list, pinned by SKU.
+  fields:
+    list_name:
+      name: Shopping list name
+      description: Name of the new shopping list to create or overwrite.
+      required: true
+      example: "Warenkorb Import"
+      selector:
+        text:
+    config_entry_id:
+      name: Account config entry ID
+      selector:
+        config_entry:
+          integration: flaschenpost
+
+set_shopping_list_config:
+  name: Configure shopping list options
+  description: Configure weighted random selection and order consumption settings for a named shopping list.
+  fields:
+    list_name:
+      name: Shopping list name
+      description: Target shopping list name.
+      required: true
+      example: "Snacks"
+      selector:
+        text:
+    random_enabled:
+      name: Randomizer enabled
+      description: Enable weighted random picking for this shopping list when resolving to cart.
+      selector:
+        boolean:
+    random_count:
+      name: Amount of items to pick
+      description: Number of items to pick randomly from this list.
+      default: 1
+      selector:
+        number:
+          min: 1
+          max: 100
+    consume_on_order:
+      name: Consume on order
+      description: Consume items from this list when an order is placed.
+      selector:
+        boolean:
+    consume_action:
+      name: Consumption action
+      description: Action to take on items when an order is placed (complete or delete).
+      default: "complete"
+      selector:
+        select:
+          options:
+            - label: "Complete item"
+              value: "complete"
+            - label: "Delete item"
+              value: "delete"
+    config_entry_id:
+      name: Account config entry ID
+      selector:
+        config_entry:
+          integration: flaschenpost

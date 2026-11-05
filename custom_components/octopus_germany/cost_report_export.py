@@ -154,13 +154,20 @@ def write_cost_workbook(  # noqa: C901, PLR0912, PLR0913, PLR0915
     daily_rows: list[dict[str, Any]],
     basis_rows: list[dict[str, Any]],
     timezone: str,
-    baseline: Decimal,
-    module1_annual: Decimal,
+    baseline: Decimal | None,
+    module1_annual: Decimal | None,
     module1_start: date | None,
     vat: Decimal,
     comparison: str,
     current_network: Decimal | None,
     warnings: list[str],
+    contract_start_details: list[dict[str, Any]] | None = None,
+    schedule_period_rows: list[dict[str, Any]] | None = None,
+    module1_source: str = "unknown",
+    module1_start_source: str = "unknown",
+    module3_start: date | None = None,
+    module3_start_source: str = "unknown",
+    baseline_source: str = "unknown",
 ) -> None:
     """Write contract-specific invoice lines and editable offline Excel formulas."""
     by_instant = {item["start"]: item for item in details}
@@ -207,6 +214,7 @@ def write_cost_workbook(  # noqa: C901, PLR0912, PLR0913, PLR0915
         absent_fmt = book.add_format({"bg_color": "#E7E7E7", "font_color": "#666666"})
         input_fmt = book.add_format({"bg_color": "#E5F3FF", "num_format": "0.000000"})
         number_fmt = book.add_format({"num_format": "0.000000"})
+        days_fmt = book.add_format({"num_format": "0"})
         money = book.add_format({"num_format": '#,##0.00 "EUR"'})
         quantity_fmt = book.add_format({"num_format": '0.000 "kWh"'})
         total_money = book.add_format({"bold": True, "num_format": '#,##0.00 "EUR"'})
@@ -228,6 +236,7 @@ def write_cost_workbook(  # noqa: C901, PLR0912, PLR0913, PLR0915
                 "Intervalle",
                 "Tageswerte",
                 "Basis",
+                "Netzgrundlagen",
             )
         }
         for sheet in sheets.values():
@@ -252,32 +261,56 @@ def write_cost_workbook(  # noqa: C901, PLR0912, PLR0913, PLR0915
             sheet.set_row(0, 42)
 
         inputs = sheets["Eingaben"]
-        heading(inputs, ["Eingabe", "Wert", "Erlaeuterung"])
+        heading(inputs, ["Parameter", "Wert", "Quelle", "Erlaeuterung"])
+        current_network_source = (
+            "Aktionseingabe" if current_network is not None else "nicht eingegeben"
+        )
         entries = [
             (
                 "Vertragsnetz netto ct/kWh",
                 baseline,
-                "Bereits im Vertrags-AP enthalten.",
+                baseline_source,
+                "Bereits im urspruenglichen Vertrags-AP enthalten; "
+                "Einzelwerte je Vertrag stehen in Netzgrundlagen.",
             ),
             (
                 "Modul 3 Vergleich",
                 comparison,
+                "Aktionseingabe",
                 "contract_start oder current_year; ST ist kein normales Jahresentgelt.",
             ),
             (
                 "Normales Jahresnetz netto ct/kWh",
                 current_network,
+                current_network_source,
                 "Nur dokumentierten normalen Satz eingeben, nicht Modul-3-ST.",
             ),
             (
                 "Modul 1 netto EUR/Jahr",
                 module1_annual,
-                "Zeitanteilige Gutschrift, keine Netzzeitzone.",
+                module1_source,
+                "Netto-Jahresgutschrift; zeitanteilige Berechnung siehe Rechnung.",
             ),
-            ("USt Ersatzwert (Anteil)", vat, "Tarif-USt hat fuer Verbrauch Vorrang."),
-            ("Modul 1 wirksam ab", module1_start, "Leer bedeutet: keine Gutschrift."),
+            (
+                "USt Ersatzwert (Anteil)",
+                vat,
+                "Aktion oder Vorgabewert",
+                "Tarif-USt hat fuer Verbrauch Vorrang.",
+            ),
+            (
+                "Modul 1 wirksam ab",
+                module1_start,
+                module1_start_source,
+                "Leer bedeutet: keine Gutschrift.",
+            ),
+            (
+                "Modul 3 wirksam ab",
+                module3_start,
+                module3_start_source,
+                "Datum der Kundenauswahl; unabhaengig von der API-Gueltigkeit.",
+            ),
         ]
-        for row, (label, value, explanation) in enumerate(entries, 1):
+        for row, (label, value, source, explanation) in enumerate(entries, 1):
             inputs.write(row, 0, label)
             if isinstance(value, date):
                 inputs.write_datetime(
@@ -292,7 +325,74 @@ def write_cost_workbook(  # noqa: C901, PLR0912, PLR0913, PLR0915
                     float(value) if isinstance(value, Decimal) else value,
                     input_fmt,
                 )
-            inputs.write(row, 2, explanation, note)
+            inputs.write(row, 2, source, note)
+            inputs.write(row, 3, explanation, note)
+        network_basis = sheets["Netzgrundlagen"]
+        heading(
+            network_basis,
+            [
+                "Vertrag",
+                "Vertragsstart",
+                "Baseline netto ct/kWh",
+                "Quelle",
+                "Gueltig von",
+                "Gueltig bis",
+            ],
+        )
+        network_basis.set_column(0, 0, 56)
+        network_basis.set_column(1, 1, 18)
+        network_basis.set_column(2, 2, 24)
+        network_basis.set_column(3, 3, 74)
+        network_basis.set_column(4, 5, 18)
+        for row, item in enumerate(contract_start_details or [], 1):
+            network_basis.write(row, 0, item.get("agreement") or "Unknown")
+            start = item.get("contract_start_date")
+            if isinstance(start, date):
+                network_basis.write_datetime(
+                    row, 1, datetime.combine(start, time.min), date_fmt
+                )
+            elif start is not None:
+                network_basis.write(row, 1, str(start))
+            value = item.get("value")
+            if value is not None:
+                network_basis.write_number(row, 2, float(value), input_fmt)
+            else:
+                network_basis.write_blank(row, 2, None, input_fmt)
+            network_basis.write(row, 3, item.get("source") or "missing")
+            network_basis.write(row, 4, item.get("valid_from") or "")
+            network_basis.write(row, 5, item.get("valid_to") or "")
+        schedule_title_row = max(3, len(contract_start_details or []) + 3)
+        network_basis.merge_range(
+            schedule_title_row,
+            0,
+            schedule_title_row,
+            5,
+            "Netzentgelt-Zeitraeume aus grid_fee_schedules.json",
+            header,
+        )
+        schedule_header_row = schedule_title_row + 1
+        network_basis.write_row(
+            schedule_header_row,
+            0,
+            [
+                "Jahr",
+                "Gueltig von",
+                "Gueltig bis",
+                "Basis netto ct/kWh",
+                "Quelle",
+            ],
+            header,
+        )
+        for row, item in enumerate(schedule_period_rows or [], schedule_header_row + 1):
+            network_basis.write_number(row, 0, int(item["year"]))
+            network_basis.write(row, 1, item.get("valid_from") or "")
+            network_basis.write(row, 2, item.get("valid_to") or "")
+            value = item.get("basis_rate_net_ct_per_kwh")
+            if value is not None:
+                network_basis.write_number(row, 3, float(value), input_fmt)
+            else:
+                network_basis.write_blank(row, 3, None, input_fmt)
+            network_basis.write(row, 4, "grid_fee_schedules.json")
         inputs.data_validation(
             2,
             1,
@@ -309,7 +409,9 @@ def write_cost_workbook(  # noqa: C901, PLR0912, PLR0913, PLR0915
                 {"validate": "decimal", "criteria": ">=", "value": 0},
             )
         inputs.set_column(0, 0, 38)
-        inputs.set_column(2, 2, 90)
+        inputs.set_column(1, 1, 22)
+        inputs.set_column(2, 2, 42)
+        inputs.set_column(3, 3, 76)
         inputs.write(8, 0, "Vergleichsnetz netto ct/kWh")
         reference = baseline if comparison == "contract_start" else current_network
         formula(
@@ -325,16 +427,19 @@ def write_cost_workbook(  # noqa: C901, PLR0912, PLR0913, PLR0915
             inputs,
             9,
             1,
-            "=IF(AND(ISNUMBER(B2),B2>=0,ISNUMBER(B5),B5>=0,"
-            "ISNUMBER(B6),B6>=0,B6<=1,ISNUMBER(B9),B9>=0,"
+            '=IF(AND(OR(B2="",AND(ISNUMBER(B2),B2>=0)),'
+            'OR(B5="",AND(ISNUMBER(B5),B5>=0)),'
+            "ISNUMBER(B6),B6>=0,B6<=1,"
             'OR(B7="",ISNUMBER(B7))),"OK","EINGABE UNGUELTIG")',
-            "OK" if reference is not None else "EINGABE UNGUELTIG",
+            "OK"
+            if comparison != "current_year" or current_network is not None
+            else "EINGABE UNGUELTIG",
             note,
         )
         inputs.write(10, 0, "Grundgebuehr")
         inputs.write(
             10,
-            2,
+            3,
             "Monatspreise im Blatt Grundpreise editieren: x 12 / 365 je Tag. "
             "Heat-Messentgelte sind bereits enthalten.",
             note,
@@ -342,7 +447,7 @@ def write_cost_workbook(  # noqa: C901, PLR0912, PLR0913, PLR0915
         inputs.write(11, 0, "Datenqualitaet")
         inputs.write(
             11,
-            2,
+            3,
             "Leere Messwerte sind fehlend, 0 ist gueltig. "
             "92/100 Intervalle bei Zeitumstellung. "
             "Ungueltige/duplizierte Quelldaten bleiben als Warnung gesperrt.",
@@ -351,7 +456,7 @@ def write_cost_workbook(  # noqa: C901, PLR0912, PLR0913, PLR0915
         inputs.write(12, 0, "Tarifzuordnung")
         inputs.write(
             12,
-            2,
+            3,
             "Vertragspreiszonen aus dem gueltigen Agreement, "
             "nicht aus Website-Vorgaben. Historische Intelligent-Zusatzslots "
             "sind nur erfasst, wenn die gelieferten Preise sie abbilden; "
@@ -362,7 +467,7 @@ def write_cost_workbook(  # noqa: C901, PLR0912, PLR0913, PLR0915
             inputs.set_row(explanation_row, 46)
         for row, text in enumerate(warnings, 14):
             inputs.write(row, 0, "Warnung", warning_fmt)
-            inputs.merge_range(row, 1, row, 4, text, warning_fmt)
+            inputs.merge_range(row, 1, row, 3, text, warning_fmt)
 
         tariff_sheet = sheets["Tarifpreise"]
         heading(
@@ -454,6 +559,8 @@ def write_cost_workbook(  # noqa: C901, PLR0912, PLR0913, PLR0915
                 "Modul 3 Einsparung EUR",
                 "Energie gesamt EUR",
                 "Modul 3 aktiv",
+                "Vertragsstart-Netto ct/kWh",
+                "Baseline-Quelle",
             ],
         )
         daily_ranges = {}
@@ -495,6 +602,9 @@ def write_cost_workbook(  # noqa: C901, PLR0912, PLR0913, PLR0915
                 tariff_id = (
                     tariff_indices.get(tariff_key, 0) if tariff_key is not None else 0
                 )
+                contract_baseline = (
+                    item.get("contract_start_network_charge_ct_kwh") if item else None
+                )
                 network_id = (
                     network_indices.get(network_key, 0)
                     if network_key is not None
@@ -504,6 +614,19 @@ def write_cost_workbook(  # noqa: C901, PLR0912, PLR0913, PLR0915
                 interval_sheet.write_number(row, 8, network_id, input_fmt)
                 module3 = bool(item and item["module3_selected"])
                 interval_sheet.write_number(row, 18, int(module3))
+                if contract_baseline is not None:
+                    interval_sheet.write_number(
+                        row, 19, float(contract_baseline), input_fmt
+                    )
+                else:
+                    interval_sheet.write_blank(row, 19, None, input_fmt)
+                interval_sheet.write(
+                    row,
+                    20,
+                    item.get("contract_start_baseline_source", "missing")
+                    if item
+                    else "missing",
+                )
                 for col, expression, cached in (
                     (
                         5,
@@ -545,7 +668,8 @@ def write_cost_workbook(  # noqa: C901, PLR0912, PLR0913, PLR0915
                     present
                     and item is not None
                     and item["network_rate"] is not None
-                    and reference is not None
+                    and contract_baseline is not None
+                    and (comparison != "current_year" or current_network is not None)
                 )
                 formula(
                     interval_sheet,
@@ -555,7 +679,8 @@ def write_cost_workbook(  # noqa: C901, PLR0912, PLR0913, PLR0915
                     f'IF(NOT(ISNUMBER(D{r})),"MESSWERT UNGUELTIG",'
                     f'IF(D{r}<0,"MESSWERT UNGUELTIG",'
                     f"IF(OR(NOT(ISNUMBER(G{r})),NOT(ISNUMBER(H{r})),"
-                    f'NOT(ISNUMBER(K{r})),Eingaben!$B$10<>"OK"),"PREIS FEHLT",'
+                    f"NOT(ISNUMBER(K{r})),NOT(ISNUMBER(T{r})),"
+                    f'Eingaben!$B$10<>"OK"),"PREIS FEHLT",'
                     f'IF(OR(H{r}<0,H{r}>1,K{r}<0),"PREIS UNGUELTIG","OK")))))',
                     "OK" if complete else "UNVOLLSTAENDIG",
                     note,
@@ -563,7 +688,11 @@ def write_cost_workbook(  # noqa: C901, PLR0912, PLR0913, PLR0915
                 base = q * item["gross_rate"] if item else _ZERO
                 tax = item["vat"] if item else vat
                 ref = (
-                    (reference if reference is not None else _ZERO)
+                    (
+                        contract_baseline
+                        if comparison == "contract_start"
+                        else (current_network if current_network is not None else _ZERO)
+                    )
                     if module3
                     else (
                         item["network_rate"] * 100
@@ -571,7 +700,11 @@ def write_cost_workbook(  # noqa: C901, PLR0912, PLR0913, PLR0915
                         else _ZERO
                     )
                 )
-                adjust = q * (ref - baseline) * (1 + tax) / 100
+                adjust = (
+                    q * (ref - contract_baseline) * (1 + tax) / 100
+                    if contract_baseline is not None
+                    else _ZERO
+                )
                 remove = -q * ref * (1 + tax) / 100
                 network = (
                     q * item["network_rate"] * (1 + tax)
@@ -587,10 +720,13 @@ def write_cost_workbook(  # noqa: C901, PLR0912, PLR0913, PLR0915
                     saving,
                     base + adjust - saving,
                 ]
-                ref_formula = f"IF(S{r}=1,Eingaben!$B$9,K{r})"
+                ref_formula = (
+                    f'IF(S{r}=1,IF(Eingaben!$B$3="contract_start",'
+                    f"T{r},Eingaben!$B$4),K{r})"
+                )
                 expressions = [
                     f"D{r}*G{r}",
-                    f"D{r}*({ref_formula}-Eingaben!$B$2)*(1+H{r})/100",
+                    f"D{r}*({ref_formula}-T{r})*(1+H{r})/100",
                     f"-D{r}*{ref_formula}*(1+H{r})/100",
                     f"D{r}*K{r}*(1+H{r})/100",
                     f"-O{r}-P{r}",
@@ -616,7 +752,7 @@ def write_cost_workbook(  # noqa: C901, PLR0912, PLR0913, PLR0915
                 )
                 row += 1
             daily_ranges[day] = (first, row)
-        interval_sheet.autofilter(0, 0, row - 1, 17)
+        interval_sheet.autofilter(0, 0, row - 1, 20)
         for col, upper in ((4, len(tariffs)), (8, len(networks))):
             if upper:
                 interval_sheet.data_validation(
@@ -870,7 +1006,12 @@ def write_cost_workbook(  # noqa: C901, PLR0912, PLR0913, PLR0915
             invoice.write_row(
                 invoice_row,
                 0,
-                ["Position", "Menge kWh", "Brutto ct/kWh", "Betrag brutto EUR"],
+                [
+                    "Position",
+                    "Menge / Tage",
+                    "Preis / Berechnungswert",
+                    "Betrag brutto EUR",
+                ],
                 header,
             )
             invoice.set_row(invoice_row, 32)
@@ -934,7 +1075,7 @@ def write_cost_workbook(  # noqa: C901, PLR0912, PLR0913, PLR0915
                     sum(item["amounts"][1] for item in selected),
                 ),
                 (
-                    "Abzueglich Modul 1 - pauschale Gutschrift",
+                    "Modul 1-Abzug (Tage / anteilig netto EUR)",
                     "J",
                     -sum(item["credit"] for item in selected),
                 ),
@@ -953,6 +1094,49 @@ def write_cost_workbook(  # noqa: C901, PLR0912, PLR0913, PLR0915
                     f'=IF({status_cell}<>"OK","",{sign}SUM(Tageswerte!{col}{first_day}:{col}{last_day}))',
                     cached if valid else "",
                 )
+                if col == "J":
+                    eligible_days = (
+                        sum(
+                            date.fromisoformat(item["day"]) >= module1_start
+                            for item in selected
+                        )
+                        if module1_start is not None and module1_annual is not None
+                        else 0
+                    )
+                    report_year = int(selected[0]["day"][:4])
+                    days_in_year = (
+                        date(report_year + 1, 1, 1) - date(report_year, 1, 1)
+                    ).days
+                    module1_net = (
+                        module1_annual * eligible_days / days_in_year
+                        if module1_annual is not None
+                        else _ZERO
+                    )
+                    r = invoice_row + 1
+                    formula(
+                        invoice,
+                        invoice_row,
+                        1,
+                        f"=IF(AND(ISNUMBER(Eingaben!$B$5),"
+                        f"ISNUMBER(Eingaben!$B$7)),"
+                        f"COUNTIF(Tageswerte!A{first_day}:A{last_day},"
+                        f'">="&Eingaben!$B$7),0)',
+                        eligible_days,
+                        days_fmt,
+                    )
+                    formula(
+                        invoice,
+                        invoice_row,
+                        2,
+                        f"=IF(AND(ISNUMBER(Eingaben!$B$5),"
+                        f"ISNUMBER(Eingaben!$B$7)),"
+                        f"Eingaben!$B$5*B{r}/"
+                        f"(DATE({int(selected[0]['day'][:4]) + 1},1,1)-"
+                        f"DATE({int(selected[0]['day'][:4])},1,1)),0)",
+                        module1_net,
+                        money,
+                    )
+                    invoice.set_row(invoice_row, 36)
                 line_rows.append(invoice_row + 1)
                 invoice_row += 1
             invoice.write(invoice_row, 0, "GESAMTKOSTEN", header)

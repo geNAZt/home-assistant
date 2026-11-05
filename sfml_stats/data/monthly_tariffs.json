@@ -27,6 +27,15 @@
         "base_fee_eur": 0.0
       },
       "fixed_at": "2026-10-30T11:47:00.013371+01:00"
+    },
+    "2026-11": {
+      "overrides": {},
+      "fixed_fallbacks": {
+        "import_price_ct": 35.0,
+        "feed_in_tariff_ct": 8.1,
+        "base_fee_eur": 0.0
+      },
+      "fixed_at": "2026-11-01T18:02:56.989433+01:00"
     }
   }
 }
