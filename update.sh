@@ -135,10 +135,37 @@ if [ ! -f ~/.ssh/id_ed25519 ]; then
     ssh-keyscan -H github.com >> ~/.ssh/known_hosts
 fi
 
+# Safety: Create backup of untracked data before pull in case git removes anything
+if [ -f "./backup_data.sh" ]; then
+    ./backup_data.sh || true
+fi
+
 # We need to sync with the remote repository
 git config pull.rebase true
 git config rebase.autoStash true
 git pull
+
+# Untrack any ignored files that might have been stashed or staged during pull/rebase
+git rm --cached -r -f --ignore-unmatch \
+    custom_components/ha_washdata/www/*.gz \
+    *.log \
+    grid_price_monitor/logs/* \
+    *.db* \
+    sfml_stats/*.db* \
+    sfml_stats/data/*.json \
+    solar_forecast_eai/*.db* \
+    toorox_foresight_ha/*.db* \
+    2>/dev/null || true
+
+# If autostash left a conflicting stash entry, clean it up
+if git stash list -1 | grep -q ": autostash"; then
+    git stash drop || true
+fi
+
+# Safety: Restore any data files that git pull might have deleted
+if [ -f "./restore_data.sh" ]; then
+    ./restore_data.sh --keep-existing || true
+fi
 
 # Check if working directory is clean
 if [ -n "$(git status --porcelain)" ]; then

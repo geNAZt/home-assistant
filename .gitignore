@@ -3,9 +3,13 @@ home-assistant*
 core
 appdaemon/appdaemon.yaml
 *.pyc
-zigbee.db
-flaschenpost.db*
+*.log
 *.cache
+
+# Exclude .db and .json files not inside custom_components
+*.db*
+*.json
+!custom_components/**
 
 # Ignore folders.
 .storage
@@ -37,7 +41,16 @@ file_notifications/*.txt
 # Solar Forecast ML
 solar_forecast_ml/
 
+# Grid Price Monitor logs
+grid_price_monitor/logs/
+
+# HA Washdata
+custom_components/ha_washdata/www/*.gz
 www/ha_washdata/feedback/
+
+# Backups
+data_backups/
+*.tar.gz
 
 # Debug
 debug/
