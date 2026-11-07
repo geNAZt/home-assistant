@@ -77,8 +77,8 @@
           {% set ns = namespace(evals=[]) %}
           {% set now_ts = as_timestamp(now()) %}
 
-          {% set trig_ent = trigger.entity_id if (trigger is defined and trigger.entity_id is defined) else '' %}
-          {% set is_config_trigger = trig_ent.startswith('input_number.cover_min_open_') or trig_ent.startswith('input_boolean.auto_cover_') or trig_ent in ['input_select.cover_mode', 'input_boolean.cover_night_mode', 'input_text.exempt_covers'] %}
+          {% set trig_ent = trigger.entity_id if (trigger is defined and trigger.entity_id is defined and trigger.entity_id is not none) else '' %}
+          {% set is_config_trigger = (trig_ent.startswith('input_number.cover_min_open_') or trig_ent.startswith('input_boolean.auto_cover_') or trig_ent in ['input_select.cover_mode', 'input_boolean.cover_night_mode', 'input_text.exempt_covers']) if trig_ent else false %}
 
           {% set global_dt_state = states('input_datetime.cover_last_global_move') %}
           {% set last_global_ts = as_timestamp(global_dt_state) if (global_dt_state not in ['unknown', 'unavailable', 'None', ''] and global_dt_state is not none) else 0 %}

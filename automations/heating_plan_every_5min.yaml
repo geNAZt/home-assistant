@@ -35,6 +35,13 @@
     has_pv_excess: "{{ pv_forecast_w > (pv_thr_w + water_stage1_reserve_w) }}"
     max_total_heating_w: "{{ (pv_generation_w * 0.8) if (has_pv_excess or (battery_support_w | float(0)) == 0) else (pv_generation_w + battery_support_w) }}"
     pv_surplus_w: "{{ [pv_forecast_w - pv_thr_w - water_stage1_reserve_w, 0] | max }}"
+
+    # PV-/Top-Up-Fenster: nur mittags 12–14 Uhr & nur wenn PV-Überschuss
+    is_midday_topup_window: >-
+      {% set nowts = as_timestamp(now()) %}
+      {% set t0 = as_timestamp(now().replace(hour=12, minute=0, second=0, microsecond=0)) %}
+      {% set t1 = as_timestamp(now().replace(hour=14, minute=0, second=0, microsecond=0)) %}
+      {{ t0 <= nowts < t1 }}
     pv_offset_k: >-
       {% if has_pv_excess and is_midday_topup_window %}
         0.8
@@ -79,13 +86,6 @@
       {{ [c * (off + missing_delta_k), 0] | max }}
     pv_enough_next_day: "{{ (pv_plan_day_kwh - water_stage1_remaining_kwh) >= heating_need_next_day_kwh and heating_need_next_day_kwh > 0 }}"
     shift_heating_start_to_pv: "{{ is_state('binary_sensor.preheat_erlaubt_demand_weighted', 'on') and pv_enough_next_day }}"
-
-    # PV-/Top-Up-Fenster: nur mittags 12–14 Uhr & nur wenn PV-Überschuss
-    is_midday_topup_window: >-
-      {% set nowts = as_timestamp(now()) %}
-      {% set t0 = as_timestamp(now().replace(hour=12, minute=0, second=0, microsecond=0)) %}
-      {% set t1 = as_timestamp(now().replace(hour=14, minute=0, second=0, microsecond=0)) %}
-      {{ t0 <= nowts < t1 }}
 
     # Preheat-Fenster 00–05 Uhr (Preis egal)
     is_preheat_window: >-
