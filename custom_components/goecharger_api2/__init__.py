@@ -20,11 +20,11 @@ from homeassistant.const import (
     CONF_DELAY,
     EVENT_HOMEASSISTANT_STARTED
 )
+from homeassistant.components import persistent_notification
 from homeassistant.core import HomeAssistant, Event, SupportsResponse, CoreState
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import (
     config_validation as config_val,
-    entity_registry as entity_reg,
     device_registry as device_reg
 )
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -53,7 +53,6 @@ from .const import (
     STARTUP_MESSAGE,
     SERVICE_SET_PV_DATA,
     SERVICE_STOP_CHARGING,
-    SERVICE_SET_TEMPORARY_CURRENT,
     CONF_11KWLIMIT,
     CONF_INTEGRATION_TYPE,
     CONFIG_VERSION, CONFIG_MINOR_VERSION
@@ -70,6 +69,7 @@ WEBSOCKET_WATCHDOG_INTERVAL: Final = timedelta(minutes=5, seconds=1)
 COMMUNICATION_MODE_WEBSOCKET: Final = "WEBSOCKET"
 COMMUNICATION_MODE_HTTPGET: Final = "HTTPGET"
 ACTIVE_CHARGER_COUNTER: Final = "active_charger_counter"
+IGNORE_CONFIG_ENTRY_UPDATES = False
 
 async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     if config_entry.version == 1:
@@ -106,19 +106,73 @@ async def async_setup(hass: HomeAssistant, config: dict):  # pylint: disable=unu
     return True
 
 
-async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
-    if DOMAIN not in hass.data:
-        the_integration = await async_get_integration(hass, DOMAIN)
-        intg_version = the_integration.version if the_integration is not None else "UNKNOWN"
-        _LOGGER.info(STARTUP_MESSAGE % intg_version)
-        hass.data.setdefault(DOMAIN, {"manifest_version": intg_version})
+def handle_heavy_user(hass: HomeAssistant, lang_map):
+    async def check_count_of_running_integrations(hass: HomeAssistant):
+        try:
+            _LOGGER.debug(f"check_count_of_running_integrations(): init")
+            await asyncio.sleep(120)
+            _LOGGER.debug(f"check_count_of_running_integrations(): ready to start")
+            loaded_entries = hass.config_entries.async_loaded_entries(DOMAIN)
+            if len(loaded_entries) > 8:
+                last_notify_ts = int(loaded_entries[0].data.get("heavy_usage_notification", 0))
+                elapsed = time.time() - last_notify_ts
+                if elapsed > (60 * 24 * 60 * 60):
+                    try:
+                        notify_id = f"{DOMAIN}_heavy_user_notification"
+                        persistent_notification.async_create(hass,
+                                                             title=lang_map["heavy_user_title"],
+                                                             message=lang_map["heavy_user_msg"],
+                                                             notification_id=notify_id)
 
+                        all_entries = hass.config_entries.async_entries(DOMAIN)
+                        global IGNORE_CONFIG_ENTRY_UPDATES
+                        IGNORE_CONFIG_ENTRY_UPDATES = True
+                        ts = int(time.time())
+                        for a_entry in all_entries:
+                            new_data = {**a_entry.data}
+                            new_data["heavy_usage_notification"] = ts
+                            hass.config_entries.async_update_entry(a_entry, data=new_data)
+                        IGNORE_CONFIG_ENTRY_UPDATES = False
+                        async def auto_dismiss(delay_seconds: int):
+                            try:
+                                await asyncio.sleep(delay_seconds)
+                            except asyncio.CancelledError:
+                                _LOGGER.debug(f"auto_dismiss() will be cancelled...")
+                            await hass.services.async_call("persistent_notification", "dismiss", {"notification_id": notify_id})
+
+                        # show the message for 4h ater the start - then auto cancel it
+                        a_task = hass.async_create_task(auto_dismiss(4*60*60))
+                        hass.data[DOMAIN]["checker_task"] = a_task
+
+                    except BaseException as e:
+                        _LOGGER.debug(f"persistent_notification() caused {type(e).__name__} - {e}", stack_info=True)
+
+                else:
+                    _LOGGER.debug(f"persistent_notification() just notified less then 30 days ago")
+            else:
+                _LOGGER.debug(f"persistent_notification() loaded entries is: {loaded_entries}")
+
+        except asyncio.CancelledError:
+            _LOGGER.debug(f"check_count_of_running_integrations() will be cancelled...")
+
+    task = hass.async_create_task(check_count_of_running_integrations(hass))
+    hass.data[DOMAIN]["checker_task"] = task
+
+
+async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     # ok starting the init sequence...
     lang = hass.config.language.lower()
     if lang in TRANSLATIONS:
         lang_map = TRANSLATIONS[lang]
     else:
         lang_map = TRANSLATIONS["en"]
+
+    if DOMAIN not in hass.data:
+        the_integration = await async_get_integration(hass, DOMAIN)
+        intg_version = the_integration.version if the_integration is not None else "UNKNOWN"
+        _LOGGER.info(STARTUP_MESSAGE % intg_version)
+        hass.data.setdefault(DOMAIN, {"manifest_version": intg_version})
+        handle_heavy_user(hass, lang_map)
 
     coordinator = GoeChargerDataUpdateCoordinator(hass, config_entry)
     a_pwd = config_entry.data.get(CONF_PASSWORD, None)
@@ -158,8 +212,6 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
             service = GoeChargerApiV2Service(hass, config_entry, coordinator)
             hass.services.async_register(DOMAIN, SERVICE_SET_PV_DATA, service.set_pv_data,
                                          supports_response=SupportsResponse.OPTIONAL)
-            hass.services.async_register(DOMAIN, SERVICE_SET_TEMPORARY_CURRENT, service.set_temporary_current_limit,
-                                         supports_response=SupportsResponse.OPTIONAL)
             hass.services.async_register(DOMAIN, SERVICE_STOP_CHARGING, service.stop_charging,
                                          supports_response=SupportsResponse.OPTIONAL)
         else:
@@ -185,30 +237,42 @@ async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> 
     unload_ok = await hass.config_entries.async_unload_platforms(config_entry, PLATFORMS)
 
     if unload_ok:
-        if DOMAIN in hass.data and config_entry.entry_id in hass.data[DOMAIN]:
-            coordinator = hass.data[DOMAIN][config_entry.entry_id]
-            coordinator.cancel_existing_debouncer()
-            coordinator.stop_watchdog()
-            coordinator.clear_data()
-            hass.data[DOMAIN].pop(config_entry.entry_id)
-            if coordinator.intg_type == INTG_TYPE.CHARGER.value:
-                hass.data[DOMAIN][ACTIVE_CHARGER_COUNTER] = hass.data[DOMAIN][ACTIVE_CHARGER_COUNTER] - 1
-                remove_config_entry_from_service(config_entry)
+        if DOMAIN in hass.data:
+            if config_entry.entry_id in hass.data[DOMAIN]:
+                coordinator = hass.data[DOMAIN][config_entry.entry_id]
+                coordinator.cancel_existing_debouncer()
+                coordinator.stop_watchdog()
+                coordinator.clear_data()
+                hass.data[DOMAIN].pop(config_entry.entry_id)
+                if coordinator.intg_type == INTG_TYPE.CHARGER.value:
+                    hass.data[DOMAIN][ACTIVE_CHARGER_COUNTER] = hass.data[DOMAIN][ACTIVE_CHARGER_COUNTER] - 1
+                    remove_config_entry_from_service(config_entry)
 
-                # ONLY remove the SERVICES if this is the LAST ACTIVE config_entry that will be unloaded!
-                if hass.data[DOMAIN][ACTIVE_CHARGER_COUNTER] == 0:
-                    _LOGGER.info(f"async_unload_entry(): Unloading last active go-eCharger - will remove SERVICES")
-                    hass.services.async_remove(DOMAIN, SERVICE_SET_PV_DATA)
-                    hass.services.async_remove(DOMAIN, SERVICE_STOP_CHARGING)
-                    hass.services.async_remove(DOMAIN, SERVICE_SET_TEMPORARY_CURRENT)
+                    # ONLY remove the SERVICES if this is the LAST ACTIVE config_entry that will be unloaded!
+                    if hass.data[DOMAIN][ACTIVE_CHARGER_COUNTER] == 0:
+                        _LOGGER.info(f"async_unload_entry(): Unloading last active go-eCharger - will remove SERVICES")
+                        hass.services.async_remove(DOMAIN, SERVICE_SET_PV_DATA)
+                        hass.services.async_remove(DOMAIN, SERVICE_STOP_CHARGING)
+
+            # if there is a 'active checker task', we cancel it... (and do not care that
+            # this task will be "killed" when the first integration entry will be
+            # unloaded)
+            if "checker_task" in hass.data[DOMAIN]:
+                task = hass.data[DOMAIN]["checker_task"]
+                if not task.done():
+                    task.cancel()
+                hass.data[DOMAIN].pop("checker_task")
 
     return unload_ok
 
 
 async def entry_update_listener(hass: HomeAssistant, config_entry: ConfigEntry) -> None:
-    _LOGGER.debug(f"entry_update_listener(): called for entry: {config_entry.entry_id}")
-    await hass.config_entries.async_reload(config_entry.entry_id)
-
+    global IGNORE_CONFIG_ENTRY_UPDATES
+    if not IGNORE_CONFIG_ENTRY_UPDATES:
+        _LOGGER.debug(f"entry_update_listener(): called for entry: {config_entry.entry_id}")
+        await hass.config_entries.async_reload(config_entry.entry_id)
+    else:
+        _LOGGER.debug(f"entry_update_listener(): IGNORE for entry: {config_entry.entry_id} (IGNORE_CONFIG_ENTRY_UPDATES=True)")
 
 class GoeChargerDataUpdateCoordinator(DataUpdateCoordinator):
 
@@ -396,8 +460,11 @@ class GoeChargerDataUpdateCoordinator(DataUpdateCoordinator):
 
         _LOGGER.debug(f"start_websocket_and_wait_for_first_data(): task created {self._ws_start_task.get_coro()}")
         async_call_later(self.hass, 10, self.call_later_update_device_registry)
-
-        _LOGGER.info(f"Essential device data is available after WebSocket connection has been established - that's just so GREAT! Available keys: {list(self.data.keys())} so let's move on...")
+        if self.data is not None and hasattr(self.data, "keys"):
+            l_data = list(self.data.keys())
+        else:
+            l_data = "[self.data is NONE?! - or no 'keys()']"
+        _LOGGER.info(f"Essential device data is available after WebSocket connection has been established - that's just so GREAT! Available keys: {l_data} so let's move on...")
         return True
 
     async def start_watchdog(self, event=None):
@@ -478,7 +545,7 @@ class GoeChargerDataUpdateCoordinator(DataUpdateCoordinator):
         await self.async_refresh()
 
     def handle_write_result(self, a_type, value, key, result, entity):
-        if self.bridge.ws_connected and (result is None or len(result) == 0):
+        if self.bridge.ws_connected:
             # when using websocket - the writing result will be handled
             # already in the ws-response processor...
             return
@@ -494,7 +561,7 @@ class GoeChargerDataUpdateCoordinator(DataUpdateCoordinator):
         if self.intg_type == INTG_TYPE.CHARGER.value:
             # since we do not force an update when setting PV surplus data, we 'patch' internally our values
             if key == Tag.IDS.key:
-                self.data = ChainMap(self.bridge._ws_states, self.bridge._config, self.bridge._states, self.bridge._versions)
+                self.data = ChainMap({}, self.bridge._ws_states, self.bridge._config, self.bridge._states, self.bridge._versions)
                 self.async_update_listeners()
                 do_refresh = False
 
@@ -569,15 +636,21 @@ class GoeChargerDataUpdateCoordinator(DataUpdateCoordinator):
 
         try:
             result = await self.bridge.write_value_to_key(key, value, require_ack=require_ack)
-            self.handle_write_result("single", value, key, result, entity)
-            return result
+            if result is not None and len(result) > 0:
+                self.handle_write_result("single", value, key, result, entity)
+                return result
 
         except ClientConnectionError as cc_err:
             self._handle_client_connection_error("async_write_key()", cc_err)
             raise ValueError(f"ClientConnectionError while writing {key} to wallbox: {type(cc_err).__name__} - {cc_err}") from cc_err
         except Exception as e:
-            _LOGGER.error(f"Error while writing single {key} to wallbox: {type(e).__name__} - {e}")
+            _LOGGER.warning(f"Error while writing single {key} to wallbox: {type(e).__name__} - {e}")
             raise ValueError(f"Exception while writing {key} to wallbox: {type(e).__name__} - {e}") from e
+
+        # if we reach this point, the 'result' was None or empty - so we raise an exception...
+        _LOGGER.warning(f"async_write_key(): could not write single value: '{value}' to: {key} result was: {result}")
+        raise ValueError(f"async_write_key(): could not write single value: '{value}' to: {key} result was: {result}")
+
 
     async def async_write_multiple_keys(self, attr:dict, key: str, value, entity: Entity = None) -> dict:
         if self._CLIENT_COMMUNICATION_ERROR_TS + CLIENT_COMMUNICATION_ERROR_DELAY_IN_SECONDS > time.time():
@@ -590,15 +663,21 @@ class GoeChargerDataUpdateCoordinator(DataUpdateCoordinator):
 
         try:
             result = await self.bridge.write_multiple_values_to_keys(attr, key, value)
-            self.handle_write_result("multiple", value, key, result, entity)
-            return result
+            if result is not None and len(result) > 0:
+                self.handle_write_result("multiple", value, key, result, entity)
+                return result
 
         except ClientConnectionError as cce:
             self._handle_client_connection_error(f"async_write_multiple_keys(): {type(cce).__name__} - {cce}", cce)
             raise ValueError(f"ClientConnectionError while writing multiple {key} to wallbox: {type(cce).__name__} - {cce}") from cce
         except Exception as e:
-            _LOGGER.error(f"Error while writing multiple {key} to wallbox: {type(e).__name__} - {e}")
+            _LOGGER.warning(f"Error while writing multiple {key} to wallbox: {type(e).__name__} - {e}")
             raise ValueError(f"Exception while writing multiple {key} to wallbox: {type(e).__name__} - {e}") from e
+
+        # if we reach this point, the 'result' was None or empty - so we raise an exception...
+        _LOGGER.warning(f"async_write_multiple_keys(): could not write multiple values: '{value}' to: {key} result was: {result}")
+        raise ValueError(f"async_write_multiple_keys(): could not write multiple values: '{value}' to: {key} result was: {result}")
+
 
     async def read_versions(self):
         if not await self.bridge.read_versions() or not isinstance(self.bridge._versions, NonNullDict):
