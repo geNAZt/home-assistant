@@ -7,7 +7,7 @@ sensor:
     unit_of_measurement: 'Wh'
     device_class: energy
     state: >
-      {% set c_wh_k = states('input_number.building_heat_capacity') | float(13.28) * 1000 %}
+      {% set c_wh_k = states('input_number.building_heat_capacity') | float(7.1) * 1000 %}
       {% set t_in = states('sensor.inside_temp_mean_now') | float(none) %}
       {% set weights = {
         'wohnzimmer': 11.9,
@@ -42,7 +42,7 @@ sensor:
       current_net_w: "{{ states('sensor.heating_net_balance') }}"
       expected_temp_change_deg_per_h: >
         {% set net_w = states('sensor.heating_net_balance') | float(0) %}
-        {% set c_wh_k = states('input_number.building_heat_capacity') | float(13.28) * 1000 %}
+        {% set c_wh_k = states('input_number.building_heat_capacity') | float(7.1) * 1000 %}
         {{ (net_w / c_wh_k) | round(4) if c_wh_k > 0 else 0.0 }}
       estimated_bridge_autonomy_hours: >
         {% set losses_w = (states('sensor.h_kw_per_k_effective') | float(0) * 1000 * states('sensor.deltaT') | float(0)) %}

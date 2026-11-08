@@ -1,0 +1,7 @@
+platform: statistics
+name: "Internal Gains Median"
+entity_id: sensor.internal_gains_total
+state_characteristic: median
+max_age:
+  hours: 24
+sampling_size: 1500

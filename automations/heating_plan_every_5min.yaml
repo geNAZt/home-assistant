@@ -119,6 +119,7 @@
     room_data: >-
       {% set rooms = rooms_json | from_json(default=[]) %}
       {% set hyst = hysteresis_k | float(0.05) %}
+      {% set inside_mean = (states('sensor.inside_temp_mean_now') | float(0)) | round(1) %}
 
       {# Soak Parameters import #}
       {% set d_stop = soak_delta_stop | float(4.0) %}
@@ -160,8 +161,8 @@
           {% set current = 22.0 %}
         {% endif %}
 
-        {# Selective zoning: exempt sleeping room buero_merja, unoccupied schlafzimmer, and speisekammer #}
-        {% set preheat_eligible_rooms = ['wohnzimmer', 'kueche', 'buero_fabian', 'bad', 'flur'] %}
+        {# All rooms heat the same: full preheat for all rooms, no mild preheat #}
+        {% set preheat_eligible_rooms = rooms_json | from_json(default=[]) %}
         {% set pv_eligible_rooms = ['wohnzimmer', 'kueche', 'buero_fabian'] %}
 
         {% set pv_off = (pv_offset_k | float(0)) if (has_pv_excess and room in pv_eligible_rooms and not is_vacation) else 0.0 %}
@@ -184,7 +185,12 @@
         {% if room_offset > cap %}{% set room_offset = cap %}{% endif %}
         {% if room_offset < 0 %}{% set room_offset = 0 %}{% endif %}
 
-        {% set effective_target = base_target + room_offset %}
+        {# Base temperature override: when offset is active, all rooms are at least inside temp average #}
+        {% if offset_allowed_now and not is_vacation and room_offset > 0 and inside_mean > 10.0 %}
+          {% set base_target = [base_target, inside_mean] | max %}
+        {% endif %}
+
+        {% set effective_target = (base_target + room_offset) | round(1) %}
         {% set error = effective_target - current %}
 
         {# Determine phase #}
@@ -200,9 +206,14 @@
         {% set amps = states('input_number.heater_' ~ room ~ '_rated_a') | float(0) %}
 
         {# Determine if heating is needed #}
-        {# --- is_heating (robust) --- #}
+        {# --- is_heating (robust) & durations for FIFO queue --- #}
         {% set st = states(climate_entity) %}
         {% set is_heating = (st == 'heat') %}
+        {% set ent_obj = states[climate_entity] %}
+        {% set last_ch_ts = as_timestamp(ent_obj.last_changed) if (ent_obj is defined and ent_obj is not none) else as_timestamp(now()) %}
+        {% set state_duration_min = [((as_timestamp(now()) - last_ch_ts) / 60) | round(1), 0.0] | max %}
+        {% set on_duration_min = state_duration_min if is_heating else 0.0 %}
+        {% set off_duration_min = state_duration_min if not is_heating else 0.0 %}
 
         {# --- Safety band --- #}
         {% set lower_safety_band_k = 2.0 %}
@@ -254,12 +265,15 @@
         {% endif %}
 
         {# --- Decision Logic --- #}
+        {# Floor-aware check for rooms with floor sensors during preheat: if air is temporarily warm, don't block preheat if floor is still cold #}
+        {% set eval_current = [current, floor_temp] | min if (is_preheat_window and preheat_enabled and has_floor_sensor) else current %}
+
         {% if is_heating %}
           {# Bleibe an, solange Temp < Stop UND Delta nicht zu hoch #}
-          {% set needs_heating = (current < stop_th) and delta_ok %}
+          {% set needs_heating = (eval_current < stop_th) and delta_ok %}
         {% else %}
           {# Gehe an, wenn (Kalt ODER Safety) UND Cooldown OK UND Delta OK #}
-          {% set needs_heating = cooldown_ok and ((current < start_th) or must_heat_start) and delta_ok %}
+          {% set needs_heating = cooldown_ok and ((eval_current < start_th) or must_heat_start) and delta_ok %}
         {% endif %}
 
         {# --- Absolute Security temperature check (floor cut-off >= 24.5C) --- #}
@@ -282,6 +296,9 @@
             'amps': amps,
             'needs_heating': needs_heating,
             'must_heat': must_heat_start,
+            'is_heating': is_heating,
+            'on_duration': on_duration_min,
+            'off_duration': off_duration_min,
             'delta_ok': delta_ok
           })
         }) %}
@@ -289,80 +306,206 @@
       {{ (ns.rooms | tojson) | string }}
 
     # ===================================================================
-    # SECTION 3: ROOM SELECTION BY PHASE
+    # SECTION 3: ROOM SELECTION BY PHASE (FIFO Queue for full phases)
     # ===================================================================
-    # Select rooms for each phase using greedy algorithm
+    # Active rooms running >= 15 min yield to waiting rooms on a full phase
     sel_p1: >-
       {% set rooms_data = room_data | from_json(default={}) %}
-      {% set all_rooms = rooms_json | from_json(default=[]) %}
       {% set max_amps = phase_max_amps | float(16.0) %}
-      {% set ns = namespace(room_list = [], selected = [], total = 0.0) %}
-      {% for room in all_rooms %}
-        {% if rooms_data[room] is defined %}
-          {% set d = rooms_data[room] %}
-          {% if d.phase == 1 and d.needs_heating %}
-            {% set score = (1000 if d.must_heat else 0) + (d.error | float(0)) %}
-            {% set ns.room_list = ns.room_list + [{'room': room, 'amps': d.amps, 'score': score}] %}
+      {% set ns = namespace(active=[], waiting=[], selected=[], total=0.0) %}
+      {% for room, d in rooms_data.items() %}
+        {% if d.phase == 1 and d.needs_heating %}
+          {% if d.is_heating %}
+            {% set ns.active = ns.active + [{'room': room, 'amps': d.amps, 'on_duration': d.on_duration, 'must_heat': d.must_heat, 'error': d.error}] %}
+          {% else %}
+            {% set w_score = (1000 if d.must_heat else 0) + (d.off_duration | float(0)) * 2 + (d.error | float(0)) %}
+            {% set ns.waiting = ns.waiting + [{'room': room, 'amps': d.amps, 'off_duration': d.off_duration, 'must_heat': d.must_heat, 'score': w_score}] %}
           {% endif %}
         {% endif %}
       {% endfor %}
-      {% set sorted = ns.room_list | sort(attribute='score', reverse=True) %}
-      {% for item in sorted %}
-        {% set a = item.amps | float(0) %}
-        {% if ns.total + a <= max_amps %}
-          {% set ns.total = ns.total + a %}
-          {% set ns.selected = ns.selected + [item.room] %}
+      {% set ns.selected = ns.active %}
+      {% set ns.total = 0.0 %}
+      {% for r in ns.selected %}
+        {% set ns.total = ns.total + (r.amps | float(0)) %}
+      {% endfor %}
+      {% if ns.total > max_amps %}
+        {% set trim_candidates = ns.selected | rejectattr('must_heat') | sort(attribute='on_duration', reverse=True) | list %}
+        {% for tc in trim_candidates %}
+          {% if ns.total > max_amps %}
+            {% set ns.selected = ns.selected | rejectattr('room', 'equalto', tc.room) | list %}
+            {% set ns.total = ns.total - (tc.amps | float(0)) %}
+          {% endif %}
+        {% endfor %}
+      {% endif %}
+      {% set sorted_waiting = ns.waiting | sort(attribute='score', reverse=True) %}
+      {% for w in sorted_waiting %}
+        {% if ns.total + (w.amps | float(0)) <= max_amps %}
+          {% set ns.selected = ns.selected + [w] %}
+          {% set ns.total = ns.total + (w.amps | float(0)) %}
+        {% else %}
+          {% set y_ns = namespace(yielded=false, new_selected=ns.selected, new_total=ns.total) %}
+          {% set candidates = ns.selected | selectattr('on_duration', 'ge', 14.5) | rejectattr('must_heat') | sort(attribute='on_duration', reverse=True) | list %}
+          {% for c in candidates %}
+            {% if not y_ns.yielded and (ns.total - (c.amps | float(0)) + (w.amps | float(0))) <= max_amps %}
+              {% set y_ns.yielded = true %}
+              {% set y_ns.new_selected = (ns.selected | rejectattr('room', 'equalto', c.room) | list) + [w] %}
+              {% set y_ns.new_total = ns.total - (c.amps | float(0)) + (w.amps | float(0)) %}
+            {% endif %}
+          {% endfor %}
+          {% if not y_ns.yielded and candidates | count > 1 %}
+            {% set c_ns = namespace(rem_sel=ns.selected, rem_tot=ns.total, ok=false) %}
+            {% for c in candidates %}
+              {% if not c_ns.ok %}
+                {% set c_ns.rem_sel = c_ns.rem_sel | rejectattr('room', 'equalto', c.room) | list %}
+                {% set c_ns.rem_tot = c_ns.rem_tot - (c.amps | float(0)) %}
+                {% if c_ns.rem_tot + (w.amps | float(0)) <= max_amps %}
+                  {% set c_ns.ok = true %}
+                  {% set y_ns.yielded = true %}
+                  {% set y_ns.new_selected = c_ns.rem_sel + [w] %}
+                  {% set y_ns.new_total = c_ns.rem_tot + (w.amps | float(0)) %}
+                {% endif %}
+              {% endif %}
+            {% endfor %}
+          {% endif %}
+          {% if y_ns.yielded %}
+            {% set ns.selected = y_ns.new_selected %}
+            {% set ns.total = y_ns.new_total %}
+          {% endif %}
         {% endif %}
       {% endfor %}
-      {{ (ns.selected | tojson) | string }}
+      {{ (ns.selected | map(attribute='room') | list | tojson) | string }}
 
     sel_p2: >-
       {% set rooms_data = room_data | from_json(default={}) %}
-      {% set all_rooms = rooms_json | from_json(default=[]) %}
       {% set max_amps = phase_max_amps | float(16.0) %}
-      {% set ns = namespace(room_list = [], selected = [], total = 0.0) %}
-      {% for room in all_rooms %}
-        {% if rooms_data[room] is defined %}
-          {% set d = rooms_data[room] %}
-          {% if d.phase == 2 and d.needs_heating %}
-            {% set score = (1000 if d.must_heat else 0) + (d.error | float(0)) %}
-            {% set ns.room_list = ns.room_list + [{'room': room, 'amps': d.amps, 'score': score}] %}
+      {% set ns = namespace(active=[], waiting=[], selected=[], total=0.0) %}
+      {% for room, d in rooms_data.items() %}
+        {% if d.phase == 2 and d.needs_heating %}
+          {% if d.is_heating %}
+            {% set ns.active = ns.active + [{'room': room, 'amps': d.amps, 'on_duration': d.on_duration, 'must_heat': d.must_heat, 'error': d.error}] %}
+          {% else %}
+            {% set w_score = (1000 if d.must_heat else 0) + (d.off_duration | float(0)) * 2 + (d.error | float(0)) %}
+            {% set ns.waiting = ns.waiting + [{'room': room, 'amps': d.amps, 'off_duration': d.off_duration, 'must_heat': d.must_heat, 'score': w_score}] %}
           {% endif %}
         {% endif %}
       {% endfor %}
-      {% set sorted = ns.room_list | sort(attribute='score', reverse=True) %}
-      {% for item in sorted %}
-        {% set a = item.amps | float(0) %}
-        {% if ns.total + a <= max_amps %}
-          {% set ns.total = ns.total + a %}
-          {% set ns.selected = ns.selected + [item.room] %}
+      {% set ns.selected = ns.active %}
+      {% set ns.total = 0.0 %}
+      {% for r in ns.selected %}
+        {% set ns.total = ns.total + (r.amps | float(0)) %}
+      {% endfor %}
+      {% if ns.total > max_amps %}
+        {% set trim_candidates = ns.selected | rejectattr('must_heat') | sort(attribute='on_duration', reverse=True) | list %}
+        {% for tc in trim_candidates %}
+          {% if ns.total > max_amps %}
+            {% set ns.selected = ns.selected | rejectattr('room', 'equalto', tc.room) | list %}
+            {% set ns.total = ns.total - (tc.amps | float(0)) %}
+          {% endif %}
+        {% endfor %}
+      {% endif %}
+      {% set sorted_waiting = ns.waiting | sort(attribute='score', reverse=True) %}
+      {% for w in sorted_waiting %}
+        {% if ns.total + (w.amps | float(0)) <= max_amps %}
+          {% set ns.selected = ns.selected + [w] %}
+          {% set ns.total = ns.total + (w.amps | float(0)) %}
+        {% else %}
+          {% set y_ns = namespace(yielded=false, new_selected=ns.selected, new_total=ns.total) %}
+          {% set candidates = ns.selected | selectattr('on_duration', 'ge', 14.5) | rejectattr('must_heat') | sort(attribute='on_duration', reverse=True) | list %}
+          {% for c in candidates %}
+            {% if not y_ns.yielded and (ns.total - (c.amps | float(0)) + (w.amps | float(0))) <= max_amps %}
+              {% set y_ns.yielded = true %}
+              {% set y_ns.new_selected = (ns.selected | rejectattr('room', 'equalto', c.room) | list) + [w] %}
+              {% set y_ns.new_total = ns.total - (c.amps | float(0)) + (w.amps | float(0)) %}
+            {% endif %}
+          {% endfor %}
+          {% if not y_ns.yielded and candidates | count > 1 %}
+            {% set c_ns = namespace(rem_sel=ns.selected, rem_tot=ns.total, ok=false) %}
+            {% for c in candidates %}
+              {% if not c_ns.ok %}
+                {% set c_ns.rem_sel = c_ns.rem_sel | rejectattr('room', 'equalto', c.room) | list %}
+                {% set c_ns.rem_tot = c_ns.rem_tot - (c.amps | float(0)) %}
+                {% if c_ns.rem_tot + (w.amps | float(0)) <= max_amps %}
+                  {% set c_ns.ok = true %}
+                  {% set y_ns.yielded = true %}
+                  {% set y_ns.new_selected = c_ns.rem_sel + [w] %}
+                  {% set y_ns.new_total = c_ns.rem_tot + (w.amps | float(0)) %}
+                {% endif %}
+              {% endif %}
+            {% endfor %}
+          {% endif %}
+          {% if y_ns.yielded %}
+            {% set ns.selected = y_ns.new_selected %}
+            {% set ns.total = y_ns.new_total %}
+          {% endif %}
         {% endif %}
       {% endfor %}
-      {{ (ns.selected | tojson) | string }}
+      {{ (ns.selected | map(attribute='room') | list | tojson) | string }}
 
     sel_p3: >-
       {% set rooms_data = room_data | from_json(default={}) %}
-      {% set all_rooms = rooms_json | from_json(default=[]) %}
       {% set max_amps = phase_max_amps | float(16.0) %}
-      {% set ns = namespace(room_list = [], selected = [], total = 0.0) %}
-      {% for room in all_rooms %}
-        {% if rooms_data[room] is defined %}
-          {% set d = rooms_data[room] %}
-          {% if d.phase == 3 and d.needs_heating %}
-            {% set score = (1000 if d.must_heat else 0) + (d.error | float(0)) %}
-            {% set ns.room_list = ns.room_list + [{'room': room, 'amps': d.amps, 'score': score}] %}
+      {% set ns = namespace(active=[], waiting=[], selected=[], total=0.0) %}
+      {% for room, d in rooms_data.items() %}
+        {% if d.phase == 3 and d.needs_heating %}
+          {% if d.is_heating %}
+            {% set ns.active = ns.active + [{'room': room, 'amps': d.amps, 'on_duration': d.on_duration, 'must_heat': d.must_heat, 'error': d.error}] %}
+          {% else %}
+            {% set w_score = (1000 if d.must_heat else 0) + (d.off_duration | float(0)) * 2 + (d.error | float(0)) %}
+            {% set ns.waiting = ns.waiting + [{'room': room, 'amps': d.amps, 'off_duration': d.off_duration, 'must_heat': d.must_heat, 'score': w_score}] %}
           {% endif %}
         {% endif %}
       {% endfor %}
-      {% set sorted = ns.room_list | sort(attribute='score', reverse=True) %}
-      {% for item in sorted %}
-        {% set a = item.amps | float(0) %}
-        {% if ns.total + a <= max_amps %}
-          {% set ns.total = ns.total + a %}
-          {% set ns.selected = ns.selected + [item.room] %}
+      {% set ns.selected = ns.active %}
+      {% set ns.total = 0.0 %}
+      {% for r in ns.selected %}
+        {% set ns.total = ns.total + (r.amps | float(0)) %}
+      {% endfor %}
+      {% if ns.total > max_amps %}
+        {% set trim_candidates = ns.selected | rejectattr('must_heat') | sort(attribute='on_duration', reverse=True) | list %}
+        {% for tc in trim_candidates %}
+          {% if ns.total > max_amps %}
+            {% set ns.selected = ns.selected | rejectattr('room', 'equalto', tc.room) | list %}
+            {% set ns.total = ns.total - (tc.amps | float(0)) %}
+          {% endif %}
+        {% endfor %}
+      {% endif %}
+      {% set sorted_waiting = ns.waiting | sort(attribute='score', reverse=True) %}
+      {% for w in sorted_waiting %}
+        {% if ns.total + (w.amps | float(0)) <= max_amps %}
+          {% set ns.selected = ns.selected + [w] %}
+          {% set ns.total = ns.total + (w.amps | float(0)) %}
+        {% else %}
+          {% set y_ns = namespace(yielded=false, new_selected=ns.selected, new_total=ns.total) %}
+          {% set candidates = ns.selected | selectattr('on_duration', 'ge', 14.5) | rejectattr('must_heat') | sort(attribute='on_duration', reverse=True) | list %}
+          {% for c in candidates %}
+            {% if not y_ns.yielded and (ns.total - (c.amps | float(0)) + (w.amps | float(0))) <= max_amps %}
+              {% set y_ns.yielded = true %}
+              {% set y_ns.new_selected = (ns.selected | rejectattr('room', 'equalto', c.room) | list) + [w] %}
+              {% set y_ns.new_total = ns.total - (c.amps | float(0)) + (w.amps | float(0)) %}
+            {% endif %}
+          {% endfor %}
+          {% if not y_ns.yielded and candidates | count > 1 %}
+            {% set c_ns = namespace(rem_sel=ns.selected, rem_tot=ns.total, ok=false) %}
+            {% for c in candidates %}
+              {% if not c_ns.ok %}
+                {% set c_ns.rem_sel = c_ns.rem_sel | rejectattr('room', 'equalto', c.room) | list %}
+                {% set c_ns.rem_tot = c_ns.rem_tot - (c.amps | float(0)) %}
+                {% if c_ns.rem_tot + (w.amps | float(0)) <= max_amps %}
+                  {% set c_ns.ok = true %}
+                  {% set y_ns.yielded = true %}
+                  {% set y_ns.new_selected = c_ns.rem_sel + [w] %}
+                  {% set y_ns.new_total = c_ns.rem_tot + (w.amps | float(0)) %}
+                {% endif %}
+              {% endif %}
+            {% endfor %}
+          {% endif %}
+          {% if y_ns.yielded %}
+            {% set ns.selected = y_ns.new_selected %}
+            {% set ns.total = y_ns.new_total %}
+          {% endif %}
         {% endif %}
       {% endfor %}
-      {{ (ns.selected | tojson) | string }}
+      {{ (ns.selected | map(attribute='room') | list | tojson) | string }}
 
     # ===================================================================
     # SECTION 4: CLIMATE ENTITY MAPPING (reuses sel_p1, sel_p2, sel_p3)
@@ -433,7 +576,7 @@
               stored_base: "{{ states(base_ent) | float(0) }}"
               base: "{{ rd[room].base_target | float(22) }}"
               offset_k: "{{ rd[room].offset | float(0) }}"
-              target_sp: "{{ (base + offset_k) | float }}"
+              target_sp: "{{ (base + offset_k) | round(1) }}"
               current_sp: "{{ state_attr('climate.climate_room_' ~ repeat.item, 'temperature') | float(0) }}"
               current_off: "{{ states('input_number.heating_offset_' ~ repeat.item) | float(0) }}"
 

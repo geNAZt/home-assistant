@@ -6,7 +6,7 @@ sensor:
        and states('input_number.outside_temp_forecast_24h_c') | is_number }}
   state: >
     {% set h_eff = states('sensor.H_kW_per_K_effective') | float(0.08) %}
-    {% set c_real = states('input_number.building_heat_capacity') | float(9.5) %}
+    {% set c_real = states('input_number.building_heat_capacity') | float(7.1) %}
     {% set weights = {'wohnzimmer': 11.9, 'kueche': 19.5, 'flur': 29.0, 'schlafzimmer': 9.1, 'buero_fabian': 6.6, 'buero_merja': 13.9, 'bad': 4.9, 'speisekammer': 5.1} %}
     {% set wns = namespace(w_sum=0.0, w_total=0.0) %}
     {% for room, w in weights.items() %}
@@ -35,7 +35,10 @@ sensor:
       {% endif %}
     {% endif %}
     
-    {% set internal_gains_kwh = (states('sensor.internal_gains_average') | float(0) * hours_to_bridge) / 1000 %}
+    {# Robust baseline internal gains via 24h rolling median (filters out cooking/appliance peaks without artificial hard cap) #}
+    {% set median_w = states('sensor.internal_gains_median') | float(none) %}
+    {% set base_int_w = median_w if (median_w is not none and median_w > 0) else (states('sensor.internal_gains_average') | float(500)) %}
+    {% set internal_gains_kwh = (base_int_w * hours_to_bridge) / 1000 %}
     {% set total_gains_kwh = solar_gains_kwh + internal_gains_kwh %}
     {% set needed_offset = (total_energy_loss - total_gains_kwh) / c_real %}
     {{ needed_offset | round(1) }}
@@ -56,7 +59,9 @@ sensor:
     forecast_gains_kwh: >-
       {% set sim_solar = states('sensor.solar_gains_forecast') | float(none) %}
       {% set solar = sim_solar if (sim_solar is not none and sim_solar >= 0) else ((states('sensor.solar_gains_average') | float(0) * 19) / 1000) %}
-      {% set internal = (states('sensor.internal_gains_average') | float(0) * 19) / 1000 %}
+      {% set median_w = states('sensor.internal_gains_median') | float(none) %}
+      {% set base_int_w = median_w if (median_w is not none and median_w > 0) else (states('sensor.internal_gains_average') | float(500)) %}
+      {% set internal = (base_int_w * 19) / 1000 %}
       {{ (solar + internal) | round(2) }}
 - name: "Heating Preheat Offset Dynamic"
   unit_of_measurement: "K"
