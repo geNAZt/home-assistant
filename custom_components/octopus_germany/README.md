@@ -2,8 +2,14 @@
 
 Language / Sprache: [English](README.md) | [Deutsch](README.de.md)
 
-[![marketplace_badge](https://img.shields.io/badge/Home%20Assistant-Marketplace-41BDF5.svg)](https://www.home-assistant.io/integrations/marketplace/)
-![installation_badge](https://img.shields.io/badge/dynamic/json?color=41BDF5&logo=home-assistant&label=integration%20usage&suffix=%20installs&cacheSeconds=15600&url=https://analytics.home-assistant.io/custom_integrations.json&query=$.octopus_germany.total)
+[![Marketplace](https://img.shields.io/badge/Home%20Assistant-Marketplace-41BDF5?logo=homeassistant&logoColor=white)](https://www.home-assistant.io/integrations/marketplace/)
+[![Latest release](https://img.shields.io/github/v/release/thecem/octopus_germany?label=release&color=41BDF5&logo=github&logoColor=white)](https://github.com/thecem/octopus_germany/releases/latest)
+[![Minimum Home Assistant version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fthecem%2Foctopus_germany%2Fmain%2Fhacs.json&query=%24.homeassistant&label=Home%20Assistant%20%E2%89%A5&color=41BDF5&logo=homeassistant&logoColor=white)](../../hacs.json)
+[![License](https://img.shields.io/github/license/thecem/octopus_germany?color=41BDF5)](../../LICENSE)
+
+[![GitHub stars](https://img.shields.io/github/stars/thecem/octopus_germany?label=stars&color=41BDF5&logo=github&logoColor=white)](https://github.com/thecem/octopus_germany/stargazers)
+[![GitHub release downloads](https://img.shields.io/github/downloads/thecem/octopus_germany/total?label=downloads%20since%2011%2F2026&color=41BDF5&logo=github&logoColor=white)](https://github.com/thecem/octopus_germany/releases)
+[![Active Home Assistant installations](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fanalytics.home-assistant.io%2Fcustom_integrations.json&query=%24.octopus_germany.total&label=active%20installations&color=41BDF5&logo=homeassistant&logoColor=white&cacheSeconds=21600)](https://analytics.home-assistant.io/custom_integrations)
 
 This custom component integrates Octopus Germany services with Home Assistant, providing access to your energy account data, electricity prices, device control, and vehicle charging preferences.
 
@@ -16,10 +22,20 @@ Local brand icons are the existing integration assets from
 [Home Assistant Brands](https://github.com/home-assistant/brands/tree/2f58791c0fcd701b195506a076f18e0248dc2ef9/custom_integrations/octopus_germany).
 Validation and release workflows use Ubuntu 24.04 and Node-24-based checkout.
 
+**About the counters:** Downloads count GitHub release-asset downloads across
+all releases, including repeated downloads and updates. Counting began with
+ZIP release assets in November 2026; earlier installations are not included.
+Active installations come from voluntary Home Assistant Analytics reporting
+and do not represent every user. The two counters measure different things.
+
 ---
 
 **💚 Support the Project**
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/K3K71LPRM2)
+[![GitHub Sponsors](https://img.shields.io/badge/GitHub%20Sponsors-Sponsor-ea4aaa?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/thecem)
+[![Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/K3K71LPRM2)
+
+GitHub Sponsors availability depends on approval of the personal Sponsors
+profile. Ko-fi is available as an alternative.
 
 **⚡ New to Octopus Energy Germany?**
 [![Octopus Energy Referral](https://img.shields.io/badge/🐙_Get_150€_as_a_new_customer-Join_Octopus_Energy-00D9FF?style=for-the-badge&logoColor=white)](https://octopusenergy.de/empfehlungen?referralCode=free-cat-744)
@@ -48,12 +64,19 @@ Sign up through my referral link and receive **150 €** as a bill credit. Eligi
 
 ## API Support
 
-For API-related questions, consult the official Octopus Energy Germany documentation:
+The integration uses two GraphQL endpoints:
 
-- REST API: [developer.oeg-kraken.energy](https://developer.oeg-kraken.energy/)
-- GraphQL API (OEG Kraken backend): [developer.oeg-kraken.energy/graphql](https://developer.oeg-kraken.energy/graphql/)
+| API | Endpoint | Purpose |
+|---|---|---|
+| OEG Kraken GraphQL | `https://api.oeg-kraken.energy/v1/graphql/` | Authentication, accounts, agreements, prices, smart-meter/meter data, and Intelligent/SmartFlex device control |
+| OE Backend GraphQL | `https://api.backend.octopusenergy.de/v1/graphql/` | Variable grid fees (`variableGridFees`), authenticated with the same Kraken token |
 
-This integration primarily uses the OEG Kraken GraphQL API. Variable grid-fee queries still use the legacy OE GraphQL backend.
+- [Kraken GraphQL documentation](https://developer.oeg-kraken.energy/graphql/)
+- [Octopus developer documentation including the REST reference](https://developer.oeg-kraken.energy/): background information; this integration does not currently call Octopus REST endpoints.
+- Schema snapshots: [OEG Kraken](oeg_graphql_schema.yaml) and [OE Backend](oe_backend_graphql_schema.json).
+
+`https://my.octopusenergy.de/` is the customer-portal link shown on devices,
+not an additional API endpoint.
 
 ## Installation
 
@@ -83,6 +106,13 @@ See [Home Assistant's migration guide](https://www.home-assistant.io/integration
 Marketplace installs the `octopus_germany.zip` release asset. Its native
 download count comes from GitHub for the selected release asset; it is not a
 lifetime total or the active-installation count shown in the badge above.
+
+If downloads appear on GitHub but not in Marketplace, select **Update
+information** in the repository page's three-dot menu. The selected version
+must be a release with `octopus_germany.zip` (v0.0.202 or newer), not the `main`
+branch or an older release without an asset. Zero counts are hidden.
+GitHub/catalog data and badges can have different cache lifetimes; check for
+GitHub rate-limit notices or failed refreshes.
 
 ### Manual Installation
 
@@ -450,6 +480,16 @@ Recommended split:
 
 [Octopus Intelligent Go mit EVCC](https://github.com/ha-puzzles/homeassistant-puzzlepieces/blob/main/use-cases/stromtarife/octopus-intelligent-go/README.md)
 
+## Development and Validation
+
+[![Hassfest](https://img.shields.io/github/actions/workflow/status/thecem/octopus_germany/hassfest.yaml?branch=main&label=Hassfest&logo=github&logoColor=white)](https://github.com/thecem/octopus_germany/actions/workflows/hassfest.yaml)
+[![Catalog validation](https://img.shields.io/github/actions/workflow/status/thecem/octopus_germany/hacs.yaml?branch=main&label=catalog%20validation&logo=github&logoColor=white)](https://github.com/thecem/octopus_germany/actions/workflows/hacs.yaml)
+[![Open issues](https://img.shields.io/github/issues/thecem/octopus_germany?label=open%20issues&color=41BDF5&logo=github&logoColor=white)](https://github.com/thecem/octopus_germany/issues)
+[![Last commit](https://img.shields.io/github/last-commit/thecem/octopus_germany/main?label=last%20commit&color=41BDF5&logo=github&logoColor=white)](https://github.com/thecem/octopus_germany/commits/main)
+
+Validation badges show workflow status, not certification or endorsement
+by Home Assistant.
+
 ## Debugging
 
 If you encounter issues, you can enable debug logging by adding the following to your `configuration.yaml`:
@@ -463,6 +503,21 @@ logger:
 ```
 
 ### Common Issues
+
+#### DNS, API Limits and Statistics
+- DNS timeouts mean the configured DNS server did not resolve the API host in
+  time, not that the password is invalid. Check DNS/network connectivity if they
+  recur; account polling retries on the next update.
+- A second Home Assistant instance and manual exports increase API load and can
+  contribute to `KT-CT-1199` (too many requests). The API's quota scope is not
+  known. Statistics scans run at most every 30 minutes per integration entry;
+  this does not slow SmartFlex polling. Page retries and backoff remain active.
+- `missing` counts unavailable quarter-hour intervals, which may arrive later.
+  It does not mean Recorder deleted data; cached intervals are retained.
+- Recorder writes are journaled and checked in kWh. Unverified batches are
+  retried, including after restarts, with their original sums. A mismatch logs
+  the first timestamp, field and expected/received values and does not advance
+  the successful checkpoint. Integration diagnostics show pending batch counts.
 
 #### Boost Charge Switch Not Available
 - **Cause**: Smart charging is not enabled or device doesn't support boost charging
@@ -514,6 +569,10 @@ If you have found a bug or have a feature request please [raise it](https://gith
 This integration is developed and maintained in my free time. If you find it valuable and want to support its continued development, consider:
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/K3K71LPRM2)
+[![GitHub Sponsors](https://img.shields.io/badge/GitHub%20Sponsors-Sponsor-ea4aaa?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/thecem)
+
+GitHub Sponsors availability depends on approval of the personal Sponsors
+profile. Ko-fi is available as an alternative.
 
 Your support helps cover development time, testing infrastructure, and keeps the project actively maintained with new features and bug fixes.
 
