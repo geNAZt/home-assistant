@@ -4,6 +4,8 @@
   trigger:
     - platform: time_pattern
       minutes: "/5"
+    - platform: time
+      at: "00:00:00"
   variables:
     # ===================================================================
     # SECTION 1: CONFIGURATION & GLOBAL PARAMETERS
@@ -119,7 +121,8 @@
     room_data: >-
       {% set rooms = rooms_json | from_json(default=[]) if rooms_json is string else rooms_json %}
       {% set hyst = hysteresis_k | float(0.05) %}
-      {% set inside_mean = (states('sensor.inside_temp_mean_now') | float(0)) | round(1) %}
+      {% set snap_raw = states('input_number.preheat_base_indoor_c') | float(0) %}
+      {% set inside_mean_snapshot = snap_raw if snap_raw > 10.0 else ((states('sensor.inside_temp_mean_now') | float(19.0)) | round(1)) %}
 
       {# Soak Parameters import #}
       {% set d_stop = soak_delta_stop | float(4.0) %}
@@ -185,9 +188,9 @@
         {% if room_offset > cap %}{% set room_offset = cap %}{% endif %}
         {% if room_offset < 0 %}{% set room_offset = 0 %}{% endif %}
 
-        {# Base temperature override: when offset is active, all rooms are at least inside temp average #}
-        {% if offset_allowed_now and not is_vacation and room_offset > 0 and inside_mean > 10.0 %}
-          {% set base_target = [base_target, inside_mean] | max %}
+        {# Base temperature override for preheat (Option B): during preheat window, all rooms are at least the snapshot baseline #}
+        {% if is_preheat_window and preheat_enabled and offset_allowed_now and not is_vacation and room_offset > 0 and inside_mean_snapshot > 10.0 %}
+          {% set base_target = [base_target, inside_mean_snapshot] | max %}
         {% endif %}
 
         {% set effective_target = (base_target + room_offset) | round(1) %}
@@ -536,6 +539,17 @@
 
   condition: []
   action:
+    # Snapshot inside mean at 00:00 (start of preheat window) to prevent runaway moving target
+    - if:
+        - condition: template
+          value_template: "{{ now().hour == 0 and now().minute < 5 }}"
+      then:
+        - service: input_number.set_value
+          target:
+            entity_id: input_number.preheat_base_indoor_c
+          data:
+            value: "{{ states('sensor.inside_temp_mean_now') | float(19.0) | round(1) }}"
+
     # 3) Endgültiges Heizerlaubnis
     - variables:
         # tagsüber nur, wenn (Preis günstig) ODER (12–14 & PV-Excess)
