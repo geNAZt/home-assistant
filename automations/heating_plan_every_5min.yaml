@@ -31,7 +31,7 @@
     battery_support_w: "{{ 5000 if (battery_above_min and battery_support_allowed_now) else 0 }}"
     pv_thr_w: "{{ states('input_number.pv_excess_threshold_w') | float(0) }}"
     water_stage1_remaining_kwh: "{{ state_attr('sensor.pv_priority_next_day_budget', 'water_stage1_remaining_kwh') | float(0) }}"
-    water_stage1_reserve_w: "{{ 500 if water_stage1_remaining_kwh > 0.05 else 0 }}"
+    water_stage1_reserve_w: "{{ 500 if (water_stage1_remaining_kwh | float(0)) > 0.05 else 0 }}"
     has_pv_excess: "{{ pv_forecast_w > (pv_thr_w + water_stage1_reserve_w) }}"
     max_total_heating_w: "{{ (pv_generation_w * 0.8) if (has_pv_excess or (battery_support_w | float(0)) == 0) else (pv_generation_w + battery_support_w) }}"
     pv_surplus_w: "{{ [pv_forecast_w - pv_thr_w - water_stage1_reserve_w, 0] | max }}"
@@ -84,7 +84,7 @@
       {% set missing_delta_k = [setpoint_mean - inside_now, 0] | max %}
       {% set off = preheat_offset_24h_max_k | float(0) %}
       {{ [c * (off + missing_delta_k), 0] | max }}
-    pv_enough_next_day: "{{ (pv_plan_day_kwh - water_stage1_remaining_kwh) >= heating_need_next_day_kwh and heating_need_next_day_kwh > 0 }}"
+    pv_enough_next_day: "{{ ((pv_plan_day_kwh | float(0)) - (water_stage1_remaining_kwh | float(0))) >= (heating_need_next_day_kwh | float(0)) and (heating_need_next_day_kwh | float(0)) > 0 }}"
     shift_heating_start_to_pv: "{{ is_state('binary_sensor.preheat_erlaubt_demand_weighted', 'on') and pv_enough_next_day }}"
 
     # Preheat-Fenster 00–05 Uhr (Preis egal)
