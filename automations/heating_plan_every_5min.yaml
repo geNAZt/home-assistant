@@ -99,7 +99,7 @@
     preheat_enabled: "{{ is_state('binary_sensor.preheat_erlaubt_demand_weighted', 'on') }}"
     heating_block_enabled: "{{ is_state('input_boolean.heating_block_daytime', 'on') and preheat_enabled }}"
     pv_shift_active_now: >-
-      {% set rooms_list = rooms_json | from_json(default=[]) %}
+      {% set rooms_list = rooms_json | from_json(default=[]) if rooms_json is string else rooms_json %}
       {% set ns = namespace(any_heating=false) %}
       {% for r in rooms_list %}
         {% if is_state('climate.climate_room_' ~ r, 'heat') %}
@@ -117,7 +117,7 @@
     # ===================================================================
     # Build all room data in one pass - no JSON parsing needed!
     room_data: >-
-      {% set rooms = rooms_json | from_json(default=[]) %}
+      {% set rooms = rooms_json | from_json(default=[]) if rooms_json is string else rooms_json %}
       {% set hyst = hysteresis_k | float(0.05) %}
       {% set inside_mean = (states('sensor.inside_temp_mean_now') | float(0)) | round(1) %}
 
@@ -162,7 +162,7 @@
         {% endif %}
 
         {# All rooms heat the same: full preheat for all rooms, no mild preheat #}
-        {% set preheat_eligible_rooms = rooms_json | from_json(default=[]) %}
+        {% set preheat_eligible_rooms = rooms_json | from_json(default=[]) if rooms_json is string else rooms_json %}
         {% set pv_eligible_rooms = ['wohnzimmer', 'kueche', 'buero_fabian'] %}
 
         {% set pv_off = (pv_offset_k | float(0)) if (has_pv_excess and room in pv_eligible_rooms and not is_vacation) else 0.0 %}
@@ -310,7 +310,7 @@
     # ===================================================================
     # Active rooms running >= 15 min yield to waiting rooms on a full phase
     sel_p1: >-
-      {% set rooms_data = room_data | from_json(default={}) %}
+      {% set rooms_data = room_data | from_json(default={}) if room_data is string else room_data %}
       {% set max_amps = phase_max_amps | float(16.0) %}
       {% set ns = namespace(active=[], waiting=[], selected=[], total=0.0) %}
       {% for room, d in rooms_data.items() %}
@@ -319,7 +319,7 @@
             {% set ns.active = ns.active + [{'room': room, 'amps': d.amps, 'on_duration': d.on_duration, 'must_heat': d.must_heat, 'error': d.error}] %}
           {% else %}
             {% set w_score = (1000 if d.must_heat else 0) + (d.off_duration | float(0)) * 2 + (d.error | float(0)) %}
-            {% set ns.waiting = ns.waiting + [{'room': room, 'amps': d.amps, 'off_duration': d.off_duration, 'must_heat': d.must_heat, 'score': w_score}] %}
+            {% set ns.waiting = ns.waiting + [{'room': room, 'amps': d.amps, 'on_duration': 0.0, 'off_duration': d.off_duration, 'must_heat': d.must_heat, 'score': w_score}] %}
           {% endif %}
         {% endif %}
       {% endfor %}
@@ -376,7 +376,7 @@
       {{ (ns.selected | map(attribute='room') | list | tojson) | string }}
 
     sel_p2: >-
-      {% set rooms_data = room_data | from_json(default={}) %}
+      {% set rooms_data = room_data | from_json(default={}) if room_data is string else room_data %}
       {% set max_amps = phase_max_amps | float(16.0) %}
       {% set ns = namespace(active=[], waiting=[], selected=[], total=0.0) %}
       {% for room, d in rooms_data.items() %}
@@ -385,7 +385,7 @@
             {% set ns.active = ns.active + [{'room': room, 'amps': d.amps, 'on_duration': d.on_duration, 'must_heat': d.must_heat, 'error': d.error}] %}
           {% else %}
             {% set w_score = (1000 if d.must_heat else 0) + (d.off_duration | float(0)) * 2 + (d.error | float(0)) %}
-            {% set ns.waiting = ns.waiting + [{'room': room, 'amps': d.amps, 'off_duration': d.off_duration, 'must_heat': d.must_heat, 'score': w_score}] %}
+            {% set ns.waiting = ns.waiting + [{'room': room, 'amps': d.amps, 'on_duration': 0.0, 'off_duration': d.off_duration, 'must_heat': d.must_heat, 'score': w_score}] %}
           {% endif %}
         {% endif %}
       {% endfor %}
@@ -442,7 +442,7 @@
       {{ (ns.selected | map(attribute='room') | list | tojson) | string }}
 
     sel_p3: >-
-      {% set rooms_data = room_data | from_json(default={}) %}
+      {% set rooms_data = room_data | from_json(default={}) if room_data is string else room_data %}
       {% set max_amps = phase_max_amps | float(16.0) %}
       {% set ns = namespace(active=[], waiting=[], selected=[], total=0.0) %}
       {% for room, d in rooms_data.items() %}
@@ -451,7 +451,7 @@
             {% set ns.active = ns.active + [{'room': room, 'amps': d.amps, 'on_duration': d.on_duration, 'must_heat': d.must_heat, 'error': d.error}] %}
           {% else %}
             {% set w_score = (1000 if d.must_heat else 0) + (d.off_duration | float(0)) * 2 + (d.error | float(0)) %}
-            {% set ns.waiting = ns.waiting + [{'room': room, 'amps': d.amps, 'off_duration': d.off_duration, 'must_heat': d.must_heat, 'score': w_score}] %}
+            {% set ns.waiting = ns.waiting + [{'room': room, 'amps': d.amps, 'on_duration': 0.0, 'off_duration': d.off_duration, 'must_heat': d.must_heat, 'score': w_score}] %}
           {% endif %}
         {% endif %}
       {% endfor %}
@@ -525,7 +525,7 @@
       {% set s2 = sel_p2 | from_json(default=[]) if sel_p2 is string else sel_p2 %}
       {% set s3 = sel_p3 | from_json(default=[]) if sel_p3 is string else sel_p3 %}
       {% set selected_rooms = s1 + s2 + s3 %}
-      {% set all_rooms = rooms_json | from_json(default=[]) %}
+      {% set all_rooms = rooms_json | from_json(default=[]) if rooms_json is string else rooms_json %}
       {% set ns = namespace(climates = []) %}
       {% for room in all_rooms %}
         {% if room not in selected_rooms %}
@@ -567,11 +567,11 @@
       target: { entity_id: input_boolean.heating_planner_applying }
 
     - repeat:
-        for_each: "{{ rooms_json | from_json(default=[]) }}"
+        for_each: "{{ rooms_json | from_json(default=[]) if rooms_json is string else rooms_json }}"
         sequence:
           - variables:
               room: "{{ repeat.item }}"
-              rd: "{{ room_data | from_json(default={}) }}"
+              rd: "{{ room_data | from_json(default={}) if room_data is string else room_data }}"
               base_ent: "input_number.heating_base_{{ repeat.item }}"
               stored_base: "{{ states(base_ent) | float(0) }}"
               base: "{{ rd[room].base_target | float(22) }}"
@@ -635,7 +635,7 @@
         - conditions:
             - condition: template
               value_template: >-
-                {% set rd = room_data | from_json(default={}) %}
+                {% set rd = room_data | from_json(default={}) if room_data is string else room_data %}
                 {% set ns = namespace(any=false) %}
                 {% for r, d in rd.items() %}
                   {% if (d.offset | float(0)) > 0 %}{% set ns.any = true %}{% endif %}
@@ -646,7 +646,7 @@
               data:
                 name: "Heiz-Planer"
                 message: >-
-                  {% set rd = room_data | from_json(default={}) %}
+                  {% set rd = room_data | from_json(default={}) if room_data is string else room_data %}
                   {% set offs = rd.values() | map(attribute='offset') | list %}
                   {% set pre = rd.values() | map(attribute='preheat_offset') | list %}
                   Offset aktiv (room): total_min={{ offs|min }}K total_max={{ offs|max }}K,
@@ -658,13 +658,13 @@
         - conditions:
             - condition: template
               value_template: >-
-                {% set rd = room_data | from_json(default={}) %}
+                {% set rd = room_data | from_json(default={}) if room_data is string else room_data %}
                 {% set safety = rd.values() | selectattr('must_heat') | list | count > 0 %}
                 {{ heating_allowed_now or safety }}
           sequence:
             - variables:
                 cap: "{{ phase_max_amps | float(16) }}"
-                rd: "{{ room_data | from_json }}"
+                rd: "{{ room_data | from_json(default={}) if room_data is string else room_data }}"
                 power_budget_w: >-
                   {% if pv_enough_next_day %}
                     {{ [((max_total_heating_w | float(0)) - (water_stage1_reserve_w | float(0))), 0] | max }}
@@ -691,8 +691,18 @@
                   {% else %}
                     {{ sel_p3 }}
                   {% endif %}
-                planned_on: "{{ climates_on }}"
-                planned_off: "{{ climates_off }}"
+                planned_on: >-
+                  {% if climates_on is string %}
+                    {{ climates_on | from_json(default=[]) }}
+                  {% else %}
+                    {{ climates_on }}
+                  {% endif %}
+                planned_off: >-
+                  {% if climates_off is string %}
+                    {{ climates_off | from_json(default=[]) }}
+                  {% else %}
+                    {{ climates_off }}
+                  {% endif %}
 
                 # Greedy-Pack je Phase – Jinja-only (ohne .append(), nur Listen-Konkatenation)
                 # Wenn heating_allowed_now false ist (nur Safety-Betrieb), nur Räume mit must_heat zulassen!
@@ -817,7 +827,7 @@
         # If heating not allowed now: switch everything off
         - variables:
             cooldown_minutes: "{{ states('input_number.heating_cooldown_minutes')|int(10) }}"
-            all_rooms: "{{ rooms_json | from_json(default=[]) }}"
+            all_rooms: "{{ rooms_json | from_json(default=[]) if rooms_json is string else rooms_json }}"
             rooms_heating_now: >-
               {% set ns = namespace(out=[]) %}
               {% for r in all_rooms %}
