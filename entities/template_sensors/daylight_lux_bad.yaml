@@ -1,0 +1,25 @@
+sensor:
+- name: "Lux Bad Daylight"
+  unique_id: lux_bad_daylight
+  unit_of_measurement: "lx"
+  device_class: illuminance
+  state_class: measurement
+  state: >-
+    {% set raw_lux = states('sensor.lux_bad') %}
+    {% if raw_lux in ['unknown', 'unavailable', 'None', ''] or raw_lux is none %}
+      unknown
+    {% else %}
+      {% set raw_float = raw_lux | float(0) %}
+      {% set is_light_on = is_state('light.bad_lights', 'on') %}
+      {% set lamp_offset = 315 | float %}
+      {% if is_light_on %}
+        {% set brightness = state_attr('light.bad_lights', 'brightness') %}
+        {% set ratio = (brightness | float(255) / 255.0) if brightness is not none else 1.0 %}
+        {% set artificial_lux = lamp_offset * ratio %}
+        {{ [0.0, (raw_float - artificial_lux)] | max | round(1) }}
+      {% else %}
+        {{ raw_float | round(1) }}
+      {% endif %}
+    {% endif %}
+  availability: >-
+    {{ states('sensor.lux_bad') not in ['unknown', 'unavailable', 'None', ''] }}

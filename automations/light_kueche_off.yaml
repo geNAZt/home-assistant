@@ -8,11 +8,16 @@
       to: "off"
       id: presence_off
   
-    # Zu hell geworden
+    # Zu hell geworden (reines Tageslicht reicht wieder aus)
     - platform: numeric_state
-      entity_id: sensor.lux_kueche
-      above: 1200       # waterHighLux
-      for: "00:00:05"
+      entity_id: sensor.lux_kueche_daylight
+      above: 100       # waterHighLux
+      for: "00:00:10"
+      id: too_bright
+
+    # Regelmäßige Prüfung, falls der Schwellenwert ohne Flankenübergang überschritten bleibt
+    - platform: time_pattern
+      minutes: "/2"
       id: too_bright
   
   condition:
@@ -47,6 +52,13 @@
             - condition: state
               entity_id: light.kueche_lights
               state: "on"
+            - condition: template
+              value_template: >-
+                {% set base_water_high = 100 %}
+                {% set prot_entities = states.input_boolean | selectattr('entity_id', 'search', 'cover_daylight_protection_.*' ~ 'kueche') | selectattr('state', 'eq', 'on') | list %}
+                {% set is_daylight_prot = prot_entities | length > 0 %}
+                {% set effective_water_high = 275 if is_daylight_prot else base_water_high %}
+                {{ (states('sensor.lux_kueche_daylight') | float(0)) >= effective_water_high }}
           sequence:
             - service: light.turn_off
               target:

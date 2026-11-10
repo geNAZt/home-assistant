@@ -1,0 +1,25 @@
+sensor:
+- name: "Lux Speisekammer Daylight"
+  unique_id: lux_speisekammer_daylight
+  unit_of_measurement: "lx"
+  device_class: illuminance
+  state_class: measurement
+  state: >-
+    {% set raw_lux = states('sensor.lux_speisekammer') %}
+    {% if raw_lux in ['unknown', 'unavailable', 'None', ''] or raw_lux is none %}
+      unknown
+    {% else %}
+      {% set raw_float = raw_lux | float(0) %}
+      {% set is_light_on = is_state('light.speisekammer_lights', 'on') %}
+      {% set lamp_offset = 96 | float %}
+      {% if is_light_on %}
+        {% set brightness = state_attr('light.speisekammer_lights', 'brightness') %}
+        {% set ratio = (brightness | float(255) / 255.0) if brightness is not none else 1.0 %}
+        {% set artificial_lux = lamp_offset * ratio %}
+        {{ [0.0, (raw_float - artificial_lux)] | max | round(1) }}
+      {% else %}
+        {{ raw_float | round(1) }}
+      {% endif %}
+    {% endif %}
+  availability: >-
+    {{ states('sensor.lux_speisekammer') not in ['unknown', 'unavailable', 'None', ''] }}
