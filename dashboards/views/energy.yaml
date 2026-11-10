@@ -103,7 +103,6 @@ cards:
       - entity: sensor.kuche_geschirrspuler_power
       - entity: sensor.shellyplus2pm_485519a264d8_switch_0_power
       - entity: sensor.kuche_backofen_power
-      - entity: sensor.towel_dryer_leistung
       - entity: sensor.water_heating_pump_power
       - entity: sensor.knx_leistung
       - entity: sensor.hrv_leistung
