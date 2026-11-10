@@ -6,3 +6,9 @@ lovelace:
       icon: mdi:window-shutter-cog
       show_in_sidebar: true
       filename: dashboards/covers.yaml
+    lights-dashboard:
+      mode: yaml
+      title: Licht Steuerung
+      icon: mdi:lightbulb-group
+      show_in_sidebar: true
+      filename: dashboards/lights.yaml

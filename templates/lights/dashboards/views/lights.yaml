@@ -1,0 +1,54 @@
+title: Licht Steuerung
+icon: mdi:lightbulb-group
+path: lights
+cards:
+  - type: entities
+    title: "Übersicht: Alle Räume"
+    show_header_toggle: false
+    state_color: true
+    entities:
+[[% for item in rooms %]]
+      - entity: light.[[ item.room ]]_lights
+        name: "[[ item.room | replace('_', ' ') | title ]]"
+        secondary_info: last-changed
+[[% endfor %]]
+
+  - type: history-graph
+    title: "Tageslicht vs. Gesamthelligkeit (Lux)"
+    hours_to_show: 12
+    refresh_interval: 30
+    entities:
+[[% for item in rooms %]]
+      - entity: sensor.lux_[[ item.room ]]_daylight
+        name: "[[ item.room | replace('_', ' ') | title ]] (Tageslicht)"
+      - entity: sensor.lux_[[ item.room ]]
+        name: "[[ item.room | replace('_', ' ') | title ]] (Sensor)"
+[[% endfor %]]
+
+[[% for item in rooms %]]
+  - type: entities
+    title: "[[ item.room | replace('_', ' ') | title ]]"
+    show_header_toggle: false
+    state_color: true
+    entities:
+      - entity: light.[[ item.room ]]_lights
+        name: Lichtgruppe
+      - entity: binary_sensor.presence_[[ item.room ]]
+        name: Präsenz
+      - entity: sensor.lux_[[ item.room ]]_daylight
+        name: "Tageslicht ([[ item.waterLow ]]/[[ item.waterHigh ]] lx)"
+      - entity: sensor.lux_[[ item.room ]]
+        name: "Sensor Ist-Wert (Offset: [[ item.light_lux_offset ]] lx)"
+      - entity: input_boolean.auto_light_[[ item.room ]]
+        name: Automatik Aktiv
+      - entity: input_boolean.force_on_[[ item.room ]]
+        name: Dauer-Ein (Force On)
+      - entity: input_number.[[ item.room ]]_brightness
+        name: Gespeicherte Helligkeit
+      - entity: input_number.[[ item.room ]]_color_temp
+        name: Farbtemperatur (K)
+[[% for l in item.lights %]]
+      - entity: light.light_[[ l ]]_[[ item.room ]]
+        name: "Lampe [[ l ]]"
+[[% endfor %]]
+[[% endfor %]]

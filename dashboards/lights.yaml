@@ -1,0 +1,3 @@
+title: Licht Steuerung
+views:
+  - !include views/lights.yaml

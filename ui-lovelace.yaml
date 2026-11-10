@@ -15,3 +15,4 @@ views:
   - !include dashboards/views/hrv.yaml
   - !include dashboards/views/internet.yaml
   - !include dashboards/views/pv.yaml
+  - !include dashboards/views/lights.yaml
