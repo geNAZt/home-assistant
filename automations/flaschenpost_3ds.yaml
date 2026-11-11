@@ -1,0 +1,15 @@
+- id: flaschenpost_3ds_required
+  alias: "Flaschenpost: 3D-Secure Bestätigung anfordern"
+  description: "Sendet eine Benachrichtigung mit Bestätigungslink, wenn eine Flaschenpost-Zahlung 3D-Secure erfordert."
+  trigger:
+    - trigger: event
+      event_type: flaschenpost_3ds_required
+  action:
+    - action: notify.notify
+      data:
+        title: "Flaschenpost: 3D-Secure Bestätigung"
+        message: "Bitte bestätige die Zahlung in Höhe von {{ trigger.event.data.total_eur }} € bei deiner Bank."
+        data:
+          url: "{{ trigger.event.data.url }}"
+          clickAction: "{{ trigger.event.data.url }}"
+  mode: single

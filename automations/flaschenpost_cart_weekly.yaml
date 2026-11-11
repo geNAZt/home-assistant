@@ -54,53 +54,6 @@
               tag: "flaschenpost_cart_weekly"
   mode: single
 
-- id: flaschenpost_order_accept
-  alias: "Flaschenpost: Bestellung per Benachrichtigung bestätigen"
-  description: "Bestellt den Warenkorb sofort im nächsten Lieferfenster, wenn in der Benachrichtigung 'Bestellen' geklickt wird."
-  triggers:
-    - trigger: event
-      event_type: mobile_app_notification_action
-      event_data:
-        action: FLASCHENPOST_ORDER_ACCEPT
-  actions:
-    - action: flaschenpost.place_order
-      data:
-        confirm: true
-    - action: input_boolean.turn_off
-      target:
-        entity_id: input_boolean.flaschenpost_order_pending
-    - action: notify.mobile_app_poco_x7_pro_fabian
-      data:
-        title: "✅ Flaschenpost: Bestellung aufgegeben"
-        message: "Die Flaschenpost-Bestellung wurde erfolgreich im nächsten verfügbaren Zeitfenster aufgegeben."
-        data:
-          tag: "flaschenpost_cart_weekly"
-  mode: single
-
-- id: flaschenpost_order_decline
-  alias: "Flaschenpost: Bestellung per Benachrichtigung ablehnen"
-  description: "Leert den Warenkorb und verhindert die automatische Bestellung zum Mittag."
-  triggers:
-    - trigger: event
-      event_type: mobile_app_notification_action
-      event_data:
-        action: FLASCHENPOST_ORDER_DECLINE
-  actions:
-    - action: input_boolean.turn_on
-      target:
-        entity_id: input_boolean.flaschenpost_order_declined
-    - action: input_boolean.turn_off
-      target:
-        entity_id: input_boolean.flaschenpost_order_pending
-    - action: flaschenpost.create_new_cart
-    - action: notify.mobile_app_poco_x7_pro_fabian
-      data:
-        title: "❌ Flaschenpost: Bestellung abgelehnt"
-        message: "Die Flaschenpost-Bestellung wurde abgelehnt und der Warenkorb geleert."
-        data:
-          tag: "flaschenpost_cart_weekly"
-  mode: single
-
 - id: flaschenpost_lunch_auto_order
   alias: "Flaschenpost: Automatische Bestellung zum Mittag"
   description: "Bestellt den Warenkorb automatisch um 12:00 Uhr im nächsten verfügbaren Zeitfenster, falls bis dahin nicht abgelehnt wurde."

@@ -1,0 +1,23 @@
+- id: flaschenpost_order_decline
+  alias: "Flaschenpost: Bestellung per Benachrichtigung ablehnen"
+  description: "Leert den Warenkorb und verhindert die automatische Bestellung zum Mittag."
+  triggers:
+    - trigger: event
+      event_type: mobile_app_notification_action
+      event_data:
+        action: FLASCHENPOST_ORDER_DECLINE
+  actions:
+    - action: input_boolean.turn_on
+      target:
+        entity_id: input_boolean.flaschenpost_order_declined
+    - action: input_boolean.turn_off
+      target:
+        entity_id: input_boolean.flaschenpost_order_pending
+    - action: flaschenpost.create_new_cart
+    - action: notify.mobile_app_poco_x7_pro_fabian
+      data:
+        title: "❌ Flaschenpost: Bestellung abgelehnt"
+        message: "Die Flaschenpost-Bestellung wurde abgelehnt und der Warenkorb geleert."
+        data:
+          tag: "flaschenpost_cart_weekly"
+  mode: single
