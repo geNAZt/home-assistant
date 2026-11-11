@@ -35,6 +35,7 @@ from .const import (
     SERVICE_ADD_COUPON,
     SERVICE_ADD_LISTS_TO_CART,
     SERVICE_ADD_TO_CART,
+    SERVICE_COMPLETE_3DS_ORDER,
     SERVICE_CREATE_NEW_CART,
     SERVICE_DELETE_COUPON,
     SERVICE_DELETE_SHOPPING_LIST,
@@ -704,12 +705,16 @@ def _async_register_services(hass: HomeAssistant) -> None:
             applied_coupon = await coord.shopping_list.async_apply_next_coupon_to_cart()
 
         try:
+            entry_id = coord.config_entry.entry_id if getattr(coord, "config_entry", None) else None
             order = await coord.client.async_place_order(
                 payment_method=payment_method,
                 iban_last4=iban_last4,
                 stored_payment_id=stored_payment_id,
                 slot_type=call.data.get("slot_type"),
                 slot_from=call.data.get("slot_from"),
+                on_3ds_required=lambda data: coord.async_on_3ds_required(
+                    {**data, "config_entry_id": entry_id}
+                ),
             )
         except FlaschenpostError as err:
             raise HomeAssistantError(str(err)) from err
@@ -727,6 +732,28 @@ def _async_register_services(hass: HomeAssistant) -> None:
             "order_id": order.get("id"),
             "order_number": order.get("orderNumber"),
             "applied_coupon": applied_coupon["code"] if applied_coupon else None,
+        }
+
+    async def handle_complete_3ds_order(call: ServiceCall) -> ServiceResponse:
+        """Authorize and finalize an order following 3D-Secure bank approval."""
+        coord = _resolve_coordinator(hass, call.data.get("config_entry_id"))
+        try:
+            order = await coord.client.async_complete_3ds_order(
+                payment_id=str(call.data["payment_id"]).strip(),
+                order_id=str(call.data["order_id"]).strip(),
+                cart_id=str(call.data.get("cart_id") or "").strip() or None,
+            )
+        except FlaschenpostError as err:
+            raise HomeAssistantError(str(err)) from err
+
+        if hasattr(coord, "shopping_list") and coord.shopping_list:
+            with contextlib.suppress(Exception):
+                await coord.shopping_list.async_record_order_attributions(order)
+
+        await coord.async_request_refresh()
+        return {
+            "order_id": order.get("id"),
+            "order_number": order.get("orderNumber"),
         }
 
     async def handle_add_coupon(call: ServiceCall) -> ServiceResponse:
@@ -1002,6 +1029,21 @@ def _async_register_services(hass: HomeAssistant) -> None:
         SERVICE_PLACE_ORDER,
         handle_place_order,
         schema=order_schema,
+        supports_response=SupportsResponse.OPTIONAL,
+    )
+
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_COMPLETE_3DS_ORDER,
+        handle_complete_3ds_order,
+        schema=vol.Schema(
+            {
+                vol.Optional("config_entry_id"): cv.string,
+                vol.Required("payment_id"): cv.string,
+                vol.Required("order_id"): cv.string,
+                vol.Optional("cart_id"): cv.string,
+            }
+        ),
         supports_response=SupportsResponse.OPTIONAL,
     )
 

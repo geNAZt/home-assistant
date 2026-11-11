@@ -939,7 +939,7 @@ class FlaschenpostApiClient:
             }
             if self._cart_id:
                 headers["cart-id"] = self._cart_id
-            if authenticated and self._bearer_token:
+            if authenticated and self._bearer_token and not path_or_url.startswith("/webshop-checkout-api/api/v1/checkout/init"):
                 headers["Authorization"] = f"Bearer {self._bearer_token}"
             if json_body is not None:
                 headers["Content-Type"] = "application/json"
@@ -2075,7 +2075,31 @@ class FlaschenpostApiClient:
 
         methods: list[dict[str, Any]] = []
 
-        # 1. Saved Credit Cards via Adyen
+        # 1. Saved Credit Cards via PayPal Card Vault (current Flaschenpost default)
+        try:
+            pp_card = await self._request(
+                "GET",
+                f"/webshop-checkout-api/api/v1/payment/paypal-card/init?cart={cart_id}&shopperReference={shopper_ref}",
+                extra_headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache"},
+            )
+            for vc in pp_card.get("vaultCards") or []:
+                brand = str(vc.get("brand") or "Kreditkarte").upper()
+                last4 = str(vc.get("last_digits") or "")
+                exp = str(vc.get("expiry") or "")
+                methods.append({
+                    "id": f"credit_card:{vc['id']}",
+                    "payment_method": PAYMENT_CREDIT_CARD,
+                    "stored_payment_id": vc["id"],
+                    "brand": brand,
+                    "last4": last4,
+                    "label": f"Kreditkarte {brand} •••• {last4} (Exp: {exp})",
+                    "payment_id": pp_card.get("paymentId"),
+                    "provider": "paypal_vault",
+                })
+        except Exception as err:
+            _LOGGER.debug("Could not query PayPal stored cards: %s", err)
+
+        # 2. Saved Credit Cards via Adyen
         try:
             cb = str(int(time.time() * 1000))
             adyen_init = await self._request(
@@ -2101,6 +2125,7 @@ class FlaschenpostApiClient:
                                 "brand": sp.get("brand"),
                                 "last4": last4,
                                 "label": f"Kreditkarte {brand} •••• {last4} (Exp: {exp})",
+                                "provider": "adyen",
                             })
         except Exception as err:
             _LOGGER.debug("Could not query Adyen stored cards: %s", err)
@@ -2110,10 +2135,10 @@ class FlaschenpostApiClient:
             methods.append({
                 "id": PAYMENT_CREDIT_CARD,
                 "payment_method": PAYMENT_CREDIT_CARD,
-                "label": "Kreditkarte (Credit Card via Adyen)",
+                "label": "Kreditkarte (Credit Card)",
             })
 
-        # 2. Saved PayPal Accounts
+        # 3. Saved PayPal Accounts
         paypal_entries = custom.get("PaypalCustomerIds") or []
         for pe in paypal_entries:
             try:
@@ -2187,28 +2212,29 @@ class FlaschenpostApiClient:
         stored_payment_id: str | None = None,
         slot_type: str | None = None,
         slot_from: str | None = None,
+        on_3ds_required: Callable[[dict[str, Any]], Any] | None = None,
+        wait_3ds_timeout_sec: float = 120.0,
+        poll_3ds_interval_sec: float = 3.0,
     ) -> dict[str, Any]:
         """Place the current cart order headlessly using saved Credit Card, PayPal, SEPA, or Invoice."""
         if not payment_method:
-            payment_method = self.default_payment_method
+            payment_method = self.default_payment_method or PAYMENT_CREDIT_CARD
         if not stored_payment_id:
             stored_payment_id = self.stored_payment_id
 
-        if not payment_method and stored_payment_id:
-            payment_method = PAYMENT_CREDIT_CARD
-
-        if not payment_method:
+        if payment_method == PAYMENT_CREDIT_CARD and not stored_payment_id:
             try:
                 saved = await self.async_get_saved_payment_methods()
-                with_stored = next((m for m in saved if m.get("stored_payment_id")), None)
-                if with_stored:
-                    payment_method = with_stored["payment_method"]
-                    if not stored_payment_id:
-                        stored_payment_id = with_stored["stored_payment_id"]
-                elif saved:
-                    payment_method = saved[0]["payment_method"]
+                cc_methods = [
+                    m
+                    for m in saved
+                    if m.get("payment_method") == PAYMENT_CREDIT_CARD
+                    and m.get("stored_payment_id")
+                ]
+                if cc_methods:
+                    stored_payment_id = cc_methods[0]["stored_payment_id"]
             except Exception as err:
-                _LOGGER.debug("Could not determine saved payment method: %s", err)
+                _LOGGER.debug("Could not determine saved credit card: %s", err)
 
         if not payment_method:
             payment_method = PAYMENT_CREDIT_CARD
@@ -2226,7 +2252,17 @@ class FlaschenpostApiClient:
             raise FlaschenpostOrderError("Cannot place order: cart is empty")
 
         ship_fields = (cart.get("shippingCustomFields") or {}).get("fields") or {}
-        if slot_type or slot_from or not ship_fields.get("SelectedDeliveryType"):
+        expiry_str = ship_fields.get("SelectedDeliveryExpiry")
+        is_expired = False
+        if expiry_str:
+            try:
+                exp_dt = datetime.fromisoformat(str(expiry_str).replace("Z", "+00:00"))
+                if datetime.now(UTC) >= exp_dt:
+                    is_expired = True
+            except Exception:
+                pass
+
+        if slot_type or slot_from or not ship_fields.get("SelectedDeliveryType") or is_expired:
             cart = await self.async_select_delivery_slot(
                 slot_type=slot_type, slot_from=slot_from
             )
@@ -2254,72 +2290,177 @@ class FlaschenpostApiClient:
                 "Customer address is missing AddressReference for checkout initialization"
             )
 
-        await self._request(
+        stock_res = await self._request(
             "POST",
             "/webshop-checkout-api/api/v2/checkout/validatestock",
             params={"cartId": cart_id},
             json_body={},
         )
+        if isinstance(stock_res, dict) and stock_res.get("insufficentStockItems"):
+            items_desc = ", ".join(
+                f"SKU {it.get('sku')} (verfügbar: {it.get('availableQuantity', 0)})"
+                for it in stock_res["insufficentStockItems"]
+            )
+            raise FlaschenpostOrderError(
+                f"Artikel im Warenkorb nicht mehr ausreichend verfügbar: {items_desc}. "
+                "Bitte passe die Menge im Warenkorb an."
+            )
 
         if payment_method == PAYMENT_CREDIT_CARD:
-            cb = str(int(time.time() * 1000))
-            adyen_init = await self._request(
-                "GET",
-                f"/webshop-checkout-api/api/v1/payment/adyen/init?amount={amount_cents}&cart={cart_id}&allowedPaymentMethods=scheme&shopperReferenceAdd={addr_ref}&cacheBuster={cb}",
-            )
-            payment_id = adyen_init.get("paymentId")
-            session_resp = adyen_init.get("adyenSessionResponse") or {}
-            session_id = session_resp.get("id")
-            session_data = session_resp.get("sessionData")
-            if not payment_id or not session_id or not session_data:
-                raise FlaschenpostOrderError("Failed to initialize Adyen credit card session")
+            # 1. Try PayPal Card Vault (current Flaschenpost default)
+            pp_card = None
+            try:
+                pp_card = await self._request(
+                    "GET",
+                    f"/webshop-checkout-api/api/v1/payment/paypal-card/init?cart={cart_id}&shopperReference={addr_ref}",
+                    extra_headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache"},
+                )
+            except Exception as err:
+                _LOGGER.debug("PayPal card init check: %s", err)
 
-            setup_url = f"https://checkoutshopper-live.adyen.com/checkoutshopper/v1/sessions/{session_id}/setup?clientKey={ADYEN_CLIENT_KEY}"
-            async with self._session.post(setup_url, json={"sessionData": session_data}) as setup_res:
-                setup_body = await setup_res.json()
-                stored_methods = setup_body.get("storedPaymentMethods") or []
+            vault_cards = (pp_card.get("vaultCards") or []) if pp_card else []
+            if vault_cards:
+                payment_id = pp_card["paymentId"]
+                chosen_card = None
+                if stored_payment_id:
+                    chosen_card = next(
+                        (c for c in vault_cards if c.get("id") == stored_payment_id),
+                        None,
+                    )
+                if not chosen_card and iban_last4:
+                    chosen_card = next(
+                        (c for c in vault_cards if str(c.get("last_digits")) == str(iban_last4)),
+                        None,
+                    )
+                if not chosen_card:
+                    chosen_card = vault_cards[0]
 
-            if not stored_methods:
-                raise FlaschenpostOrderError(
-                    "No saved credit card found on your Flaschenpost account. "
-                    "Please save a credit card during checkout on flaschenpost.de first."
+                card_id = chosen_card["id"]
+
+                # 1. Initialize checkout with payment ID and during marker (HTTP 204)
+                await self._request(
+                    "POST",
+                    "/webshop-checkout-api/api/v1/checkout/init",
+                    json_body={
+                        "cartId": cart_id,
+                        "paymentId": payment_id,
+                        "during": "saveCheckout:checkout/init",
+                    },
                 )
 
-            chosen_card = None
-            if stored_payment_id:
-                chosen_card = next(
-                    (c for c in stored_methods if c.get("id") == stored_payment_id),
-                    None,
-                )
-            if not chosen_card and iban_last4:
-                chosen_card = next(
-                    (c for c in stored_methods if str(c.get("lastFour")) == str(iban_last4)),
-                    None,
-                )
-            if not chosen_card:
-                chosen_card = stored_methods[0]
+                # 2. Create PayPal Card order
+                order_url = f"/webshop-paypalincontext-payment-method-api/api/v1/payment/{payment_id}/order?cardId={card_id}"
+                auth_order_res = await self._request("POST", order_url)
+                if not isinstance(auth_order_res, dict):
+                    raise FlaschenpostOrderError("Failed to create order for saved credit card")
 
-            pay_url = f"https://checkoutshopper-live.adyen.com/checkoutshopper/v1/sessions/{session_id}/payments?clientKey={ADYEN_CLIENT_KEY}"
-            pay_payload = {
-                "sessionData": session_data,
-                "paymentMethod": {
-                    "type": "scheme",
-                    "storedPaymentMethodId": chosen_card["id"],
-                },
-            }
-            async with self._session.post(pay_url, json=pay_payload) as pay_res:
-                pay_data = await pay_res.json()
+                redirect_url = auth_order_res.get("redirectUrl")
+                order_id = auth_order_res.get("id")
+                if not order_id:
+                    raise FlaschenpostOrderError("Failed to obtain order ID for saved credit card")
 
-            if pay_data.get("resultCode") != "Authorised":
-                raise FlaschenpostOrderError(
-                    f"Credit card authorization failed ({pay_data.get('resultCode', 'Unknown')})"
+                authorize_url = f"/webshop-paypalincontext-payment-method-api/api/v1/payment/{payment_id}/order/{order_id}/authorize"
+
+                # If 3D-Secure 2FA challenge is required by issuing bank
+                if redirect_url:
+                    event_data = {
+                        "url": redirect_url,
+                        "order_id": order_id,
+                        "payment_id": payment_id,
+                        "cart_id": cart_id,
+                        "total_eur": round(amount_cents / 100.0, 2),
+                    }
+                    if on_3ds_required:
+                        cb_res = on_3ds_required(event_data)
+                        if asyncio.iscoroutine(cb_res):
+                            await cb_res
+
+                    # Poll for bank authorization completion while user confirms 3DS in browser/app
+                    authorized = False
+                    poll_interval = max(0.01, poll_3ds_interval_sec)
+                    max_attempts = max(1, int(wait_3ds_timeout_sec / poll_interval))
+                    for _ in range(max_attempts):
+                        await asyncio.sleep(poll_interval)
+                        try:
+                            auth_res = await self._request("POST", authorize_url)
+                            if isinstance(auth_res, dict) and auth_res.get("state") == "Success":
+                                authorized = True
+                                break
+                        except Exception as poll_err:
+                            _LOGGER.debug("Waiting for 3DS confirmation: %s", poll_err)
+
+                    if not authorized:
+                        raise FlaschenpostOrderError(
+                            f"3D-Secure-Bestätigung ausstehend oder abgelaufen. "
+                            f"Bitte bestätige die Zahlung bei deiner Bank: {redirect_url}"
+                        )
+                else:
+                    # 3. Authorize order directly if no 3DS challenge is needed
+                    auth_res = await self._request("POST", authorize_url)
+                    if isinstance(auth_res, dict) and auth_res.get("state") != "Success":
+                        raise FlaschenpostOrderError(
+                            f"Credit card authorization failed ({auth_res.get('state', 'Unknown')})"
+                        )
+            else:
+                # 2. Fall back to Adyen Credit Card flow
+                cb = str(int(time.time() * 1000))
+                adyen_init = await self._request(
+                    "GET",
+                    f"/webshop-checkout-api/api/v1/payment/adyen/init?amount={amount_cents}&cart={cart_id}&allowedPaymentMethods=scheme&shopperReferenceAdd={addr_ref}&cacheBuster={cb}",
                 )
+                payment_id = adyen_init.get("paymentId")
+                session_resp = adyen_init.get("adyenSessionResponse") or {}
+                session_id = session_resp.get("id")
+                session_data = session_resp.get("sessionData")
+                if not payment_id or not session_id or not session_data:
+                    raise FlaschenpostOrderError("Failed to initialize Adyen credit card session")
 
-            await self._request(
-                "POST",
-                "/webshop-checkout-api/api/v2/checkout/init",
-                json_body={"cartId": cart_id, "paymentId": payment_id},
-            )
+                setup_url = f"https://checkoutshopper-live.adyen.com/checkoutshopper/v1/sessions/{session_id}/setup?clientKey={ADYEN_CLIENT_KEY}"
+                async with self._session.post(setup_url, json={"sessionData": session_data}) as setup_res:
+                    setup_body = await setup_res.json()
+                    stored_methods = setup_body.get("storedPaymentMethods") or []
+
+                if not stored_methods:
+                    raise FlaschenpostOrderError(
+                        "No saved credit card found on your Flaschenpost account. "
+                        "Please save a credit card during checkout on flaschenpost.de first."
+                    )
+
+                chosen_card = None
+                if stored_payment_id:
+                    chosen_card = next(
+                        (c for c in stored_methods if c.get("id") == stored_payment_id),
+                        None,
+                    )
+                if not chosen_card and iban_last4:
+                    chosen_card = next(
+                        (c for c in stored_methods if str(c.get("lastFour")) == str(iban_last4)),
+                        None,
+                    )
+                if not chosen_card:
+                    chosen_card = stored_methods[0]
+
+                pay_url = f"https://checkoutshopper-live.adyen.com/checkoutshopper/v1/sessions/{session_id}/payments?clientKey={ADYEN_CLIENT_KEY}"
+                pay_payload = {
+                    "sessionData": session_data,
+                    "paymentMethod": {
+                        "type": "scheme",
+                        "storedPaymentMethodId": chosen_card["id"],
+                    },
+                }
+                async with self._session.post(pay_url, json=pay_payload) as pay_res:
+                    pay_data = await pay_res.json()
+
+                if pay_data.get("resultCode") != "Authorised":
+                    raise FlaschenpostOrderError(
+                        f"Credit card authorization failed ({pay_data.get('resultCode', 'Unknown')})"
+                    )
+
+                await self._request(
+                    "POST",
+                    "/webshop-checkout-api/api/v2/checkout/init",
+                    json_body={"cartId": cart_id, "paymentId": payment_id},
+                )
 
         elif payment_method == PAYMENT_PAYPAL:
             pay_init = await self._request(
@@ -2422,9 +2563,49 @@ class FlaschenpostApiClient:
                         f"SEPA Direct Debit authorization rejected: {auth_res}"
                     )
 
-        result: dict[str, Any] = await self._request(
-            "POST",
-            "/webshop-checkout-api/api/v2/checkout/complete",
-            json_body={"cartId": cart_id},
-        )
+        try:
+            result: dict[str, Any] = await self._request(
+                "POST",
+                "/webshop-checkout-api/api/v1/checkout/complete",
+                json_body={"cartId": cart_id},
+            )
+        except Exception:
+            result = await self._request(
+                "POST",
+                "/webshop-checkout-api/api/v2/checkout/complete",
+                json_body={"cartId": cart_id},
+            )
+        return result.get("order") or result
+
+    async def async_complete_3ds_order(
+        self,
+        *,
+        payment_id: str,
+        order_id: str,
+        cart_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Authorize and finalize an order following 3D-Secure bank approval."""
+        if not cart_id:
+            cart = await self.async_get_cart()
+            cart_id = cart["id"]
+
+        authorize_url = f"/webshop-paypalincontext-payment-method-api/api/v1/payment/{payment_id}/order/{order_id}/authorize"
+        auth_res = await self._request("POST", authorize_url)
+        if isinstance(auth_res, dict) and auth_res.get("state") != "Success":
+            raise FlaschenpostOrderError(
+                f"Credit card 3DS authorization failed ({auth_res.get('state', 'Unknown')})"
+            )
+
+        try:
+            result: dict[str, Any] = await self._request(
+                "POST",
+                "/webshop-checkout-api/api/v1/checkout/complete",
+                json_body={"cartId": cart_id},
+            )
+        except Exception:
+            result = await self._request(
+                "POST",
+                "/webshop-checkout-api/api/v2/checkout/complete",
+                json_body={"cartId": cart_id},
+            )
         return result.get("order") or result

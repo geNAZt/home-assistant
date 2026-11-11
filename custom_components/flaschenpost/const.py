@@ -102,6 +102,7 @@ SERVICE_SET_LIST_CONFIG = "set_shopping_list_config"
 SERVICE_ADD_COUPON = "add_coupon"
 SERVICE_GET_COUPONS = "get_coupons"
 SERVICE_DELETE_COUPON = "delete_coupon"
+SERVICE_COMPLETE_3DS_ORDER = "complete_3ds_order"
 
 DEFAULT_ITEM_WEIGHT: float = 1.0
 

@@ -241,6 +241,9 @@
     "event": {
       "list_item_consumed": {
         "name": "{list_name} Artikel verbraucht"
+      },
+      "3ds_required": {
+        "name": "3D-Secure Bestätigung erforderlich"
       }
     }
   }

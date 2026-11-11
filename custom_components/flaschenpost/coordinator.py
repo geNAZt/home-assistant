@@ -70,8 +70,31 @@ class FlaschenpostCoordinator(DataUpdateCoordinator[FlaschenpostSnapshot]):
         self.shopping_list = shopping_list
         self.last_update_success_time: datetime | None = None
         self._item_consumed_listeners: list[Callable[[dict[str, Any]], None]] = []
+        self._3ds_required_listeners: list[Callable[[dict[str, Any]], None]] = []
         if self.shopping_list and hasattr(self.shopping_list, "register_item_consumed_callback"):
             self.shopping_list.register_item_consumed_callback(self.async_on_item_consumed)
+
+    def register_3ds_required_listener(
+        self, listener: Callable[[dict[str, Any]], None]
+    ) -> Callable[[], None]:
+        """Register a callback for 3D-Secure required events."""
+        self._3ds_required_listeners.append(listener)
+
+        def _unsubscribe() -> None:
+            if listener in self._3ds_required_listeners:
+                self._3ds_required_listeners.remove(listener)
+
+        return _unsubscribe
+
+    def async_on_3ds_required(self, event_data: dict[str, Any]) -> None:
+        """Handle 3D-Secure challenge requirement: fire HA bus event and notify event entities."""
+        if self.hass and hasattr(self.hass, "bus") and hasattr(self.hass.bus, "async_fire"):
+            self.hass.bus.async_fire("flaschenpost_3ds_required", event_data)
+        for listener in list(self._3ds_required_listeners):
+            try:
+                listener(event_data)
+            except Exception as err:
+                _LOGGER.warning("Error in 3D-Secure listener: %s", err)
 
     def async_on_item_consumed(self, event_data: dict[str, Any]) -> None:
         """Handle shopping list item consumption: fire HA bus event and notify event entities."""
@@ -235,30 +258,52 @@ async def async_resolve_payment_parameters(
         or None
     )
 
-    if not method and stored_id:
+    if not method:
         method = PAYMENT_CREDIT_CARD
 
     client = getattr(coord, "client", None)
-    if (not method or (method == PAYMENT_CREDIT_CARD and not stored_id)) and client and hasattr(client, "async_get_saved_payment_methods"):
+    if client and hasattr(client, "async_get_saved_payment_methods"):
         try:
             saved_methods = await client.async_get_saved_payment_methods()
-            if stored_id:
+            if method == PAYMENT_CREDIT_CARD:
+                cc_methods = [
+                    m for m in saved_methods if m.get("payment_method") == PAYMENT_CREDIT_CARD
+                ]
+                if stored_id:
+                    matching = next(
+                        (m for m in cc_methods if m.get("stored_payment_id") == stored_id),
+                        None,
+                    )
+                    if matching:
+                        stored_id = matching.get("stored_payment_id")
+                else:
+                    with_stored = next(
+                        (m for m in cc_methods if m.get("stored_payment_id")),
+                        None,
+                    )
+                    if with_stored:
+                        stored_id = with_stored.get("stored_payment_id")
+            elif stored_id:
                 matching = next(
-                    (m for m in saved_methods if m.get("stored_payment_id") == stored_id),
+                    (
+                        m
+                        for m in saved_methods
+                        if m.get("stored_payment_id") == stored_id
+                        and m.get("payment_method") == method
+                    ),
                     None,
                 )
                 if matching:
-                    method = matching["payment_method"]
-            else:
+                    stored_id = matching.get("stored_payment_id")
+            elif method:
+                method_saved = [
+                    m for m in saved_methods if m.get("payment_method") == method
+                ]
                 with_stored = next(
-                    (m for m in saved_methods if m.get("stored_payment_id")),
-                    None,
+                    (m for m in method_saved if m.get("stored_payment_id")), None
                 )
                 if with_stored:
-                    method = with_stored["payment_method"]
-                    stored_id = with_stored["stored_payment_id"]
-                elif saved_methods and not method:
-                    method = saved_methods[0]["payment_method"]
+                    stored_id = with_stored.get("stored_payment_id")
         except Exception as err:
             _LOGGER.debug("Could not resolve saved payment methods: %s", err)
 

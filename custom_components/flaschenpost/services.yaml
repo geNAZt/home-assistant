@@ -447,6 +447,34 @@ place_order:
         config_entry:
           integration: flaschenpost
 
+complete_3ds_order:
+  name: Complete 3D-Secure order
+  description: Authorize and complete a credit card order after completing the 3D-Secure bank challenge.
+  fields:
+    payment_id:
+      name: Payment ID
+      description: Payment ID from the flaschenpost_3ds_required event.
+      required: true
+      selector:
+        text:
+    order_id:
+      name: Order ID
+      description: PayPal Order ID from the flaschenpost_3ds_required event.
+      required: true
+      selector:
+        text:
+    cart_id:
+      name: Cart ID
+      description: Optional cart ID from the flaschenpost_3ds_required event.
+      selector:
+        text:
+    config_entry_id:
+      name: Account config entry ID
+      description: Optional config entry ID if multiple Flaschenpost accounts are configured.
+      selector:
+        config_entry:
+          integration: flaschenpost
+
 import_cart_to_list:
   name: Import cart into shopping list
   description: Import all items currently in your Flaschenpost cart into a new shopping list, pinned by SKU.
