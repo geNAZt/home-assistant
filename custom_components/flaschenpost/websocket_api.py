@@ -11,6 +11,7 @@ import voluptuous as vol
 from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant
 
+from .api import cents_to_eur
 from .const import (
     CONF_DEFAULT_PAYMENT,
     CONF_STORED_PAYMENT_ID,
@@ -375,19 +376,39 @@ async def ws_get_cart(
         for li in cart.get("lineItems") or []:
             prod = li.get("product") or {}
             variant = li.get("variant") or {}
-            p_price = ((li.get("price") or {}).get("value") or {}).get("centAmount") or 0
+            name_obj = li.get("name") or prod.get("name") or {}
+            if isinstance(name_obj, dict):
+                name = (
+                    name_obj.get("de-DE")
+                    or name_obj.get("de")
+                    or next(iter(name_obj.values()), "")
+                    or "Produkt"
+                )
+            else:
+                name = str(name_obj or "Produkt")
+
+            qty = li.get("quantity") or 1
+            unit_price = cents_to_eur((li.get("price") or {}).get("value"))
+            total_li_price = (
+                cents_to_eur(li.get("totalPrice"))
+                if li.get("totalPrice") is not None
+                else round(unit_price * qty, 2)
+            )
+            if unit_price <= 0.0 and total_li_price > 0.0 and qty:
+                unit_price = round(total_li_price / qty, 2)
+
             items.append(
                 {
                     "article_id": variant.get("sku"),
-                    "name": (prod.get("name") or {}).get("de") or prod.get("name") or "Produkt",
-                    "quantity": li.get("quantity") or 1,
-                    "unit_price_eur": round(p_price / 100.0, 2),
-                    "total_eur": round((p_price * (li.get("quantity") or 1)) / 100.0, 2),
+                    "name": name,
+                    "quantity": qty,
+                    "unit_price_eur": unit_price,
+                    "total_eur": total_li_price,
                 }
             )
 
         custom_fields = (cart.get("custom") or {}).get("fields") or {}
-        min_order = (custom_fields.get("MinimumOrderValue") or 2500) / 100.0
+        min_order = cents_to_eur(custom_fields.get("MinimumOrderValue")) or 25.0
 
         if not items:
             total_price = 0.0
@@ -395,16 +416,19 @@ async def ws_get_cart(
             min_order_reached = False
             remaining_to_min = round(min_order, 2)
         else:
-            total_price = ((cart.get("totalPrice") or {}).get("centAmount") or 0) / 100.0
-            shipping_fee = (
-                ((cart.get("shippingInfo") or {}).get("price") or {}).get("centAmount") or 0
-            ) / 100.0
-            goods_cent = custom_fields.get("TotalGoods")
-            goods_eur = (
-                (goods_cent / 100.0)
-                if goods_cent is not None
-                else sum(it["total_eur"] for it in items)
+            total_price = cents_to_eur(cart.get("totalPrice"))
+            shipping_fee = cents_to_eur(
+                (cart.get("shippingInfo") or {}).get("price")
             )
+            goods_raw = custom_fields.get("TotalGoods")
+            goods_eur = (
+                cents_to_eur(goods_raw)
+                if goods_raw is not None
+                else round(sum(it["total_eur"] for it in items), 2)
+            )
+            if goods_eur <= 0.0 and items:
+                goods_eur = round(sum(it["total_eur"] for it in items), 2)
+
             min_order_reached = goods_eur >= min_order
             remaining_to_min = round(max(0.0, min_order - goods_eur), 2)
 
