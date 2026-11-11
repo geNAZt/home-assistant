@@ -159,7 +159,7 @@
   description: "Marks bought items as completed in the Pomvilla to-do list when an order is placed"
   triggers:
     - trigger: state
-      entity_id: event.flaschenpost_bring_item_consumed
+      entity_id: event.hwr_flaschenpost_fabian_fassbender42_gmail_com_bring_artikel_verbraucht
       not_to:
         - unavailable
         - unknown
@@ -175,7 +175,7 @@
         entity_id: todo.pomvilla
       data:
         item: >-
-          {% set q = (state_attr('event.flaschenpost_bring_item_consumed', 'query') | default('', true)) | lower | trim %}
+          {% set q = (state_attr('event.hwr_flaschenpost_fabian_fassbender42_gmail_com_bring_artikel_verbraucht', 'query') | default('', true)) | lower | trim %}
           {% set ns = namespace(matched_item='') %}
           {% for it in open_items['todo.pomvilla']['items'] %}
             {% set s = it.summary | lower | trim %}
@@ -183,7 +183,7 @@
               {% set ns.matched_item = it.uid | default(it.summary, true) %}
             {% endif %}
           {% endfor %}
-          {{ ns.matched_item if ns.matched_item else state_attr('event.flaschenpost_bring_item_consumed', 'query') }}
+          {{ ns.matched_item if ns.matched_item else state_attr('event.hwr_flaschenpost_fabian_fassbender42_gmail_com_bring_artikel_verbraucht', 'query') }}
         status: completed
   mode: queued
   max: 50

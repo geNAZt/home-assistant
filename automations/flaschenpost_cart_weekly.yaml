@@ -26,13 +26,13 @@
     - choose:
         - conditions:
             - condition: template
-              value_template: "{{ states('sensor.flaschenpost_cart_total') | float(0) > 0 }}"
+              value_template: "{{ states('sensor.flaschenpost_fabian_fassbender42_gmail_com_warenkorb_summe') | float(0) > 0 }}"
           sequence:
             - action: notify.mobile_app_poco_x7_pro_fabian
               data:
                 title: "🛒 Flaschenpost: Warenkorb befüllt"
                 message: >
-                  Warenkorb-Gesamtsumme: {{ states('sensor.flaschenpost_cart_total') }} €
+                  Warenkorb-Gesamtsumme: {{ states('sensor.flaschenpost_fabian_fassbender42_gmail_com_warenkorb_summe') }} €
 
                   Wird um 12:00 Uhr automatisch im nächsten verfügbaren Lieferfenster bestellt, sofern nicht abgelehnt.
                 data:
@@ -118,7 +118,7 @@
       entity_id: input_boolean.flaschenpost_order_declined
       state: "off"
     - condition: template
-      value_template: "{{ states('sensor.flaschenpost_cart_total') | float(0) > 0 }}"
+      value_template: "{{ states('sensor.flaschenpost_fabian_fassbender42_gmail_com_warenkorb_summe') | float(0) > 0 }}"
   actions:
     - action: flaschenpost.place_order
       data:
@@ -131,7 +131,7 @@
         title: "🚀 Flaschenpost: Automatisch bestellt"
         message: >
           Der Flaschenpost-Warenkorb wurde um 12:00 Uhr automatisch im nächsten verfügbaren Zeitfenster bestellt.
-          Gesamtsumme: {{ states('sensor.flaschenpost_cart_total') }} €
+          Gesamtsumme: {{ states('sensor.flaschenpost_fabian_fassbender42_gmail_com_warenkorb_summe') }} €
         data:
           tag: "flaschenpost_cart_weekly"
   mode: single
