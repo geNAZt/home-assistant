@@ -124,6 +124,7 @@ const COPY = {
         more: "Mehr",
         help: "Hilfe",
         licenseLabel: "Lizenz",
+        license: { demo: "Demo", locked: "🔒 Premium", partial: "Teils Premium" },
     },
     en: {
         product: "Hubble",
@@ -167,6 +168,7 @@ const COPY = {
         more: "More",
         help: "Help",
         licenseLabel: "License",
+        license: { demo: "Demo", locked: "🔒 Premium", partial: "Partly premium" },
     },
     pl: {
         product: "Hubble",
@@ -210,6 +212,7 @@ const COPY = {
         more: "Więcej",
         help: "Pomoc",
         licenseLabel: "Licencja",
+        license: { demo: "Demo", locked: "🔒 Premium", partial: "Częściowo premium" },
     },
 };
 
@@ -436,14 +439,14 @@ const ModernApp = {
                     <div v-for="section in navigation" :key="section.id" class="nav-section">
                         <div class="nav-section-label">{{ copy.sections[section.id] }}</div>
                         <button v-for="item in section.items" :key="item.id" type="button"
-                                class="nav-item" :class="{ active: currentPage === item.id, 'premium-item': item.premium, disabled: item.admin && !isAdmin }"
+                                class="nav-item" :class="{ active: currentPage === item.id, 'premium-item': item.license, disabled: item.admin && !isAdmin }"
                                 :aria-current="currentPage === item.id ? 'page' : null"
                                 :title="item.admin && !isAdmin ? 'Nur Administrator' : undefined"
                                 @click="navigate(item.id)">
                             <ui-icon :name="item.icon"></ui-icon>
                             <span>{{ pageCopy(item.id)[0] }}</span>
-                            <small v-if="item.panel && !premiumCorrections">🔒 Premium</small>
-                            <small v-else-if="item.admin && !isAdmin">Nur Admin</small>
+                            <small v-if="item.admin && !isAdmin">Nur Admin</small>
+                            <small v-else-if="item.license && !premiumCorrections">{{ copy.license[item.license] }}</small>
                         </button>
                     </div>
                 </nav>
@@ -615,7 +618,7 @@ const ModernApp = {
                 id: "overview",
                 items: [
                     { id: "home", icon: "home" },
-                    { id: "dashboard", icon: "solar", premium: true },
+                    { id: "dashboard", icon: "solar", license: "demo" },
                 ],
             },
             {
@@ -624,29 +627,28 @@ const ModernApp = {
                     { id: "solar", icon: "solar" },
                     { id: "quality", icon: "quality" },
                     { id: "weather", icon: "weather" },
-                    { id: "eai_weather", icon: "weather", premium: true },
+                    { id: "eai_weather", icon: "weather", license: "demo" },
                     { id: "energy", icon: "energy" },
-                    { id: "sinv", icon: "inverter" },
-                    { id: "gpm", icon: "energy", premium: true },
-                    { id: "statistics", icon: "quality", premium: true },
-                    { id: "tomorrow", icon: "play", premium: true, panel: true },
+                    { id: "sinv", icon: "inverter", license: "partial" },
+                    { id: "gpm", icon: "energy" },
+                    { id: "statistics", icon: "quality", license: "locked" },
+                    { id: "tomorrow", icon: "play", license: "demo" },
                 ],
             },
             {
                 id: "control",
                 items: [
-                    { id: "eai", icon: "heatpump", premium: true, feature: "heat_pump" },
-                    { id: "heating", icon: "heating", premium: true, admin: true, feature: "heating" },
-                    { id: "mobility", icon: "mobility", premium: true, feature: "wallbox" },
-                    { id: "smart_charging", icon: "charge" },
+                    { id: "eai", icon: "heatpump", license: "demo", feature: "heat_pump" },
+                    { id: "heating", icon: "heating", license: "locked", admin: true, feature: "heating" },
+                    { id: "mobility", icon: "mobility", license: "demo", feature: "wallbox" },
                     { id: "hybrid_forecast", icon: "trend" },
-                    { id: "ems", icon: "energy", premium: true, admin: true },
+                    { id: "ems", icon: "energy", license: "demo", admin: true },
                 ],
             },
             {
                 id: "system",
                 items: [
-                    { id: "corrections", icon: "settings", premium: true, panel: true },
+                    { id: "corrections", icon: "settings", license: "locked" },
                     { id: "settings", icon: "settings" },
                 ],
             },
@@ -802,6 +804,10 @@ const ModernApp = {
         }
 
         function navigate(page, detail = "") {
+            if (page === "smart_charging") {
+                page = "ems";
+                detail = "akku";
+            }
             const weatherTab = canonicalWeatherTab(page, detail);
             if (weatherTab) {
                 page = "weather";
@@ -827,6 +833,11 @@ const ModernApp = {
                     window.location.hash = next;
                     return;
                 }
+            }
+            if (hashPage === "loads" || hashPage === "smart_charging") {
+                // Smart loads and Smart Charging live in tabs of the EMS page
+                window.location.hash = hashPage === "loads" ? "ems/loads" : "ems/akku";
+                return;
             }
             const page = pages[hashPage] ? hashPage : "home";
             if (page === "dashboard" && currentPage.value !== "dashboard") {
@@ -957,10 +968,11 @@ const ModernApp = {
         function startShellPolling() {
             if (pollTimer !== null) return;
             fetchData();
-            pollTimer = window.setInterval(fetchData, 10000);
+            pollTimer = window.setInterval(() => { if (!document.hidden) fetchData(); }, 10000);
             freshnessTimer = window.setInterval(() => {
                 if (
-                    connectionState.value === "live"
+                    !document.hidden
+                    && connectionState.value === "live"
                     && lastUpdated.value
                     && Date.now() - lastUpdated.value.getTime() > 30000
                 ) {
@@ -976,6 +988,10 @@ const ModernApp = {
                 startShellPolling();
             }
         }
+
+        document.addEventListener("visibilitychange", () => {
+            if (!document.hidden && pollTimer !== null) fetchData();
+        });
 
         const colorScheme = window.matchMedia("(prefers-color-scheme: dark)");
         const handleColorScheme = (event) => {
@@ -1102,6 +1118,9 @@ sfmlStatsModernApp.component("hubble-say", {
         </div>`,
 });
 sfmlStatsModernApp.component("modern-page-guide", window.ModernPageGuide);
+sfmlStatsModernApp.component("loads-panel", window.LoadsPage);
+sfmlStatsModernApp.component("sfml-tab-intro", window.SfmlTabIntro);
+sfmlStatsModernApp.component("smart-charging-panel", window.SmartChargingPage);
 sfmlStatsModernApp.component("modern-forecast-guide", window.ModernForecastGuide);
 sfmlStatsModernApp.component("modern-intelligence-overview", window.ModernIntelligenceOverview);
 sfmlStatsModernApp.config.globalProperties.$t = window.SFMLI18n?.t || ((key) => key);

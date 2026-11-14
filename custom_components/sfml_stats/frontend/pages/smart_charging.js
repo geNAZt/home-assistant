@@ -79,6 +79,8 @@ const SmartChargingPage = ((Vue) => {
                     </div>
                 </div>
 
+                <slot name="intro"></slot>
+
                 <div class="chart-card sc-setup-card" style="margin-bottom: var(--space-lg);" v-if="setupCheckItems.length">
                     <div class="chart-header">
                         <span class="chart-title">{{ $t('smart_charging.setup.title') }}</span>
@@ -1609,7 +1611,7 @@ const SmartChargingPage = ((Vue) => {
                 loadData();
                 loadSettings();
                 loadGpmStatus();
-                pollInterval = setInterval(loadData, 5000);
+                pollInterval = setInterval(() => { if (!document.hidden) loadData(); }, 5000);
                 window.addEventListener('resize', handleResize);
             });
 
