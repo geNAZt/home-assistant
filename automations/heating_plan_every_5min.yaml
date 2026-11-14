@@ -25,7 +25,7 @@
     pv_forecast_w: "{{ states('sensor.filtered_exported_power_w') | float(0) }}"
     pv_generation_w: "{{ states('sensor.solar_panel_production_w') | float(0) }}"
     battery_soc: "{{ states('sensor.pv_battery1_state_of_charge') | float(0) }}"
-    battery_min_soc: 15
+    battery_min_soc: 25
     battery_support_until_hour: 18
     battery_support_from_hour: 6
     battery_above_min: "{{ battery_soc >= battery_min_soc }}"
@@ -89,7 +89,7 @@
       {% set off = preheat_offset_24h_max_k | float(0) %}
       {{ [c * (off + missing_delta_k), 0] | max }}
     pv_enough_next_day: "{{ ((pv_plan_day_kwh | float(0)) - (water_stage1_remaining_kwh | float(0))) >= (heating_need_next_day_kwh | float(0)) and (heating_need_next_day_kwh | float(0)) > 0 }}"
-    shift_heating_start_to_pv: "{{ is_state('binary_sensor.preheat_erlaubt_demand_weighted', 'on') and pv_enough_next_day and ((states('sensor.inside_temp_mean_now') | float(0)) >= (setpoint_mean | float(0))) }}"
+    shift_heating_start_to_pv: "{{ is_state('binary_sensor.preheat_erlaubt_demand_weighted', 'on') and pv_enough_next_day }}"
 
     # Preheat-Fenster 00–05 Uhr (Preis egal)
     is_preheat_window: >-
@@ -113,7 +113,7 @@
       {% set solar_ok = ((pv_generation_w * 0.8) > ((pv_thr_w | float(0)) + (water_stage1_reserve_w | float(0)))) or has_pv_excess %}
       {% set battery_ok = battery_soc >= 25 %}
       {% set is_daytime = now().hour >= (battery_support_from_hour | int(6)) and now().hour <= (battery_support_until_hour | int(18)) %}
-      {{ (shift_heating_start_to_pv or pv_enough_next_day) and is_daytime and (solar_ok or battery_ok) }}
+      {{ shift_heating_start_to_pv and is_daytime and (solar_ok or battery_ok) }}
     offset_allowed_now: "{{ has_pv_excess or (is_preheat_window and preheat_enabled and not shift_heating_start_to_pv) or pv_shift_active_now }}"
 
     # --- Preheat goal (room-specific) ---
@@ -564,10 +564,10 @@
         heating_allowed_now: >-
           {% if is_state('binary_sensor.vacation_mode_heating', 'on') %}
             {{ is_preheat_window or has_pv_excess or (battery_above_min and battery_support_allowed_now) }}
-          {% elif heating_block_enabled %}
-            {{ is_preheat_window or allow_daytime_heat or pv_shift_active_now }}
           {% elif shift_heating_start_to_pv %}
             {{ pv_shift_active_now or (battery_above_min and battery_support_allowed_now) }}
+          {% elif heating_block_enabled %}
+            {{ is_preheat_window or allow_daytime_heat or pv_shift_active_now }}
           {% elif not preheat_enabled %}
             true
           {% elif is_preheat_window %}
