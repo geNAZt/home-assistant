@@ -114,7 +114,7 @@
       {% set battery_ok = battery_soc >= 25 %}
       {% set is_daytime = now().hour >= (battery_support_from_hour | int(6)) and now().hour <= (battery_support_until_hour | int(18)) %}
       {{ shift_heating_start_to_pv and is_daytime and (solar_ok or battery_ok) }}
-    offset_allowed_now: "{{ has_pv_excess or (is_preheat_window and preheat_enabled and not shift_heating_start_to_pv) or pv_shift_active_now }}"
+    offset_allowed_now: "{{ has_pv_excess or (is_preheat_window and preheat_enabled and not shift_heating_start_to_pv) }}"
 
     # --- Preheat goal (room-specific) ---
     max_total_offset_k: 5.0 # <= 5K above each room's base (includes PV + preheat)
@@ -178,10 +178,8 @@
 
         {% set preheat_off = 0.0 %}
         {% if not is_vacation and room in preheat_eligible_rooms %}
-          {% if is_preheat_window and preheat_enabled %}
+          {% if is_preheat_window and preheat_enabled and not shift_heating_start_to_pv %}
             {% set preheat_off = states('sensor.heating_preheat_offset_dynamic') | float(0) %}
-          {% elif pv_shift_active_now %}
-            {% set preheat_off = preheat_offset_24h_max_k | float(0) %}
           {% endif %}
         {% endif %}
 
