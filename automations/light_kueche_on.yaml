@@ -12,36 +12,42 @@
     - platform: state
       entity_id: input_boolean.auto_light_kueche
       to: "on"
+    - platform: state
+      entity_id: input_boolean.force_on_kueche
+      to: "on"
 
   condition:
-    # Automatik muss an sein
-    - condition: state
-      entity_id: input_boolean.auto_light_kueche
-      state: "on"
-
-    # Präsenz notwendig
-    - condition: state
-      entity_id: binary_sensor.presence_kueche
-      state: "on"
-
-    # Lux muss UNTER effektivem waterLow Threshold sein (250 Lux wenn Cover Daylight Protection aktiv ist, sonst normal waterLow)
-    - condition: template
-      value_template: >-
-        {% set base_water_low = 75 %}
-        {% set prot_entities = states.input_boolean | selectattr('entity_id', 'search', 'cover_daylight_protection_.*' ~ 'kueche') | selectattr('state', 'eq', 'on') | list %}
-        {% set is_daylight_prot = prot_entities | length > 0 %}
-        {% set effective_water_low = 250 if is_daylight_prot else base_water_low %}
-        {{ (states('sensor.lux_kueche_daylight') | float(0)) < effective_water_low }}
-
     # Licht nur einschalten, wenn es wirklich aus ist
     - condition: state
       entity_id: light.kueche_lights
       state: "off"
 
-    # ForceOn darf nicht aktiv sein
-    - condition: state
-      entity_id: input_boolean.force_on_kueche
-      state: "off"
+    # Entweder ForceOn (Dauer-Ein) ist aktiv ODER normale Automatik-Bedingungen sind erfüllt
+    - condition: or
+      conditions:
+        - condition: state
+          entity_id: input_boolean.force_on_kueche
+          state: "on"
+        - condition: and
+          conditions:
+            # Automatik muss an sein
+            - condition: state
+              entity_id: input_boolean.auto_light_kueche
+              state: "on"
+
+            # Präsenz notwendig
+            - condition: state
+              entity_id: binary_sensor.presence_kueche
+              state: "on"
+
+            # Lux muss UNTER effektivem waterLow Threshold sein (250 Lux wenn Cover Daylight Protection aktiv ist, sonst normal waterLow)
+            - condition: template
+              value_template: >-
+                {% set base_water_low = 75 %}
+                {% set prot_entities = states.input_boolean | selectattr('entity_id', 'search', 'cover_daylight_protection_.*' ~ 'kueche') | selectattr('state', 'eq', 'on') | list %}
+                {% set is_daylight_prot = prot_entities | length > 0 %}
+                {% set effective_water_low = 250 if is_daylight_prot else base_water_low %}
+                {{ (states('sensor.lux_kueche_daylight') | float(0)) < effective_water_low }}
 
   action:
     - variables:

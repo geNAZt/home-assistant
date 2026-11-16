@@ -19,6 +19,12 @@
     - platform: time_pattern
       minutes: "/2"
       id: too_bright
+
+    # ForceOn (Dauer-Ein) wurde wieder deaktiviert -> neu prüfen
+    - platform: state
+      entity_id: input_boolean.force_on_bad
+      to: "off"
+      id: force_off
   
   condition:
     # Automatik muss an sein
@@ -33,10 +39,19 @@
   
   action:
     - choose:
-        # Fall 1: Präsenz weg -> immer aus
+        # Fall 1: Präsenz weg (oder ForceOn beendet während niemand da ist) -> immer aus
         - conditions:
-            - condition: trigger
-              id: presence_off
+            - condition: or
+              conditions:
+                - condition: trigger
+                  id: presence_off
+                - condition: and
+                  conditions:
+                    - condition: trigger
+                      id: force_off
+                    - condition: state
+                      entity_id: binary_sensor.presence_bad
+                      state: "off"
           sequence:
             - service: light.turn_off
               target:
@@ -45,7 +60,9 @@
         # Fall 2: Zu hell, aber nur wenn jemand da und Licht wirklich an
         - conditions:
             - condition: trigger
-              id: too_bright
+              id:
+                - too_bright
+                - force_off
             - condition: state
               entity_id: binary_sensor.presence_bad
               state: "on"

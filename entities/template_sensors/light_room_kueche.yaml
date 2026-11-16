@@ -15,11 +15,13 @@ light:
     - action: input_boolean.turn_on
       target:
         entity_id: input_boolean.auto_light_kueche
-  # Ausschalten: Automatik OFF + echte Lampen aus
+  # Ausschalten: Automatik OFF + ForceOn OFF + echte Lampen aus
   turn_off:
     - action: input_boolean.turn_off
       target:
-        entity_id: input_boolean.auto_light_kueche
+        entity_id:
+          - input_boolean.auto_light_kueche
+          - input_boolean.force_on_kueche
     - action: light.turn_off
       target:
         entity_id: light.kueche_lights
