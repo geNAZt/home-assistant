@@ -271,15 +271,12 @@
         {% endif %}
 
         {# --- Decision Logic --- #}
-        {# Floor-aware check for rooms with floor sensors during preheat: if air is temporarily warm, don't block preheat if floor is still cold #}
-        {% set eval_current = [current, floor_temp] | min if (is_preheat_window and preheat_enabled and has_floor_sensor) else current %}
-
         {% if is_heating %}
           {# Bleibe an, solange Temp < Stop UND Delta nicht zu hoch #}
-          {% set needs_heating = (eval_current < stop_th) and delta_ok %}
+          {% set needs_heating = (current < stop_th) and delta_ok %}
         {% else %}
           {# Gehe an, wenn (Kalt ODER Safety) UND Cooldown OK UND Delta OK #}
-          {% set needs_heating = cooldown_ok and ((eval_current < start_th) or must_heat_start) and delta_ok %}
+          {% set needs_heating = cooldown_ok and ((current < start_th) or must_heat_start) and delta_ok %}
         {% endif %}
 
         {# --- Absolute Security temperature check (floor cut-off >= 24.5C) --- #}
