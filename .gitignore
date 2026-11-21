@@ -57,3 +57,5 @@ data_backups/
 debug/
 
 .DS_Store
+# CocoIndex Code (ccc)
+/.cocoindex_code/

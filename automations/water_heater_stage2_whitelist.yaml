@@ -1,31 +1,41 @@
 - id: water_heater_stage2_whitelist
   alias: Water Heater Stage2 Whitelist
-  description: Whitelists stage 2 when stage 1 is enabled for at least 3 minutes and power drops below 50W (compressor finished / 60°C reached).
+  description: >-
+    Whitelists stage 2 (marks 60°C reached) only when stage 1/2 is enabled and the aroSTOR
+    drops to genuine idle standby (0.5–20W, excluding 47–60W fan/lockout/defrost and 0W
+    sensor dropouts) continuously for 3 minutes. Resets at midnight, if stage 1 is turned
+    off mid-compression, or if daytime hot-water draw triggers an internal reheat before 17:00.
   mode: restart
   trigger:
-    - platform: numeric_state
-      entity_id: sensor.water_heating_pump_power
-      below: 50
-      for: "00:01:00"
-    - platform: time_pattern
-      minutes: "/1"
+    - platform: template
+      id: reached_60c
+      value_template: >-
+        {{
+          (
+            is_state('switch.water_heater_pv_switch_powerr_usage_stage_1', 'on')
+            or is_state('switch.water_heater_pv_switch_powerr_usage_stage_2', 'on')
+          )
+          and (states('sensor.water_heating_pump_power') | float(0)) > 0.5
+          and (states('sensor.water_heating_pump_power') | float(0)) < 20
+        }}
+      for: "00:03:00"
     - platform: state
+      id: stage1_off
       entity_id: switch.water_heater_pv_switch_powerr_usage_stage_1
       to: "off"
+    - platform: numeric_state
+      id: daytime_reheat_detected
+      entity_id: sensor.water_heating_pump_power
+      above: 100
+      for: "00:02:00"
     - platform: time
+      id: midnight_reset
       at: "00:00:05"
   action:
     - choose:
         - conditions:
-            - condition: template
-              value_template: "{{ trigger.platform in ['numeric_state', 'time_pattern'] }}"
-            - condition: state
-              entity_id: switch.water_heater_pv_switch_powerr_usage_stage_1
-              state: "on"
-              for: "00:03:00"
-            - condition: numeric_state
-              entity_id: sensor.water_heating_pump_power
-              below: 50
+            - condition: trigger
+              id: reached_60c
             - condition: state
               entity_id: input_boolean.water_heater_stage2_whitelist
               state: "off"
@@ -37,22 +47,36 @@
               data:
                 name: Water Heater Stage2 Whitelist
                 message: >-
-                  Stage 2 whitelisted (60°C reached): stage1=on for >=3m and pump power below 50W
+                  Stage 2 whitelisted (60°C reached): stage active and pump in genuine standby
+                  ({{ states('sensor.water_heating_pump_power') | float(0) | round(1) }}W, 0.5–20W) for >=3m
         - conditions:
-            - condition: template
-              value_template: >-
-                {{
-                  trigger.platform == 'time'
-                  or (
-                    trigger.platform == 'state'
-                    and (states('sensor.water_heating_pump_power') | float(0) >= 50)
-                  )
-                }}
             - condition: state
               entity_id: input_boolean.water_heater_stage2_whitelist
               state: "on"
+            - condition: template
+              value_template: >-
+                {{
+                  trigger.id == 'midnight_reset'
+                  or (
+                    trigger.id == 'stage1_off'
+                    and is_state('switch.water_heater_pv_switch_powerr_usage_stage_2', 'off')
+                    and (states('sensor.water_heating_pump_power') | float(0) >= 100)
+                  )
+                  or (
+                    trigger.id == 'daytime_reheat_detected'
+                    and is_state('switch.water_heater_pv_switch_powerr_usage_stage_1', 'off')
+                    and is_state('switch.water_heater_pv_switch_powerr_usage_stage_2', 'off')
+                    and now().hour < 17
+                  )
+                }}
           sequence:
             - service: input_boolean.turn_off
               target:
                 entity_id: input_boolean.water_heater_stage2_whitelist
+            - service: logbook.log
+              data:
+                name: Water Heater Stage2 Whitelist
+                message: >-
+                  Stage 2 whitelist reset (trigger={{ trigger.id }},
+                  power={{ states('sensor.water_heating_pump_power') | float(0) | round(1) }}W)
       default: []
