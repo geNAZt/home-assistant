@@ -2,8 +2,8 @@ sensor:
 - name: wind_speed_kmh
   unit_of_measurement: "km/h"
   state: >
-    {{ state_attr('weather.home','wind_speed')|float(0) }}
+    {{ state_attr('weather.barsinghausen_hohenb','wind_speed')|float(0) }}
 - name: wind_speed_ms
   unit_of_measurement: "m/s"
   state: >
-    {{ state_attr('weather.home','wind_speed')|float(0) / 3.6 }}
+    {{ state_attr('weather.barsinghausen_hohenb','wind_speed')|float(0) / 3.6 }}

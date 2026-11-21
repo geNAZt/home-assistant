@@ -35,15 +35,21 @@ sensor:
       {% endif %}
     {% endif %}
     
-    {# Robust baseline internal gains via 24h rolling median (filters out cooking/appliance peaks without artificial hard cap) #}
-    {% set median_w = states('sensor.internal_gains_median') | float(none) %}
-    {% set base_int_w = median_w if (median_w is not none and median_w > 0) else (states('sensor.internal_gains_average') | float(500)) %}
+    {# Robust daytime baseline internal gains via 72h daytime-only (05:00-24:00) rolling median #}
+    {% set day_median_w = states('sensor.internal_gains_daytime_median') | float(none) %}
+    {% set fallback_median_w = states('sensor.internal_gains_median') | float(none) %}
+    {% set base_int_w = day_median_w if (day_median_w is not none and day_median_w > 0) else (fallback_median_w if (fallback_median_w is not none and fallback_median_w > 0) else (states('sensor.internal_gains_average') | float(500))) %}
     {% set internal_gains_kwh = (base_int_w * hours_to_bridge) / 1000 %}
     {% set total_gains_kwh = solar_gains_kwh + internal_gains_kwh %}
     {% set needed_offset = (total_energy_loss - total_gains_kwh) / c_real %}
     {{ needed_offset | round(1) }}
   attributes:
     forecast_outside_temp: "{{ states('input_number.outside_temp_forecast_24h_c') }}"
+    forecast_internal_gains_w: >-
+      {% set day_median_w = states('sensor.internal_gains_daytime_median') | float(none) %}
+      {% set fallback_median_w = states('sensor.internal_gains_median') | float(none) %}
+      {% set base_int_w = day_median_w if (day_median_w is not none and day_median_w > 0) else (fallback_median_w if (fallback_median_w is not none and fallback_median_w > 0) else (states('sensor.internal_gains_average') | float(500))) %}
+      {{ base_int_w | round(0) }}
     forecast_loss_kwh: >-
       {% set weights = {'wohnzimmer': 11.9, 'kueche': 19.5, 'flur': 29.0, 'schlafzimmer': 9.1, 'buero_fabian': 6.6, 'buero_merja': 13.9, 'bad': 4.9, 'speisekammer': 5.1} %}
       {% set wns = namespace(w_sum=0.0, w_total=0.0) %}
@@ -59,8 +65,9 @@ sensor:
     forecast_gains_kwh: >-
       {% set sim_solar = states('sensor.solar_gains_forecast') | float(none) %}
       {% set solar = sim_solar if (sim_solar is not none and sim_solar >= 0) else ((states('sensor.solar_gains_average') | float(0) * 19) / 1000) %}
-      {% set median_w = states('sensor.internal_gains_median') | float(none) %}
-      {% set base_int_w = median_w if (median_w is not none and median_w > 0) else (states('sensor.internal_gains_average') | float(500)) %}
+      {% set day_median_w = states('sensor.internal_gains_daytime_median') | float(none) %}
+      {% set fallback_median_w = states('sensor.internal_gains_median') | float(none) %}
+      {% set base_int_w = day_median_w if (day_median_w is not none and day_median_w > 0) else (fallback_median_w if (fallback_median_w is not none and fallback_median_w > 0) else (states('sensor.internal_gains_average') | float(500))) %}
       {% set internal = (base_int_w * 19) / 1000 %}
       {{ (solar + internal) | round(2) }}
 - name: "Heating Preheat Offset Dynamic"

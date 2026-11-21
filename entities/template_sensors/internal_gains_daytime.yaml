@@ -1,0 +1,15 @@
+triggers:
+  - trigger: time_pattern
+    minutes: "/5"
+sensor:
+  - name: "Internal Gains Daytime"
+    unique_id: internal_gains_daytime
+    unit_of_measurement: 'W'
+    device_class: power
+    state_class: measurement
+    state: >
+      {% if now().hour >= 5 and states('sensor.internal_gains_total') | is_number %}
+        {{ states('sensor.internal_gains_total') | float(0) | round(0) }}
+      {% else %}
+        {{ this.state }}
+      {% endif %}

@@ -5,5 +5,5 @@ sensor:
   device_class: temperature
   state_class: measurement
   state: >
-    {% set t = state_attr('weather.home','temperature') %}
+    {% set t = state_attr('weather.barsinghausen_hohenb','temperature') %}
     {{ iif(t is number, t, states('sensor.outside_temperature')) }}
