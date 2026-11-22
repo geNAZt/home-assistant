@@ -48,6 +48,7 @@ sensor:
   unique_id: solar_panel_production_w
   unit_of_measurement: 'W'
   device_class: power
+  state_class: measurement
   icon: mdi:solar-power
   state: >  
     {% if ((states('sensor.pv_dc_power') | float(0)) + (states('sensor.pv_battery1_power') | float(0)) <= 0) %}
