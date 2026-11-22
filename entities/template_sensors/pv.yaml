@@ -2,46 +2,49 @@ sensor:
 - name: "Solar Selfconsumption Ratio"
   unique_id: solar_selfconsumption_ratio
   icon: mdi:percent-outline
+  unit_of_measurement: '%'
   state: >
-    {% if (((states('sensor.solar_panel_to_house_daily')| float(0)) + (states('sensor.solar_battery_in_daily')| float(0)) + (states('sensor.solar_exported_power_daily')| float(0))) <= 0) %}
+    {% set pv_house = states('sensor.solar_panel_to_house_daily') | float(0) %}
+    {% set pv_batt  = states('sensor.solar_panel_to_battery_daily') | float(0) %}
+    {% set pv_exp   = states('sensor.solar_exported_power_daily') | float(0) %}
+    {% set pv_total = pv_house + pv_batt + pv_exp %}
+    {% if pv_total <= 0 %}
       0
     {% else %}
-      {{((((states('sensor.solar_panel_to_house_daily')| float(0)) + (states('sensor.solar_battery_in_daily')| float(0))) / ((states('sensor.solar_panel_to_house_daily')| float(0)) + (states('sensor.solar_battery_in_daily')| float(0)) + (states('sensor.solar_exported_power_daily')| float(0)))) * 100) | round (0) }}
+      {{ ([0.0, [((pv_house + pv_batt) / pv_total) * 100.0, 100.0] | min] | max) | round(0) }}
     {% endif %}
 - name: "Solar Autarkie Ratio"
   unique_id: solar_autarkie_ratio
   icon: mdi:percent-outline
+  unit_of_measurement: '%'
   state: >
-    {% set grid_to_house     = states('sensor.solar_grid_to_house_daily')    | float(0) %}
-    {% set pv_to_house       = states('sensor.solar_panel_to_house_daily')   | float(0) %}
-    {% set batt_to_house     = states('sensor.solar_battery_out_daily')      | float(0) %}
-    {% set batt_pv_charge    = states('sensor.solar_panel_to_battery_daily') | float(0) %}
-    {% set batt_grid_charge  = states('sensor.solar_grid_to_battery_daily')  | float(0) %}
+    {% set grid_to_house    = states('sensor.solar_grid_to_house_daily')    | float(0) %}
+    {% set pv_to_house      = states('sensor.solar_panel_to_house_daily')   | float(0) %}
+    {% set batt_to_house    = states('sensor.solar_battery_out_daily')      | float(0) %}
+    {% set batt_pv_charge   = states('sensor.solar_panel_to_battery_daily') | float(0) %}
+    {% set batt_grid_charge = states('sensor.solar_grid_to_battery_daily')  | float(0) %}
 
-    {# Gesamt-Hauslast #}
+    {# Echte Gesamt-Hauslast ohne Netz-Akkuladung #}
     {% set house_load = pv_to_house + grid_to_house + batt_to_house %}
 
     {% if house_load <= 0 %}
       0
     {% else %}
-      {# Anteil PV-Energie im Akku #}
-      {% set batt_total_charge = batt_pv_charge + batt_grid_charge %}
-      {% if batt_total_charge > 0 %}
+      {# DC-äquivalenter Anteil PV-Energie im Akku (AC->DC Ladewirkungsgrad ~0.94) #}
+      {% set batt_grid_dc = batt_grid_charge * 0.94 %}
+      {% set batt_total_charge = batt_pv_charge + batt_grid_dc %}
+      {% if batt_total_charge > 0.01 %}
         {% set pv_share_in_batt = batt_pv_charge / batt_total_charge %}
+      {% elif batt_grid_charge <= 0.01 and batt_to_house > 0 %}
+        {# Kein Netz-Laden heute -> Entladung stammt aus PV-Vortag #}
+        {% set pv_share_in_batt = 1.0 %}
       {% else %}
-        {% set pv_share_in_batt = 0 %}
+        {% set pv_share_in_batt = 0.0 %}
       {% endif %}
 
-      {# Teil der Akkuentladung, der ursprünglich aus PV stammt #}
       {% set pv_from_batt = batt_to_house * pv_share_in_batt %}
-
-      {# Gesamte PV-basierte Versorgung #}
       {% set pv_based_supply = pv_to_house + pv_from_batt %}
-
-      {% set autarky = (pv_based_supply / house_load) * 100 %}
-
-      {# wieder auf 0–100 % clampen #}
-      {% set autarky = [0, [autarky, 100] | min] | max %}
+      {% set autarky = [0.0, [(pv_based_supply / house_load) * 100.0, 100.0] | min] | max %}
       {{ autarky | round(0) }}
     {% endif %}
 - name: "Solar Panel Production W"
@@ -50,103 +53,120 @@ sensor:
   device_class: power
   state_class: measurement
   icon: mdi:solar-power
-  state: >  
-    {% if ((states('sensor.pv_dc_power') | float(0)) + (states('sensor.pv_battery1_power') | float(0)) <= 0) %}
-      0
-    {% elif (is_state('sensor.pv_dc_power', 'unknown')) or (is_state('sensor.pv_battery1_power', 'unknown'))%}
+  state: >
+    {% if is_state('sensor.pv_dc_power', 'unknown') or is_state('sensor.pv_battery1_power', 'unknown')
+       or is_state('sensor.pv_dc_power', 'unavailable') or is_state('sensor.pv_battery1_power', 'unavailable') %}
       0
     {% else %}
-      {{((states('sensor.pv_dc_power') | float(0)) + (states('sensor.pv_battery1_power') | float(0)))}}
-    {% endif %}      
+      {% set dc_pv = (states('sensor.pv_dc_power') | float(0)) + (states('sensor.pv_battery1_power') | float(0)) %}
+      {{ [dc_pv, 0.0] | max | round(1) }}
+    {% endif %}
 - name: "Solar Panel To House W"
   unique_id: solar_panel_to_house_w
   unit_of_measurement: 'W'
   device_class: power
+  state_class: measurement
   icon: mdi:solar-power
-  state: > 
-    {% if ((states('sensor.pv_battery1_power') | float(0)) >= 0) and ((states('sensor.pv_m1_ac_power') | float(0)) > 0) %}
-      {{(states('sensor.pv_ac_power') | float(0) - states('sensor.pv_m1_ac_power') | float(0))}}
-    {% elif ((states('sensor.pv_battery1_power') | float(0)) >= 0) and ((states('sensor.pv_m1_ac_power') | float(0)) < 0) %}
-      {{states('sensor.pv_ac_power') | float(0)}}
-    {% elif ((states('sensor.pv_battery1_power') | float(0)) < 0)%}
-      {% if ((states('sensor.pv_dc_power') | float(0) + states('sensor.pv_battery1_power') | float(0)) < 0 ) %}
-        0
-      {% else %}
-        {{((states('sensor.pv_dc_power') | float(0)) + (states('sensor.pv_battery1_power') | float(0))) * (states('sensor.solar_inverter_effectiveness') | float(0))}}
-      {% endif %}   
-    {% else %}
+  state: >
+    {% set ac  = states('sensor.pv_ac_power') | float(0) %}
+    {% set m1  = states('sensor.pv_m1_ac_power') | float(0) %}
+    {% set bat = states('sensor.pv_battery1_power') | float(0) %}
+    {% set dc  = states('sensor.pv_dc_power') | float(0) %}
+    {% set grid_export  = [m1, 0.0] | max %}
+    {% set inv_to_house = [[ac, 0.0] | max - grid_export, 0.0] | max %}
+    {% if inv_to_house <= 0 %}
       0
-    {% endif %}  
-
+    {% elif bat >= 0 %}
+      {{ inv_to_house | round(1) }}
+    {% else %}
+      {% set dc_pv  = [dc + bat, 0.0] | max %}
+      {% set dc_bat = -bat %}
+      {% set dc_tot = dc_pv + dc_bat %}
+      {% if dc_tot > 0 %}
+        {{ (inv_to_house * (dc_pv / dc_tot)) | round(1) }}
+      {% else %}
+        0
+      {% endif %}
+    {% endif %}
 - name: "Solar Grid To House W"
   unique_id: solar_grid_to_house_w
   unit_of_measurement: 'W'
   device_class: power
+  state_class: measurement
   icon: mdi:transmission-tower-export
-  state: > 
-    {% if ((states('sensor.pv_m1_ac_power') | float(0)) <= 0) %}
-      {{((states('sensor.pv_m1_ac_power') | float(0)) *-1)}}
-    {% else %}
-      0
-    {% endif %}
+  state: >
+    {% set ac  = states('sensor.pv_ac_power') | float(0) %}
+    {% set m1  = states('sensor.pv_m1_ac_power') | float(0) %}
+    {% set bat = states('sensor.pv_battery1_power') | float(0) %}
+    {% set grid_import = [-m1, 0.0] | max %}
+    {% set grid_to_batt = [-ac, grid_import] | min if (ac < 0 and bat > 0) else 0.0 %}
+    {{ [grid_import - grid_to_batt, 0.0] | max | round(1) }}
 - name: "Solar Panel To Grid W"
   unique_id: solar_panel_to_grid_w
   unit_of_measurement: 'W'
   device_class: power
+  state_class: measurement
   icon: mdi:solar-power
-  state: >  
-    {% if ((states('sensor.pv_m1_ac_power') | float(0)) > 0) %}
-      {{(states('sensor.pv_m1_ac_power') | float(0))}}
-    {% else %}
-      0
-    {% endif %}   
+  state: >
+    {% set m1 = states('sensor.pv_m1_ac_power') | float(0) %}
+    {{ [m1, 0.0] | max | round(1) }}
 - name: "Solar Battery To House W"
   unique_id: solar_battery_to_house_w
   unit_of_measurement: 'W'
   device_class: power
+  state_class: measurement
   icon: mdi:battery-negative
-  state: >   
-    {% if ((states('sensor.pv_battery1_power') | float(0)) < 0) %}
-      {{((states('sensor.pv_battery1_power') | float(0)) * -1) * (states('sensor.solar_inverter_effectiveness')| float(0))}}
-    {% else %}
+  state: >
+    {% set ac  = states('sensor.pv_ac_power') | float(0) %}
+    {% set m1  = states('sensor.pv_m1_ac_power') | float(0) %}
+    {% set bat = states('sensor.pv_battery1_power') | float(0) %}
+    {% set dc  = states('sensor.pv_dc_power') | float(0) %}
+    {% set grid_export  = [m1, 0.0] | max %}
+    {% set inv_to_house = [[ac, 0.0] | max - grid_export, 0.0] | max %}
+    {% if inv_to_house <= 0 or bat >= 0 %}
       0
-    {% endif %} 
+    {% else %}
+      {% set dc_pv  = [dc + bat, 0.0] | max %}
+      {% set dc_bat = -bat %}
+      {% set dc_tot = dc_pv + dc_bat %}
+      {% if dc_tot > 0 %}
+        {{ (inv_to_house * (dc_bat / dc_tot)) | round(1) }}
+      {% else %}
+        {{ inv_to_house | round(1) }}
+      {% endif %}
+    {% endif %}
 - name: "Solar Panel To Battery W"
   unique_id: solar_panel_to_battery_w
   unit_of_measurement: 'W'
   device_class: power
+  state_class: measurement
   icon: mdi:solar-power
   state: >
-    {% set ac_charging = states('sensor.solar_grid_to_battery_w') | float(0) %}
-    {% set battery_power = states('sensor.pv_battery1_power') | float(0) %}
-    {% if battery_power > 0 %}
-      {% if ac_charging > 0 %}
-        {% if ac_charging > battery_power %}
-          0
-        {% else %}
-          {{battery_power - ac_charging}}
-        {% endif %}
-      {% else %}
-        {{battery_power}}
-      {% endif %}
-    {% else %}
+    {% set bat = states('sensor.pv_battery1_power') | float(0) %}
+    {% set dc  = states('sensor.pv_dc_power') | float(0) %}
+    {% set ac  = states('sensor.pv_ac_power') | float(0) %}
+    {% if bat <= 0 %}
       0
+    {% elif ac >= 0 %}
+      {{ bat | round(1) }}
+    {% else %}
+      {% set dc_pv = [dc + bat, 0.0] | max %}
+      {{ [bat, dc_pv] | min | round(1) }}
     {% endif %}
 - name: "Solar Grid To Battery W"
   unique_id: solar_grid_to_battery_w
   unit_of_measurement: 'W'
+  device_class: power
+  state_class: measurement
   icon: mdi:battery-positive
-  state: >    
-    {% set ac_power = states('sensor.pv_ac_power') | float(0) %}
-    {% set battery_power = states('sensor.pv_battery1_power') | float(0) %}
-    {# AC power needs to be negative for charging, battery power needs to be positive for charging #}
-    {% if ac_power < 0 and battery_power > 0 %}
-      {# When ac power is lower than battery power, solar also charges the battery #}
-      {% if battery_power > (ac_power * -1) %}
-        {{(ac_power * -1)}}
-      {% else %}
-        {{battery_power}}
-      {% endif %}
+  state: >
+    {% set ac  = states('sensor.pv_ac_power') | float(0) %}
+    {% set m1  = states('sensor.pv_m1_ac_power') | float(0) %}
+    {% set bat = states('sensor.pv_battery1_power') | float(0) %}
+    {% set grid_import = [-m1, 0.0] | max %}
+    {# Exakte AC-Netzleistung für Akkuladung (inkl. AC/DC-Wandlungsverlusten) #}
+    {% if ac < 0 and bat > 0 %}
+      {{ [-ac, grid_import] | min | round(1) }}
     {% else %}
       0
     {% endif %}
@@ -155,16 +175,17 @@ sensor:
   unit_of_measurement: 'W'
   icon: mdi:battery-positive
   device_class: power
-  state: >           
-    {{(states('sensor.solar_grid_to_battery_w') | float(0)) + (states('sensor.solar_panel_to_battery_w') | float(0))}}  
+  state_class: measurement
+  state: >
+    {{ ((states('sensor.solar_grid_to_battery_w') | float(0)) + (states('sensor.solar_panel_to_battery_w') | float(0))) | round(1) }}
 - name: "Solar House Consumption W"
   unique_id: solar_house_consumption_w
   unit_of_measurement: 'W'
   device_class: power
   state_class: measurement
   icon: mdi:home
-  state: >             
-    {{(states('sensor.solar_panel_to_house_w') | float(0)) + (states('sensor.solar_battery_to_house_w') | float(0)) + (states('sensor.solar_grid_to_house_w') | float(0))}}  
+  state: >
+    {{ ((states('sensor.solar_panel_to_house_w') | float(0)) + (states('sensor.solar_battery_to_house_w') | float(0)) + (states('sensor.solar_grid_to_house_w') | float(0))) | round(1) }}
 - name: "Solar Grid Power W"
   unique_id: solar_grid_power_w
   device_class: power
@@ -176,42 +197,36 @@ sensor:
 - name: "Solar Imported Power W"
   unique_id: solar_imported_power_w
   device_class: power
+  state_class: measurement
   unit_of_measurement: 'W'
   icon: mdi:transmission-tower-export
-  state: >          
-    {% if ((states('sensor.pv_m1_ac_power') | float(0)) <= 0) %}
-      {{((states('sensor.pv_m1_ac_power') | float(0)) *-1)}}
-    {% else %}
-      0
-    {% endif %}       
+  state: >
+    {% set m1 = states('sensor.pv_m1_ac_power') | float(0) %}
+    {{ [-m1, 0.0] | max | round(1) }}
 - name: "Solar Exported Power W"
   unique_id: solar_exported_power_w
   device_class: power
+  state_class: measurement
   unit_of_measurement: 'W'
   icon: mdi:transmission-tower-import
-  state: >            
-    {% if ((states('sensor.pv_m1_ac_power') | float(0)) > 0) %}
-      {{(states('sensor.pv_m1_ac_power') | float(0))}}
-    {% else %}
-      0
-    {% endif %}        
+  state: >
+    {% set m1 = states('sensor.pv_m1_ac_power') | float(0) %}
+    {{ [m1, 0.0] | max | round(1) }}
 - name: "Solar Lifetime Production"
   unique_id: solar_lifetime_production
   unit_of_measurement: 'MWh'
   icon: mdi:solar-power
-  state: >    
-    {{(((states('sensor.pv_ac_energy_kwh') | float(0)) / 1000) | round (2))}}
+  state: >
+    {{ (((states('sensor.pv_ac_energy_kwh') | float(0)) / 1000) | round(2)) }}
 
 - name: "Solar Battery Charge"
   unique_id: solar_battery_charge
-  icon: mdi:percent-outline
-  unit_of_measurement: '%'
+  icon: mdi:battery-charging-90
   state: >
-    {{ 0.95 }}
+    {{ 0.91 }}
 - name: "Solar Inverter Effectiveness"
   unique_id: solar_inverter_effectiveness
-  icon: mdi:percent-outline
-  unit_of_measurement: '%'
+  icon: mdi:flash-outline
   state: >
     {% set dc = states('sensor.pv_dc_power') | float(0) %}
     {% set ac = states('sensor.pv_ac_power') | float(0) %}
@@ -223,7 +238,7 @@ sensor:
     {% endif %}
 - name: "Solar Battery Effectiveness"
   unique_id: solar_battery_effectiveness
-  icon: mdi:percent-outline
-  unit_of_measurement: '%'
+  icon: mdi:battery-sync-outline
   state: >
-    {{ 0.95 }}
+    {# Real gemessener AC-zu-AC Gesamtwirkungsgrad (SolarEdge + BYD HVS inkl. Schwachlast-Entladung): ~82% #}
+    {{ 0.82 }}

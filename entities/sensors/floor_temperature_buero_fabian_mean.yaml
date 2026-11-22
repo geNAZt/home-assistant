@@ -1,0 +1,5 @@
+platform: group
+type: mean
+name: Floor Temperature buero_fabian Mean
+entities:
+- sensor.temperature_buero_fabian_floor_1

@@ -3,6 +3,5 @@ min: 0
 max: 1
 step: 0.01
 initial: 0.85
-unit_of_measurement: "%"
-icon: mdi:percent
+icon: mdi:air-filter
 mode: box

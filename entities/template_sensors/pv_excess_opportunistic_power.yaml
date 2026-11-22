@@ -9,10 +9,12 @@ sensor:
     {% set water_stage2_w = (states('sensor.water_heating_pump_power') | float(0))
        if is_state('switch.water_heater_pv_switch_powerr_usage_stage_2', 'on')
        else 0.0 %}
-    {% set pv_active = (now().hour >= 5) and ((states('sensor.solar_panel_production_w') | float(0)) > 50) %}
+    {# Tagsüber (05:00-24:00) ist jedes Heizen mit Offset (>0.01 K) entweder PV-Überschuss oder PV-Shifting
+       und darf NICHT in die Pflicht-Hauslast für die nächtliche AC-Akkuladung einfließen. #}
+    {% set daytime_offset_window = (now().hour >= 5) %}
     {% set rooms = ['wohnzimmer', 'kueche', 'flur', 'schlafzimmer', 'buero_merja', 'buero_fabian', 'speisekammer', 'bad'] %}
     {% set ns = namespace(ir_pv_w=0.0) %}
-    {% if pv_active %}
+    {% if daytime_offset_window %}
       {% for room in rooms %}
         {% if (states('input_number.heating_offset_' ~ room) | float(0)) > 0.01 %}
           {% set ns.ir_pv_w = ns.ir_pv_w + (states('sensor.heating_power_' ~ room) | float(0)) %}
@@ -26,10 +28,10 @@ sensor:
          if is_state('switch.water_heater_pv_switch_powerr_usage_stage_2', 'on')
          else 0.0) | round(1) }}
     ir_pv_excess_w: >
-      {% set pv_active = (now().hour >= 5) and ((states('sensor.solar_panel_production_w') | float(0)) > 50) %}
+      {% set daytime_offset_window = (now().hour >= 5) %}
       {% set rooms = ['wohnzimmer', 'kueche', 'flur', 'schlafzimmer', 'buero_merja', 'buero_fabian', 'speisekammer', 'bad'] %}
       {% set ns = namespace(ir_pv_w=0.0) %}
-      {% if pv_active %}
+      {% if daytime_offset_window %}
         {% for room in rooms %}
           {% if (states('input_number.heating_offset_' ~ room) | float(0)) > 0.01 %}
             {% set ns.ir_pv_w = ns.ir_pv_w + (states('sensor.heating_power_' ~ room) | float(0)) %}
@@ -38,10 +40,10 @@ sensor:
       {% endif %}
       {{ [ns.ir_pv_w, 0.0] | max | round(1) }}
     active_ir_pv_rooms: >
-      {% set pv_active = (now().hour >= 5) and ((states('sensor.solar_panel_production_w') | float(0)) > 50) %}
+      {% set daytime_offset_window = (now().hour >= 5) %}
       {% set rooms = ['wohnzimmer', 'kueche', 'flur', 'schlafzimmer', 'buero_merja', 'buero_fabian', 'speisekammer', 'bad'] %}
       {% set ns = namespace(active=[]) %}
-      {% if pv_active %}
+      {% if daytime_offset_window %}
         {% for room in rooms %}
           {% if (states('input_number.heating_offset_' ~ room) | float(0)) > 0.01 and (states('sensor.heating_power_' ~ room) | float(0)) > 0 %}
             {% set ns.active = ns.active + [room] %}

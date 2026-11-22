@@ -2,6 +2,7 @@ platform: statistics
 name: "Heating Preheat Offset 24h Max"
 entity_id: sensor.heating_preheat_offset_5min_average
 state_characteristic: value_max
+keep_last_sample: true
 max_age:
   hours: 24
 precision: 3

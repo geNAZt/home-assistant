@@ -1,30 +1,93 @@
 - id: heater_schlafzimmer_max_current_ma_update
-  alias: "Update schlafzimmer Max Current record"
+  alias: "Update schlafzimmer Max Current & Fault Detection"
   mode: single
   trigger:
     - platform: state
+      id: current_reading
       entity_id:
         - sensor.current_l1_schlafzimmer_current
         - sensor.current_l2_schlafzimmer_current
         - sensor.current_l3_schlafzimmer_current
-      for: "00:00:10"
-  # Only act on real numbers (ignore unavailable/unknown and transient spikes > 16A)
-  condition:
-    - condition: template
-      value_template: >-
-        {% set val = trigger.to_state.state | float(0) %}
-        {{ val > 0 and val <= 16000 }}
+      for: "00:00:15"
+    - platform: state
+      id: switch_turned_on
+      entity_id: switch.heating_schlafzimmer
+      to: "on"
+      for: "00:01:30"
+    - platform: time_pattern
+      id: periodic_fault_check
+      minutes: "/5"
+  variables:
+    switch_on: "{{ is_state('switch.heating_schlafzimmer', 'on') }}"
+    sw_obj: "{{ states.switch['heating_schlafzimmer'] if states.switch['heating_schlafzimmer'] is defined else none }}"
+    on_seconds: >-
+      {% if switch_on and sw_obj is not none and sw_obj.last_changed is not none %}
+        {{ (as_timestamp(now()) - as_timestamp(sw_obj.last_changed)) | float(0) }}
+      {% else %}
+        0.0
+      {% endif %}
+    phase_sensor: "sensor.current_l1_schlafzimmer_current"
+    raw_phase_state: "{{ states(phase_sensor) }}"
+    phase_sensor_valid: "{{ raw_phase_state not in ['unknown', 'unavailable', 'none', 'None', ''] }}"
+    current_ma: >-
+      {% set vals = [
+        states('sensor.current_l1_schlafzimmer_current') | float(-1),
+        states('sensor.current_l2_schlafzimmer_current') | float(-1),
+        states('sensor.current_l3_schlafzimmer_current') | float(-1)
+      ] | select('ge', 0) | list %}
+      {{ (vals | max) if vals | count > 0 else -1 }}
+    old_rated_a: "{{ states('input_number.heater_schlafzimmer_rated_a') | float(0) }}"
   action:
-    - variables:
-        new_val: "{{ trigger.to_state.state | float(0) }}"
-        old_max: "{{ states('input_number.heater_schlafzimmer_rated_a') | float(0) * 1000 }}"
     - choose:
+        # 1. Active current measurement (self-heals from 0 A after repair & tracks real steady-state Amps)
         - conditions:
             - condition: template
-              value_template: "{{ new_val > old_max }}"
+              value_template: >-
+                {{
+                  switch_on
+                  and current_ma >= 200
+                  and current_ma <= 16000
+                  and (((current_ma / 1000.0) - old_rated_a) | abs >= 0.15)
+                }}
           sequence:
             - service: input_number.set_value
               target:
                 entity_id: input_number.heater_schlafzimmer_rated_a
               data:
-                value: "{{ (new_val / 1000) | round(2) }}"
+                value: "{{ (current_ma / 1000.0) | round(2) }}"
+            - service: persistent_notification.dismiss
+              data:
+                notification_id: "heater_fault_schlafzimmer"
+
+        # 2. Fault / open-circuit detection: switch ON >= 90s, KNX sensor valid, but < 100 mA drawn -> set rated_a to 0
+        - conditions:
+            - condition: template
+              value_template: >-
+                {{
+                  switch_on
+                  and on_seconds >= 90
+                  and phase_sensor_valid
+                  and current_ma >= 0
+                  and current_ma < 100
+                  and old_rated_a > 0
+                }}
+          sequence:
+            - service: input_number.set_value
+              target:
+                entity_id: input_number.heater_schlafzimmer_rated_a
+              data:
+                value: 0
+            - service: logbook.log
+              data:
+                name: "Heizung Defekt-Erkennung"
+                message: >-
+                  Heizkreis schlafzimmer zieht trotz eingeschaltetem Schalter (seit {{ (on_seconds / 60) | round(1) }} Min)
+                  nur {{ current_ma | round(0) }} mA. input_number.heater_schlafzimmer_rated_a wurde von {{ old_rated_a }} A auf 0 A gesetzt.
+            - service: persistent_notification.create
+              data:
+                notification_id: "heater_fault_schlafzimmer"
+                title: "Heizkreis Defekt erkannt: schlafzimmer"
+                message: >-
+                  `switch.heating_schlafzimmer` ist eingeschaltet, aber `{{ phase_sensor }}` meldet {{ current_ma | round(0) }} mA.
+                  Der Nennstrom (`input_number.heater_schlafzimmer_rated_a`) wurde automatisch auf 0 A gesetzt, damit Phase L1
+                  und Wärmebilanz nicht verfälscht werden. Sobald wieder Strom fließt, kalibriert sich der Wert automatisch neu.

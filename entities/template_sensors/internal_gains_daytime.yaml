@@ -1,6 +1,8 @@
 triggers:
   - trigger: time_pattern
     minutes: "/5"
+  - trigger: homeassistant
+    event: start
 sensor:
   - name: "Internal Gains Daytime"
     unique_id: internal_gains_daytime
@@ -8,8 +10,11 @@ sensor:
     device_class: power
     state_class: measurement
     state: >
+      {% set prev = this.state if (this is defined and this.state not in ['unknown', 'unavailable', 'none', None, '']) else none %}
       {% if now().hour >= 5 and states('sensor.internal_gains_total') | is_number %}
         {{ states('sensor.internal_gains_total') | float(0) | round(0) }}
+      {% elif prev is not none %}
+        {{ prev }}
       {% else %}
-        {{ this.state }}
+        {{ states('sensor.internal_gains_total') | float(500) | round(0) }}
       {% endif %}

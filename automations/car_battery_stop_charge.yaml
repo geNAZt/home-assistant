@@ -1,30 +1,35 @@
 - id: car_battery_stop_charge
   alias: Car Battery Stop Charge
-  description: "Stop charge when car battery is full"
+  description: "Stop night grid charge when car battery reaches 40% (unless manual override) or at end of NT window"
   mode: single
   triggers:
     - trigger: numeric_state
+      id: soc_reached
       entity_id:
         - sensor.fiat_hexe_extrapolated_battery
       above: 40
     - trigger: time
+      id: nt_end
       at: "04:59:50"
-      weekday:
-        - mon
-        - tue
-        - wed
-        - thu
-        - fri
-        - sat
-        - sun
-  conditions: []
+  conditions:
+    - condition: template
+      value_template: >-
+        {{ trigger.id == 'nt_end' or is_state('input_boolean.car_charge_override', 'off') }}
   actions:
-    - action: select.select_option
-      data:
-        option: "0"
-      target:
-        entity_id: select.goe_288025_frc
-    - action: input_boolean.turn_off
-      data: {}
-      target:
-        entity_id: input_boolean.car_charge_override
+    - if:
+        - condition: template
+          value_template: "{{ not is_state('select.goe_288025_frc', '0') }}"
+      then:
+        - action: select.select_option
+          data:
+            option: "0"
+          target:
+            entity_id: select.goe_288025_frc
+    - if:
+        - condition: template
+          value_template: "{{ trigger.id == 'nt_end' and is_state('input_boolean.car_charge_override', 'on') }}"
+      then:
+        - action: input_boolean.turn_off
+          data: {}
+          target:
+            entity_id: input_boolean.car_charge_override

@@ -1,0 +1,43 @@
+- id: boiler_trinkwasser_night_schedule
+  alias: "Trinkwasser-Boiler: Nachtabschaltung (23:00–04:45 NT-Aufheizung)"
+  description: >-
+    Schaltet den Kochendwasser-Boiler nachts um 23:00 Uhr aus (~40 W Dauerverlust gespart)
+    und um 04:45 Uhr (noch im günstigen Octopus-Go-NT-Fenster vor 05:00 Uhr) wieder ein,
+    damit er bis 06:00 Uhr günstig aufgeheizt bereitsteht (sofern kein Urlaubsmodus aktiv ist).
+  mode: single
+  triggers:
+    - trigger: time
+      id: night_off
+      at: "23:00:00"
+    - trigger: time
+      id: morning_nt_reheat
+      at: "04:45:00"
+    - trigger: time
+      id: morning_ensure_on
+      at: "06:00:00"
+    - trigger: homeassistant
+      id: ha_start
+      event: start
+  actions:
+    - variables:
+        in_vacation: >-
+          {{ is_state('binary_sensor.vacation_mode_water_heater', 'on')
+             or is_state('binary_sensor.vacation_mode', 'on') }}
+        now_hm: "{{ now().hour * 60 + now().minute }}"
+        # Nachtfenster: 23:00 (1380) bis 04:45 (285)
+        should_be_off: "{{ in_vacation or now_hm >= 1380 or now_hm < 285 }}"
+    - choose:
+        - conditions:
+            - condition: template
+              value_template: "{{ should_be_off and is_state('switch.boiler_trinkwasser', 'on') }}"
+          sequence:
+            - action: switch.turn_off
+              target:
+                entity_id: switch.boiler_trinkwasser
+        - conditions:
+            - condition: template
+              value_template: "{{ (not should_be_off) and is_state('switch.boiler_trinkwasser', 'off') }}"
+          sequence:
+            - action: switch.turn_on
+              target:
+                entity_id: switch.boiler_trinkwasser

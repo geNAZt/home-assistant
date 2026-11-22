@@ -7,8 +7,12 @@ sensor:
     unit_of_measurement: 'Wh'
     device_class: energy
     state: >
-      {% set c_wh_k = states('input_number.building_heat_capacity') | float(7.1) * 1000 %}
-      {% set t_in = states('sensor.inside_temp_mean_now') | float(none) %}
+      {% set c_tot_wh_k = (states('input_number.building_heat_capacity') | float(7.1)) * 1000.0 %}
+      {% set c_air_wh_k = c_tot_wh_k * 0.10 %}
+      {% set c_mass_wh_k = c_tot_wh_k * 0.90 %}
+      {% set t_air = states('sensor.inside_temp_mean_now') | float(none) %}
+      {% set t_mass_raw = states('sensor.thermal_2r2c_mass_temperature') | float(none) %}
+      {% set t_mass = t_mass_raw if t_mass_raw is not none else t_air %}
       {% set weights = {
         'wohnzimmer': 11.9,
         'kueche': 19.5,
@@ -29,25 +33,44 @@ sensor:
       {% endfor %}
       {% set t_sp = (ns.w_sum / ns.w_total) if ns.w_total > 0 else none %}
 
-      {% if t_in is not none and t_sp is not none %}
-        {% if (t_in - t_sp) | abs <= 0.05 %}
+      {% if t_air is not none and t_mass is not none and t_sp is not none %}
+        {% set e_2r2c_wh = c_air_wh_k * (t_air - t_sp) + c_mass_wh_k * (t_mass - t_sp) %}
+        {% if e_2r2c_wh | abs <= 35.0 %}
           0.0
         {% else %}
-          {{ ((t_in - t_sp) * c_wh_k) | round(2) }}
+          {{ e_2r2c_wh | round(1) }}
         {% endif %}
       {% else %}
         0.0
       {% endif %}
     attributes:
+      model: "2R2C (C_air=10%, C_mass=90%, Laminat H_ma=730 W/K)"
       current_net_w: "{{ states('sensor.heating_net_balance') }}"
+      t_air_c: "{{ states('sensor.inside_temp_mean_now') | float(0) | round(2) }}"
+      t_mass_c: "{{ states('sensor.thermal_2r2c_mass_temperature') | float(0) | round(3) }}"
+      q_mass_to_air_w: "{{ state_attr('sensor.thermal_2r2c_mass_temperature', 'q_mass_to_air_w') | float(0) | round(1) }}"
       expected_temp_change_deg_per_h: >
-        {% set net_w = states('sensor.heating_net_balance') | float(0) %}
-        {% set c_wh_k = states('input_number.building_heat_capacity') | float(7.1) * 1000 %}
-        {{ (net_w / c_wh_k) | round(4) if c_wh_k > 0 else 0.0 }}
+        {# Im 2R2C-Modell bestimmt dT_air/dt sich aus der Luftknoten-Bilanz (Konvektivgewinne + Estrich-Nachschub - Außenluftverlust) / C_air #}
+        {% set c_air_wh_k = (states('input_number.building_heat_capacity') | float(7.1)) * 100.0 %}
+        {% set t_air = states('sensor.inside_temp_mean_now') | float(21.5) %}
+        {% set t_out = states('sensor.outside_temperature') | float(8.0) %}
+        {% set h_above_w_k = (state_attr('sensor.h_kw_per_k_effective', 'h_above_air_kw_per_k') | float(0.070)) * 1000.0 %}
+        {% set q_ma = state_attr('sensor.thermal_2r2c_mass_temperature', 'q_mass_to_air_w') | float(0) %}
+        {% set q_air_in = 0.80 * (states('sensor.internal_gains_total') | float(0)) + 0.45 * (states('sensor.solar_gains') | float(0)) + q_ma %}
+        {% set q_air_out = h_above_w_k * [t_air - t_out, 0.0] | max %}
+        {{ ((q_air_in - q_air_out) / c_air_wh_k) | round(3) if c_air_wh_k > 0 else 0.0 }}
+      expected_mass_change_deg_per_h: >
+        {% set c_mass_wh_k = (states('input_number.building_heat_capacity') | float(7.1)) * 900.0 %}
+        {% set q_in_m = (states('sensor.heating_power') | float(0)) + 0.55 * (states('sensor.solar_gains') | float(0)) + 0.20 * (states('sensor.internal_gains_total') | float(0)) %}
+        {% set q_ma = state_attr('sensor.thermal_2r2c_mass_temperature', 'q_mass_to_air_w') | float(0) %}
+        {% set q_mg = state_attr('sensor.thermal_2r2c_mass_temperature', 'q_mass_to_ground_w') | float(0) %}
+        {{ ((q_in_m - q_ma - q_mg) / c_mass_wh_k) | round(4) if c_mass_wh_k > 0 else 0.0 }}
       estimated_bridge_autonomy_hours: >
-        {% set losses_w = (states('sensor.h_kw_per_k_effective') | float(0) * 1000 * states('sensor.deltaT') | float(0)) %}
-        {% set stored_wh = states('sensor.heating_energy_debt_tracker') | float(0) %}
-        {{ (stored_wh / losses_w) | round(1) if losses_w > 0 and stored_wh > 0 else 0.0 }}
+        {% set losses_w = (states('sensor.h_kw_per_k_effective') | float(0) * 1000.0 * states('sensor.deltaT') | float(0)) %}
+        {% set gains_w = (states('sensor.internal_gains_daytime_median') | float(450)) %}
+        {% set net_drain_w = [losses_w - gains_w, 50.0] | max %}
+        {% set stored_wh = this.state | float(0) if (this is defined and this.state not in ['unknown', 'unavailable', 'none', None, '']) else 0.0 %}
+        {{ (stored_wh / net_drain_w) | round(1) if stored_wh > 0 else 0.0 }}
       building_heat_capacity_kwh_k: "{{ states('input_number.building_heat_capacity') }}"
       mean_setpoint: >
         {% set weights = {
@@ -73,9 +96,9 @@ sensor:
       status: >
         {% set net = states('sensor.heating_net_balance') | float(0) %}
         {% if net > 50 %}
-          Konto wird geladen (Heizung/Sonne > Verlust)
+          2R2C-Speicher lädt (Gewinne/Heizung > Verlust)
         {% elif net < -50 %}
-          Konto sinkt (Verlust > Gewinne)
+          2R2C-Speicher entlädt (Verlust > Gewinne)
         {% else %}
           Energetisches Gleichgewicht
         {% endif %}

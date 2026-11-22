@@ -5,100 +5,100 @@ sensor:
   device_class: power
   state_class: measurement
   state: >
-    {% set rad = states('input_number.solar_irradiance') | float(0) %}
+    {% set rad_poa = states('input_number.solar_irradiance') | float(0) %}
+    {% set dwd_ghi = states('sensor.barsinghausen_hohenb_sonneneinstrahlung') | float(-1) %}
+    {% set t_out = states('sensor.outside_temperature') | float(10) %}
     {% set ele = state_attr('sun.sun', 'elevation') | float(0) %}
     {% set azi = state_attr('sun.sun', 'azimuth') | float(0) %}
-    {% set cloud = (states('sensor.barsinghausen_hohenb_bewolkungsgrad') | float(0)) / 100 %}
-    {% set ns = namespace(total=0) %}
+    {% set cloud = [ [(states('sensor.barsinghausen_hohenb_bewolkungsgrad') | float(50)) / 100.0, 0.0] | max, 1.0] | min %}
+    {% set ns = namespace(total=0.0) %}
+
+    {% if ele > 0 %}
+      {% set deg2rad = 0.0174532925 %}
+      {% set sin_ele = (ele * deg2rad) | sin %}
+      {% set cos_ele = (ele * deg2rad) | cos %}
+      {# Dach-POA (Peak-Modul ~25° Neigung + Zelltemperatur-Effekt) sauber auf horizontale Globalstrahlung (GHI) umrechnen #}
+      {% set t_cell = t_out + 0.025 * rad_poa %}
+      {% set temp_corr = [ [1.0 + 0.0035 * (25.0 - t_cell), 0.85] | max, 1.15] | min %}
+      {% set sin_poa = (([ele + 25.0, 88.0] | min) * deg2rad) | sin %}
+      {% set s_cloud = 0.15 + 0.85 * cloud %}
+      {% set poa_to_ghi = (1.0 - s_cloud) * ([sin_ele, 0.05] | max / [sin_poa, 0.15] | max) + s_cloud * 0.95 %}
+      {% set ghi_clear_max = 1080.0 * ([sin_ele, 0.0] | max ** 1.15) %}
+      {% if rad_poa > 0 %}
+        {% set ghi = [(rad_poa / temp_corr) * poa_to_ghi, ghi_clear_max] | min %}
+      {% elif dwd_ghi >= 0 %}
+        {% set ghi = [dwd_ghi, ghi_clear_max] | min %}
+      {% else %}
+        {% set ghi = 0.0 %}
+      {% endif %}
 
 
-      
-    {% if ele > 0 and ((azi - 270 + 180) % 360 - 180) | abs < 90 %}
-      {% set pos = (state_attr('cover.rollade_kueche_rechts', 'current_position') | float(100) / 100) %}
-      
-      {# Manuelle Umrechnung: Grad * 0.0174532925 #}
-      {% set cos_factor = ((azi - 270) * 0.0174532925) | cos | abs %}
+      {% set pos = [ [state_attr('cover.rollade_kueche_rechts', 'current_position') | float(100) / 100.0, 0.0] | max, 1.0] | min %}
+      {% set s_factor = 0.15 + (1.0 - 0.15) * cloud %}
+      {% set dhi = ghi * s_factor %}
+      {% set dni = [(ghi * (1.0 - s_factor)) / ([sin_ele, 0.08] | max), 950.0] | min %}
+      {% set g_diff = 0.53 * 0.87 %}
       {% set rel_azi = ((azi - 270 + 180) % 360 - 180) %}
-      
-      {# Glazingeigenschaften mit Winkelabhängigkeit (Karlsson & Roos Modell für Dreifachverglasung) #}
-      {% set cos_aoi = ((ele * 0.0174532925) | cos) * cos_factor %}
-      {% set term = 1.0 - cos_aoi %}
-      {% set g_modifier = 1.0 - term * term * term %}
-      {% set g_dir = 0.53 * g_modifier %}
-      {% set g_diff = 0.53 * 0.87 %}
-      
-      {# Bewölkungsabhängiger Diffusanteil #}
-      {% set s_factor = 0.15 + (1.0 - 0.15) * cloud %}
-      
-      {% set df_bottom = 1.0 %}
-      {% set df_top = 1.0 %}
-      {% set df_side = 1.0 %}
       {% set diffuse_factor = 1.0 %}
-      {% set tan_prof = ((ele * 0.0174532925) | tan) / ([cos_factor, 0.05] | max) %}
-          {# Continuous overhang shading from top (e.g. Vordach / roof) #}
-          {% set shadow_h = 2.9 - (4.5 * tan_prof) %}
-          {% set win_top = 1.94 %}
-          {% set win_bottom = 0.0 %}
-          {% set sun_h = [0, [shadow_h, win_top]|min - win_bottom]|max %}
-          {% set cur_df_top = sun_h / 1.94 %}
-          {% set df_top = [df_top, cur_df_top] | min %}
-          {% set diffuse_factor = [diffuse_factor, 0.3 + 0.7 * cur_df_top] | min %}
+      {% set direct_w_m2 = 0.0 %}
 
-      {# Direct sun portion passing through open shutter slats #}
-      {% set sun_part = [0, [pos, df_top]|min + df_bottom - 1]|max * df_side %}
-      
-      {# Gesamtleistung inkl. Direkt (cos_aoi), Diffus (Sky View Factor 0.5) und Bodenreflexionsanteil #}
-      {% set direct_part_gain = cos_aoi * sun_part * (1.0 - s_factor) * g_dir %}
-      {% set diffuse_part_gain = 0.5 * pos * s_factor * g_diff * diffuse_factor %}
-      {% set ground_ref_gain = 0.10 * pos * g_diff * diffuse_factor %}
-      
-      {% set total_gain_factor = direct_part_gain + diffuse_part_gain + ground_ref_gain %}
-      {% set ns.total = ns.total + (2.91 * rad * total_gain_factor) %}
-    {% endif %}
+      {% if (rel_azi | abs) < 90 %}
+        {% set cos_factor = ((azi - 270) * deg2rad) | cos | abs %}
+        {% set cos_aoi = cos_ele * cos_factor %}
+        {% set term = 1.0 - cos_aoi %}
+        {% set g_dir = 0.53 * (1.0 - term * term * term) %}
+        {% set df_bottom = 1.0 %}
+        {% set df_top = 1.0 %}
+        {% set df_side = 1.0 %}
+        {% set tan_prof = ((ele * deg2rad) | tan) / ([cos_factor, 0.05] | max) %}
+            {% set shadow_h = 2.9 - (4.5 * tan_prof) %}
+            {% set win_top = 1.94 %}
+            {% set win_bottom = 0.0 %}
+            {% set sun_h = [0, [shadow_h, win_top]|min - win_bottom]|max %}
+            {% set cur_df_top = sun_h / 1.94 %}
+            {% set df_top = [df_top, cur_df_top] | min %}
+            {% set diffuse_factor = [diffuse_factor, 0.3 + 0.7 * cur_df_top] | min %}
 
+        {% set sun_part = [0, [pos, df_top]|min + df_bottom - 1]|max * df_side %}
+        {% set direct_w_m2 = dni * cos_aoi * sun_part * g_dir %}
+      {% endif %}
 
-      
-    {% if ele > 0 and ((azi - 180 + 180) % 360 - 180) | abs < 90 %}
-      {% set pos = (state_attr('cover.rollade_kueche_links', 'current_position') | float(100) / 100) %}
-      
-      {# Manuelle Umrechnung: Grad * 0.0174532925 #}
-      {% set cos_factor = ((azi - 180) * 0.0174532925) | cos | abs %}
+      {% set diffuse_w_m2 = 0.5 * dhi * pos * g_diff * diffuse_factor %}
+      {% set ground_w_m2 = 0.10 * ghi * pos * g_diff * diffuse_factor %}
+      {% set ns.total = ns.total + (2.91 * (direct_w_m2 + diffuse_w_m2 + ground_w_m2)) %}
+
+      {% set pos = [ [state_attr('cover.rollade_kueche_links', 'current_position') | float(100) / 100.0, 0.0] | max, 1.0] | min %}
+      {% set s_factor = 0.15 + (1.0 - 0.15) * cloud %}
+      {% set dhi = ghi * s_factor %}
+      {% set dni = [(ghi * (1.0 - s_factor)) / ([sin_ele, 0.08] | max), 950.0] | min %}
+      {% set g_diff = 0.53 * 0.87 %}
       {% set rel_azi = ((azi - 180 + 180) % 360 - 180) %}
-      
-      {# Glazingeigenschaften mit Winkelabhängigkeit (Karlsson & Roos Modell für Dreifachverglasung) #}
-      {% set cos_aoi = ((ele * 0.0174532925) | cos) * cos_factor %}
-      {% set term = 1.0 - cos_aoi %}
-      {% set g_modifier = 1.0 - term * term * term %}
-      {% set g_dir = 0.53 * g_modifier %}
-      {% set g_diff = 0.53 * 0.87 %}
-      
-      {# Bewölkungsabhängiger Diffusanteil #}
-      {% set s_factor = 0.15 + (1.0 - 0.15) * cloud %}
-      
-      {% set df_bottom = 1.0 %}
-      {% set df_top = 1.0 %}
-      {% set df_side = 1.0 %}
       {% set diffuse_factor = 1.0 %}
-      {% set tan_prof = ((ele * 0.0174532925) | tan) / ([cos_factor, 0.05] | max) %}
-          {# Continuous shading from bottom #}
-          {% set shadow_h = 5.0 - (4.2 * tan_prof) %}
-          {% set win_top = 2.09 %}
-          {% set win_bottom = 0.0 %}
-          {% set sun_h = [0, win_top - [win_bottom, shadow_h]|max]|max %}
-          {% set df_bottom = [df_bottom, sun_h / 2.09] | min %}
+      {% set direct_w_m2 = 0.0 %}
 
-      {# Direct sun portion passing through open shutter slats #}
-      {% set sun_part = [0, [pos, df_top]|min + df_bottom - 1]|max * df_side %}
-      
-      {# Gesamtleistung inkl. Direkt (cos_aoi), Diffus (Sky View Factor 0.5) und Bodenreflexionsanteil #}
-      {% set direct_part_gain = cos_aoi * sun_part * (1.0 - s_factor) * g_dir %}
-      {% set diffuse_part_gain = 0.5 * pos * s_factor * g_diff * diffuse_factor %}
-      {% set ground_ref_gain = 0.10 * pos * g_diff * diffuse_factor %}
-      
-      {% set total_gain_factor = direct_part_gain + diffuse_part_gain + ground_ref_gain %}
-      {% set ns.total = ns.total + (3.2186 * rad * total_gain_factor) %}
+      {% if (rel_azi | abs) < 90 %}
+        {% set cos_factor = ((azi - 180) * deg2rad) | cos | abs %}
+        {% set cos_aoi = cos_ele * cos_factor %}
+        {% set term = 1.0 - cos_aoi %}
+        {% set g_dir = 0.53 * (1.0 - term * term * term) %}
+        {% set df_bottom = 1.0 %}
+        {% set df_top = 1.0 %}
+        {% set df_side = 1.0 %}
+        {% set tan_prof = ((ele * deg2rad) | tan) / ([cos_factor, 0.05] | max) %}
+            {% set shadow_h = 5.0 - (4.2 * tan_prof) %}
+            {% set win_top = 2.09 %}
+            {% set win_bottom = 0.0 %}
+            {% set sun_h = [0, win_top - [win_bottom, shadow_h]|max]|max %}
+            {% set df_bottom = [df_bottom, sun_h / 2.09 ] | min %}
+
+        {% set sun_part = [0, [pos, df_top]|min + df_bottom - 1]|max * df_side %}
+        {% set direct_w_m2 = dni * cos_aoi * sun_part * g_dir %}
+      {% endif %}
+
+      {% set diffuse_w_m2 = 0.5 * dhi * pos * g_diff * diffuse_factor %}
+      {% set ground_w_m2 = 0.10 * ghi * pos * g_diff * diffuse_factor %}
+      {% set ns.total = ns.total + (3.2186 * (direct_w_m2 + diffuse_w_m2 + ground_w_m2)) %}
     {% endif %}
-
     {{ ns.total | round(0) }}
 
 - name: "Solar Gain Rollade Kueche Rechts"
@@ -107,55 +107,66 @@ sensor:
   device_class: power
   state_class: measurement
   state: >
-    {% set rad = states('input_number.solar_irradiance') | float(0) %}
+    {% set rad_poa = states('input_number.solar_irradiance') | float(0) %}
+    {% set dwd_ghi = states('sensor.barsinghausen_hohenb_sonneneinstrahlung') | float(-1) %}
+    {% set t_out = states('sensor.outside_temperature') | float(10) %}
     {% set ele = state_attr('sun.sun', 'elevation') | float(0) %}
     {% set azi = state_attr('sun.sun', 'azimuth') | float(0) %}
-    {% set cloud = (states('sensor.barsinghausen_hohenb_bewolkungsgrad') | float(0)) / 100 %}
-    {% set ns = namespace(total=0) %}
+    {% set cloud = [ [(states('sensor.barsinghausen_hohenb_bewolkungsgrad') | float(50)) / 100.0, 0.0] | max, 1.0] | min %}
+    {% set ns = namespace(total=0.0) %}
 
-    {% if ele > 0 and ((azi - 270 + 180) % 360 - 180) | abs < 90 %}
-      {% set pos = (state_attr('cover.rollade_kueche_rechts', 'current_position') | float(100) / 100) %}
-      
-      {# Manuelle Umrechnung: Grad * 0.0174532925 #}
-      {% set cos_factor = ((azi - 270) * 0.0174532925) | cos | abs %}
-      {% set rel_azi = ((azi - 270 + 180) % 360 - 180) %}
-      
-      {# Glazingeigenschaften mit Winkelabhängigkeit (Karlsson & Roos Modell für Dreifachverglasung) #}
-      {% set cos_aoi = ((ele * 0.0174532925) | cos) * cos_factor %}
-      {% set term = 1.0 - cos_aoi %}
-      {% set g_modifier = 1.0 - term * term * term %}
-      {% set g_dir = 0.53 * g_modifier %}
-      {% set g_diff = 0.53 * 0.87 %}
-      
-      {# Bewölkungsabhängiger Diffusanteil #}
+    {% if ele > 0 %}
+      {% set deg2rad = 0.0174532925 %}
+      {% set sin_ele = (ele * deg2rad) | sin %}
+      {% set cos_ele = (ele * deg2rad) | cos %}
+      {% set t_cell = t_out + 0.025 * rad_poa %}
+      {% set temp_corr = [ [1.0 + 0.0035 * (25.0 - t_cell), 0.85] | max, 1.15] | min %}
+      {% set sin_poa = (([ele + 25.0, 88.0] | min) * deg2rad) | sin %}
+      {% set s_cloud = 0.15 + 0.85 * cloud %}
+      {% set poa_to_ghi = (1.0 - s_cloud) * ([sin_ele, 0.05] | max / [sin_poa, 0.15] | max) + s_cloud * 0.95 %}
+      {% set ghi_clear_max = 1080.0 * ([sin_ele, 0.0] | max ** 1.15) %}
+      {% if rad_poa > 0 %}
+        {% set ghi = [(rad_poa / temp_corr) * poa_to_ghi, ghi_clear_max] | min %}
+      {% elif dwd_ghi >= 0 %}
+        {% set ghi = [dwd_ghi, ghi_clear_max] | min %}
+      {% else %}
+        {% set ghi = 0.0 %}
+      {% endif %}
+
+      {% set pos = [ [state_attr('cover.rollade_kueche_rechts', 'current_position') | float(100) / 100.0, 0.0] | max, 1.0] | min %}
       {% set s_factor = 0.15 + (1.0 - 0.15) * cloud %}
-      
-      {% set df_bottom = 1.0 %}
-      {% set df_top = 1.0 %}
-      {% set df_side = 1.0 %}
+      {% set dhi = ghi * s_factor %}
+      {% set dni = [(ghi * (1.0 - s_factor)) / ([sin_ele, 0.08] | max), 950.0] | min %}
+      {% set g_diff = 0.53 * 0.87 %}
+      {% set rel_azi = ((azi - 270 + 180) % 360 - 180) %}
       {% set diffuse_factor = 1.0 %}
-      {% set tan_prof = ((ele * 0.0174532925) | tan) / ([cos_factor, 0.05] | max) %}
-          {# Continuous overhang shading from top (e.g. Vordach / roof) #}
-          {% set shadow_h = 2.9 - (4.5 * tan_prof) %}
-          {% set win_top = 1.94 %}
-          {% set win_bottom = 0.0 %}
-          {% set sun_h = [0, [shadow_h, win_top]|min - win_bottom]|max %}
-          {% set cur_df_top = sun_h / 1.94 %}
-          {% set df_top = [df_top, cur_df_top] | min %}
-          {% set diffuse_factor = [diffuse_factor, 0.3 + 0.7 * cur_df_top] | min %}
+      {% set direct_w_m2 = 0.0 %}
 
-      {# Direct sun portion passing through open shutter slats #}
-      {% set sun_part = [0, [pos, df_top]|min + df_bottom - 1]|max * df_side %}
-      
-      {# Gesamtleistung inkl. Direkt (cos_aoi), Diffus (Sky View Factor 0.5) und Bodenreflexionsanteil #}
-      {% set direct_part_gain = cos_aoi * sun_part * (1.0 - s_factor) * g_dir %}
-      {% set diffuse_part_gain = 0.5 * pos * s_factor * g_diff * diffuse_factor %}
-      {% set ground_ref_gain = 0.10 * pos * g_diff * diffuse_factor %}
-      
-      {% set total_gain_factor = direct_part_gain + diffuse_part_gain + ground_ref_gain %}
-      {% set ns.total = ns.total + (2.91 * rad * total_gain_factor) %}
+      {% if (rel_azi | abs) < 90 %}
+        {% set cos_factor = ((azi - 270) * deg2rad) | cos | abs %}
+        {% set cos_aoi = cos_ele * cos_factor %}
+        {% set term = 1.0 - cos_aoi %}
+        {% set g_dir = 0.53 * (1.0 - term * term * term) %}
+        {% set df_bottom = 1.0 %}
+        {% set df_top = 1.0 %}
+        {% set df_side = 1.0 %}
+        {% set tan_prof = ((ele * deg2rad) | tan) / ([cos_factor, 0.05] | max) %}
+            {% set shadow_h = 2.9 - (4.5 * tan_prof) %}
+            {% set win_top = 1.94 %}
+            {% set win_bottom = 0.0 %}
+            {% set sun_h = [0, [shadow_h, win_top]|min - win_bottom]|max %}
+            {% set cur_df_top = sun_h / 1.94 %}
+            {% set df_top = [df_top, cur_df_top] | min %}
+            {% set diffuse_factor = [diffuse_factor, 0.3 + 0.7 * cur_df_top] | min %}
+
+        {% set sun_part = [0, [pos, df_top]|min + df_bottom - 1]|max * df_side %}
+        {% set direct_w_m2 = dni * cos_aoi * sun_part * g_dir %}
+      {% endif %}
+
+      {% set diffuse_w_m2 = 0.5 * dhi * pos * g_diff * diffuse_factor %}
+      {% set ground_w_m2 = 0.10 * ghi * pos * g_diff * diffuse_factor %}
+      {% set ns.total = 2.91 * (direct_w_m2 + diffuse_w_m2 + ground_w_m2) %}
     {% endif %}
-
     {{ ns.total | round(0) }}
 - name: "Solar Gain Rollade Kueche Links"
   unique_id: solar_gain_rollade_kueche_links
@@ -163,51 +174,62 @@ sensor:
   device_class: power
   state_class: measurement
   state: >
-    {% set rad = states('input_number.solar_irradiance') | float(0) %}
+    {% set rad_poa = states('input_number.solar_irradiance') | float(0) %}
+    {% set dwd_ghi = states('sensor.barsinghausen_hohenb_sonneneinstrahlung') | float(-1) %}
+    {% set t_out = states('sensor.outside_temperature') | float(10) %}
     {% set ele = state_attr('sun.sun', 'elevation') | float(0) %}
     {% set azi = state_attr('sun.sun', 'azimuth') | float(0) %}
-    {% set cloud = (states('sensor.barsinghausen_hohenb_bewolkungsgrad') | float(0)) / 100 %}
-    {% set ns = namespace(total=0) %}
+    {% set cloud = [ [(states('sensor.barsinghausen_hohenb_bewolkungsgrad') | float(50)) / 100.0, 0.0] | max, 1.0] | min %}
+    {% set ns = namespace(total=0.0) %}
 
-    {% if ele > 0 and ((azi - 180 + 180) % 360 - 180) | abs < 90 %}
-      {% set pos = (state_attr('cover.rollade_kueche_links', 'current_position') | float(100) / 100) %}
-      
-      {# Manuelle Umrechnung: Grad * 0.0174532925 #}
-      {% set cos_factor = ((azi - 180) * 0.0174532925) | cos | abs %}
-      {% set rel_azi = ((azi - 180 + 180) % 360 - 180) %}
-      
-      {# Glazingeigenschaften mit Winkelabhängigkeit (Karlsson & Roos Modell für Dreifachverglasung) #}
-      {% set cos_aoi = ((ele * 0.0174532925) | cos) * cos_factor %}
-      {% set term = 1.0 - cos_aoi %}
-      {% set g_modifier = 1.0 - term * term * term %}
-      {% set g_dir = 0.53 * g_modifier %}
-      {% set g_diff = 0.53 * 0.87 %}
-      
-      {# Bewölkungsabhängiger Diffusanteil #}
+    {% if ele > 0 %}
+      {% set deg2rad = 0.0174532925 %}
+      {% set sin_ele = (ele * deg2rad) | sin %}
+      {% set cos_ele = (ele * deg2rad) | cos %}
+      {% set t_cell = t_out + 0.025 * rad_poa %}
+      {% set temp_corr = [ [1.0 + 0.0035 * (25.0 - t_cell), 0.85] | max, 1.15] | min %}
+      {% set sin_poa = (([ele + 25.0, 88.0] | min) * deg2rad) | sin %}
+      {% set s_cloud = 0.15 + 0.85 * cloud %}
+      {% set poa_to_ghi = (1.0 - s_cloud) * ([sin_ele, 0.05] | max / [sin_poa, 0.15] | max) + s_cloud * 0.95 %}
+      {% set ghi_clear_max = 1080.0 * ([sin_ele, 0.0] | max ** 1.15) %}
+      {% if rad_poa > 0 %}
+        {% set ghi = [(rad_poa / temp_corr) * poa_to_ghi, ghi_clear_max] | min %}
+      {% elif dwd_ghi >= 0 %}
+        {% set ghi = [dwd_ghi, ghi_clear_max] | min %}
+      {% else %}
+        {% set ghi = 0.0 %}
+      {% endif %}
+
+      {% set pos = [ [state_attr('cover.rollade_kueche_links', 'current_position') | float(100) / 100.0, 0.0] | max, 1.0] | min %}
       {% set s_factor = 0.15 + (1.0 - 0.15) * cloud %}
-      
-      {% set df_bottom = 1.0 %}
-      {% set df_top = 1.0 %}
-      {% set df_side = 1.0 %}
+      {% set dhi = ghi * s_factor %}
+      {% set dni = [(ghi * (1.0 - s_factor)) / ([sin_ele, 0.08] | max), 950.0] | min %}
+      {% set g_diff = 0.53 * 0.87 %}
+      {% set rel_azi = ((azi - 180 + 180) % 360 - 180) %}
       {% set diffuse_factor = 1.0 %}
-      {% set tan_prof = ((ele * 0.0174532925) | tan) / ([cos_factor, 0.05] | max) %}
-          {# Continuous shading from bottom #}
-          {% set shadow_h = 5.0 - (4.2 * tan_prof) %}
-          {% set win_top = 2.09 %}
-          {% set win_bottom = 0.0 %}
-          {% set sun_h = [0, win_top - [win_bottom, shadow_h]|max]|max %}
-          {% set df_bottom = [df_bottom, sun_h / 2.09] | min %}
+      {% set direct_w_m2 = 0.0 %}
 
-      {# Direct sun portion passing through open shutter slats #}
-      {% set sun_part = [0, [pos, df_top]|min + df_bottom - 1]|max * df_side %}
-      
-      {# Gesamtleistung inkl. Direkt (cos_aoi), Diffus (Sky View Factor 0.5) und Bodenreflexionsanteil #}
-      {% set direct_part_gain = cos_aoi * sun_part * (1.0 - s_factor) * g_dir %}
-      {% set diffuse_part_gain = 0.5 * pos * s_factor * g_diff * diffuse_factor %}
-      {% set ground_ref_gain = 0.10 * pos * g_diff * diffuse_factor %}
-      
-      {% set total_gain_factor = direct_part_gain + diffuse_part_gain + ground_ref_gain %}
-      {% set ns.total = ns.total + (3.2186 * rad * total_gain_factor) %}
+      {% if (rel_azi | abs) < 90 %}
+        {% set cos_factor = ((azi - 180) * deg2rad) | cos | abs %}
+        {% set cos_aoi = cos_ele * cos_factor %}
+        {% set term = 1.0 - cos_aoi %}
+        {% set g_dir = 0.53 * (1.0 - term * term * term) %}
+        {% set df_bottom = 1.0 %}
+        {% set df_top = 1.0 %}
+        {% set df_side = 1.0 %}
+        {% set tan_prof = ((ele * deg2rad) | tan) / ([cos_factor, 0.05] | max) %}
+            {% set shadow_h = 5.0 - (4.2 * tan_prof) %}
+            {% set win_top = 2.09 %}
+            {% set win_bottom = 0.0 %}
+            {% set sun_h = [0, win_top - [win_bottom, shadow_h]|max]|max %}
+            {% set df_bottom = [df_bottom, sun_h / 2.09 ] | min %}
+
+        {% set sun_part = [0, [pos, df_top]|min + df_bottom - 1]|max * df_side %}
+        {% set direct_w_m2 = dni * cos_aoi * sun_part * g_dir %}
+      {% endif %}
+
+      {% set diffuse_w_m2 = 0.5 * dhi * pos * g_diff * diffuse_factor %}
+      {% set ground_w_m2 = 0.10 * ghi * pos * g_diff * diffuse_factor %}
+      {% set ns.total = 3.2186 * (direct_w_m2 + diffuse_w_m2 + ground_w_m2) %}
     {% endif %}
-
     {{ ns.total | round(0) }}

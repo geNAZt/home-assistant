@@ -1,0 +1,187 @@
+triggers:
+  - trigger: time_pattern
+    id: tick
+    minutes: "/1"
+  - trigger: event
+    id: calibrate
+    event_type: thermal_2r2c_calibrate
+  - trigger: homeassistant
+    id: start
+    event: start
+variables:
+  _room_weights: >-
+    {{ {
+      'wohnzimmer': 11.9,
+      'kueche': 19.5,
+      'flur': 29.0,
+      'schlafzimmer': 9.1,
+      'buero_fabian': 6.6,
+      'buero_merja': 13.9,
+      'bad': 4.9,
+      'speisekammer': 5.1
+    } }}
+  _resting_floor: >-
+    {% set weights = _room_weights %}
+    {% set now_ts = as_timestamp(now()) %}
+    {% set ns = namespace(w_sum=0.0, w_tot=0.0, any_recent_heat=false) %}
+    {% for room, w in weights.items() %}
+      {% set sw_id = 'switch.heating_' ~ room %}
+      {% set sw_obj = states[sw_id] %}
+      {% set is_on = is_state(sw_id, 'on') %}
+      {% set ch_ts = as_timestamp(sw_obj.last_changed) if (sw_obj is defined and sw_obj is not none) else 0 %}
+      {% set mins_off = ((now_ts - ch_ts) / 60.0) if (not is_on and ch_ts > 0) else 0.0 %}
+      {# Defekte Heizkreise (rated_a <= 0) erzeugen keine Heizdraht-Spikes #}
+      {% set rated_a = states('input_number.heater_' ~ room ~ '_rated_a') | float(1) %}
+      {% set actively_heated = (rated_a > 0.1) and (is_on or mins_off < 30.0) %}
+      {% if actively_heated %}
+        {% set ns.any_recent_heat = true %}
+      {% endif %}
+      {% if room != 'bad' and (not actively_heated) %}
+        {% set f_val = states('sensor.floor_temperature_' ~ room ~ '_mean') | float(none) %}
+        {% if f_val is none %}
+          {% set f_val = states('sensor.security_temperature_' ~ room ~ '_max') | float(none) %}
+        {% endif %}
+        {% if f_val is not none and 12.0 <= f_val <= 28.0 %}
+          {% set ns.w_sum = ns.w_sum + (f_val * w) %}
+          {% set ns.w_tot = ns.w_tot + w %}
+        {% endif %}
+      {% endif %}
+    {% endfor %}
+    {{ {
+      'temp': (ns.w_sum / ns.w_tot) if ns.w_tot > 0 else none,
+      'weight_pct': ns.w_tot,
+      'any_recent_heat': ns.any_recent_heat
+    } }}
+  _setpoint_mean: >-
+    {% set weights = _room_weights %}
+    {% set ns = namespace(w_sum=0.0, w_tot=0.0) %}
+    {% for room, w in weights.items() %}
+      {% set val = states('input_number.heating_base_' ~ room) | float(none) %}
+      {% if val is not none %}
+        {% set ns.w_sum = ns.w_sum + (val * w) %}
+        {% set ns.w_tot = ns.w_tot + w %}
+      {% endif %}
+    {% endfor %}
+    {{ (ns.w_sum / ns.w_tot) if ns.w_tot > 0 else 21.5 }}
+
+sensor:
+  - name: "Inside Floor Temp Resting Mean"
+    unique_id: inside_floor_temp_resting_mean
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    icon: mdi:thermometer-lines
+    state: >
+      {% set rf = _resting_floor.temp %}
+      {% set prev = this.state if (this is defined and this.state not in ['unknown', 'unavailable', 'none', None, '']) else none %}
+      {% if rf is not none %}
+        {{ rf | round(3) }}
+      {% elif prev is not none %}
+        {{ prev | float | round(3) }}
+      {% else %}
+        {{ states('sensor.inside_temp_mean_now') | float(21.5) | round(3) }}
+      {% endif %}
+    attributes:
+      resting_weight_pct: "{{ _resting_floor.weight_pct | round(1) }}"
+      any_recent_heating: "{{ _resting_floor.any_recent_heat }}"
+
+  - name: "Thermal 2R2C Mass Temperature"
+    unique_id: thermal_2r2c_mass_temperature
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    icon: mdi:layers-triple
+    state: >
+      {% set t_air = states('sensor.inside_temp_mean_now') | float(21.5) %}
+      {% set rf = _resting_floor.temp %}
+      {% set prev_raw = this.state if (this is defined and this.state not in ['unknown', 'unavailable', 'none', None, '']) else none %}
+
+      {% if trigger.id == 'calibrate' %}
+        {% set target_t = trigger.event.data.target_temp | float(_setpoint_mean | float(21.5)) %}
+        {{ [[target_t, 12.0] | max, 28.0] | min | round(5) }}
+      {% elif prev_raw is none %}
+        {% set init_t = rf if rf is not none else t_air %}
+        {{ [[init_t, 12.0] | max, 28.0] | min | round(5) }}
+      {% elif trigger.id == 'start' %}
+        {{ prev_raw | float(t_air) | round(5) }}
+      {% else %}
+        {# 2R2C Parameter:
+           C_total = building_heat_capacity (Default 7.1 kWh/K = 7100 Wh/K)
+           C_air   = 10% (Luft + Möbel + Oberfläche ~0.71 kWh/K)
+           C_mass  = 90% (Estrich + Massivbauteile ~6.39 kWh/K)
+           H_ma    = 730 W/K (Laminat U=5.4 W/(m²K) über ~135 m²) #}
+        {% set t_mass_prev = prev_raw | float(t_air) %}
+        {% set c_tot_wh_k = (states('input_number.building_heat_capacity') | float(7.1)) * 1000.0 %}
+        {% set c_mass_wh_k = [c_tot_wh_k * 0.90, 1000.0] | max %}
+        {% set h_ma_w_k = 730.0 %}
+        {% set h_ground_w_k = (state_attr('sensor.h_kw_per_k_effective', 'h_ground_kw_per_k') | float(0.0122)) * 1000.0 %}
+        {% set t_ground = state_attr('sensor.h_kw_per_k_effective', 'ground_temperature_c') | float(10.0) %}
+
+        {# Wärmeeinträge in den Estrich-/Masseknoten: 100% Fußbodenheizung + 55% Kurzwellen-Solar + 20% Strahlungsanteil Intern #}
+        {% set q_heat_w = states('sensor.heating_power') | float(0) %}
+        {% set q_sol_w  = states('sensor.solar_gains') | float(0) %}
+        {% set q_int_w  = states('sensor.internal_gains_total') | float(0) %}
+        {% set q_in_mass_w = (1.00 * q_heat_w) + (0.55 * q_sol_w) + (0.20 * q_int_w) %}
+
+        {# Wärmeflüsse aus dem Masseknoten an Raumluft (über Laminat) und ins Erdreich (über Perimeterdämmung) #}
+        {% set q_mass_to_air_w = h_ma_w_k * (t_mass_prev - t_air) %}
+        {% set q_mass_to_ground_w = h_ground_w_k * (t_mass_prev - t_ground) %}
+        {% set q_net_mass_w = q_in_mass_w - q_mass_to_air_w - q_mass_to_ground_w %}
+
+        {# 1-Minuten Integrationsschritt (5 Nachkommastellen verhindern Quantisierungs-Stillstand!) #}
+        {% set dt_h = 1.0 / 60.0 %}
+        {% set t_mass_pred = t_mass_prev + (q_net_mass_w * dt_h) / c_mass_wh_k %}
+
+        {# Sanfter Beobachter-Abgleich (tau ~2h) gegen ausgeruhte Bodensensoren, nur wenn keine Heizung aktiv/nachglühend ist #}
+        {% if (not _resting_floor.any_recent_heat) and (rf is not none) and (_resting_floor.weight_pct >= 50.0) %}
+          {% set t_mass_corr = t_mass_pred + 0.008 * (rf - t_mass_pred) %}
+        {% else %}
+          {% set t_mass_corr = t_mass_pred %}
+        {% endif %}
+
+        {{ [[t_mass_corr, 12.0] | max, 28.0] | min | round(5) }}
+      {% endif %}
+    attributes:
+      c_air_kwh_per_k: "{{ ((states('input_number.building_heat_capacity') | float(7.1)) * 0.10) | round(3) }}"
+      c_mass_kwh_per_k: "{{ ((states('input_number.building_heat_capacity') | float(7.1)) * 0.90) | round(3) }}"
+      h_mass_to_air_w_per_k: 730.0
+      q_mass_to_air_w: >
+        {% set t_air = states('sensor.inside_temp_mean_now') | float(21.5) %}
+        {% set t_mass = this.state | float(t_air) if (this is defined and this.state not in ['unknown', 'unavailable', 'none', None, '']) else t_air %}
+        {{ (730.0 * (t_mass - t_air)) | round(1) }}
+      q_mass_to_ground_w: >
+        {% set t_ground = state_attr('sensor.h_kw_per_k_effective', 'ground_temperature_c') | float(10.0) %}
+        {% set h_g = (state_attr('sensor.h_kw_per_k_effective', 'h_ground_kw_per_k') | float(0.0122)) * 1000.0 %}
+        {% set t_mass = this.state | float(21.5) if (this is defined and this.state not in ['unknown', 'unavailable', 'none', None, '']) else 21.5 %}
+        {{ (h_g * (t_mass - t_ground)) | round(1) }}
+
+  - name: "Thermal 2R2C Deficit kWh"
+    unique_id: thermal_2r2c_deficit_kwh
+    unit_of_measurement: "kWh"
+    device_class: energy
+    state_class: measurement
+    icon: mdi:fire-alert
+    state: >
+      {% set c_tot = states('input_number.building_heat_capacity') | float(7.1) %}
+      {% set c_air = c_tot * 0.10 %}
+      {% set c_mass = c_tot * 0.90 %}
+      {% set t_sp = _setpoint_mean | float(21.5) %}
+      {% set t_air = states('sensor.inside_temp_mean_now') | float(t_sp) %}
+      {% set t_mass = states('sensor.thermal_2r2c_mass_temperature') | float(t_air) %}
+
+      {# Im stationären Gleichgewicht bei Sollwert t_sp braucht der Estrich unter Laminat eine leichte Übertemperatur,
+         um den Netto-Außenluftverlust des Luftknotens nachzuliefern #}
+      {% set h_above_w_k = (state_attr('sensor.h_kw_per_k_effective', 'h_above_air_kw_per_k') | float(0.070)) * 1000.0 %}
+      {% set t_out = states('sensor.outside_temperature') | float(8.0) %}
+      {% set q_air_loss_sp = h_above_w_k * [t_sp - t_out, 0.0] | max %}
+      {% set q_air_int_base = 0.80 * (states('sensor.internal_gains_daytime_median') | float(states('sensor.internal_gains_total') | float(450))) %}
+      {% set eq_mass_boost_k = [[(q_air_loss_sp - q_air_int_base) / 730.0, 0.0] | max, 1.5] | min %}
+      {% set t_mass_eq = t_sp + eq_mass_boost_k %}
+
+      {% set def_air = [c_air * (t_sp - t_air), 0.0] | max %}
+      {% set def_mass = [c_mass * (t_mass_eq - t_mass), 0.0] | max %}
+      {{ (def_air + def_mass) | round(3) }}
+    attributes:
+      setpoint_mean_c: "{{ (_setpoint_mean | float(21.5)) | round(2) }}"
+      t_air_c: "{{ (states('sensor.inside_temp_mean_now') | float(21.5)) | round(2) }}"
+      t_mass_c: "{{ (states('sensor.thermal_2r2c_mass_temperature') | float(21.5)) | round(3) }}"

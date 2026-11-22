@@ -1,0 +1,6 @@
+platform: group
+type: mean
+name: Floor Temperature buero_merja Mean
+entities:
+- sensor.temperature_buero_merja_floor_1
+- sensor.temperature_buero_merja_floor_2

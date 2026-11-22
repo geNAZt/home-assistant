@@ -3,6 +3,13 @@ sensor:
   unique_id: internal_gains_persons
   unit_of_measurement: 'W'
   device_class: power
+  state_class: measurement
   state: >
-    {% set persons = states('input_number.amount_of_persons_at_home') | float(0) %}
-    {{ persons * 90 }}
+    {# DIN EN ISO 7730 / VDI 2078: ~65 W sensible Wärme pro Person bei ~21.5°C
+       (~25-30 W latente Verdunstungswärme erhöht nicht die Raumlufttemperatur bei nicht-kondensierender KWL) #}
+    {% if is_state('binary_sensor.vacation_mode', 'on') %}
+      0.0
+    {% else %}
+      {% set persons = states('input_number.amount_of_persons_at_home') | float(0) %}
+      {{ (persons * 65.0) | round(1) }}
+    {% endif %}

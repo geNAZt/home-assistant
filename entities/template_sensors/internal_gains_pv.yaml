@@ -3,26 +3,23 @@ sensor:
   unique_id: internal_gains_pv
   unit_of_measurement: 'W'
   device_class: power
+  state_class: measurement
   state: >
-    {% set invalid = ['unknown','unavailable','none','', None] %}
     {% set ac_pwr = states('sensor.pv_ac_power') | float(0) %}
     {% set bat_pwr = states('sensor.pv_battery1_power') | float(0) %}
-    
-    {# 1. Die gesamte Leistung, die der Wechselrichter gerade verarbeitet (Durchsatz) #}
-    {# Wir nehmen den AC-Wert als Basis für den Durchsatz #}
-    {% set throughput = ac_pwr %}
+    {% set throughput = ac_pwr | abs %}
 
-    {# 2. Wechselrichter-Verlust (Pauschal 2,5% vom Durchsatz + 15W Eigenverbrauch) #}
-    {# Das entspricht dem Wirkungsgrad von ca. 97,5% des SE10K #}
-    {% if throughput > 10 %}
-      {% set wr_loss = (throughput * 0.025) + 15 %}
+    {# 1. Wechselrichter-Abwärme im HWR (~2.2% Durchsatzverlust; Nacht-Standby ohne Akku ist bereits in solar_grid_to_house_w) #}
+    {% if ac_pwr < 0 and (bat_pwr | abs) <= 5 %}
+      {% set wr_loss = 0.0 %}
+    {% elif throughput > 15 %}
+      {% set wr_loss = (throughput * 0.022) + 8.0 %}
     {% else %}
-      {% set wr_loss = 8 %}
+      {% set wr_loss = 4.0 %}
     {% endif %}
 
-    {# 3. Batterie-Verlust (Wärme im BYD Turm bei chemischer Entladung/Ladung) #}
-    {# Hier rechnen wir mit 2% Verlustleistung im Batterieturm #}
-    {% set bat_loss = (bat_pwr | abs) * 0.02 %}
+    {# 2. BYD-Batterieturm chemische + DC/DC-Verlustwärme (~3%) #}
+    {% set bat_loss = (bat_pwr | abs) * 0.03 %}
 
-    {# Gesamtsumme der internen Gewinne #}
-    {{ (wr_loss + bat_loss) | round(2) }}
+    {# 3. Thermische Kopplung HWR -> Wohnbereich (~0.65) #}
+    {{ ((wr_loss + bat_loss) * 0.65) | round(1) }}

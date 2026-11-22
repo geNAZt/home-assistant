@@ -11,21 +11,44 @@ sensor:
        and states('sensor.h_kw_per_k_effective') | is_number
        and states('sensor.deltaT') | is_number }}
   state: >
-    {# GEWINNE (Positiv) #}
     {% set internal = states('sensor.internal_gains_total') | float(0) %}
     {% set solar = states('sensor.solar_gains') | float(0) %}
     {% set heating = states('sensor.heating_power') | float(0) %}
-    
-    {# VERLUSTE (Negativ) #}
-    {% set h_eff = states('sensor.h_kw_per_k_effective') | float(0) * 1000 %}
-    {% set delta_t = states('sensor.deltaT') | float(0) %}
-    {% set losses = h_eff * delta_t %}
 
-    {# Bilanz: Alles was reinwärmt MINUS was rausgeht #}
+    {# 2R2C Verluste: Luftknoten gegen Außenluft + Estrichknoten über Perimeterdämmung gegen Erdreich #}
+    {% set t_air = states('sensor.inside_temp_mean_now') | float(21.5) %}
+    {% set t_out = states('sensor.outside_temperature') | float(8.0) %}
+    {% set t_mass = states('sensor.thermal_2r2c_mass_temperature') | float(t_air) %}
+    {% set h_above_w_k = (state_attr('sensor.h_kw_per_k_effective', 'h_above_air_kw_per_k') | float(none)) %}
+    {% if h_above_w_k is not none %}
+      {% set h_g_w_k = (state_attr('sensor.h_kw_per_k_effective', 'h_ground_kw_per_k') | float(0.0122)) * 1000.0 %}
+      {% set t_ground = state_attr('sensor.h_kw_per_k_effective', 'ground_temperature_c') | float(10.0) %}
+      {% set losses = (h_above_w_k * 1000.0 * [t_air - t_out, 0.0] | max) + (h_g_w_k * [t_mass - t_ground, 0.0] | max) %}
+    {% else %}
+      {% set losses = (states('sensor.h_kw_per_k_effective') | float(0) * 1000.0) * (states('sensor.deltaT') | float(0)) %}
+    {% endif %}
+
     {{ (internal + solar + heating - losses) | round(0) }}
   attributes:
     internal_gains_w: "{{ states('sensor.internal_gains_total') | float(0) | round(0) }}"
     solar_gains_w: "{{ states('sensor.solar_gains') | float(0) | round(0) }}"
     heating_power_w: "{{ states('sensor.heating_power') | float(0) | round(0) }}"
-    transmission_losses_w: "{{ (states('sensor.h_kw_per_k_effective') | float(0) * 1000 * states('sensor.deltaT') | float(0)) | round(0) }}"
-
+    mass_to_air_flux_w: "{{ state_attr('sensor.thermal_2r2c_mass_temperature', 'q_mass_to_air_w') | float(0) | round(0) }}"
+    above_ground_losses_w: >
+      {% set t_air = states('sensor.inside_temp_mean_now') | float(21.5) %}
+      {% set t_out = states('sensor.outside_temperature') | float(8.0) %}
+      {% set h_above = state_attr('sensor.h_kw_per_k_effective', 'h_above_air_kw_per_k') | float(0.070) %}
+      {{ (h_above * 1000.0 * [t_air - t_out, 0.0] | max) | round(0) }}
+    slab_ground_losses_w: >
+      {% set t_mass = states('sensor.thermal_2r2c_mass_temperature') | float(states('sensor.inside_temp_mean_now') | float(21.5)) %}
+      {% set t_ground = state_attr('sensor.h_kw_per_k_effective', 'ground_temperature_c') | float(10.0) %}
+      {% set h_g = state_attr('sensor.h_kw_per_k_effective', 'h_ground_kw_per_k') | float(0.0122) %}
+      {{ (h_g * 1000.0 * [t_mass - t_ground, 0.0] | max) | round(0) }}
+    transmission_losses_w: >
+      {% set t_air = states('sensor.inside_temp_mean_now') | float(21.5) %}
+      {% set t_out = states('sensor.outside_temperature') | float(8.0) %}
+      {% set t_mass = states('sensor.thermal_2r2c_mass_temperature') | float(t_air) %}
+      {% set h_above = state_attr('sensor.h_kw_per_k_effective', 'h_above_air_kw_per_k') | float(0.070) %}
+      {% set h_g = state_attr('sensor.h_kw_per_k_effective', 'h_ground_kw_per_k') | float(0.0122) %}
+      {% set t_ground = state_attr('sensor.h_kw_per_k_effective', 'ground_temperature_c') | float(10.0) %}
+      {{ ((h_above * 1000.0 * [t_air - t_out, 0.0] | max) + (h_g * 1000.0 * [t_mass - t_ground, 0.0] | max)) | round(0) }}

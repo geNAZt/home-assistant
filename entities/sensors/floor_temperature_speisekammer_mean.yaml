@@ -1,0 +1,6 @@
+platform: group
+type: mean
+name: Floor Temperature speisekammer Mean
+entities:
+- sensor.temperature_speisekammer_floor_1
+- sensor.temperature_speisekammer_floor_2

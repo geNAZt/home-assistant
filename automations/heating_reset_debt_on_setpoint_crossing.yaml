@@ -1,7 +1,7 @@
 - id: heating_reset_debt_on_setpoint_crossing
   alias: "Heizung: Reset debt on setpoint crossing"
   description: >
-    Berechnet den gewichteten mittleren Sollwert aller Räume und nullt das Konto bei Übereinstimmung nach Sollwert-Änderung.
+    Kalibriert den 2R2C-Masseknoten auf den gewichteten mittleren Sollwert, sobald die Raumtemperatur den Sollwert erreicht.
   mode: single
 
   trigger:
@@ -17,7 +17,6 @@
 
   action:
     - variables:
-        # Gewichteter Schnitt der Raum-Sollwerte passend zu sensor.inside_temp_mean_now
         mean_setpoint: >-
           {% set weights = {
             'wohnzimmer': 11.9,
@@ -40,26 +39,22 @@
           {{ (ns.w_sum / ns.w_total) | round(2) if ns.w_total > 0 else 0 }}
 
         current_temp: "{{ states('sensor.inside_temp_mean_now') | float(0) }}"
-
-        # Prüfung auf Übereinstimmung mit 0.05K Toleranz
         is_at_setpoint: "{{ (current_temp - mean_setpoint) | abs <= 0.05 }}"
 
     - if:
         - condition: template
           value_template: "{{ is_at_setpoint }}"
       then:
-        # 1. Das Konto mit dem Python-Script nullen
-        - service: python_script.set_state
-          data:
-            entity_id: sensor.heating_energy_debt_tracker
-            state: 0
+        - event: thermal_2r2c_calibrate
+          event_data:
+            target_temp: "{{ mean_setpoint }}"
 
-        # 2. Den Reset-Schalter wieder auf aus stellen
         - service: input_boolean.turn_off
           target:
             entity_id: input_boolean.debt_reset_on_setpoint_hit
 
-        - service: notify.persistent_notification
+        - service: persistent_notification.create
           data:
-            title: "Heizungskonto kalibriert"
-            message: "Das Konto wurde auf 0 Wh gesetzt (Soll: {{ mean_setpoint }}°C / Ist: {{ current_temp }}°C)."
+            notification_id: heating_2r2c_calibrated
+            title: "2R2C-Heizungskonto kalibriert"
+            message: "Der 2R2C-Speicher wurde auf {{ mean_setpoint }}°C kalibriert (Ist-Luft: {{ current_temp | round(2) }}°C)."

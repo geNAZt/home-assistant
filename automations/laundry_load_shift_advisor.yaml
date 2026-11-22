@@ -1,0 +1,92 @@
+- id: laundry_load_shift_advisor
+  alias: "Waschmaschine & Trockner: Tarif-/PV-Startzeit-Hinweis"
+  description: >-
+    Gibt über Alexa (idle Media Player) und Persistent Notification einen konkreten
+    Zeitvorwahl-Hinweis ("Start in X Std."), wenn Waschmaschine oder Trockner im teuren
+    HT-Tarif ohne aktuellen PV-Überschuss eingeschaltet/beladen werden.
+  mode: parallel
+  max: 4
+  triggers:
+    - trigger: state
+      id: wm_power
+      entity_id: switch.waschmaschine_stromversorgung
+      from: "off"
+      to: "on"
+      for:
+        seconds: 10
+    - trigger: state
+      id: wm_state
+      entity_id: sensor.waschmaschine
+      to:
+        - "on"
+        - "programmed"
+    - trigger: state
+      id: tr_power
+      entity_id: switch.waschetrockner_stromversorgung
+      from: "off"
+      to: "on"
+      for:
+        seconds: 10
+    - trigger: state
+      id: tr_state
+      entity_id: sensor.waschetrockner
+      to:
+        - "on"
+        - "programmed"
+  variables:
+    is_wm: "{{ trigger.id in ['wm_power', 'wm_state'] }}"
+    device_name: "{{ 'Waschmaschine' if is_wm else 'Trockner' }}"
+    state_entity: "{{ 'sensor.waschmaschine' if is_wm else 'sensor.waschetrockner' }}"
+    delay_entity: "{{ 'sensor.waschmaschine_start_in' if is_wm else 'sensor.waschetrockner_start_in' }}"
+    current_delay_h: "{{ states(delay_entity) | float(0) }}"
+    in_nt_window: "{{ now().hour < 5 }}"
+    pv_export_w: "{{ states('sensor.filtered_exported_power_w') | float(0) }}"
+    pv_gen_w: "{{ states('sensor.solar_panel_production_w') | float(0) }}"
+    batt_soc: "{{ states('sensor.pv_battery1_state_of_charge') | float(0) }}"
+    has_cheap_solar_now: "{{ pv_export_w > 500 or (pv_gen_w > 1800 and batt_soc > 80) }}"
+    price_nt: "{{ states('sensor.power_price_nt') | float(0.182) }}"
+    price_ht: "{{ states('sensor.power_price_ht') | float(0.282) }}"
+    spread_ct: "{{ ((price_ht - price_nt) * 100.0) | round(1) }}"
+    pv_surplus_18h: "{{ state_attr('sensor.pv_priority_next_day_budget', 'pv_surplus_until_18h_kwh') | float(0) }}"
+    hours_until_nt: >-
+      {% set next_midnight = (now() + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0) %}
+      {{ ((as_timestamp(next_midnight) - as_timestamp(now())) / 3600.0) | round(1) }}
+    recommend_pv_midday: "{{ now().hour < 12 and pv_surplus_18h >= 2.5 }}"
+    recommended_delay_str: >-
+      {% if recommend_pv_midday %}
+        {% set h_mid = [12.5 - (now().hour + now().minute / 60.0), 1.0] | max | round(1) %}
+        {{ h_mid }} Stunden (Mittags-PV)
+      {% else %}
+        {{ hours_until_nt }} Stunden (00:00 Uhr NT-Tarif)
+      {% endif %}
+    alexa_targets: "{{ states.media_player | selectattr('state', 'eq', 'idle') | map(attribute='entity_id') | list }}"
+  conditions:
+    - condition: template
+      value_template: >-
+        {{ (not in_nt_window)
+           and (not has_cheap_solar_now)
+           and (spread_ct >= 3.0)
+           and (current_delay_h < 0.5)
+           and (states(state_entity) not in ['in_use', 'running']) }}
+  actions:
+    - action: persistent_notification.create
+      data:
+        notification_id: "laundry_shift_{{ 'wm' if is_wm else 'tr' }}"
+        title: "{{ device_name }}: Zeitvorwahl empfohlen"
+        message: >-
+          Aktuell gilt HT ({{ (price_ht * 100) | round(1) }} ct/kWh) ohne PV-Überschuss.
+          Empfehlung: Zeitvorwahl am Gerät auf **Start in {{ recommended_delay_str }}** stellen
+          (Ersparnis ~{{ spread_ct }} ct/kWh im NT um 00:00 Uhr).
+    - if:
+        - condition: time
+          after: "07:30:00"
+          before: "22:00:00"
+        - condition: template
+          value_template: "{{ alexa_targets | count > 0 }}"
+      then:
+        - action: notify.alexa_media
+          data:
+            target: "{{ alexa_targets }}"
+            message: >-
+              Hinweis für {{ device_name }}: Aktuell kein PV Überschuss.
+              Für günstigen Strom bitte Start in {{ recommended_delay_str | replace('.', ' Komma ') }} einstellen.

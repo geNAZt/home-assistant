@@ -1,22 +1,30 @@
 - id: car_battery_start_charge
   alias: Car Battery Start Charge
-  description: "Start charge when power is cheap"
+  description: "Start charge when power is cheap (checks throughout NT window 00:00-04:55 and on plug-in)"
   mode: single
   triggers:
     - trigger: time
       at: "00:00:10"
-      weekday:
-        - mon
-        - tue
-        - wed
-        - thu
-        - fri
-        - sat
-        - sun
+    - trigger: time_pattern
+      minutes: "/10"
+    - trigger: state
+      entity_id: binary_sensor.goe_288025_car_0
+      to: "on"
+    - trigger: numeric_state
+      entity_id: sensor.fiat_hexe_extrapolated_battery
+      below: 35
   conditions:
+    - condition: time
+      after: "00:00:00"
+      before: "04:55:00"
+    - condition: state
+      entity_id: binary_sensor.goe_288025_car_0
+      state: "on"
     - condition: numeric_state
       entity_id: sensor.fiat_hexe_extrapolated_battery
       below: 35
+    - condition: template
+      value_template: "{{ not is_state('select.goe_288025_frc', '2') }}"
   actions:
     - action: select.select_option
       data:

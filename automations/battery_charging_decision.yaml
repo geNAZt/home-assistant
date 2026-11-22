@@ -4,6 +4,8 @@
     Decides when and how much to charge the battery in the 00:00-05:00 charge window
     for full charge-window-to-charge-window coverage (05:00 until 00:00 midnight)
     using hourly SQLite PV forecasts and recent hourly mandatory house consumption.
+    Checks real AC-to-AC round-trip efficiency profitability (without wear cost)
+    and never buys night AC power for PV-shifted heating.
   mode: single
   trace:
     stored_traces: 100
@@ -19,7 +21,6 @@
     charge_window_start_hour: 0
     charge_window_end_hour: 5
     is_charge_window: "{{ current_hour >= charge_window_start_hour and current_hour < charge_window_end_hour }}"
-    battery_charge_enabled: "{{ is_state('binary_sensor.preheat_erlaubt_demand_weighted', 'on') }}"
 
     # Battery parameters (15% reserve above 10% hardware cutoff as safety margin)
     battery_soc: "{{ states('sensor.pv_battery1_state_of_charge') | float(0) }}"
@@ -30,7 +31,19 @@
     min_energy_kwh: "{{ (battery_max_capacity_kwh * min_soc / 100.0) | float(0) }}"
     target_energy_kwh: "{{ (battery_max_capacity_kwh * target_soc / 100.0) | float(0) }}"
     usable_capacity_kwh: "{{ [target_energy_kwh - min_energy_kwh, 0.0] | max }}"
-    battery_efficiency: "{{ [[states('sensor.solar_battery_effectiveness') | float(0.95), 0.85] | max, 1.0] | min }}"
+
+    # Real AC-to-AC round-trip efficiency (~82%) & one-way efficiencies (neglecting battery wear per user strategy)
+    round_trip_efficiency: "{{ [[states('sensor.solar_battery_effectiveness') | float(0.82), 0.70] | max, 0.95] | min }}"
+    eta_pv_charge: 0.94
+    eta_bat_discharge: 0.89
+    eta_ac_charge: 0.92
+    price_nt_eur: "{{ states('sensor.power_price_nt') | float(0) }}"
+    price_ht_eur: "{{ states('sensor.power_price_ht') | float(0) }}"
+    effective_nt_via_battery_eur: "{{ (price_nt_eur / round_trip_efficiency) if round_trip_efficiency > 0 else 999.0 }}"
+    # Only charge from AC at night if NT / round_trip_efficiency strictly beats HT (0.5 ct/kWh hysteresis margin, 0 wear cost)
+    battery_charge_enabled: "{{ price_nt_eur > 0 and price_ht_eur > 0 and effective_nt_via_battery_eur < (price_ht_eur - 0.005) }}"
+    # Hold existing battery SoC during cheap NT whenever NT is cheaper than HT so stored PV isn't wasted at night
+    nt_hold_worthwhile: "{{ price_nt_eur > 0 and price_ht_eur > 0 and price_nt_eur < (price_ht_eur - 0.01) }}"
 
     # Fallback consumption and planned thermal loads
     fallback_hourly_kwh: 0.5
@@ -39,9 +52,8 @@
 
     # --- CHARGE-WINDOW-TO-CHARGE-WINDOW BALANCE (05:00 -> 00:00 midnight) ---
     # Backward simulation hour by hour from 24:00 (next charge window) back to 05:00 (end of current charge window).
-    # `hourly_consumption` from SQL already excludes pure PV-excess sinks (EV charging, Water Heater Stage 2,
-    # and IR heating running on PV offset/excess), while retaining mandatory house demand (base load, cooking/appliances,
-    # Water Heater Stage 1, and base-setpoint IR maintenance heating).
+    # `hourly_consumption` from SQL already excludes pure PV-excess and PV-shifted IR heating sinks,
+    # while retaining mandatory house demand (base load, LLM server, cooking/appliances, Water Heater Stage 1).
     window_plan: >-
       {% set window_date = now().date() if current_hour < charge_window_end_hour else (now() + timedelta(days=1)).date() %}
       {% set window_date_str = window_date.strftime('%Y-%m-%d') %}
@@ -67,19 +79,11 @@
         {% endif %}
       {% endfor %}
 
-      {# Check if IR preheating shifts from the night window into daytime PV hours today #}
       {% set shift_heating_to_pv = (
-        battery_charge_enabled
+        is_state('binary_sensor.preheat_erlaubt_demand_weighted', 'on')
         and (pv_ns.total_05_24 - water_stage1_remaining_kwh) >= heating_need_next_day_kwh
         and heating_need_next_day_kwh > 0
       ) %}
-      {% set pv_active_ns = namespace(total=0.0) %}
-      {% for h in range(charge_window_end_hour, 24) %}
-        {% set p_h = pv_ns.by_hour.get(h | string, 0.0) | float(0) %}
-        {% if p_h > 0.1 %}
-          {% set pv_active_ns.total = pv_active_ns.total + p_h %}
-        {% endif %}
-      {% endfor %}
 
       {# 2. Cleaned historical hourly profile (3 days normal, 1 day vacation; anchored to 00:00 inside charge window) #}
       {% set raw_cons = state_attr('sensor.house_consumption_recent_hourly', 'hourly_consumption') %}
@@ -114,7 +118,7 @@
         {% endif %}
       {% endfor %}
 
-      {# 3. Backward DP from 23:00..24:00 down to 05:00..06:00 #}
+      {# 3. Backward DP from 23:00..24:00 down to 05:00..06:00 (NEVER buying night AC power for PV-shifted heating!) #}
       {% set sim = namespace(
         req_usable_kwh=0.0,
         demand_05_24_kwh=0.0,
@@ -131,13 +135,8 @@
           {% set base_h = fallback_hourly_kwh | float(0.5) %}
         {% endif %}
 
-        {# Add today's planned PV-shifted preheat across sunny hours if active #}
-        {% set shifted_heat_h = (
-          heating_need_next_day_kwh * (p_h / pv_active_ns.total)
-          if (shift_heating_to_pv and p_h > 0.1 and pv_active_ns.total > 0)
-          else 0.0
-        ) %}
-        {% set l_h = base_h + shifted_heat_h %}
+        {# Mandatory house load only — PV-shifted heating is covered by PV, never by night AC grid purchase #}
+        {% set l_h = base_h %}
 
         {% set sim.demand_05_24_kwh = sim.demand_05_24_kwh + l_h %}
         {% if h >= 18 %}
@@ -147,9 +146,9 @@
         {% endif %}
 
         {% if p_h >= l_h %}
-          {% set delta_h = (p_h - l_h) * battery_efficiency %}
+          {% set delta_h = (p_h - l_h) * (eta_pv_charge | float(0.94)) %}
         {% else %}
-          {% set delta_h = -((l_h - p_h) / battery_efficiency) %}
+          {% set delta_h = -((l_h - p_h) / (eta_bat_discharge | float(0.89))) %}
         {% endif %}
         {% set sim.req_usable_kwh = [usable_capacity_kwh, [0.0, sim.req_usable_kwh - delta_h] | max] | min %}
       {% endfor %}
@@ -163,6 +162,9 @@
         'demand_05_09_kwh': sim.demand_05_09_kwh | round(2),
         'demand_18_24_kwh': sim.demand_18_24_kwh | round(2),
         'shift_heating_to_pv': shift_heating_to_pv,
+        'ac_charge_profitable': battery_charge_enabled,
+        'effective_nt_eur_kwh': effective_nt_via_battery_eur | round(4),
+        'price_ht_eur_kwh': price_ht_eur | round(4),
         'req_usable_at_05h_kwh': sim.req_usable_kwh | round(3),
         'target_energy_kwh': calc_target_kwh | round(3),
         'target_soc_pct': calc_target_soc | round(1)
@@ -173,24 +175,27 @@
     energy_needed_kwh: "{{ [calculated_target_energy_kwh - battery_current_energy_kwh, 0.0] | max }}"
 
     # Hysteresis inside the charge window:
-    # - Charge until target reached (energy_needed_kwh > 0.15 kWh)
-    # - Hold ("Off") once target reached so battery does not discharge during cheap NT hours (00:00-05:00)
-    # - Excess solar carried over from yesterday above (target + 0.35 kWh) may still power the house
+    # - Charge until target reached (energy_needed_kwh > 0.15 kWh) ONLY if AC round-trip is economically worthwhile
+    # - Hold ("Off") during cheap NT so battery does not discharge while direct grid NT is cheaper than HT
+    # - Excess solar carried over from yesterday above (target + 0.35 kWh) when AC charge is enabled may still power the house
     should_charge_now: "{{ is_charge_window and battery_charge_enabled and (energy_needed_kwh > 0.15) }}"
     should_hold_now: >-
       {{
         is_charge_window
-        and battery_charge_enabled
+        and nt_hold_worthwhile
         and (not should_charge_now)
-        and (battery_current_energy_kwh <= (calculated_target_energy_kwh + 0.35))
+        and (
+          (not battery_charge_enabled)
+          or (battery_current_energy_kwh <= (calculated_target_energy_kwh + 0.35))
+        )
       }}
 
     charging_power_w: >-
       {% if should_charge_now %}
-        {# Spread remaining energy including ~7% charging loss over remaining hours until 05:00 #}
+        {# Spread remaining energy including ~8% AC-to-DC charging loss over remaining hours until 05:00 #}
         {% set end_ts = as_timestamp(now().replace(hour=charge_window_end_hour, minute=0, second=0, microsecond=0)) %}
         {% set remaining_hours = [(end_ts - as_timestamp(now())) / 3600.0, 0.25] | max %}
-        {% set raw_w = ((energy_needed_kwh / 0.93) / remaining_hours * 1000.0) | round(0) | int %}
+        {% set raw_w = ((energy_needed_kwh / (eta_ac_charge | float(0.92))) / remaining_hours * 1000.0) | round(0) | int %}
         {{ [[raw_w, 500] | max, 5000] | min }}
       {% else %}
         0
@@ -221,6 +226,7 @@
                 message: >-
                   Target 05h: {{ calculated_target_energy_kwh | round(2) }} kWh ({{ calculated_target_soc_pct | round(1) }}%),
                   Needed: {{ energy_needed_kwh | round(2) }} kWh @ {{ charging_power_w }} W,
+                  EffNT: {{ (effective_nt_via_battery_eur * 100) | round(2) }} ct vs HT {{ (price_ht_eur * 100) | round(2) }} ct,
                   Demand 05-24h: {{ window_plan.demand_05_24_kwh }} kWh (18-24h: {{ window_plan.demand_18_24_kwh }} kWh),
                   PV 05-24h: {{ window_plan.pv_05_24_kwh }} kWh
             - service: select.select_option
@@ -230,7 +236,7 @@
               target: { entity_id: number.pv_storage_remote_charge_limit }
               data: { value: "{{ charging_power_w }}" }
 
-        # 3. Target reached inside charge window: hold charge until 05:00 (no NT discharge)
+        # 3. Target reached (or AC charging unprofitable, but holding existing SoC through cheap NT): hold charge until 05:00
         - conditions:
             - condition: template
               value_template: "{{ should_hold_now }}"
@@ -240,6 +246,7 @@
                 name: "Battery Charging"
                 message: >-
                   Holding battery at {{ battery_soc | round(1) }}% (Target 05h: {{ calculated_target_soc_pct | round(1) }}%,
+                  AC-Charge profitable: {{ battery_charge_enabled }},
                   Demand 18-24h: {{ window_plan.demand_18_24_kwh }} kWh, PV 05-24h: {{ window_plan.pv_05_24_kwh }} kWh)
             - service: select.select_option
               target: { entity_id: select.pv_storage_remote_command_mode }

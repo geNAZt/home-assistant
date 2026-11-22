@@ -3,14 +3,17 @@ sensor:
   unique_id: internal_gains_dishwasher
   unit_of_measurement: 'W'
   device_class: power
+  state_class: measurement
   state: >
-    {% set p = states('sensor.kuche_geschirrspuler_power') | float(0) %}
-    {# 25% der Leistung bleiben als Wärme im Raum #}
+    {% set p_knx = states('sensor.geschirrspuler_leistung') | float(none) %}
+    {% set p = p_knx if p_knx is not none else (states('sensor.dishwasher_aktuelle_leistung') | float(0)) %}
+    {# ~25% sensible Raumwärme, ~75% gehen über heißes Abwasser und feuchten Schwaden verloren #}
     {% if p > 5 %}
       {{ (p * 0.25) | round(1) }}
     {% else %}
       0.0
     {% endif %}
-  attributes: 
+  attributes:
     consumes: >
-      {{ states('sensor.kuche_geschirrspuler_power') | float(0) }}
+      {% set p_knx = states('sensor.geschirrspuler_leistung') | float(none) %}
+      {{ (p_knx if p_knx is not none else (states('sensor.dishwasher_aktuelle_leistung') | float(0))) | round(1) }}

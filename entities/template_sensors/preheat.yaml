@@ -2,15 +2,21 @@ sensor:
 - name: "Preheat Penalty Faktor"
   unit_of_measurement: "x"
   state: >-
-    {% set H = states('sensor.h_kw_per_k_effective') | float(0) %}
+    {% set H_above = state_attr('sensor.h_kw_per_k_effective', 'h_above_air_kw_per_k') | float(states('sensor.h_kw_per_k_effective') | float(0)) %}
+    {% set H_ground = state_attr('sensor.h_kw_per_k_effective', 'h_ground_kw_per_k') | float(0.0122) %}
     {% set C = states('input_number.building_heat_capacity') | float(0) %}
     {% set dt = states('input_number.preheat_dt_hours') | float(12) %}
+    {% set H_ma = 0.73 %}
 
-    {% if H > 0 and C > 0 and dt > 0 %}
-      {{ (2.718281828 ** ((H / C) * dt)) | round(3) }}
+    {# 2R2C langsame Zeitkonstante: Estrichwärme (90% C) fließt seriell über Laminat (1/H_ma) + Außenhülle (1/H_above) sowie Bodenplatte #}
+    {% if H_above > 0 and C > 0 and dt > 0 %}
+      {% set C_air = C * 0.10 %}
+      {% set C_mass = C * 0.90 %}
+      {% set h_mass_leak = (1.0 / ((1.0 / H_ma) + (1.0 / H_above))) + H_ground %}
+      {% set tau_2r2c_h = (C_mass / h_mass_leak) + (C_air / H_above) %}
+      {{ (2.718281828 ** (dt / tau_2r2c_h)) | round(3) }}
     {% else %}
-      {# restart-safe: keep previous value if it exists, else 0 #}
-      {% set prev = this.state %}
+      {% set prev = this.state if (this is defined) else '0' %}
       {% if prev not in ['unknown', 'unavailable', 'none', None, ''] %}
         {{ prev }}
       {% else %}
@@ -25,8 +31,7 @@ sensor:
     {% if pN>0 and pD>0 %}
       {{ (pD/pN) | round(3) }}
     {% else %}
-      {# restart-safe: keep previous value if it exists, else 0 #}
-      {% set prev = this.state %}
+      {% set prev = this.state if (this is defined) else '0' %}
       {% if prev not in ['unknown', 'unavailable', 'none', None, ''] %}
         {{ prev }}
       {% else %}

@@ -2,26 +2,68 @@ sensor:
   - name: H_kW_per_K_effective
     unit_of_measurement: "kW/K"
     state_class: measurement
+    availability: >
+      {{ states('input_number.h_kw_per_k') | is_number
+         and states('sensor.wind_speed_ms') | is_number }}
     state: >
-      {# 1. BASIS-TRANSMISSION (Hülle + Wärmebrücken) #}
-      {# Wir nutzen hier 0.068 (68 W/K) als statischen Anker inkl. Wärmebrücken #}
-      {% set H_basis = states('input_number.h_kw_per_k')|float(0.068) %}
-      
-      {# 2. WIND-INFILTRATION #}
-      {% set v_ms = states('sensor.wind_speed_ms')|float(0) %}
+      {# 1. BASIS-TRANSMISSION (0.068 kW/K): Aufteilung in Außenluft-Hülle (82%) + perimeter-gedämmte Bodenplatte (18%) #}
+      {% set H_basis = states('input_number.h_kw_per_k') | float(0.068) %}
+      {% set H_above = H_basis * 0.82 %}
+      {% set H_ground = H_basis * 0.18 %}
+
+      {# Gedämpfte saisonale Erdreich-/Unter-Bodenplatten-Temperatur (Minimum ~7.2°C Mitte Feb, Maximum ~13.2°C Mitte Aug) #}
+      {% set doy = now().timetuple().tm_yday %}
+      {% set rad = 2.0 * 3.14159265 * (doy - 46) / 365.25 %}
+      {# Taylor-freie exakte Kosinus-Näherung über math-Filter / Polynom oder sin/cos? Jinja in HA hat cos() als Filter? Nein: sin/cos sind in HA als globale Funktionen sin(), cos() verfügbar! #}
+      {% set t_ground = 10.2 - 3.0 * cos(rad) %}
+
+      {% set t_in = states('sensor.inside_temp_mean_now') | float(21.5) %}
+      {% set t_out = states('sensor.outside_temperature') | float(8.0) %}
+      {% set dt_air = [t_in - t_out, 0.0] | max %}
+      {% set dt_ground = [t_in - t_ground, 0.0] | max %}
+
+      {# Äquivalenter Boden-Leitwert bezogen auf deltaT=(T_in - T_out), damit H_eff * deltaT exakt Q_ges liefert #}
+      {% if dt_air >= 0.5 %}
+        {% set H_ground_eff = [[H_ground * (dt_ground / dt_air), 0.0] | max, H_ground * 3.0] | min %}
+      {% else %}
+        {% set H_ground_eff = H_ground %}
+      {% endif %}
+
+      {# 2. WIND-INFILTRATION (ISO 13789 Schirmungskoeffizient e ≈ 0.02 bei n50 = 0.9 1/h) #}
+      {% set v_ms = states('sensor.wind_speed_ms') | float(0) %}
       {% set n50 = 0.9 %}
       {% set volumen = 336.25 %}
       {% set n_wind = n50 * (v_ms * 0.02) %}
-      {% set H_wind_zuschlag = (volumen * n_wind * 0.34) / 1000 %}
+      {% set H_wind_zuschlag = (volumen * n_wind * 0.34) / 1000.0 %}
 
       {# 3. HRV-LÜFTUNGSVERLUST (LWZ 180) #}
       {% set flow = states('input_number.hrv_flow_rate') | float(160) %}
-      {% set wrg = states('input_number.hrv_wrg_efficiency') | float(0.90) %}
-      {% set H_hrv = (flow * 0.34 * (1 - wrg)) / 1000 %}
+      {% set wrg_raw = states('input_number.hrv_wrg_efficiency') | float(0.85) %}
+      {% set wrg = (wrg_raw / 100.0) if wrg_raw > 1.0 else wrg_raw %}
+      {% set H_hrv = (flow * 0.34 * [1.0 - wrg, 0.0] | max) / 1000.0 %}
 
-      {# GESAMT-H (Hülle + Wind + HRV) #}
-      {# Zielwert bei 14km/h: ca. 0.084 kW/K #}
-      {{ (H_basis + H_wind_zuschlag + H_hrv) | round(5) }}
-    availability: >
-      {{ states('input_number.h_kw_per_k')|is_number 
-         and states('sensor.wind_speed_ms')|is_number }}
+      {{ (H_above + H_ground_eff + H_wind_zuschlag + H_hrv) | round(5) }}
+    attributes:
+      h_above_air_kw_per_k: >
+        {% set H_basis = states('input_number.h_kw_per_k') | float(0.068) %}
+        {% set H_above = H_basis * 0.82 %}
+        {% set v_ms = states('sensor.wind_speed_ms') | float(0) %}
+        {% set H_wind = (336.25 * 0.9 * (v_ms * 0.02) * 0.34) / 1000.0 %}
+        {% set flow = states('input_number.hrv_flow_rate') | float(160) %}
+        {% set wrg_raw = states('input_number.hrv_wrg_efficiency') | float(0.85) %}
+        {% set wrg = (wrg_raw / 100.0) if wrg_raw > 1.0 else wrg_raw %}
+        {% set H_hrv = (flow * 0.34 * [1.0 - wrg, 0.0] | max) / 1000.0 %}
+        {{ (H_above + H_wind + H_hrv) | round(5) }}
+      h_ground_kw_per_k: >
+        {{ ((states('input_number.h_kw_per_k') | float(0.068)) * 0.18) | round(5) }}
+      ground_temperature_c: >
+        {% set doy = now().timetuple().tm_yday %}
+        {{ (10.2 - 3.0 * cos(2.0 * 3.14159265 * (doy - 46) / 365.25)) | round(2) }}
+      h_wind_kw_per_k: >
+        {% set v_ms = states('sensor.wind_speed_ms') | float(0) %}
+        {{ ((336.25 * 0.9 * (v_ms * 0.02) * 0.34) / 1000.0) | round(5) }}
+      h_hrv_kw_per_k: >
+        {% set flow = states('input_number.hrv_flow_rate') | float(160) %}
+        {% set wrg_raw = states('input_number.hrv_wrg_efficiency') | float(0.85) %}
+        {% set wrg = (wrg_raw / 100.0) if wrg_raw > 1.0 else wrg_raw %}
+        {{ ((flow * 0.34 * [1.0 - wrg, 0.0] | max) / 1000.0) | round(5) }}

@@ -2,10 +2,9 @@ sensor:
 - name: "Heating Preheat Offset Dynamic Uncapped"
   unit_of_measurement: "K"
   availability: >
-    {{ states('sensor.H_kW_per_K_effective') | is_number
+    {{ states('sensor.h_kw_per_k_effective') | is_number
        and states('input_number.outside_temp_forecast_24h_c') | is_number }}
   state: >
-    {% set h_eff = states('sensor.H_kW_per_K_effective') | float(0.08) %}
     {% set c_real = states('input_number.building_heat_capacity') | float(7.1) %}
     {% set weights = {'wohnzimmer': 11.9, 'kueche': 19.5, 'flur': 29.0, 'schlafzimmer': 9.1, 'buero_fabian': 6.6, 'buero_merja': 13.9, 'bad': 4.9, 'speisekammer': 5.1} %}
     {% set wns = namespace(w_sum=0.0, w_total=0.0) %}
@@ -16,13 +15,25 @@ sensor:
         {% set wns.w_total = wns.w_total + w %}
       {% endif %}
     {% endfor %}
-    {% set t_sp_mean = (wns.w_sum / wns.w_total) if wns.w_total > 0 else 21.0 %}
-    {% set t_out_fc = states('input_number.outside_temp_forecast_24h_c') | float(states('sensor.outside_temperature') | float(0)) %}
-    {% set delta_t = [t_sp_mean - t_out_fc, 0] | max %}
-    {% set hours_to_bridge = 19 %}
-    {% set total_energy_loss = h_eff * delta_t * hours_to_bridge %}
-    
-    {# Automated physical solar window gain forecast from PV prediction and window geometry #}
+    {% set t_sp_mean = (wns.w_sum / wns.w_total) if wns.w_total > 0 else 21.5 %}
+    {% set t_out_fc = states('input_number.outside_temp_forecast_24h_c') | float(states('sensor.outside_temperature') | float(8.0)) %}
+
+    {# 2R2C / Perimeterdämmungs-Verlustprognose über 19h:
+       Außenluft-Hülle + Wind + KWL gegen T_out_forecast, Bodenplatte gegen saisonales Erdreich T_ground #}
+    {% set h_above = state_attr('sensor.h_kw_per_k_effective', 'h_above_air_kw_per_k') | float(none) %}
+    {% set h_ground = state_attr('sensor.h_kw_per_k_effective', 'h_ground_kw_per_k') | float(0.0122) %}
+    {% set t_ground = state_attr('sensor.h_kw_per_k_effective', 'ground_temperature_c') | float(10.0) %}
+    {% set hours_to_bridge = 19.0 %}
+    {% if h_above is not none %}
+      {% set loss_above_kwh = h_above * [t_sp_mean - t_out_fc, 0.0] | max * hours_to_bridge %}
+      {% set loss_ground_kwh = h_ground * [t_sp_mean - t_ground, 0.0] | max * hours_to_bridge %}
+      {% set total_energy_loss = loss_above_kwh + loss_ground_kwh %}
+    {% else %}
+      {% set h_eff = states('sensor.h_kw_per_k_effective') | float(0.08) %}
+      {% set total_energy_loss = h_eff * [t_sp_mean - t_out_fc, 0.0] | max * hours_to_bridge %}
+    {% endif %}
+
+    {# Physikalische Fenster-Solargewinn-Prognose #}
     {% set sim_solar_gains = states('sensor.solar_gains_forecast') | float(none) %}
     {% if sim_solar_gains is not none and sim_solar_gains >= 0 %}
       {% set solar_gains_kwh = sim_solar_gains %}
@@ -31,20 +42,25 @@ sensor:
       {% if pv_budget is not none and pv_budget > 0 %}
         {% set solar_gains_kwh = pv_budget * 0.10 %}
       {% else %}
-        {% set solar_gains_kwh = (states('sensor.solar_gains_average') | float(0) * hours_to_bridge) / 1000 %}
+        {% set solar_gains_kwh = (states('sensor.solar_gains_average') | float(0) * hours_to_bridge) / 1000.0 %}
       {% endif %}
     {% endif %}
-    
-    {# Robust daytime baseline internal gains via 72h daytime-only (05:00-24:00) rolling median #}
+
+    {# Robuste Tages-Basislast interner Gewinne über 72h Daytime-Median (05:00-24:00) #}
     {% set day_median_w = states('sensor.internal_gains_daytime_median') | float(none) %}
     {% set fallback_median_w = states('sensor.internal_gains_median') | float(none) %}
     {% set base_int_w = day_median_w if (day_median_w is not none and day_median_w > 0) else (fallback_median_w if (fallback_median_w is not none and fallback_median_w > 0) else (states('sensor.internal_gains_average') | float(500))) %}
-    {% set internal_gains_kwh = (base_int_w * hours_to_bridge) / 1000 %}
+    {% set internal_gains_kwh = (base_int_w * hours_to_bridge) / 1000.0 %}
     {% set total_gains_kwh = solar_gains_kwh + internal_gains_kwh %}
-    {% set needed_offset = (total_energy_loss - total_gains_kwh) / c_real %}
-    {{ needed_offset | round(1) }}
+
+    {# Im 2R2C-System lädt der Estrich (C_mass=0.90*C) während des 5h-Heizfensters ca. ~1.15x stärker auf als der Luftknoten,
+       sodass pro 1 K Luft-Offset effektiv ~1.12 * C_total an Speicherenergie für die 19h-Brücke eingelagert wird #}
+    {% set effective_2r2c_storage_kwh_per_k = [c_real * 1.12, 1.0] | max %}
+    {% set needed_offset = (total_energy_loss - total_gains_kwh) / effective_2r2c_storage_kwh_per_k %}
+    {{ needed_offset | round(2) }}
   attributes:
     forecast_outside_temp: "{{ states('input_number.outside_temp_forecast_24h_c') }}"
+    ground_temperature_c: "{{ state_attr('sensor.h_kw_per_k_effective', 'ground_temperature_c') | float(10.0) | round(2) }}"
     forecast_internal_gains_w: >-
       {% set day_median_w = states('sensor.internal_gains_daytime_median') | float(none) %}
       {% set fallback_median_w = states('sensor.internal_gains_median') | float(none) %}
@@ -60,15 +76,19 @@ sensor:
           {% set wns.w_total = wns.w_total + w %}
         {% endif %}
       {% endfor %}
-      {% set t_sp_mean = (wns.w_sum / wns.w_total) if wns.w_total > 0 else 21.0 %}
-      {{ (states('sensor.H_kW_per_K_effective') | float(0.08) * [t_sp_mean - (states('input_number.outside_temp_forecast_24h_c') | float(0)), 0] | max * 19) | round(2) }}
+      {% set t_sp_mean = (wns.w_sum / wns.w_total) if wns.w_total > 0 else 21.5 %}
+      {% set t_out_fc = states('input_number.outside_temp_forecast_24h_c') | float(8.0) %}
+      {% set h_above = state_attr('sensor.h_kw_per_k_effective', 'h_above_air_kw_per_k') | float(0.070) %}
+      {% set h_ground = state_attr('sensor.h_kw_per_k_effective', 'h_ground_kw_per_k') | float(0.0122) %}
+      {% set t_ground = state_attr('sensor.h_kw_per_k_effective', 'ground_temperature_c') | float(10.0) %}
+      {{ ((h_above * [t_sp_mean - t_out_fc, 0.0] | max + h_ground * [t_sp_mean - t_ground, 0.0] | max) * 19.0) | round(2) }}
     forecast_gains_kwh: >-
       {% set sim_solar = states('sensor.solar_gains_forecast') | float(none) %}
-      {% set solar = sim_solar if (sim_solar is not none and sim_solar >= 0) else ((states('sensor.solar_gains_average') | float(0) * 19) / 1000) %}
+      {% set solar = sim_solar if (sim_solar is not none and sim_solar >= 0) else ((states('sensor.solar_gains_average') | float(0) * 19.0) / 1000.0) %}
       {% set day_median_w = states('sensor.internal_gains_daytime_median') | float(none) %}
       {% set fallback_median_w = states('sensor.internal_gains_median') | float(none) %}
       {% set base_int_w = day_median_w if (day_median_w is not none and day_median_w > 0) else (fallback_median_w if (fallback_median_w is not none and fallback_median_w > 0) else (states('sensor.internal_gains_average') | float(500))) %}
-      {% set internal = (base_int_w * 19) / 1000 %}
+      {% set internal = (base_int_w * 19.0) / 1000.0 %}
       {{ (solar + internal) | round(2) }}
 - name: "Heating Preheat Offset Dynamic"
   unit_of_measurement: "K"
@@ -83,5 +103,5 @@ sensor:
     {% elif uncapped < 0 %}
       0
     {% else %}
-      {{ uncapped }}
+      {{ uncapped | round(1) }}
     {% endif %}

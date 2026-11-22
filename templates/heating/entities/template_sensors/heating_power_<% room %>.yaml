@@ -8,15 +8,20 @@ sensor:
     {% if is_state('switch.heating_[[room]]', 'on') %}
       [[% if phase == 1 %]]
       {% set voltage = states('sensor.pv_m1_ac_voltage_an') | float(230) %}
+      {% set raw_ma = states('sensor.current_l1_[[room]]_current') %}
       [[% elif phase == 2 %]]
       {% set voltage = states('sensor.pv_m1_ac_voltage_bn') | float(230) %}
+      {% set raw_ma = states('sensor.current_l2_[[room]]_current') %}
       [[% elif phase == 3 %]]
       {% set voltage = states('sensor.pv_m1_ac_voltage_cn') | float(230) %}
+      {% set raw_ma = states('sensor.current_l3_[[room]]_current') %}
       [[% endif %]]
-
-      {% set current = states('input_number.heater_[[room]]_rated_a') | float(0) %}
-      {{ current * voltage | round(0) }}
+      {% if raw_ma not in ['unknown', 'unavailable', 'none', 'None', ''] %}
+        {% set current = (raw_ma | float(0)) / 1000.0 %}
+      {% else %}
+        {% set current = states('input_number.heater_[[room]]_rated_a') | float(0) %}
+      {% endif %}
+      {{ (current * voltage) | round(0) }}
     {% else %}
       0
     {% endif %}
-    

@@ -3,18 +3,15 @@ sensor:
   unique_id: internal_gains_trockner
   unit_of_measurement: 'W'
   device_class: power
+  state_class: measurement
   state: >
-    {# Wir nehmen den kW-Wert der Ableitung und wandeln ihn in Watt #}
-    {# Falls die Ableitung in kW kommt, hier mit 1000 multiplizieren #}
     {% set p = states('sensor.shellyplus2pm_485519a264d8_switch_0_power') | float(0) %}
-    
-    {# Da der kWh-Zähler oft nur in groben Schritten springt, #}
-    {# nutzen wir eine einfache Plausibilität: #}
+    {# Wärmepumpentrockner im HWR: ~70% sensible Wärme im Gebäude, ~30% warmes Kondensat & Restfeuchte #}
     {% if p > 10 %}
-       {{ (p * 0.9) | round(1) }}
+      {{ (p * 0.70) | round(1) }}
     {% else %}
       0.0
     {% endif %}
-  attributes: 
+  attributes:
     consumes: >
-      {{ states('sensor.shellyplus2pm_485519a264d8_switch_0_power') | float(0) }}
+      {{ states('sensor.shellyplus2pm_485519a264d8_switch_0_power') | float(0) | round(1) }}

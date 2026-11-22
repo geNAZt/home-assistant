@@ -1,0 +1,7 @@
+platform: group
+type: mean
+name: Floor Temperature kueche Mean
+entities:
+- sensor.temperature_kueche_floor_1
+- sensor.temperature_kueche_floor_2
+- sensor.temperature_kueche_floor_3

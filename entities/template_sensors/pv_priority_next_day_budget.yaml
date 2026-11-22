@@ -36,12 +36,7 @@ variables:
   _pv_18h: "{{ _pv_stats.pv_18h | float(0) }}"
   _pv_surplus_18h: "{{ _pv_stats.surplus_18h | float(0) }}"
 
-  # Vaillant aroSTOR VWL BM 270/5 (265L, R290, hipped-roof air intake) physical COP model:
-  # - Datasheet EN16147 (to 55°C): A15/W55 COP=3.53, A7/W55 COP=3.00 (~0.066 COP/K).
-  # - Heating to 60°C lowers cycle COP ~8% (A7/W60 ≈ 2.75); below 5°C intake air,
-  #   evaporator icing & defrost cycles add ~2.5%/K electrical loss.
-  # - Hipped-roof attic stays ~4K warmer than outside over a full 10-14h run plus up to +6K solar gain.
-  # - Incoming cold tap water drops in winter (~8.5°C at 0°C outside vs ~14°C in summer).
+  # Vaillant aroSTOR VWL BM 270/5 (265L, R290, hipped-roof air intake) physical COP model (kept intact for daily bath):
   _t_out: "{{ states('input_number.outside_temp_forecast_24h_c') | float(states('sensor.outside_temperature') | float(12)) }}"
   _t_clamped: "{{ [[-7.0, _t_out | float(12)] | max, 25.0] | min }}"
   _solar_frac: "{{ [[(_pv_18h | float(0)) / 20.0, 0.0] | max, 1.0] | min }}"
@@ -89,21 +84,26 @@ variables:
   _pv_after_stage1: "{{ [(_pv_next_24h | float(0)) - (_alloc_stage1 | float(0)), 0.0] | max }}"
 
   _heating_need: >-
-    {% set c = states('input_number.building_heat_capacity') | float(0) %}
-    {% set weights = {'wohnzimmer': 11.9, 'kueche': 19.5, 'flur': 29.0, 'schlafzimmer': 9.1, 'buero_fabian': 6.6, 'buero_merja': 13.9, 'bad': 4.9, 'speisekammer': 5.1} %}
-    {% set wns = namespace(w_sum=0.0, w_total=0.0) %}
-    {% for room, w in weights.items() %}
-      {% set val = states('input_number.heating_base_' ~ room) | float(none) %}
-      {% if val is not none %}
-        {% set wns.w_sum = wns.w_sum + (val * w) %}
-        {% set wns.w_total = wns.w_total + w %}
-      {% endif %}
-    {% endfor %}
-    {% set setpoint_mean = (wns.w_sum / wns.w_total) if wns.w_total > 0 else 0 %}
-    {% set inside_now = states('sensor.inside_temp_mean_now') | float(0) %}
-    {% set missing_delta_k = [setpoint_mean - inside_now, 0] | max %}
+    {% set c = states('input_number.building_heat_capacity') | float(7.1) %}
     {% set off = states('sensor.heating_preheat_offset_24h_max') | float(0) %}
-    {{ [c * (off + missing_delta_k), 0.0] | max }}
+    {% set def_2r2c = states('sensor.thermal_2r2c_deficit_kwh') | float(none) %}
+    {% if def_2r2c is not none %}
+      {{ [def_2r2c + (c * off), 0.0] | max }}
+    {% else %}
+      {% set weights = {'wohnzimmer': 11.9, 'kueche': 19.5, 'flur': 29.0, 'schlafzimmer': 9.1, 'buero_fabian': 6.6, 'buero_merja': 13.9, 'bad': 4.9, 'speisekammer': 5.1} %}
+      {% set wns = namespace(w_sum=0.0, w_total=0.0) %}
+      {% for room, w in weights.items() %}
+        {% set val = states('input_number.heating_base_' ~ room) | float(none) %}
+        {% if val is not none %}
+          {% set wns.w_sum = wns.w_sum + (val * w) %}
+          {% set wns.w_total = wns.w_total + w %}
+        {% endif %}
+      {% endfor %}
+      {% set setpoint_mean = (wns.w_sum / wns.w_total) if wns.w_total > 0 else 0 %}
+      {% set inside_now = states('sensor.inside_temp_mean_now') | float(0) %}
+      {% set missing_delta_k = [setpoint_mean - inside_now, 0] | max %}
+      {{ [c * (off + missing_delta_k), 0.0] | max }}
+    {% endif %}
   _alloc_heating: "{{ [_pv_after_stage1 | float(0), _heating_need | float(0)] | min }}"
   _heating_uncovered: "{{ [(_heating_need | float(0)) - (_alloc_heating | float(0)), 0.0] | max }}"
   _rem_after_heat: "{{ [(_pv_after_stage1 | float(0)) - (_alloc_heating | float(0)), 0.0] | max }}"
@@ -143,4 +143,4 @@ sensor:
       battery_needed_before_stage2_kwh: "{{ _batt_need | float(0) | round(3) }}"
       allocated_to_battery_before_stage2_kwh: "{{ _alloc_batt | float(0) | round(3) }}"
       remaining_after_battery_kwh: "{{ _rem_after_batt | float(0) | round(3) }}"
-      priority_order: "Warmwasser Stufe 1 (aroSTOR VWL BM 270/5 COP-Modell 3.4–7.5 kWh) > Heizung > PV Battery > Warmwasser Stufe 2 (PV Überschuss) > Heizung (PV Überschuss) > EV (PV Überschuss)"
+      priority_order: "Warmwasser Stufe 1 (aroSTOR VWL BM 270/5 COP-Modell 3.4–7.5 kWh) > Heizung (2R2C) > PV Battery > Warmwasser Stufe 2 (PV Überschuss) > Heizung (PV Überschuss) > EV (PV Überschuss)"

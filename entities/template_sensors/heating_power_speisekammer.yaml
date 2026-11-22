@@ -7,10 +7,13 @@ sensor:
   state: >
     {% if is_state('switch.heating_speisekammer', 'on') %}
       {% set voltage = states('sensor.pv_m1_ac_voltage_bn') | float(230) %}
-
-      {% set current = states('input_number.heater_speisekammer_rated_a') | float(0) %}
-      {{ current * voltage | round(0) }}
+      {% set raw_ma = states('sensor.current_l2_speisekammer_current') %}
+      {% if raw_ma not in ['unknown', 'unavailable', 'none', 'None', ''] %}
+        {% set current = (raw_ma | float(0)) / 1000.0 %}
+      {% else %}
+        {% set current = states('input_number.heater_speisekammer_rated_a') | float(0) %}
+      {% endif %}
+      {{ (current * voltage) | round(0) }}
     {% else %}
       0
     {% endif %}
-    
