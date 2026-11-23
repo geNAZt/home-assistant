@@ -2,9 +2,10 @@
   id: auto_light_buero_fabian_off
   mode: restart
   trigger:
-    # Präsenz weg
+    # Präsenz weg (nur echter Übergang von on -> off, nicht nach KNX unavailable-Reconnect!)
     - platform: state
       entity_id: binary_sensor.presence_buero_fabian
+      from: "on"
       to: "off"
       id: presence_off
   
@@ -23,6 +24,7 @@
     # ForceOn (Dauer-Ein) wurde wieder deaktiviert -> neu prüfen
     - platform: state
       entity_id: input_boolean.force_on_buero_fabian
+      from: "on"
       to: "off"
       id: force_off
   

@@ -83,9 +83,15 @@
         - light.licht_schlafzimmer_virtuell
         - light.licht_speisekammer_virtuell
         - light.licht_wohnzimmer_virtuell
+      not_from:
+        - unavailable
+        - unknown
       to: "on"
     - trigger: state
       entity_id: sun.sun
+      not_from:
+        - unavailable
+        - unknown
       to: "above_horizon"
   conditions:
     - condition: state

@@ -14,9 +14,31 @@
         - cover.rollade_speisekammer
         - cover.rollade_wohnzimmer_links
         - cover.rollade_wohnzimmer_rechts
+      not_from:
+        - unavailable
+        - unknown
+      not_to:
+        - unavailable
+        - unknown
   conditions:
     - condition: template
-      value_template: "{{ trigger.to_state.context.parent_id is none }}"
+      value_template: >-
+        {% set fs = trigger.from_state %}
+        {% set ts = trigger.to_state %}
+        {% if fs is none or ts is none %}
+          false
+        {% else %}
+          {% set from_pos = fs.attributes.get('current_position') %}
+          {% set to_pos = ts.attributes.get('current_position') %}
+          {% set pos_changed = (from_pos is not none and to_pos is not none and ((from_pos | int - to_pos | int) | abs >= 2)) %}
+          {% set state_changed = (fs.state != ts.state) %}
+          {% set meaningful_change = state_changed or pos_changed %}
+          {% set by_ha_user = (ts.context.user_id is not none) %}
+          {% set global_dt = states('input_datetime.cover_last_global_move') %}
+          {% set last_global_ts = as_timestamp(global_dt, 0) | float(0) if global_dt not in ['unknown', 'unavailable', 'none', ''] else 0 %}
+          {% set not_auto_feedback = (ts.context.parent_id is none) and ((as_timestamp(now()) - last_global_ts) > 45) %}
+          {{ meaningful_change and (by_ha_user or not_auto_feedback) }}
+        {% endif %}
   actions:
     - variables:
         suffix: "{{ trigger.entity_id.split('.')[1] }}"

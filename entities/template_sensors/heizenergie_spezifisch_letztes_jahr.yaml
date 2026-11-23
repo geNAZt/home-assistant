@@ -3,7 +3,7 @@ sensor:
   unique_id: heizenergie_spezifisch_letztes_jahr
   unit_of_measurement: "kWh/m²·a"
   state_class: measurement
-  device_class: energy
+  icon: mdi:home-lightning-bolt-outline
   state: >
     {% set e = states('sensor.heizenergie_letztes_jahr') | float(0) %}
     {% if e <= 0 %}

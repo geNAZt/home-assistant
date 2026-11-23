@@ -2,11 +2,24 @@
   alias: "Automatic (Unified): Solar & Thermal Cover Control"
   mode: queued
   max: 3
+  max_exceeded: silent
   triggers:
     - trigger: state
       entity_id: input_select.cover_mode
+      not_from:
+        - unavailable
+        - unknown
+      not_to:
+        - unavailable
+        - unknown
     - trigger: state
       entity_id: input_boolean.cover_night_mode
+      not_from:
+        - unavailable
+        - unknown
+      not_to:
+        - unavailable
+        - unknown
     - trigger: state
       entity_id: sun.sun
     - trigger: state
@@ -15,37 +28,84 @@
       entity_id: input_number.cover_overheating_threshold
     - trigger: state
       entity_id: input_number.solar_irradiance
+      not_from:
+        - unavailable
+        - unknown
+      not_to:
+        - unavailable
+        - unknown
+      for: "00:00:30"
 [[% for entry in cover_entries %]]
     - trigger: state
       entity_id: input_boolean.auto_cover_[[ entry.cov_suffix ]]
+      not_from:
+        - unavailable
+        - unknown
+      not_to:
+        - unavailable
+        - unknown
 [[% endfor %]]
 [[% for entry in cover_entries %]]
     - trigger: state
       entity_id: input_number.cover_min_open_[[ entry.cov_suffix ]]
+      not_from:
+        - unavailable
+        - unknown
+      not_to:
+        - unavailable
+        - unknown
 [[% endfor %]]
 [[% for r in temp_rooms %]]
     - trigger: state
       entity_id: sensor.temperature_[[ r ]]_mean
+      not_from:
+        - unavailable
+        - unknown
+      not_to:
+        - unavailable
+        - unknown
+      for: "00:00:30"
 [[% endfor %]]
 [[% for r in temp_rooms %]]
     - trigger: state
       entity_id: input_number.heating_base_[[ r ]]
+      not_from:
+        - unavailable
+        - unknown
+      not_to:
+        - unavailable
+        - unknown
 [[% endfor %]]
 [[% for r in temp_rooms %]]
     - trigger: state
       entity_id: sensor.lux_[[ r ]]
+      not_from:
+        - unavailable
+        - unknown
+      not_to:
+        - unavailable
+        - unknown
+      for: "00:00:30"
 [[% endfor %]]
 [[% for r in temp_rooms %]]
     - trigger: state
       entity_id: input_number.[[ r ]]_brightness
-[[% endfor %]]
-[[% for entry in cover_entries %]]
-    - trigger: state
-      entity_id: sensor.solar_expected_gain_[[ entry.cov_suffix ]]
+      not_from:
+        - unavailable
+        - unknown
+      not_to:
+        - unavailable
+        - unknown
 [[% endfor %]]
 [[% for entry in cover_entries %]]
     - trigger: state
       entity_id: input_datetime.cover_manual_change_[[ entry.cov_suffix ]]
+      not_from:
+        - unavailable
+        - unknown
+      not_to:
+        - unavailable
+        - unknown
 [[% endfor %]]
     - trigger: time_pattern
       minutes: "/10"
@@ -118,6 +178,7 @@
               {% set exempt_reason = "Exempt via input_boolean.auto_cover_" ~ cov_suffix ~ " = off" %}
             {% endif %}
 
+            {% set cov_unavailable = states(cov) in ['unavailable', 'unknown', 'none', ''] %}
             {% set cur_pos = state_attr(cov, 'current_position') %}
             {% set cur_pos = (0 if is_state(cov, 'closed') else 100) if cur_pos is none or cur_pos == '' else cur_pos | int %}
 
@@ -161,10 +222,13 @@
               {% set daylight_min_pos = 20 %}
             {% endif %}
 
-            {% set is_daylight_clamped = false %}
+            {% set is_daylight_clamped = is_state('input_boolean.cover_daylight_protection_' ~ cov_suffix, 'on') if cov_unavailable else false %}
 
             {# Calculate target position and reason #}
-            {% if manual_cooldown_active %}
+            {% if cov_unavailable %}
+              {% set target_pos = cur_pos %}
+              {% set calc_reason = "Cover temporarily unavailable on KNX bus" %}
+            {% elif manual_cooldown_active %}
               {% set target_pos = cur_pos %}
               {% set calc_reason = "Manual override cooldown active (" ~ manual_elapsed ~ "s < 3600s 1h manual cooldown)" %}
             {% elif is_exempt %}
@@ -221,7 +285,10 @@
             {% set pos_diff = (target_pos - cur_pos) | abs %}
 
             {# Status & Summary Determination #}
-            {% if manual_cooldown_active %}
+            {% if cov_unavailable %}
+              {% set status = "SKIPPED_UNAVAILABLE" %}
+              {% set summary = "Skipped: Cover temporarily unavailable on KNX bus" %}
+            {% elif manual_cooldown_active %}
               {% set status = "SKIPPED_MANUAL_COOLDOWN" %}
               {% set summary = "Skipped: Manual override cooldown active (" ~ manual_elapsed ~ "s < 3600s 1h manual cooldown)" %}
             {% elif is_exempt and not cov_is_night %}
@@ -283,11 +350,16 @@
                   - action: input_boolean.turn_off
                     target:
                       entity_id: "input_boolean.cover_daylight_protection_{{ repeat.item.cov_suffix }}"
-          - action: system_log.write
-            data:
-              logger: automatic_cover_control
-              level: info
-              message: "[Cover Auto Log] {{ repeat.item.entity_id }}: {{ repeat.item.summary }}"
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: "{{ repeat.item.should_update }}"
+                sequence:
+                  - action: system_log.write
+                    data:
+                      logger: automatic_cover_control
+                      level: info
+                      message: "[Cover Auto Log] {{ repeat.item.entity_id }}: {{ repeat.item.summary }}"
     - choose:
         - conditions: "{{ cover_updates | length > 0 }}"
           sequence:

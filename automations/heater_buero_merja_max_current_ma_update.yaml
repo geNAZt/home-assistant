@@ -8,10 +8,19 @@
         - sensor.current_l1_buero_merja_current
         - sensor.current_l2_buero_merja_current
         - sensor.current_l3_buero_merja_current
+      not_from:
+        - unavailable
+        - unknown
+      not_to:
+        - unavailable
+        - unknown
       for: "00:00:15"
     - platform: state
       id: switch_turned_on
       entity_id: switch.heating_buero_merja
+      not_from:
+        - unavailable
+        - unknown
       to: "on"
       for: "00:01:30"
     - platform: time_pattern
@@ -19,10 +28,10 @@
       minutes: "/5"
   variables:
     switch_on: "{{ is_state('switch.heating_buero_merja', 'on') }}"
-    sw_obj: "{{ states.switch['heating_buero_merja'] if states.switch['heating_buero_merja'] is defined else none }}"
     on_seconds: >-
-      {% if switch_on and sw_obj is not none and sw_obj.last_changed is not none %}
-        {{ (as_timestamp(now()) - as_timestamp(sw_obj.last_changed)) | float(0) }}
+      {% set sw = states.switch['heating_buero_merja'] if states.switch['heating_buero_merja'] is defined else none %}
+      {% if switch_on and sw is not none and sw.last_changed is not none %}
+        {{ (as_timestamp(now()) - as_timestamp(sw.last_changed, 0)) | float(0) }}
       {% else %}
         0.0
       {% endif %}

@@ -2,6 +2,7 @@ triggers:
   - trigger: time_pattern
     id: tick
     minutes: "/1"
+    seconds: 35  # Sample after internal_gains_total (:25) and away from :00 heater switching transients
   - trigger: event
     id: calibrate
     event_type: thermal_2r2c_calibrate
@@ -98,10 +99,10 @@ sensor:
 
       {% if trigger.id == 'calibrate' %}
         {% set target_t = trigger.event.data.target_temp | float(_setpoint_mean | float(21.5)) %}
-        {{ [[target_t, 12.0] | max, 28.0] | min | round(5) }}
+        {{ [ [target_t, 12.0] | max, 28.0 ] | min | round(5) }}
       {% elif prev_raw is none %}
         {% set init_t = rf if rf is not none else t_air %}
-        {{ [[init_t, 12.0] | max, 28.0] | min | round(5) }}
+        {{ [ [init_t, 12.0] | max, 28.0 ] | min | round(5) }}
       {% elif trigger.id == 'start' %}
         {{ prev_raw | float(t_air) | round(5) }}
       {% else %}
@@ -139,7 +140,7 @@ sensor:
           {% set t_mass_corr = t_mass_pred %}
         {% endif %}
 
-        {{ [[t_mass_corr, 12.0] | max, 28.0] | min | round(5) }}
+        {{ [ [t_mass_corr, 12.0] | max, 28.0 ] | min | round(5) }}
       {% endif %}
     attributes:
       c_air_kwh_per_k: "{{ ((states('input_number.building_heat_capacity') | float(7.1)) * 0.10) | round(3) }}"
@@ -158,7 +159,7 @@ sensor:
   - name: "Thermal 2R2C Deficit kWh"
     unique_id: thermal_2r2c_deficit_kwh
     unit_of_measurement: "kWh"
-    device_class: energy
+    device_class: energy_storage
     state_class: measurement
     icon: mdi:fire-alert
     state: >
@@ -175,7 +176,7 @@ sensor:
       {% set t_out = states('sensor.outside_temperature') | float(8.0) %}
       {% set q_air_loss_sp = h_above_w_k * [t_sp - t_out, 0.0] | max %}
       {% set q_air_int_base = 0.80 * (states('sensor.internal_gains_daytime_median') | float(states('sensor.internal_gains_total') | float(450))) %}
-      {% set eq_mass_boost_k = [[(q_air_loss_sp - q_air_int_base) / 730.0, 0.0] | max, 1.5] | min %}
+      {% set eq_mass_boost_k = [ [(q_air_loss_sp - q_air_int_base) / 730.0, 0.0] | max, 1.5 ] | min %}
       {% set t_mass_eq = t_sp + eq_mass_boost_k %}
 
       {% set def_air = [c_air * (t_sp - t_air), 0.0] | max %}

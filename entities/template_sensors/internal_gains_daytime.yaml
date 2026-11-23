@@ -1,6 +1,7 @@
 triggers:
   - trigger: time_pattern
     minutes: "/5"
+    seconds: 30  # Sample 5s after internal_gains_total (:25) and away from :00 heater switching transients
   - trigger: homeassistant
     event: start
 sensor:

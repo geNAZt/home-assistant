@@ -4,6 +4,9 @@
   trigger:
     - platform: state
       entity_id: binary_sensor.presence_wohnzimmer
+      not_from:
+        - unavailable
+        - unknown
       to: "on"
     - platform: numeric_state
       entity_id: sensor.lux_wohnzimmer_daylight
@@ -11,9 +14,15 @@
       for: "00:00:05"
     - platform: state
       entity_id: input_boolean.auto_light_wohnzimmer
+      not_from:
+        - unavailable
+        - unknown
       to: "on"
     - platform: state
       entity_id: input_boolean.force_on_wohnzimmer
+      not_from:
+        - unavailable
+        - unknown
       to: "on"
 
   condition:

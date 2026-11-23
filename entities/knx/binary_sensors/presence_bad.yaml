@@ -1,3 +1,4 @@
 name: "Presence Bad"
 state_address: "8/0/0"
 device_class: presence
+sync_state: false

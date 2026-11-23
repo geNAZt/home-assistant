@@ -5,6 +5,12 @@
   - trigger: state
     entity_id:
     - input_button.snapper_door
+    not_from:
+    - unavailable
+    - unknown
+    not_to:
+    - unavailable
+    - unknown
   actions:
   - choose:
     - conditions:
