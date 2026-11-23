@@ -1,0 +1,7 @@
+name: "Wäschetrockner Programmlaufzeit Snapshot"
+min: 0
+max: 600
+step: 1
+mode: box
+unit_of_measurement: "min"
+icon: mdi:timer-outline

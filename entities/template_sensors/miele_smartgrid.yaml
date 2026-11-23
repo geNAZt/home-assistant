@@ -1,0 +1,50 @@
+sensor:
+  - name: "Miele PV Direct Surplus W"
+    unique_id: miele_pv_direct_surplus_w
+    unit_of_measurement: "W"
+    device_class: power
+    state_class: measurement
+    icon: mdi:solar-power-variant
+    state: >-
+      {% set exported_w = states('sensor.filtered_exported_power_w') | float(0) %}
+      {% set imported_w = states('sensor.filtered_imported_power_w') | float(0) %}
+      {% set battery_w = states('sensor.pv_battery1_power') | float(0) %}
+      {% if imported_w <= 50 %}
+        {{ (exported_w + ([battery_w, 0] | max)) | round(0) }}
+      {% else %}
+        0
+      {% endif %}
+
+binary_sensor:
+  - name: "Miele NT Tariff Active"
+    unique_id: miele_nt_tariff_active
+    icon: mdi:weather-night
+    state: >-
+      {% set h = now().hour %}
+      {% set price_now = states('sensor.power_price') | float(0.2820) %}
+      {% set price_nt = states('sensor.power_price_nt') | float(0.1821) %}
+      {% set price_ht = states('sensor.power_price_ht') | float(0.2820) %}
+      {% set cheap_dynamic = (price_nt > 0 and price_nt < (price_ht - 0.01) and price_now <= (price_nt * 1.05)) %}
+      {{ (0 <= h < 5) or cheap_dynamic }}
+
+  - name: "Miele PV Freigabe Waschmaschine"
+    unique_id: miele_pv_freigabe_waschmaschine
+    icon: mdi:washing-machine
+    delay_on: "00:02:00"
+    state: >-
+      {% set exported_w = states('sensor.filtered_exported_power_w') | float(0) %}
+      {% set imported_w = states('sensor.filtered_imported_power_w') | float(0) %}
+      {% set battery_w = states('sensor.pv_battery1_power') | float(0) %}
+      {% set surplus_w = (exported_w + ([battery_w, 0] | max)) if imported_w <= 50 else 0 %}
+      {{ surplus_w >= 1200 }}
+
+  - name: "Miele PV Freigabe Wäschetrockner"
+    unique_id: miele_pv_freigabe_waschetrockner
+    icon: mdi:tumble-dryer
+    delay_on: "00:02:30"
+    state: >-
+      {% set exported_w = states('sensor.filtered_exported_power_w') | float(0) %}
+      {% set imported_w = states('sensor.filtered_imported_power_w') | float(0) %}
+      {% set battery_w = states('sensor.pv_battery1_power') | float(0) %}
+      {% set surplus_w = (exported_w + ([battery_w, 0] | max)) if imported_w <= 50 else 0 %}
+      {{ surplus_w >= 600 }}

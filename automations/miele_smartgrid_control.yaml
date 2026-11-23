@@ -1,0 +1,427 @@
+- id: miele_smartgrid_waschmaschine
+  alias: "Waschmaschine: SmartGrid PV-/NT-Startsteuerung"
+  description: >-
+    Steuert den Start der Miele Waschmaschine (WWR860) im Status waiting_to_start (SmartStart):
+    Startet sofort bei stabilem PV-Überschuss (>= 1200 W für 2 Min.) oder im NT-Tarif (00:00–05:00),
+    sonst spätestens nach 1/3 der Programmlaufzeit (max. 10 Min. im Kurzprogramm) – bzw. um 00:00 Uhr,
+    falls das Programmende bereits in das NT-Fenster fallen würde.
+  mode: single
+  max_exceeded: silent
+  triggers:
+    - trigger: state
+      id: duration_change
+      entity_id: sensor.waschmaschine_verbleibende_zeit
+    - trigger: state
+      id: programmed
+      entity_id: sensor.waschmaschine
+      to: "programmed"
+    - trigger: state
+      id: entered_waiting
+      entity_id: sensor.waschmaschine
+      to: "waiting_to_start"
+    - trigger: state
+      id: left_waiting
+      entity_id: sensor.waschmaschine
+      to:
+        - "in_use"
+        - "program_ended"
+        - "program_interrupted"
+        - "off"
+        - "idle"
+    - trigger: state
+      id: start_btn_ready
+      entity_id: button.waschmaschine_starten
+      from: "unavailable"
+    - trigger: state
+      id: pv_ready
+      entity_id: binary_sensor.miele_pv_freigabe_waschmaschine
+      to: "on"
+    - trigger: state
+      id: nt_ready
+      entity_id: binary_sensor.miele_nt_tariff_active
+      to: "on"
+    - trigger: time_pattern
+      id: minute_tick
+      minutes: "/1"
+    - trigger: homeassistant
+      id: ha_start
+      event: start
+  variables:
+    status_entity: "sensor.waschmaschine"
+    prog_entity: "sensor.waschmaschine_programm"
+    rem_entity: "sensor.waschmaschine_verbleibende_zeit"
+    start_ts_entity: "sensor.waschmaschine_start"
+    end_ts_entity: "sensor.waschmaschine_ende"
+    start_button: "button.waschmaschine_starten"
+    power_switch: "switch.waschmaschine_stromversorgung"
+    pv_ready_entity: "binary_sensor.miele_pv_freigabe_waschmaschine"
+    waiting_helper: "input_boolean.waschmaschine_smartgrid_waiting"
+    deadline_helper: "input_datetime.waschmaschine_smartgrid_deadline"
+    dur_helper: "input_number.waschmaschine_program_duration_min"
+    notif_id: "miele_smartgrid_wm"
+    pv_threshold_w: 1200
+    cur_status: "{{ states(status_entity) }}"
+    live_rem_min: "{{ states(rem_entity) | float(0) }}"
+    prog_min: >-
+      {% set rem = states(rem_entity) | float(0) %}
+      {% set t_s = as_timestamp(states(start_ts_entity), default=0) %}
+      {% set t_e = as_timestamp(states(end_ts_entity), default=0) %}
+      {% set ts_diff = ((t_e - t_s) / 60.0) | round(0) if (t_s > 0 and t_e > t_s and (t_e - t_s) <= 28800) else 0 %}
+      {% set snap = states(dur_helper) | float(0) %}
+      {% set prog = states(prog_entity) %}
+      {% if rem > 0 %}
+        {{ rem | round(0) | int }}
+      {% elif ts_diff >= 5 %}
+        {{ ts_diff | int }}
+      {% elif snap > 0 %}
+        {{ snap | round(0) | int }}
+      {% elif prog == 'express_20' %}
+        20
+      {% elif prog in ['express', 'quick_intense'] %}
+        30
+      {% elif prog in ['drain_spin', 'rinse'] %}
+        18
+      {% elif prog == 'quick_power_wash' %}
+        49
+      {% else %}
+        90
+      {% endif %}
+    computed_deadline: >-
+      {% set now_dt = now() %}
+      {% set next_midnight = (now_dt + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0) %}
+      {% set price_nt = states('sensor.power_price_nt') | float(0.1821) %}
+      {% set price_ht = states('sensor.power_price_ht') | float(0.2820) %}
+      {% set nt_worth_waiting = price_nt < (price_ht - 0.02) %}
+      {% set unshifted_end = now_dt + timedelta(minutes=(prog_min | int)) %}
+      {% if now_dt.hour >= 5 and nt_worth_waiting and unshifted_end >= next_midnight %}
+        {{ next_midnight.strftime('%Y-%m-%d %H:%M:%S') }}
+      {% else %}
+        {% set prog = states(prog_entity) %}
+        {% set is_short = (prog_min | int) <= 30 or prog in ['express', 'express_20'] %}
+        {% set raw_third = [((prog_min | float(60)) / 3.0) | round(0) | int, 1] | max %}
+        {% set delay_min = [raw_third, 10] | min if is_short else raw_third %}
+        {{ (now_dt + timedelta(minutes=delay_min)).strftime('%Y-%m-%d %H:%M:%S') }}
+      {% endif %}
+  actions:
+    # 1. Programmlaufzeit im Zustand programmed / waiting_to_start merken
+    - if:
+        - condition: template
+          value_template: >-
+            {{ cur_status in ['programmed', 'waiting_to_start']
+               and (live_rem_min | float(0)) > 0
+               and ((live_rem_min | round(0)) != (states(dur_helper) | float(0) | round(0))) }}
+      then:
+        - action: input_number.set_value
+          target:
+            entity_id: "{{ dur_helper }}"
+          data:
+            value: "{{ [live_rem_min | round(0) | int, 600] | min }}"
+
+    # 2. Aufräumen, wenn Gerät nicht mehr im SmartStart wartet (Netzwerk-Blips not_connected/unavailable ignorieren)
+    - if:
+        - condition: template
+          value_template: >-
+            {{ cur_status in ['in_use', 'program_ended', 'program_interrupted', 'off', 'programmed', 'idle']
+               and is_state(waiting_helper, 'on') }}
+      then:
+        - action: input_boolean.turn_off
+          target:
+            entity_id: "{{ waiting_helper }}"
+        - action: persistent_notification.dismiss
+          data:
+            notification_id: "{{ notif_id }}"
+
+    # 3. Beim Eintritt in waiting_to_start Deadline einmalig setzen (restart- & reconnect-sicher)
+    - if:
+        - condition: template
+          value_template: "{{ cur_status == 'waiting_to_start' and is_state(waiting_helper, 'off') }}"
+      then:
+        - action: input_datetime.set_datetime
+          target:
+            entity_id: "{{ deadline_helper }}"
+          data:
+            datetime: "{{ computed_deadline }}"
+        - action: input_boolean.turn_on
+          target:
+            entity_id: "{{ waiting_helper }}"
+        - action: persistent_notification.dismiss
+          data:
+            notification_id: "laundry_shift_wm"
+        - action: persistent_notification.create
+          data:
+            notification_id: "{{ notif_id }}"
+            title: "Waschmaschine: SmartGrid aktiv"
+            message: >-
+              Wartet auf PV-Überschuss (≥ {{ pv_threshold_w }} W) oder NT-Tarif (00:00–05:00).
+              Programmlaufzeit: **{{ prog_min }} Min.** — spätester Start um **{{ computed_deadline[11:16] }} Uhr**.
+
+    # 4. Prüfen, ob Startsignal gesendet werden soll (PV stabil, NT aktiv oder Deadline erreicht)
+    - if:
+        - condition: template
+          value_template: >-
+            {% if cur_status != 'waiting_to_start' %}
+              false
+            {% else %}
+              {% set dl_str = states(deadline_helper) if is_state(waiting_helper, 'on') else computed_deadline %}
+              {% set dl_ts = as_timestamp(dl_str, default=0) %}
+              {% set deadline_reached = dl_ts > 0 and as_timestamp(now()) >= dl_ts %}
+              {% set nt_ok = is_state('binary_sensor.miele_nt_tariff_active', 'on') %}
+              {% set pv_ok = is_state(pv_ready_entity, 'on') and (states('sensor.miele_pv_direct_surplus_w') | float(0) >= pv_threshold_w) %}
+              {{ nt_ok or pv_ok or deadline_reached }}
+            {% endif %}
+      then:
+        - choose:
+            - conditions:
+                - condition: template
+                  value_template: "{{ not is_state(start_button, 'unavailable') }}"
+              sequence:
+                - action: button.press
+                  target:
+                    entity_id: "{{ start_button }}"
+                  continue_on_error: true
+                - wait_template: "{{ states(status_entity) == 'in_use' }}"
+                  timeout: "00:00:15"
+                - if:
+                    - condition: template
+                      value_template: "{{ states(status_entity) == 'in_use' }}"
+                  then:
+                    - action: input_boolean.turn_off
+                      target:
+                        entity_id: "{{ waiting_helper }}"
+                    - action: persistent_notification.dismiss
+                      data:
+                        notification_id: "{{ notif_id }}"
+                  else:
+                    # Fallback gegen Miele-Standby (Issue #185703): Aufwecken + erneuter Startimpuls
+                    - action: switch.turn_on
+                      target:
+                        entity_id: "{{ power_switch }}"
+                      continue_on_error: true
+                    - delay: "00:00:03"
+                    - action: button.press
+                      target:
+                        entity_id: "{{ start_button }}"
+                      continue_on_error: true
+          default:
+            # Start-Button noch unavailable: Falls schon > 90s in waiting_to_start, Aufweckimpuls versuchen
+            - if:
+                - condition: template
+                  value_template: >-
+                    {{ (as_timestamp(now()) - as_timestamp(states[status_entity].last_changed, default=as_timestamp(now()))) > 90 }}
+              then:
+                - action: switch.turn_on
+                  target:
+                    entity_id: "{{ power_switch }}"
+                  continue_on_error: true
+
+- id: miele_smartgrid_waschetrockner
+  alias: "Wäschetrockner: SmartGrid PV-/NT-Startsteuerung"
+  description: >-
+    Steuert den Start des Miele Wäschetrockners (TWJ680WP) im Status waiting_to_start (SmartStart):
+    Startet sofort bei stabilem PV-Überschuss (>= 600 W für 2,5 Min.) oder im NT-Tarif (00:00–05:00),
+    sonst spätestens nach 1/3 der Programmlaufzeit (max. 10 Min. im Kurzprogramm) – bzw. um 00:00 Uhr,
+    falls das Programmende bereits in das NT-Fenster fallen würde.
+  mode: single
+  max_exceeded: silent
+  triggers:
+    - trigger: state
+      id: duration_change
+      entity_id: sensor.waschetrockner_verbleibende_zeit
+    - trigger: state
+      id: programmed
+      entity_id: sensor.waschetrockner
+      to: "programmed"
+    - trigger: state
+      id: entered_waiting
+      entity_id: sensor.waschetrockner
+      to: "waiting_to_start"
+    - trigger: state
+      id: left_waiting
+      entity_id: sensor.waschetrockner
+      to:
+        - "in_use"
+        - "program_ended"
+        - "program_interrupted"
+        - "off"
+        - "idle"
+    - trigger: state
+      id: start_btn_ready
+      entity_id: button.waschetrockner_starten
+      from: "unavailable"
+    - trigger: state
+      id: pv_ready
+      entity_id: binary_sensor.miele_pv_freigabe_waschetrockner
+      to: "on"
+    - trigger: state
+      id: nt_ready
+      entity_id: binary_sensor.miele_nt_tariff_active
+      to: "on"
+    - trigger: time_pattern
+      id: minute_tick
+      minutes: "/1"
+    - trigger: homeassistant
+      id: ha_start
+      event: start
+  variables:
+    status_entity: "sensor.waschetrockner"
+    prog_entity: "sensor.waschetrockner_programm"
+    rem_entity: "sensor.waschetrockner_verbleibende_zeit"
+    start_ts_entity: "sensor.waschetrockner_start"
+    end_ts_entity: "sensor.waschetrockner_ende"
+    start_button: "button.waschetrockner_starten"
+    power_switch: "switch.waschetrockner_stromversorgung"
+    pv_ready_entity: "binary_sensor.miele_pv_freigabe_waschetrockner"
+    waiting_helper: "input_boolean.waschetrockner_smartgrid_waiting"
+    deadline_helper: "input_datetime.waschetrockner_smartgrid_deadline"
+    dur_helper: "input_number.waschetrockner_program_duration_min"
+    notif_id: "miele_smartgrid_tr"
+    pv_threshold_w: 600
+    cur_status: "{{ states(status_entity) }}"
+    live_rem_min: "{{ states(rem_entity) | float(0) }}"
+    prog_min: >-
+      {% set rem = states(rem_entity) | float(0) %}
+      {% set t_s = as_timestamp(states(start_ts_entity), default=0) %}
+      {% set t_e = as_timestamp(states(end_ts_entity), default=0) %}
+      {% set ts_diff = ((t_e - t_s) / 60.0) | round(0) if (t_s > 0 and t_e > t_s and (t_e - t_s) <= 28800) else 0 %}
+      {% set snap = states(dur_helper) | float(0) %}
+      {% set prog = states(prog_entity) %}
+      {% if rem > 0 %}
+        {{ rem | round(0) | int }}
+      {% elif ts_diff >= 5 %}
+        {{ ts_diff | int }}
+      {% elif snap > 0 %}
+        {{ snap | round(0) | int }}
+      {% elif prog in ['express', 'quick_power_dry', 'quick_hygiene'] %}
+        30
+      {% elif prog in ['cool_air', 'warm_air', 'smoothing', 'gentle_smoothing'] %}
+        25
+      {% else %}
+        135
+      {% endif %}
+    computed_deadline: >-
+      {% set now_dt = now() %}
+      {% set next_midnight = (now_dt + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0) %}
+      {% set price_nt = states('sensor.power_price_nt') | float(0.1821) %}
+      {% set price_ht = states('sensor.power_price_ht') | float(0.2820) %}
+      {% set nt_worth_waiting = price_nt < (price_ht - 0.02) %}
+      {% set unshifted_end = now_dt + timedelta(minutes=(prog_min | int)) %}
+      {% if now_dt.hour >= 5 and nt_worth_waiting and unshifted_end >= next_midnight %}
+        {{ next_midnight.strftime('%Y-%m-%d %H:%M:%S') }}
+      {% else %}
+        {% set prog = states(prog_entity) %}
+        {% set is_short = (prog_min | int) <= 30 or prog in ['express', 'quick_power_dry', 'quick_hygiene'] %}
+        {% set raw_third = [((prog_min | float(135)) / 3.0) | round(0) | int, 1] | max %}
+        {% set delay_min = [raw_third, 10] | min if is_short else raw_third %}
+        {{ (now_dt + timedelta(minutes=delay_min)).strftime('%Y-%m-%d %H:%M:%S') }}
+      {% endif %}
+  actions:
+    # 1. Programmlaufzeit im Zustand programmed / waiting_to_start merken
+    - if:
+        - condition: template
+          value_template: >-
+            {{ cur_status in ['programmed', 'waiting_to_start']
+               and (live_rem_min | float(0)) > 0
+               and ((live_rem_min | round(0)) != (states(dur_helper) | float(0) | round(0))) }}
+      then:
+        - action: input_number.set_value
+          target:
+            entity_id: "{{ dur_helper }}"
+          data:
+            value: "{{ [live_rem_min | round(0) | int, 600] | min }}"
+
+    # 2. Aufräumen, wenn Gerät nicht mehr im SmartStart wartet (Netzwerk-Blips not_connected/unavailable ignorieren)
+    - if:
+        - condition: template
+          value_template: >-
+            {{ cur_status in ['in_use', 'program_ended', 'program_interrupted', 'off', 'programmed', 'idle']
+               and is_state(waiting_helper, 'on') }}
+      then:
+        - action: input_boolean.turn_off
+          target:
+            entity_id: "{{ waiting_helper }}"
+        - action: persistent_notification.dismiss
+          data:
+            notification_id: "{{ notif_id }}"
+
+    # 3. Beim Eintritt in waiting_to_start Deadline einmalig setzen (restart- & reconnect-sicher)
+    - if:
+        - condition: template
+          value_template: "{{ cur_status == 'waiting_to_start' and is_state(waiting_helper, 'off') }}"
+      then:
+        - action: input_datetime.set_datetime
+          target:
+            entity_id: "{{ deadline_helper }}"
+          data:
+            datetime: "{{ computed_deadline }}"
+        - action: input_boolean.turn_on
+          target:
+            entity_id: "{{ waiting_helper }}"
+        - action: persistent_notification.dismiss
+          data:
+            notification_id: "laundry_shift_tr"
+        - action: persistent_notification.create
+          data:
+            notification_id: "{{ notif_id }}"
+            title: "Wäschetrockner: SmartGrid aktiv"
+            message: >-
+              Wartet auf PV-Überschuss (≥ {{ pv_threshold_w }} W) oder NT-Tarif (00:00–05:00).
+              Programmlaufzeit: **{{ prog_min }} Min.** — spätester Start um **{{ computed_deadline[11:16] }} Uhr**.
+
+    # 4. Prüfen, ob Startsignal gesendet werden soll (PV stabil, NT aktiv oder Deadline erreicht)
+    - if:
+        - condition: template
+          value_template: >-
+            {% if cur_status != 'waiting_to_start' %}
+              false
+            {% else %}
+              {% set dl_str = states(deadline_helper) if is_state(waiting_helper, 'on') else computed_deadline %}
+              {% set dl_ts = as_timestamp(dl_str, default=0) %}
+              {% set deadline_reached = dl_ts > 0 and as_timestamp(now()) >= dl_ts %}
+              {% set nt_ok = is_state('binary_sensor.miele_nt_tariff_active', 'on') %}
+              {% set pv_ok = is_state(pv_ready_entity, 'on') and (states('sensor.miele_pv_direct_surplus_w') | float(0) >= pv_threshold_w) %}
+              {{ nt_ok or pv_ok or deadline_reached }}
+            {% endif %}
+      then:
+        - choose:
+            - conditions:
+                - condition: template
+                  value_template: "{{ not is_state(start_button, 'unavailable') }}"
+              sequence:
+                - action: button.press
+                  target:
+                    entity_id: "{{ start_button }}"
+                  continue_on_error: true
+                - wait_template: "{{ states(status_entity) == 'in_use' }}"
+                  timeout: "00:00:15"
+                - if:
+                    - condition: template
+                      value_template: "{{ states(status_entity) == 'in_use' }}"
+                  then:
+                    - action: input_boolean.turn_off
+                      target:
+                        entity_id: "{{ waiting_helper }}"
+                    - action: persistent_notification.dismiss
+                      data:
+                        notification_id: "{{ notif_id }}"
+                  else:
+                    # Fallback gegen Miele-Standby (Issue #185703): Aufwecken + erneuter Startimpuls
+                    - action: switch.turn_on
+                      target:
+                        entity_id: "{{ power_switch }}"
+                      continue_on_error: true
+                    - delay: "00:00:03"
+                    - action: button.press
+                      target:
+                        entity_id: "{{ start_button }}"
+                      continue_on_error: true
+          default:
+            # Start-Button noch unavailable: Falls schon > 90s in waiting_to_start, Aufweckimpuls versuchen
+            - if:
+                - condition: template
+                  value_template: >-
+                    {{ (as_timestamp(now()) - as_timestamp(states[status_entity].last_changed, default=as_timestamp(now()))) > 90 }}
+              then:
+                - action: switch.turn_on
+                  target:
+                    entity_id: "{{ power_switch }}"
+                  continue_on_error: true

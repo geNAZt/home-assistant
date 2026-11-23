@@ -1,0 +1,4 @@
+name: "Wäschetrockner SmartGrid Spätester Start"
+has_date: true
+has_time: true
+icon: mdi:clock-end
