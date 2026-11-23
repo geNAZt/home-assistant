@@ -33,7 +33,9 @@ sensor:
       {% endif %}
 
 
-      {% set pos = [ [state_attr('cover.rollade_wohnzimmer_links', 'current_position') | float(100) / 100.0, 0.0] | max, 1.0] | min %}
+      {% set raw_pos = state_attr('cover.rollade_wohnzimmer_links', 'current_position') %}
+      {% set pos_pct = (0.0 if is_state('cover.rollade_wohnzimmer_links', 'closed') else 100.0) if (raw_pos is none or raw_pos == '') else (raw_pos | float(100)) %}
+      {% set pos = [ [pos_pct / 100.0, 0.0] | max, 1.0] | min %}
       {% set s_factor = 0.15 + (1.0 - 0.15) * cloud %}
       {% set dhi = ghi * s_factor %}
       {% set dni = [(ghi * (1.0 - s_factor)) / ([sin_ele, 0.08] | max), 950.0] | min %}
@@ -76,7 +78,9 @@ sensor:
       {% set ground_w_m2 = 0.10 * ghi * pos * g_diff * diffuse_factor %}
       {% set ns.total = ns.total + (2.772 * (direct_w_m2 + diffuse_w_m2 + ground_w_m2)) %}
 
-      {% set pos = [ [state_attr('cover.rollade_wohnzimmer_rechts', 'current_position') | float(100) / 100.0, 0.0] | max, 1.0] | min %}
+      {% set raw_pos = state_attr('cover.rollade_wohnzimmer_rechts', 'current_position') %}
+      {% set pos_pct = (0.0 if is_state('cover.rollade_wohnzimmer_rechts', 'closed') else 100.0) if (raw_pos is none or raw_pos == '') else (raw_pos | float(100)) %}
+      {% set pos = [ [pos_pct / 100.0, 0.0] | max, 1.0] | min %}
       {% set s_factor = 0.15 + (1.0 - 0.15) * cloud %}
       {% set dhi = ghi * s_factor %}
       {% set dni = [(ghi * (1.0 - s_factor)) / ([sin_ele, 0.08] | max), 950.0] | min %}
@@ -149,7 +153,9 @@ sensor:
         {% set ghi = 0.0 %}
       {% endif %}
 
-      {% set pos = [ [state_attr('cover.rollade_wohnzimmer_links', 'current_position') | float(100) / 100.0, 0.0] | max, 1.0] | min %}
+      {% set raw_pos = state_attr('cover.rollade_wohnzimmer_links', 'current_position') %}
+      {% set pos_pct = (0.0 if is_state('cover.rollade_wohnzimmer_links', 'closed') else 100.0) if (raw_pos is none or raw_pos == '') else (raw_pos | float(100)) %}
+      {% set pos = [ [pos_pct / 100.0, 0.0] | max, 1.0] | min %}
       {% set s_factor = 0.15 + (1.0 - 0.15) * cloud %}
       {% set dhi = ghi * s_factor %}
       {% set dni = [(ghi * (1.0 - s_factor)) / ([sin_ele, 0.08] | max), 950.0] | min %}
@@ -225,7 +231,9 @@ sensor:
         {% set ghi = 0.0 %}
       {% endif %}
 
-      {% set pos = [ [state_attr('cover.rollade_wohnzimmer_rechts', 'current_position') | float(100) / 100.0, 0.0] | max, 1.0] | min %}
+      {% set raw_pos = state_attr('cover.rollade_wohnzimmer_rechts', 'current_position') %}
+      {% set pos_pct = (0.0 if is_state('cover.rollade_wohnzimmer_rechts', 'closed') else 100.0) if (raw_pos is none or raw_pos == '') else (raw_pos | float(100)) %}
+      {% set pos = [ [pos_pct / 100.0, 0.0] | max, 1.0] | min %}
       {% set s_factor = 0.15 + (1.0 - 0.15) * cloud %}
       {% set dhi = ghi * s_factor %}
       {% set dni = [(ghi * (1.0 - s_factor)) / ([sin_ele, 0.08] | max), 950.0] | min %}

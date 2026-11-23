@@ -11,6 +11,7 @@
       g: 0.53
       u: 0.7
       cover: cover.rollade_buero_fabian
+      open_at_sunrise: true
       shading:
         - name: Nachbarhaus
           distance: 7.5
@@ -41,6 +42,7 @@
           distance: 4.0
           direction: left
       cover: cover.rollade_wohnzimmer_links
+      open_at_sunrise: true
     - position:
         bottom: 0.0
       area:
@@ -59,6 +61,7 @@
           height: 2.9
           direction: top
       cover: cover.rollade_wohnzimmer_rechts
+      open_at_sunrise: true
 - room: kueche
   light_power_w: 351.0
   water_low_lux: 800
@@ -72,6 +75,7 @@
       g: 0.53
       u: 0.7
       cover: cover.rollade_kueche_rechts
+      open_at_sunrise: true
       shading:
         - name: Vordach
           distance: 4.5
@@ -86,6 +90,7 @@
       g: 0.53
       u: 0.7
       cover: cover.rollade_kueche_links
+      open_at_sunrise: false
       shading:
         - name: Nachbarhaus
           distance: 4.2
@@ -104,6 +109,7 @@
       g: 0.53
       u: 0.7
       cover: cover.rollade_speisekammer
+      open_at_sunrise: true
 - room: hwr
   temp_room: flur
   light_power_w: 0.0
@@ -118,6 +124,7 @@
       g: 0.53
       u: 0.7
       cover: cover.rollade_hwr
+      open_at_sunrise: false
 - room: bad
   light_power_w: 27.0
   water_low_lux: 800
@@ -131,6 +138,7 @@
       g: 0.53
       u: 0.7
       cover: cover.rollade_bad
+      open_at_sunrise: false
 - room: schlafzimmer
   light_power_w: 178.2
   water_low_lux: 140
@@ -144,6 +152,7 @@
       g: 0.53
       u: 0.7
       cover: cover.rollade_schlafzimmer
+      open_at_sunrise: false
       shading:
         - name: Nachbarhaus
           distance: 4.2
@@ -162,6 +171,7 @@
       g: 0.53
       u: 0.7
       cover: cover.rollade_buero_merja
+      open_at_sunrise: false
       shading:
         - name: Bäume
           distance: 10

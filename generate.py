@@ -81,6 +81,7 @@ def load_values(values_path: Path) -> List[Dict]:
                     window['wattage_limit'] = limit_w
                     window['watt_limit'] = limit_w
                     window['glass_area'] = round(area_m2, 4)
+                    window['open_at_sunrise'] = bool(window.get('open_at_sunrise', False))
     
     return data
 
@@ -193,6 +194,7 @@ def process_template_folder(template_folder: Path, output_base: Path):
                             'watt_limit': window.get('watt_limit', 120.0),
                             'wattage_limit': window.get('wattage_limit', 120.0),
                             'glass_area': window.get('glass_area', 1.0),
+                            'open_at_sunrise': bool(window.get('open_at_sunrise', False)),
                             'light_power_w': item.get('light_power_w', 100.0),
                             'water_low_lux': item.get('water_low_lux', 140),
                         })

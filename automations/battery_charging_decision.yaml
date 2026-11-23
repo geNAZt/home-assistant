@@ -14,8 +14,17 @@
       minutes: "/15"
     - platform: state
       entity_id: input_boolean.charge_solar_battery_override
+    - platform: state
+      entity_id: select.pv_storage_remote_command_mode
+      from:
+        - "unavailable"
+        - "unknown"
+      for: "00:00:05"
     - platform: homeassistant
       event: start
+  condition:
+    - condition: template
+      value_template: "{{ states('select.pv_storage_remote_command_mode') not in ['unavailable', 'unknown', 'none', ''] }}"
   variables:
     current_hour: "{{ now().hour }}"
     charge_window_start_hour: 0

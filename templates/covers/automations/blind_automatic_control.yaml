@@ -8,6 +8,8 @@
     - trigger: state
       entity_id: input_boolean.cover_night_mode
     - trigger: state
+      entity_id: sun.sun
+    - trigger: state
       entity_id: input_text.exempt_covers
     - trigger: state
       entity_id: input_number.cover_overheating_threshold
@@ -64,10 +66,12 @@
             watt_limit: [[ entry.watt_limit ]]
             light_power_w: [[ entry.light_power_w ]]
             water_low_lux: [[ entry.water_low_lux ]]
+            open_at_sunrise: [[ 'true' if entry.open_at_sunrise else 'false' ]]
 [[% endfor %]]
         cover_evaluations: >-
           {% set cover_mode = states('input_select.cover_mode') %}
           {% set is_night = is_state('input_boolean.cover_night_mode', 'on') %}
+          {% set sun_up = is_state('sun.sun', 'above_horizon') %}
           {% set exempt_text = states('input_text.exempt_covers') | default('') %}
           {% set overheating_thresh_state = states('input_number.cover_overheating_threshold') %}
           {% set overheating_thresh = overheating_thresh_state | float(2.0) if (overheating_thresh_state not in ['unknown', 'unavailable', 'None', ''] and overheating_thresh_state is not none) else 2.0 %}
@@ -78,7 +82,7 @@
           {% set now_ts = as_timestamp(now()) %}
 
           {% set trig_ent = trigger.entity_id if (trigger is defined and trigger.entity_id is defined and trigger.entity_id is not none) else '' %}
-          {% set is_config_trigger = (trig_ent.startswith('input_number.cover_min_open_') or trig_ent.startswith('input_boolean.auto_cover_') or trig_ent in ['input_select.cover_mode', 'input_boolean.cover_night_mode', 'input_text.exempt_covers']) if trig_ent else false %}
+          {% set is_config_trigger = (trig_ent.startswith('input_number.cover_min_open_') or trig_ent.startswith('input_boolean.auto_cover_') or trig_ent in ['input_select.cover_mode', 'input_boolean.cover_night_mode', 'input_text.exempt_covers', 'sun.sun']) if trig_ent else false %}
 
           {% set global_dt_state = states('input_datetime.cover_last_global_move') %}
           {% set last_global_ts = as_timestamp(global_dt_state) if (global_dt_state not in ['unknown', 'unavailable', 'None', ''] and global_dt_state is not none) else 0 %}
@@ -92,6 +96,8 @@
             {% set limit_w = data.watt_limit | default(120) | float %}
             {% set max_light_power = data.light_power_w | default(100.0) | float %}
             {% set raw_water_low = data.water_low_lux | default(140) | float %}
+            {% set open_at_sunrise = data.open_at_sunrise | default(false) %}
+            {% set cov_is_night = is_night and not (open_at_sunrise and sun_up) %}
             {% set target_lux = [raw_water_low, 250.0] | min %}
 
             {# Check minimum open position #}
@@ -164,9 +170,9 @@
             {% elif is_exempt %}
               {% set target_pos = cur_pos %}
               {% set calc_reason = "Exempt cover (" ~ exempt_reason ~ ")" %}
-            {% elif is_night %}
+            {% elif cov_is_night %}
               {% set target_pos = 0 %}
-              {% set calc_reason = "Night mode active (sunset + 30m reached)" %}
+              {% set calc_reason = "Night mode active (waiting for wake-up lights)" if sun_up else "Night mode active (sunset + 30m reached)" %}
             {% elif cover_mode == 'Manual (sunset)' %}
               {% set target_pos = cur_pos %}
               {% set calc_reason = "Manual (sunset) mode active during daytime" %}
@@ -218,10 +224,10 @@
             {% if manual_cooldown_active %}
               {% set status = "SKIPPED_MANUAL_COOLDOWN" %}
               {% set summary = "Skipped: Manual override cooldown active (" ~ manual_elapsed ~ "s < 3600s 1h manual cooldown)" %}
-            {% elif is_exempt and not is_night %}
+            {% elif is_exempt and not cov_is_night %}
               {% set status = "SKIPPED_EXEMPT" %}
               {% set summary = "Skipped: " ~ exempt_reason %}
-            {% elif cover_mode == 'Manual (sunset)' and not is_night %}
+            {% elif cover_mode == 'Manual (sunset)' and not cov_is_night %}
               {% set status = "SKIPPED_MANUAL_SUNSET" %}
               {% set summary = "Skipped: Manual (sunset) mode active during daytime" %}
             {% elif is_state(cov, 'opening') %}
@@ -236,7 +242,7 @@
             {% elif global_elapsed < 60 and not is_config_trigger %}
               {% set status = "SKIPPED_GLOBAL_COOLDOWN" %}
               {% set summary = "Skipped: Global move was initiated recently (" ~ global_elapsed ~ "s < 60s cooldown). Target: " ~ target_pos ~ "%, Current: " ~ cur_pos ~ "%" %}
-            {% elif cover_cooldown_active and not (is_night and cur_pos != 0) %}
+            {% elif cover_cooldown_active and not (cov_is_night and cur_pos != 0) %}
               {% set status = "SKIPPED_COVER_COOLDOWN" %}
               {% set summary = "Skipped: Per-cover cooldown active (" ~ cov_elapsed ~ "s < 1800s 30m cover cooldown). Target: " ~ target_pos ~ "%, Current: " ~ cur_pos ~ "%" %}
             {% else %}

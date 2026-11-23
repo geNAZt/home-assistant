@@ -1,5 +1,0 @@
-name: "Preis ≤ % vom Tagesmax"
-min: 0
-max: 100
-step: 1
-initial: 50

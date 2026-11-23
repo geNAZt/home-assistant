@@ -1,0 +1,17 @@
+name: Cover Wakeup Recent
+query: >
+  SELECT
+    'active' AS state,
+    COALESCE(JSON_ARRAYAGG(ts), '[]') AS off_timestamps
+  FROM (
+    SELECT DISTINCT
+      ROUND(COALESCE(s.last_changed_ts, s.last_updated_ts), 0) AS ts
+    FROM states s
+    JOIN states_meta sm ON s.metadata_id = sm.metadata_id
+    WHERE sm.entity_id = 'input_boolean.cover_night_mode'
+      AND s.state = 'off'
+      AND s.last_updated_ts >= UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 6 DAY))
+    ORDER BY ts ASC
+    LIMIT 200
+  ) sub;
+column: "state"

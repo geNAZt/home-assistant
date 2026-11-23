@@ -33,7 +33,9 @@ sensor:
       {% endif %}
 
 
-      {% set pos = [ [state_attr('cover.rollade_buero_fabian', 'current_position') | float(100) / 100.0, 0.0] | max, 1.0] | min %}
+      {% set raw_pos = state_attr('cover.rollade_buero_fabian', 'current_position') %}
+      {% set pos_pct = (0.0 if is_state('cover.rollade_buero_fabian', 'closed') else 100.0) if (raw_pos is none or raw_pos == '') else (raw_pos | float(100)) %}
+      {% set pos = [ [pos_pct / 100.0, 0.0] | max, 1.0] | min %}
       {% set s_factor = 0.15 + (1.0 - 0.15) * cloud %}
       {% set dhi = ghi * s_factor %}
       {% set dni = [(ghi * (1.0 - s_factor)) / ([sin_ele, 0.08] | max), 950.0] | min %}
@@ -99,7 +101,9 @@ sensor:
         {% set ghi = 0.0 %}
       {% endif %}
 
-      {% set pos = [ [state_attr('cover.rollade_buero_fabian', 'current_position') | float(100) / 100.0, 0.0] | max, 1.0] | min %}
+      {% set raw_pos = state_attr('cover.rollade_buero_fabian', 'current_position') %}
+      {% set pos_pct = (0.0 if is_state('cover.rollade_buero_fabian', 'closed') else 100.0) if (raw_pos is none or raw_pos == '') else (raw_pos | float(100)) %}
+      {% set pos = [ [pos_pct / 100.0, 0.0] | max, 1.0] | min %}
       {% set s_factor = 0.15 + (1.0 - 0.15) * cloud %}
       {% set dhi = ghi * s_factor %}
       {% set dni = [(ghi * (1.0 - s_factor)) / ([sin_ele, 0.08] | max), 950.0] | min %}

@@ -38,6 +38,37 @@
         level: info
         message: "[Cover Night Mode] Night mode activated (30 minutes after sunset reached)."
 
+- id: 'cover_night_mode_sunrise_partial'
+  alias: "Rolladen: Sonnenaufgang-Freigabe (Wohnzimmer, Büro Fabian, Küche rechts, Speisekammer)"
+  mode: single
+  triggers:
+    - trigger: state
+      entity_id: sun.sun
+      to: "above_horizon"
+  conditions:
+    - condition: state
+      entity_id: input_boolean.cover_night_mode
+      state: "on"
+    - condition: state
+      entity_id: binary_sensor.vacation_mode
+      state: "off"
+  actions:
+    - action: input_datetime.set_datetime
+      target:
+        entity_id:
+          - input_datetime.cover_manual_change_rollade_buero_fabian
+          - input_datetime.cover_manual_change_rollade_kueche_rechts
+          - input_datetime.cover_manual_change_rollade_speisekammer
+          - input_datetime.cover_manual_change_rollade_wohnzimmer_links
+          - input_datetime.cover_manual_change_rollade_wohnzimmer_rechts
+      data:
+        datetime: "1970-01-01 00:00:00"
+    - action: system_log.write
+      data:
+        logger: automatic_cover_control
+        level: info
+        message: "[Cover Night Mode] Sunrise reached: Manual cooldowns cleared for sunrise-group covers while sleep-group remains in night mode."
+
 - id: 'cover_night_mode_wakeup'
   alias: "Rolladen: Nachtmodus Aufwachen (Alle Lichter nach Sonnenaufgang + 10 min Verzögerung)"
   mode: restart
@@ -110,19 +141,14 @@
       target:
         entity_id:
           - input_datetime.cover_manual_change_rollade_bad
-          - input_datetime.cover_manual_change_rollade_buero_fabian
           - input_datetime.cover_manual_change_rollade_buero_merja
           - input_datetime.cover_manual_change_rollade_hwr
           - input_datetime.cover_manual_change_rollade_kueche_links
-          - input_datetime.cover_manual_change_rollade_kueche_rechts
           - input_datetime.cover_manual_change_rollade_schlafzimmer
-          - input_datetime.cover_manual_change_rollade_speisekammer
-          - input_datetime.cover_manual_change_rollade_wohnzimmer_links
-          - input_datetime.cover_manual_change_rollade_wohnzimmer_rechts
       data:
         datetime: "1970-01-01 00:00:00"
     - action: system_log.write
       data:
         logger: automatic_cover_control
         level: info
-        message: "[Cover Night Mode] 10-minute wake-up delay completed. Night mode deactivated and manual cooldowns reset."
+        message: "[Cover Night Mode] 10-minute wake-up delay completed. Night mode deactivated and sleep-group manual cooldowns reset."

@@ -1,10 +1,10 @@
 - id: car_battery_charger_pgrid
   alias: Car Battery Charger PGrid Update
-  description: Updates car charger pgrid value every 2 seconds based on PV excess power availability
+  description: Updates car charger pgrid value every 4 seconds based on PV excess power availability
   mode: restart
   trigger:
     - platform: time_pattern
-      seconds: "/2" # The charger forgets after 5 seconds
+      seconds: "/4" # go-e PV watchdog is 5-10s; /4s halves load while staying safely within timeout
   condition:
     - condition: and
       conditions:
@@ -15,7 +15,10 @@
           entity_id: select.goe_288025_frc
           state: "0"
         - condition: template
-          value_template: "{{ states('sensor.fiat_hexe_hvbattery_charge') | float(0) < 100 }}"
+          value_template: >-
+            {% set ext_soc = state_attr('sensor.car_charger_total_energy', 'extrapolated_battery') %}
+            {% set soc = (ext_soc | float(0)) if (ext_soc is not none and ext_soc | is_number) else (states('sensor.fiat_hexe_hvbattery_charge') | float(0)) %}
+            {{ soc < 100 and (states('sensor.pv_m1_ac_power') | is_number) }}
         - condition: or
           conditions:
             - condition: state
