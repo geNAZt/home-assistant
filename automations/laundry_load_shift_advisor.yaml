@@ -4,7 +4,8 @@
     Erinnert über Alexa (idle Media Player) und Persistent Notification daran, am Gerät
     noch Uhr/SmartStart + Start zu drücken, falls Waschmaschine oder Trockner im HT-Tarif
     ohne aktuellen PV-Überschuss beladen (Tür geschlossen, Programm gewählt) stehen gelassen
-    wurden, ohne in waiting_to_start zu wechseln.
+    wurden und im möglichen Wartezeitraum tatsächlich PV-Überschuss oder der NT-Tarif
+    erreichbar wäre.
   mode: parallel
   max: 4
   triggers:
@@ -52,11 +53,56 @@
     device_name: "{{ 'Waschmaschine' if is_wm else 'Trockner' }}"
     state_entity: "{{ 'sensor.waschmaschine' if is_wm else 'sensor.waschetrockner' }}"
     door_entity: "{{ 'binary_sensor.waschmaschine_tur' if is_wm else 'binary_sensor.waschetrockner_tur' }}"
+    rem_entity: "{{ 'sensor.waschmaschine_verbleibende_zeit' if is_wm else 'sensor.waschetrockner_verbleibende_zeit' }}"
+    dur_helper: "{{ 'input_number.waschmaschine_program_duration_min' if is_wm else 'input_number.waschetrockner_program_duration_min' }}"
     pv_threshold_w: "{{ 1200 if is_wm else 600 }}"
+    min_forecast_kw: "{{ 0.75 if is_wm else 0.40 }}"
     notif_id: "laundry_shift_{{ 'wm' if is_wm else 'tr' }}"
     in_nt_window: "{{ is_state('binary_sensor.miele_nt_tariff_active', 'on') or now().hour < 5 }}"
     pv_surplus_w: "{{ states('sensor.miele_pv_direct_surplus_w') | float(0) }}"
     has_enough_pv_now: "{{ pv_surplus_w >= pv_threshold_w }}"
+    worth_smartstart: >-
+      {% set now_dt = now() %}
+      {% set now_ts = as_timestamp(now_dt) %}
+      {% set rem = states(rem_entity) | float(0) %}
+      {% set snap = states(dur_helper) | float(0) %}
+      {% set prog_min = (rem if rem > 0 else (snap if snap > 0 else (90 if is_wm else 135))) | int %}
+      {% set next_midnight = (now_dt + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0) %}
+      {% set price_nt = states('sensor.power_price_nt') | float(0.1821) %}
+      {% set price_ht = states('sensor.power_price_ht') | float(0.2820) %}
+      {% set nt_worth_waiting = price_nt < (price_ht - 0.02) %}
+      {% set unshifted_end = now_dt + timedelta(minutes=prog_min) %}
+      {% set nt_reachable = now_dt.hour >= 5 and nt_worth_waiting and unshifted_end >= next_midnight %}
+      {% set delay_min = [[(prog_min / 3.0) | round(0) | int, 1] | max, 10] | min if prog_min <= 30 else [(prog_min / 3.0) | round(0) | int, 1] | max %}
+      {% set cand_ts = as_timestamp(next_midnight if nt_reachable else (now_dt + timedelta(minutes=delay_min))) %}
+      {% set sun_below = is_state('sun.sun', 'below_horizon') %}
+      {% set next_rising_ts = as_timestamp(state_attr('sun.sun', 'next_rising'), default=0) %}
+      {% set sun_elev = state_attr('sun.sun', 'elevation') | float(0) %}
+      {% set sun_rising = state_attr('sun.sun', 'rising') | bool(false) %}
+      {% set live_pv_w = states('sensor.solar_panel_production_w') | float(0) %}
+      {% set sun_too_late = (sun_below and (next_rising_ts == 0 or next_rising_ts >= cand_ts))
+                            or ((not sun_rising) and sun_elev < 4.0 and live_pv_w < pv_threshold_w) %}
+      {% if sun_too_late %}
+        {% set pv_reachable = false %}
+      {% else %}
+        {% set raw = state_attr('sensor.solar_prediction_kwh', 'predictions') %}
+        {% set preds = (raw | from_json(default={})) if raw is string else (raw if raw is mapping else {}) %}
+        {% set ns = namespace(max_kw=0.0, has_slot=false) %}
+        {% for ts_str, val in preds.items() %}
+          {% set slot_dt = as_datetime(ts_str) %}
+          {% if slot_dt is not none %}
+            {% set slot_ts = as_timestamp(slot_dt | as_local) %}
+            {% if (slot_ts + 3600) > now_ts and slot_ts < cand_ts %}
+              {% set ns.has_slot = true %}
+              {% if (val | float(0)) > ns.max_kw %}
+                {% set ns.max_kw = val | float(0) %}
+              {% endif %}
+            {% endif %}
+          {% endif %}
+        {% endfor %}
+        {% set pv_reachable = ((ns.max_kw >= min_forecast_kw) or (live_pv_w >= (min_forecast_kw * 1000))) if ns.has_slot else true %}
+      {% endif %}
+      {{ nt_reachable or pv_reachable }}
     alexa_targets: "{{ states.media_player | selectattr('state', 'eq', 'idle') | map(attribute='entity_id') | list }}"
   actions:
     - choose:
@@ -73,7 +119,8 @@
             {{ is_state(state_entity, 'programmed')
                and is_state(door_entity, 'off')
                and (not in_nt_window)
-               and (not has_enough_pv_now) }}
+               and (not has_enough_pv_now)
+               and worth_smartstart }}
         - action: persistent_notification.create
           data:
             notification_id: "{{ notif_id }}"

@@ -2,9 +2,10 @@
   alias: "Waschmaschine: SmartGrid PV-/NT-Startsteuerung"
   description: >-
     Steuert den Start der Miele Waschmaschine (WWR860) im Status waiting_to_start (SmartStart):
-    Startet sofort bei stabilem PV-Überschuss (>= 1200 W für 2 Min.) oder im NT-Tarif (00:00–05:00),
-    sonst spätestens nach 1/3 der Programmlaufzeit (max. 10 Min. im Kurzprogramm) – bzw. um 00:00 Uhr,
-    falls das Programmende bereits in das NT-Fenster fallen würde.
+    Startet sofort bei stabilem PV-Überschuss (>= 1200 W für 2 Min.), im NT-Tarif (00:00–05:00)
+    oder wenn im möglichen Wartezeitraum weder PV-Überschuss (Sonnenstand/PV-Prognose) noch NT
+    erreichbar ist. Sonst spätestens nach 1/3 der Programmlaufzeit (max. 10 Min. im Kurzprogramm)
+    – bzw. um 00:00 Uhr, falls das Programmende bereits in das NT-Fenster fallen würde.
   mode: single
   max_exceeded: silent
   triggers:
@@ -60,6 +61,7 @@
     dur_helper: "input_number.waschmaschine_program_duration_min"
     notif_id: "miele_smartgrid_wm"
     pv_threshold_w: 1200
+    min_forecast_kw: 0.75
     cur_status: "{{ states(status_entity) }}"
     live_rem_min: "{{ states(rem_entity) | float(0) }}"
     prog_min: >-
@@ -86,7 +88,7 @@
       {% else %}
         90
       {% endif %}
-    computed_deadline: >-
+    candidate_deadline: >-
       {% set now_dt = now() %}
       {% set next_midnight = (now_dt + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0) %}
       {% set price_nt = states('sensor.power_price_nt') | float(0.1821) %}
@@ -102,6 +104,46 @@
         {% set delay_min = [raw_third, 10] | min if is_short else raw_third %}
         {{ (now_dt + timedelta(minutes=delay_min)).strftime('%Y-%m-%d %H:%M:%S') }}
       {% endif %}
+    worth_waiting: >-
+      {% set now_dt = now() %}
+      {% set now_ts = as_timestamp(now_dt) %}
+      {% set next_midnight = (now_dt + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0) %}
+      {% set check_dl_str = states(deadline_helper) if is_state(waiting_helper, 'on') else candidate_deadline %}
+      {% set cand_ts = as_timestamp(check_dl_str, default=now_ts) %}
+      {% set price_nt = states('sensor.power_price_nt') | float(0.1821) %}
+      {% set price_ht = states('sensor.power_price_ht') | float(0.2820) %}
+      {% set nt_worth_waiting = price_nt < (price_ht - 0.02) %}
+      {% set nt_reachable = now_dt.hour >= 5 and nt_worth_waiting and cand_ts >= (as_timestamp(next_midnight) - 5) %}
+      {% set sun_below = is_state('sun.sun', 'below_horizon') %}
+      {% set next_rising_ts = as_timestamp(state_attr('sun.sun', 'next_rising'), default=0) %}
+      {% set sun_elev = state_attr('sun.sun', 'elevation') | float(0) %}
+      {% set sun_rising = state_attr('sun.sun', 'rising') | bool(false) %}
+      {% set live_pv_w = states('sensor.solar_panel_production_w') | float(0) %}
+      {% set sun_too_late = (sun_below and (next_rising_ts == 0 or next_rising_ts >= cand_ts))
+                            or ((not sun_rising) and sun_elev < 4.0 and live_pv_w < pv_threshold_w) %}
+      {% if sun_too_late %}
+        {% set pv_reachable = false %}
+      {% else %}
+        {% set raw = state_attr('sensor.solar_prediction_kwh', 'predictions') %}
+        {% set preds = (raw | from_json(default={})) if raw is string else (raw if raw is mapping else {}) %}
+        {% set ns = namespace(max_kw=0.0, has_slot=false) %}
+        {% for ts_str, val in preds.items() %}
+          {% set slot_dt = as_datetime(ts_str) %}
+          {% if slot_dt is not none %}
+            {% set slot_ts = as_timestamp(slot_dt | as_local) %}
+            {% if (slot_ts + 3600) > now_ts and slot_ts < cand_ts %}
+              {% set ns.has_slot = true %}
+              {% if (val | float(0)) > ns.max_kw %}
+                {% set ns.max_kw = val | float(0) %}
+              {% endif %}
+            {% endif %}
+          {% endif %}
+        {% endfor %}
+        {% set pv_reachable = ((ns.max_kw >= min_forecast_kw) or (live_pv_w >= (min_forecast_kw * 1000))) if ns.has_slot else true %}
+      {% endif %}
+      {{ nt_reachable or pv_reachable }}
+    computed_deadline: >-
+      {{ candidate_deadline if worth_waiting else now().strftime('%Y-%m-%d %H:%M:%S') }}
   actions:
     # 1. Programmlaufzeit im Zustand programmed / waiting_to_start merken
     - if:
@@ -147,15 +189,19 @@
         - action: persistent_notification.dismiss
           data:
             notification_id: "laundry_shift_wm"
-        - action: persistent_notification.create
-          data:
-            notification_id: "{{ notif_id }}"
-            title: "Waschmaschine: SmartGrid aktiv"
-            message: >-
-              Wartet auf PV-Überschuss (≥ {{ pv_threshold_w }} W) oder NT-Tarif (00:00–05:00).
-              Programmlaufzeit: **{{ prog_min }} Min.** — spätester Start um **{{ computed_deadline[11:16] }} Uhr**.
+        - if:
+            - condition: template
+              value_template: "{{ worth_waiting and (as_timestamp(computed_deadline, default=0) > as_timestamp(now()) + 30) }}"
+          then:
+            - action: persistent_notification.create
+              data:
+                notification_id: "{{ notif_id }}"
+                title: "Waschmaschine: SmartGrid aktiv"
+                message: >-
+                  Wartet auf PV-Überschuss (≥ {{ pv_threshold_w }} W) oder NT-Tarif (00:00–05:00).
+                  Programmlaufzeit: **{{ prog_min }} Min.** — spätester Start um **{{ computed_deadline[11:16] }} Uhr**.
 
-    # 4. Prüfen, ob Startsignal gesendet werden soll (PV stabil, NT aktiv oder Deadline erreicht)
+    # 4. Prüfen, ob Startsignal gesendet werden soll (PV stabil, NT aktiv, Deadline erreicht oder kein PV/NT erreichbar)
     - if:
         - condition: template
           value_template: >-
@@ -167,7 +213,7 @@
               {% set deadline_reached = dl_ts > 0 and as_timestamp(now()) >= dl_ts %}
               {% set nt_ok = is_state('binary_sensor.miele_nt_tariff_active', 'on') %}
               {% set pv_ok = is_state(pv_ready_entity, 'on') and (states('sensor.miele_pv_direct_surplus_w') | float(0) >= pv_threshold_w) %}
-              {{ nt_ok or pv_ok or deadline_reached }}
+              {{ nt_ok or pv_ok or deadline_reached or (not worth_waiting) }}
             {% endif %}
       then:
         - choose:
@@ -218,9 +264,10 @@
   alias: "Wäschetrockner: SmartGrid PV-/NT-Startsteuerung"
   description: >-
     Steuert den Start des Miele Wäschetrockners (TWJ680WP) im Status waiting_to_start (SmartStart):
-    Startet sofort bei stabilem PV-Überschuss (>= 600 W für 2,5 Min.) oder im NT-Tarif (00:00–05:00),
-    sonst spätestens nach 1/3 der Programmlaufzeit (max. 10 Min. im Kurzprogramm) – bzw. um 00:00 Uhr,
-    falls das Programmende bereits in das NT-Fenster fallen würde.
+    Startet sofort bei stabilem PV-Überschuss (>= 600 W für 2,5 Min.), im NT-Tarif (00:00–05:00)
+    oder wenn im möglichen Wartezeitraum weder PV-Überschuss (Sonnenstand/PV-Prognose) noch NT
+    erreichbar ist. Sonst spätestens nach 1/3 der Programmlaufzeit (max. 10 Min. im Kurzprogramm)
+    – bzw. um 00:00 Uhr, falls das Programmende bereits in das NT-Fenster fallen würde.
   mode: single
   max_exceeded: silent
   triggers:
@@ -276,6 +323,7 @@
     dur_helper: "input_number.waschetrockner_program_duration_min"
     notif_id: "miele_smartgrid_tr"
     pv_threshold_w: 600
+    min_forecast_kw: 0.40
     cur_status: "{{ states(status_entity) }}"
     live_rem_min: "{{ states(rem_entity) | float(0) }}"
     prog_min: >-
@@ -298,7 +346,7 @@
       {% else %}
         135
       {% endif %}
-    computed_deadline: >-
+    candidate_deadline: >-
       {% set now_dt = now() %}
       {% set next_midnight = (now_dt + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0) %}
       {% set price_nt = states('sensor.power_price_nt') | float(0.1821) %}
@@ -314,6 +362,46 @@
         {% set delay_min = [raw_third, 10] | min if is_short else raw_third %}
         {{ (now_dt + timedelta(minutes=delay_min)).strftime('%Y-%m-%d %H:%M:%S') }}
       {% endif %}
+    worth_waiting: >-
+      {% set now_dt = now() %}
+      {% set now_ts = as_timestamp(now_dt) %}
+      {% set next_midnight = (now_dt + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0) %}
+      {% set check_dl_str = states(deadline_helper) if is_state(waiting_helper, 'on') else candidate_deadline %}
+      {% set cand_ts = as_timestamp(check_dl_str, default=now_ts) %}
+      {% set price_nt = states('sensor.power_price_nt') | float(0.1821) %}
+      {% set price_ht = states('sensor.power_price_ht') | float(0.2820) %}
+      {% set nt_worth_waiting = price_nt < (price_ht - 0.02) %}
+      {% set nt_reachable = now_dt.hour >= 5 and nt_worth_waiting and cand_ts >= (as_timestamp(next_midnight) - 5) %}
+      {% set sun_below = is_state('sun.sun', 'below_horizon') %}
+      {% set next_rising_ts = as_timestamp(state_attr('sun.sun', 'next_rising'), default=0) %}
+      {% set sun_elev = state_attr('sun.sun', 'elevation') | float(0) %}
+      {% set sun_rising = state_attr('sun.sun', 'rising') | bool(false) %}
+      {% set live_pv_w = states('sensor.solar_panel_production_w') | float(0) %}
+      {% set sun_too_late = (sun_below and (next_rising_ts == 0 or next_rising_ts >= cand_ts))
+                            or ((not sun_rising) and sun_elev < 4.0 and live_pv_w < pv_threshold_w) %}
+      {% if sun_too_late %}
+        {% set pv_reachable = false %}
+      {% else %}
+        {% set raw = state_attr('sensor.solar_prediction_kwh', 'predictions') %}
+        {% set preds = (raw | from_json(default={})) if raw is string else (raw if raw is mapping else {}) %}
+        {% set ns = namespace(max_kw=0.0, has_slot=false) %}
+        {% for ts_str, val in preds.items() %}
+          {% set slot_dt = as_datetime(ts_str) %}
+          {% if slot_dt is not none %}
+            {% set slot_ts = as_timestamp(slot_dt | as_local) %}
+            {% if (slot_ts + 3600) > now_ts and slot_ts < cand_ts %}
+              {% set ns.has_slot = true %}
+              {% if (val | float(0)) > ns.max_kw %}
+                {% set ns.max_kw = val | float(0) %}
+              {% endif %}
+            {% endif %}
+          {% endif %}
+        {% endfor %}
+        {% set pv_reachable = ((ns.max_kw >= min_forecast_kw) or (live_pv_w >= (min_forecast_kw * 1000))) if ns.has_slot else true %}
+      {% endif %}
+      {{ nt_reachable or pv_reachable }}
+    computed_deadline: >-
+      {{ candidate_deadline if worth_waiting else now().strftime('%Y-%m-%d %H:%M:%S') }}
   actions:
     # 1. Programmlaufzeit im Zustand programmed / waiting_to_start merken
     - if:
@@ -359,15 +447,19 @@
         - action: persistent_notification.dismiss
           data:
             notification_id: "laundry_shift_tr"
-        - action: persistent_notification.create
-          data:
-            notification_id: "{{ notif_id }}"
-            title: "Wäschetrockner: SmartGrid aktiv"
-            message: >-
-              Wartet auf PV-Überschuss (≥ {{ pv_threshold_w }} W) oder NT-Tarif (00:00–05:00).
-              Programmlaufzeit: **{{ prog_min }} Min.** — spätester Start um **{{ computed_deadline[11:16] }} Uhr**.
+        - if:
+            - condition: template
+              value_template: "{{ worth_waiting and (as_timestamp(computed_deadline, default=0) > as_timestamp(now()) + 30) }}"
+          then:
+            - action: persistent_notification.create
+              data:
+                notification_id: "{{ notif_id }}"
+                title: "Wäschetrockner: SmartGrid aktiv"
+                message: >-
+                  Wartet auf PV-Überschuss (≥ {{ pv_threshold_w }} W) oder NT-Tarif (00:00–05:00).
+                  Programmlaufzeit: **{{ prog_min }} Min.** — spätester Start um **{{ computed_deadline[11:16] }} Uhr**.
 
-    # 4. Prüfen, ob Startsignal gesendet werden soll (PV stabil, NT aktiv oder Deadline erreicht)
+    # 4. Prüfen, ob Startsignal gesendet werden soll (PV stabil, NT aktiv, Deadline erreicht oder kein PV/NT erreichbar)
     - if:
         - condition: template
           value_template: >-
@@ -379,7 +471,7 @@
               {% set deadline_reached = dl_ts > 0 and as_timestamp(now()) >= dl_ts %}
               {% set nt_ok = is_state('binary_sensor.miele_nt_tariff_active', 'on') %}
               {% set pv_ok = is_state(pv_ready_entity, 'on') and (states('sensor.miele_pv_direct_surplus_w') | float(0) >= pv_threshold_w) %}
-              {{ nt_ok or pv_ok or deadline_reached }}
+              {{ nt_ok or pv_ok or deadline_reached or (not worth_waiting) }}
             {% endif %}
       then:
         - choose:
