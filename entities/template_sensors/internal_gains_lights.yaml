@@ -1,0 +1,329 @@
+sensor:
+- name: "Internal Gains Lights"
+  unique_id: internal_gains_lights
+  unit_of_measurement: 'W'
+  device_class: power
+  state_class: measurement
+  state: >
+    {# Innenbeleuchtung (Meanwell LPV-150-24 + MDT AKD-0224V.02 + YU-PRO 24V CCT Strips & Bad-Spots mit cos(phi)=0.6):
+       100% trockene, sensible Raumwärme innerhalb der Gebäudehülle; Trafos sind ausgeschaltet primärseitig 230V-stromlos (0 W Standby) #}
+    {% set ns = namespace(total=0.0) %}
+    {% if is_state('light.light_1_wohnzimmer', 'on') %}
+      {% set b = state_attr('light.light_1_wohnzimmer', 'brightness') %}
+      {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+      {% set ns.total = ns.total + (46.65 * ratio) %}
+    {% endif %}
+    {% if is_state('light.light_2_wohnzimmer', 'on') %}
+      {% set b = state_attr('light.light_2_wohnzimmer', 'brightness') %}
+      {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+      {% set ns.total = ns.total + (46.65 * ratio) %}
+    {% endif %}
+    {% if is_state('light.light_1_buero_merja', 'on') %}
+      {% set b = state_attr('light.light_1_buero_merja', 'brightness') %}
+      {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+      {% set ns.total = ns.total + (53.75 * ratio) %}
+    {% endif %}
+    {% if is_state('light.light_2_buero_merja', 'on') %}
+      {% set b = state_attr('light.light_2_buero_merja', 'brightness') %}
+      {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+      {% set ns.total = ns.total + (53.75 * ratio) %}
+    {% endif %}
+    {% if is_state('light.light_1_buero_fabian', 'on') %}
+      {% set b = state_attr('light.light_1_buero_fabian', 'brightness') %}
+      {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+      {% set ns.total = ns.total + (34.2 * ratio) %}
+    {% endif %}
+    {% if is_state('light.light_1_flur', 'on') %}
+      {% set b = state_attr('light.light_1_flur', 'brightness') %}
+      {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+      {% set ns.total = ns.total + (40.3667 * ratio) %}
+    {% endif %}
+    {% if is_state('light.light_2_flur', 'on') %}
+      {% set b = state_attr('light.light_2_flur', 'brightness') %}
+      {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+      {% set ns.total = ns.total + (40.3667 * ratio) %}
+    {% endif %}
+    {% if is_state('light.light_3_flur', 'on') %}
+      {% set b = state_attr('light.light_3_flur', 'brightness') %}
+      {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+      {% set ns.total = ns.total + (40.3667 * ratio) %}
+    {% endif %}
+    {% if is_state('light.light_4_flur', 'on') %}
+      {% set b = state_attr('light.light_4_flur', 'brightness') %}
+      {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+      {% set ns.total = ns.total + (40.3667 * ratio) %}
+    {% endif %}
+    {% if is_state('light.light_5_flur', 'on') %}
+      {% set b = state_attr('light.light_5_flur', 'brightness') %}
+      {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+      {% set ns.total = ns.total + (40.3667 * ratio) %}
+    {% endif %}
+    {% if is_state('light.light_6_flur', 'on') %}
+      {% set b = state_attr('light.light_6_flur', 'brightness') %}
+      {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+      {% set ns.total = ns.total + (40.3667 * ratio) %}
+    {% endif %}
+    {% if is_state('light.light_1_kueche', 'on') %}
+      {% set b = state_attr('light.light_1_kueche', 'brightness') %}
+      {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+      {% set ns.total = ns.total + (44.8333 * ratio) %}
+    {% endif %}
+    {% if is_state('light.light_2_kueche', 'on') %}
+      {% set b = state_attr('light.light_2_kueche', 'brightness') %}
+      {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+      {% set ns.total = ns.total + (44.8333 * ratio) %}
+    {% endif %}
+    {% if is_state('light.light_3_kueche', 'on') %}
+      {% set b = state_attr('light.light_3_kueche', 'brightness') %}
+      {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+      {% set ns.total = ns.total + (44.8333 * ratio) %}
+    {% endif %}
+    {% if is_state('light.light_1_speisekammer', 'on') %}
+      {% set b = state_attr('light.light_1_speisekammer', 'brightness') %}
+      {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+      {% set ns.total = ns.total + (37.9 * ratio) %}
+    {% endif %}
+    {% if is_state('light.light_2_speisekammer', 'on') %}
+      {% set b = state_attr('light.light_2_speisekammer', 'brightness') %}
+      {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+      {% set ns.total = ns.total + (37.9 * ratio) %}
+    {% endif %}
+    {% if is_state('light.light_1_schlafzimmer', 'on') %}
+      {% set b = state_attr('light.light_1_schlafzimmer', 'brightness') %}
+      {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+      {% set ns.total = ns.total + (41.85 * ratio) %}
+    {% endif %}
+    {% if is_state('light.light_2_schlafzimmer', 'on') %}
+      {% set b = state_attr('light.light_2_schlafzimmer', 'brightness') %}
+      {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+      {% set ns.total = ns.total + (41.85 * ratio) %}
+    {% endif %}
+    {% if is_state('light.light_1_bad', 'on') %}
+      {% set ns.total = ns.total + 27.0 %}
+    {% endif %}
+    {{ ns.total | round(1) }}
+  attributes:
+    consumes: >
+      {% set ns = namespace(total=0.0) %}
+      {% if is_state('light.light_1_wohnzimmer', 'on') %}
+        {% set b = state_attr('light.light_1_wohnzimmer', 'brightness') %}
+        {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+        {% set ns.total = ns.total + (46.65 * ratio) %}
+      {% endif %}
+      {% if is_state('light.light_2_wohnzimmer', 'on') %}
+        {% set b = state_attr('light.light_2_wohnzimmer', 'brightness') %}
+        {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+        {% set ns.total = ns.total + (46.65 * ratio) %}
+      {% endif %}
+      {% if is_state('light.light_1_buero_merja', 'on') %}
+        {% set b = state_attr('light.light_1_buero_merja', 'brightness') %}
+        {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+        {% set ns.total = ns.total + (53.75 * ratio) %}
+      {% endif %}
+      {% if is_state('light.light_2_buero_merja', 'on') %}
+        {% set b = state_attr('light.light_2_buero_merja', 'brightness') %}
+        {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+        {% set ns.total = ns.total + (53.75 * ratio) %}
+      {% endif %}
+      {% if is_state('light.light_1_buero_fabian', 'on') %}
+        {% set b = state_attr('light.light_1_buero_fabian', 'brightness') %}
+        {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+        {% set ns.total = ns.total + (34.2 * ratio) %}
+      {% endif %}
+      {% if is_state('light.light_1_flur', 'on') %}
+        {% set b = state_attr('light.light_1_flur', 'brightness') %}
+        {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+        {% set ns.total = ns.total + (40.3667 * ratio) %}
+      {% endif %}
+      {% if is_state('light.light_2_flur', 'on') %}
+        {% set b = state_attr('light.light_2_flur', 'brightness') %}
+        {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+        {% set ns.total = ns.total + (40.3667 * ratio) %}
+      {% endif %}
+      {% if is_state('light.light_3_flur', 'on') %}
+        {% set b = state_attr('light.light_3_flur', 'brightness') %}
+        {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+        {% set ns.total = ns.total + (40.3667 * ratio) %}
+      {% endif %}
+      {% if is_state('light.light_4_flur', 'on') %}
+        {% set b = state_attr('light.light_4_flur', 'brightness') %}
+        {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+        {% set ns.total = ns.total + (40.3667 * ratio) %}
+      {% endif %}
+      {% if is_state('light.light_5_flur', 'on') %}
+        {% set b = state_attr('light.light_5_flur', 'brightness') %}
+        {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+        {% set ns.total = ns.total + (40.3667 * ratio) %}
+      {% endif %}
+      {% if is_state('light.light_6_flur', 'on') %}
+        {% set b = state_attr('light.light_6_flur', 'brightness') %}
+        {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+        {% set ns.total = ns.total + (40.3667 * ratio) %}
+      {% endif %}
+      {% if is_state('light.light_1_kueche', 'on') %}
+        {% set b = state_attr('light.light_1_kueche', 'brightness') %}
+        {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+        {% set ns.total = ns.total + (44.8333 * ratio) %}
+      {% endif %}
+      {% if is_state('light.light_2_kueche', 'on') %}
+        {% set b = state_attr('light.light_2_kueche', 'brightness') %}
+        {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+        {% set ns.total = ns.total + (44.8333 * ratio) %}
+      {% endif %}
+      {% if is_state('light.light_3_kueche', 'on') %}
+        {% set b = state_attr('light.light_3_kueche', 'brightness') %}
+        {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+        {% set ns.total = ns.total + (44.8333 * ratio) %}
+      {% endif %}
+      {% if is_state('light.light_1_speisekammer', 'on') %}
+        {% set b = state_attr('light.light_1_speisekammer', 'brightness') %}
+        {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+        {% set ns.total = ns.total + (37.9 * ratio) %}
+      {% endif %}
+      {% if is_state('light.light_2_speisekammer', 'on') %}
+        {% set b = state_attr('light.light_2_speisekammer', 'brightness') %}
+        {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+        {% set ns.total = ns.total + (37.9 * ratio) %}
+      {% endif %}
+      {% if is_state('light.light_1_schlafzimmer', 'on') %}
+        {% set b = state_attr('light.light_1_schlafzimmer', 'brightness') %}
+        {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+        {% set ns.total = ns.total + (41.85 * ratio) %}
+      {% endif %}
+      {% if is_state('light.light_2_schlafzimmer', 'on') %}
+        {% set b = state_attr('light.light_2_schlafzimmer', 'brightness') %}
+        {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+        {% set ns.total = ns.total + (41.85 * ratio) %}
+      {% endif %}
+      {% if is_state('light.light_1_bad', 'on') %}
+        {% set ns.total = ns.total + 27.0 %}
+      {% endif %}
+      {{ ns.total | round(1) }}
+    rooms: >
+      {% set ns = namespace(items={}) %}
+      {% set r_ns = namespace(w=0.0) %}
+      {% if is_state('light.light_1_wohnzimmer', 'on') %}
+        {% set b = state_attr('light.light_1_wohnzimmer', 'brightness') %}
+        {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+        {% set r_ns.w = r_ns.w + (46.65 * ratio) %}
+      {% endif %}
+      {% if is_state('light.light_2_wohnzimmer', 'on') %}
+        {% set b = state_attr('light.light_2_wohnzimmer', 'brightness') %}
+        {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+        {% set r_ns.w = r_ns.w + (46.65 * ratio) %}
+      {% endif %}
+      {% if r_ns.w > 0 %}
+        {% set ns.items = dict(ns.items, **{'wohnzimmer': (r_ns.w | round(1))}) %}
+      {% endif %}
+      {% set r_ns = namespace(w=0.0) %}
+      {% if is_state('light.light_1_buero_merja', 'on') %}
+        {% set b = state_attr('light.light_1_buero_merja', 'brightness') %}
+        {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+        {% set r_ns.w = r_ns.w + (53.75 * ratio) %}
+      {% endif %}
+      {% if is_state('light.light_2_buero_merja', 'on') %}
+        {% set b = state_attr('light.light_2_buero_merja', 'brightness') %}
+        {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+        {% set r_ns.w = r_ns.w + (53.75 * ratio) %}
+      {% endif %}
+      {% if r_ns.w > 0 %}
+        {% set ns.items = dict(ns.items, **{'buero_merja': (r_ns.w | round(1))}) %}
+      {% endif %}
+      {% set r_ns = namespace(w=0.0) %}
+      {% if is_state('light.light_1_buero_fabian', 'on') %}
+        {% set b = state_attr('light.light_1_buero_fabian', 'brightness') %}
+        {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+        {% set r_ns.w = r_ns.w + (34.2 * ratio) %}
+      {% endif %}
+      {% if r_ns.w > 0 %}
+        {% set ns.items = dict(ns.items, **{'buero_fabian': (r_ns.w | round(1))}) %}
+      {% endif %}
+      {% set r_ns = namespace(w=0.0) %}
+      {% if is_state('light.light_1_flur', 'on') %}
+        {% set b = state_attr('light.light_1_flur', 'brightness') %}
+        {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+        {% set r_ns.w = r_ns.w + (40.3667 * ratio) %}
+      {% endif %}
+      {% if is_state('light.light_2_flur', 'on') %}
+        {% set b = state_attr('light.light_2_flur', 'brightness') %}
+        {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+        {% set r_ns.w = r_ns.w + (40.3667 * ratio) %}
+      {% endif %}
+      {% if is_state('light.light_3_flur', 'on') %}
+        {% set b = state_attr('light.light_3_flur', 'brightness') %}
+        {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+        {% set r_ns.w = r_ns.w + (40.3667 * ratio) %}
+      {% endif %}
+      {% if is_state('light.light_4_flur', 'on') %}
+        {% set b = state_attr('light.light_4_flur', 'brightness') %}
+        {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+        {% set r_ns.w = r_ns.w + (40.3667 * ratio) %}
+      {% endif %}
+      {% if is_state('light.light_5_flur', 'on') %}
+        {% set b = state_attr('light.light_5_flur', 'brightness') %}
+        {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+        {% set r_ns.w = r_ns.w + (40.3667 * ratio) %}
+      {% endif %}
+      {% if is_state('light.light_6_flur', 'on') %}
+        {% set b = state_attr('light.light_6_flur', 'brightness') %}
+        {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+        {% set r_ns.w = r_ns.w + (40.3667 * ratio) %}
+      {% endif %}
+      {% if r_ns.w > 0 %}
+        {% set ns.items = dict(ns.items, **{'flur': (r_ns.w | round(1))}) %}
+      {% endif %}
+      {% set r_ns = namespace(w=0.0) %}
+      {% if is_state('light.light_1_kueche', 'on') %}
+        {% set b = state_attr('light.light_1_kueche', 'brightness') %}
+        {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+        {% set r_ns.w = r_ns.w + (44.8333 * ratio) %}
+      {% endif %}
+      {% if is_state('light.light_2_kueche', 'on') %}
+        {% set b = state_attr('light.light_2_kueche', 'brightness') %}
+        {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+        {% set r_ns.w = r_ns.w + (44.8333 * ratio) %}
+      {% endif %}
+      {% if is_state('light.light_3_kueche', 'on') %}
+        {% set b = state_attr('light.light_3_kueche', 'brightness') %}
+        {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+        {% set r_ns.w = r_ns.w + (44.8333 * ratio) %}
+      {% endif %}
+      {% if r_ns.w > 0 %}
+        {% set ns.items = dict(ns.items, **{'kueche': (r_ns.w | round(1))}) %}
+      {% endif %}
+      {% set r_ns = namespace(w=0.0) %}
+      {% if is_state('light.light_1_speisekammer', 'on') %}
+        {% set b = state_attr('light.light_1_speisekammer', 'brightness') %}
+        {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+        {% set r_ns.w = r_ns.w + (37.9 * ratio) %}
+      {% endif %}
+      {% if is_state('light.light_2_speisekammer', 'on') %}
+        {% set b = state_attr('light.light_2_speisekammer', 'brightness') %}
+        {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+        {% set r_ns.w = r_ns.w + (37.9 * ratio) %}
+      {% endif %}
+      {% if r_ns.w > 0 %}
+        {% set ns.items = dict(ns.items, **{'speisekammer': (r_ns.w | round(1))}) %}
+      {% endif %}
+      {% set r_ns = namespace(w=0.0) %}
+      {% if is_state('light.light_1_schlafzimmer', 'on') %}
+        {% set b = state_attr('light.light_1_schlafzimmer', 'brightness') %}
+        {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+        {% set r_ns.w = r_ns.w + (41.85 * ratio) %}
+      {% endif %}
+      {% if is_state('light.light_2_schlafzimmer', 'on') %}
+        {% set b = state_attr('light.light_2_schlafzimmer', 'brightness') %}
+        {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+        {% set r_ns.w = r_ns.w + (41.85 * ratio) %}
+      {% endif %}
+      {% if r_ns.w > 0 %}
+        {% set ns.items = dict(ns.items, **{'schlafzimmer': (r_ns.w | round(1))}) %}
+      {% endif %}
+      {% set r_ns = namespace(w=0.0) %}
+      {% if is_state('light.light_1_bad', 'on') %}
+        {% set r_ns.w = r_ns.w + 27.0 %}
+      {% endif %}
+      {% if r_ns.w > 0 %}
+        {% set ns.items = dict(ns.items, **{'bad': (r_ns.w | round(1))}) %}
+      {% endif %}
+      {{ ns.items }}

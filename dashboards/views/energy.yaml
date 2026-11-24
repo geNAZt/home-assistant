@@ -95,6 +95,7 @@ cards:
   - type: entities
     entities:
       - entity: sensor.internal_gains_misc
+      - entity: sensor.internal_gains_lights
       - entity: sensor.kuche_links_power
       - entity: sensor.kueche_zeile_power
       - entity: sensor.network_power

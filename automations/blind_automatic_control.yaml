@@ -563,42 +563,42 @@
             room: buero_fabian
             gain_sensor: rollade_buero_fabian
             watt_limit: 192.0
-            light_power_w: 75.6
+            light_power_w: 34.2
             water_low_lux: 75
             open_at_sunrise: true
           cover.rollade_wohnzimmer_links:
             room: wohnzimmer
             gain_sensor: rollade_wohnzimmer_links
             watt_limit: 332.64
-            light_power_w: 216.0
+            light_power_w: 93.3
             water_low_lux: 140
             open_at_sunrise: true
           cover.rollade_wohnzimmer_rechts:
             room: wohnzimmer
             gain_sensor: rollade_wohnzimmer_rechts
             watt_limit: 332.64
-            light_power_w: 216.0
+            light_power_w: 93.3
             water_low_lux: 140
             open_at_sunrise: true
           cover.rollade_kueche_rechts:
             room: kueche
             gain_sensor: rollade_kueche_rechts
             watt_limit: 349.2
-            light_power_w: 351.0
+            light_power_w: 134.5
             water_low_lux: 800
             open_at_sunrise: true
           cover.rollade_kueche_links:
             room: kueche
             gain_sensor: rollade_kueche_links
             watt_limit: 386.23
-            light_power_w: 351.0
+            light_power_w: 134.5
             water_low_lux: 800
             open_at_sunrise: false
           cover.rollade_speisekammer:
             room: speisekammer
             gain_sensor: rollade_speisekammer
             watt_limit: 28.8
-            light_power_w: 162.0
+            light_power_w: 75.8
             water_low_lux: 140
             open_at_sunrise: true
           cover.rollade_hwr:
@@ -619,14 +619,14 @@
             room: schlafzimmer
             gain_sensor: rollade_schlafzimmer
             watt_limit: 184.8
-            light_power_w: 178.2
+            light_power_w: 83.7
             water_low_lux: 140
             open_at_sunrise: false
           cover.rollade_buero_merja:
             room: buero_merja
             gain_sensor: rollade_buero_merja
             watt_limit: 386.23
-            light_power_w: 270.0
+            light_power_w: 107.5
             water_low_lux: 140
             open_at_sunrise: false
         cover_evaluations: >-

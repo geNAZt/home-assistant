@@ -1,0 +1,67 @@
+sensor:
+- name: "Internal Gains Lights"
+  unique_id: internal_gains_lights
+  unit_of_measurement: 'W'
+  device_class: power
+  state_class: measurement
+  state: >
+    {# Innenbeleuchtung (Meanwell LPV-150-24 + MDT AKD-0224V.02 + YU-PRO 24V CCT Strips & Bad-Spots mit cos(phi)=0.6):
+       100% trockene, sensible Raumwärme innerhalb der Gebäudehülle; Trafos sind ausgeschaltet primärseitig 230V-stromlos (0 W Standby) #}
+    {% set ns = namespace(total=0.0) %}
+    [[% for r in rooms %]]
+    [[% set room_w = (r.apparent_power_va * r.cos_phi) if (r.apparent_power_va is defined and r.cos_phi is defined) else r.light_power_w %]]
+    [[% set lamp_w = (room_w / (r.lights | length)) | round(4) %]]
+    [[% for l in r.lights %]]
+    {% if is_state('light.light_[[l]]_[[r.room]]', 'on') %}
+      [[% if r.cos_phi is defined %]]
+      {% set ns.total = ns.total + [[ lamp_w ]] %}
+      [[% else %]]
+      {% set b = state_attr('light.light_[[l]]_[[r.room]]', 'brightness') %}
+      {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+      {% set ns.total = ns.total + ([[ lamp_w ]] * ratio) %}
+      [[% endif %]]
+    {% endif %}
+    [[% endfor %]]
+    [[% endfor %]]
+    {{ ns.total | round(1) }}
+  attributes:
+    consumes: >
+      {% set ns = namespace(total=0.0) %}
+      [[% for r in rooms %]]
+      [[% set room_w = (r.apparent_power_va * r.cos_phi) if (r.apparent_power_va is defined and r.cos_phi is defined) else r.light_power_w %]]
+      [[% set lamp_w = (room_w / (r.lights | length)) | round(4) %]]
+      [[% for l in r.lights %]]
+      {% if is_state('light.light_[[l]]_[[r.room]]', 'on') %}
+        [[% if r.cos_phi is defined %]]
+        {% set ns.total = ns.total + [[ lamp_w ]] %}
+        [[% else %]]
+        {% set b = state_attr('light.light_[[l]]_[[r.room]]', 'brightness') %}
+        {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+        {% set ns.total = ns.total + ([[ lamp_w ]] * ratio) %}
+        [[% endif %]]
+      {% endif %}
+      [[% endfor %]]
+      [[% endfor %]]
+      {{ ns.total | round(1) }}
+    rooms: >
+      {% set ns = namespace(items={}) %}
+      [[% for r in rooms %]]
+      [[% set room_w = (r.apparent_power_va * r.cos_phi) if (r.apparent_power_va is defined and r.cos_phi is defined) else r.light_power_w %]]
+      [[% set lamp_w = (room_w / (r.lights | length)) | round(4) %]]
+      {% set r_ns = namespace(w=0.0) %}
+      [[% for l in r.lights %]]
+      {% if is_state('light.light_[[l]]_[[r.room]]', 'on') %}
+        [[% if r.cos_phi is defined %]]
+        {% set r_ns.w = r_ns.w + [[ lamp_w ]] %}
+        [[% else %]]
+        {% set b = state_attr('light.light_[[l]]_[[r.room]]', 'brightness') %}
+        {% set ratio = (b | float(255) / 255.0) if b is not none else 1.0 %}
+        {% set r_ns.w = r_ns.w + ([[ lamp_w ]] * ratio) %}
+        [[% endif %]]
+      {% endif %}
+      [[% endfor %]]
+      {% if r_ns.w > 0 %}
+        {% set ns.items = dict(ns.items, **{'[[r.room]]': (r_ns.w | round(1))}) %}
+      {% endif %}
+      [[% endfor %]]
+      {{ ns.items }}

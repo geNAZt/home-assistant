@@ -7,7 +7,7 @@ sensor:
   state: >
     {% set total_load = states('sensor.solar_house_consumption_w') | float(0) %}
 
-    {# Energie die bereits über dedizierte internal_gains_* Sensoren bilanziert wurde #}
+    {# Energie die bereits über dedizierte internal_gains_* Sensoren (inkl. internal_gains_lights) bilanziert wurde #}
     {% set gain_consumes = states.sensor
               | selectattr('entity_id', 'match', 'sensor.internal_gains_') | expand
               | selectattr('attributes.consumes', 'defined') | map(attribute='attributes.consumes')
@@ -22,17 +22,20 @@ sensor:
     {% set boiler_w = states('sensor.boiler_trinkwasser_leistung') | float(0) %}
     {% set boiler_water_drain_w = [boiler_w - 45.0, 0.0] | max * 0.75 %}
 
-    {# IT/Netzwerk inkl. 6800XT LLM-Server ist zu 100% trockene, sensible Ohmsche Abwärme im Haus #}
+    {# IT/Netzwerk inkl. 6800XT LLM-Server + dauerhaft aktiver KNX-Bus/Aktoren sind zu 100% trockene, sensible Ohmsche Abwärme im Haus #}
     {% set network_w = [states('sensor.network_power') | float(0), 0.0] | max %}
+    {% set knx_w = [states('sensor.knx_leistung') | float(0), 0.0] | max %}
+    {% set ohmic_fixed_w = network_w + knx_w %}
 
     {% set raw_remaining = [total_load - gain_consumes - ir_heating_w - outside_kitchen_w - boiler_water_drain_w, 0.0] | max %}
-    {% set network_in_rem = [network_w, raw_remaining] | min %}
-    {% set other_diffuse = [raw_remaining - network_in_rem, 0.0] | max %}
+    {% set ohmic_in_rem = [ohmic_fixed_w, raw_remaining] | min %}
+    {% set other_diffuse = [raw_remaining - ohmic_in_rem, 0.0] | max %}
 
     {# Übriger Haushaltsrest (Kochen/Wasserdampf, Außenlicht, Warmwasser-Kleingeräte): 70% sensibler Raumwärmeanteil #}
-    {{ (network_in_rem + (other_diffuse * 0.70)) | round(1) }}
+    {{ (ohmic_in_rem + (other_diffuse * 0.70)) | round(1) }}
   attributes:
     network_100pct_w: "{{ [states('sensor.network_power') | float(0), 0.0] | max | round(1) }}"
+    knx_100pct_w: "{{ [states('sensor.knx_leistung') | float(0), 0.0] | max | round(1) }}"
     bill: >
       {% set total = states('sensor.solar_house_consumption_w') | float(0) %}
       {% set gains = states.sensor
@@ -44,9 +47,10 @@ sensor:
       {% set out_w = states('sensor.kuche_aussen_power') | float(0) %}
       {% set boiler_drain = [states('sensor.boiler_trinkwasser_leistung') | float(0) - 45.0, 0.0] | max * 0.75 %}
       {% set net_w = [states('sensor.network_power') | float(0), 0.0] | max %}
+      {% set knx_w = [states('sensor.knx_leistung') | float(0), 0.0] | max %}
       {% set raw_rem = [total - gain_sum - ir_w - out_w - boiler_drain, 0.0] | max %}
-      {% set net_in = [net_w, raw_rem] | min %}
-      {% set other_rem = [raw_rem - net_in, 0.0] | max %}
+      {% set ohmic_in = [net_w + knx_w, raw_rem] | min %}
+      {% set other_rem = [raw_rem - ohmic_in, 0.0] | max %}
 
       Total House: {{ total | round(1) }} W
       ---
@@ -57,6 +61,6 @@ sensor:
       Küche-Außen: -{{ out_w | round(1) }} W
       Boiler-Zapfwasser: -{{ boiler_drain | round(1) }} W
       ---
-      Network/LLM (100%): {{ net_in | round(1) }} W
+      Network/LLM + KNX (100%): {{ ohmic_in | round(1) }} W ({{ net_w | round(1) }} W + {{ knx_w | round(1) }} W)
       Haushaltsrest (70% von {{ other_rem | round(1) }} W): {{ (other_rem * 0.70) | round(1) }} W
-      Result Misc: {{ (net_in + other_rem * 0.70) | round(1) }} W
+      Result Misc: {{ (ohmic_in + other_rem * 0.70) | round(1) }} W

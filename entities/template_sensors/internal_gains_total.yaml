@@ -18,8 +18,9 @@ sensor:
                           states('sensor.internal_gains_heating_pump') | float(0) +
                           states('sensor.internal_gains_car_charger') | float(0) %}
 
-      {# B: 100% Gewinne (Misc) #}
-      {% set full_gains = states('sensor.internal_gains_misc') | float(0) %}
+      {# B: 100% Gewinne (Innenbeleuchtung & Misc) #}
+      {% set full_gains = states('sensor.internal_gains_lights') | float(0) +
+                          states('sensor.internal_gains_misc') | float(0) %}
 
       {# C: System-Gewinne (PV-Wechselrichter & HRV Lüftung) #}
       {% set system = states('sensor.internal_gains_pv') | float(0) +

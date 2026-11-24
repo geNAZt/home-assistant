@@ -1,5 +1,5 @@
 - room: buero_fabian
-  light_power_w: 75.6
+  light_power_w: 34.2
   water_low_lux: 75
   windows:
     - position:
@@ -18,7 +18,7 @@
           height: 8.7
           direction: bottom
 - room: wohnzimmer
-  light_power_w: 216.0
+  light_power_w: 93.3
   water_low_lux: 140
   windows:
     - position:
@@ -63,7 +63,7 @@
       cover: cover.rollade_wohnzimmer_rechts
       open_at_sunrise: true
 - room: kueche
-  light_power_w: 351.0
+  light_power_w: 134.5
   water_low_lux: 800
   windows:
     - position:
@@ -97,7 +97,7 @@
           height: 5.0
           direction: bottom
 - room: speisekammer
-  light_power_w: 162.0
+  light_power_w: 75.8
   water_low_lux: 140
   windows:
     - position:
@@ -126,7 +126,7 @@
       cover: cover.rollade_hwr
       open_at_sunrise: false
 - room: bad
-  light_power_w: 27.0
+  light_power_w: 27.0  # 45.0 VA * 0.6 cos(phi)
   water_low_lux: 800
   windows:
     - position:
@@ -140,7 +140,7 @@
       cover: cover.rollade_bad
       open_at_sunrise: false
 - room: schlafzimmer
-  light_power_w: 178.2
+  light_power_w: 83.7
   water_low_lux: 140
   windows:
     - position:
@@ -159,7 +159,7 @@
           height: 7.5
           direction: bottom
 - room: buero_merja
-  light_power_w: 270.0
+  light_power_w: 107.5
   water_low_lux: 140
   windows:
     - position:

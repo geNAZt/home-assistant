@@ -35,6 +35,7 @@ cards:
       - entity: sensor.internal_gains_total
       - entity: sensor.solar_gains
       - entity: sensor.heating_power
+      - entity: sensor.internal_gains_lights
       - entity: sensor.internal_gains_dishwasher
       - entity: sensor.internal_gains_hrv
       - entity: sensor.internal_gains_misc
