@@ -1,16 +1,19 @@
 # Ignore some basic stuff
 home-assistant*
-core
+/core
 appdaemon/appdaemon.yaml
-*.pyc
-*.log
-*.cache
 .env
 
-# Exclude .db and .json files not inside custom_components
-*.db*
+# Exclude .json files not inside custom_components
 *.json
 !custom_components/**
+
+# Always ignore Python bytecode, caches, logs, and databases (even inside custom_components)
+__pycache__/
+*.py[cod]
+*.db*
+*.log
+*.cache
 
 # Ignore folders.
 .storage

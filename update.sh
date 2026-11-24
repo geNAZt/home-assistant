@@ -135,41 +135,109 @@ if [ ! -f ~/.ssh/id_ed25519 ]; then
     ssh-keyscan -H github.com >> ~/.ssh/known_hosts
 fi
 
-# Safety: Create backup of untracked data before pull in case git removes anything
+# Safety: Create backup of untracked data before sync in case git removes anything
 if [ -f "./backup_data.sh" ]; then
     ./backup_data.sh || true
 fi
 
-# We need to sync with the remote repository
-git config pull.rebase true
-git config rebase.autoStash true
-git pull
+BRANCH="main"
 
-# Untrack any ignored files that might have been stashed or staged during pull/rebase
-git rm --cached -r -f --ignore-unmatch \
-    custom_components/ha_washdata/www/*.gz \
-    *.log \
-    grid_price_monitor/logs/* \
-    *.db* \
-    sfml_stats/*.db* \
-    sfml_stats/data/*.json \
-    solar_forecast_eai/*.db* \
-    toorox_foresight_ha/*.db* \
-    2>/dev/null || true
+# Abort any interrupted rebase/merge state from a previous failed run
+git rebase --abort 2>/dev/null || true
+git merge --abort 2>/dev/null || true
 
-# If autostash left a conflicting stash entry, clean it up
-if git stash list -1 | grep -q ": autostash"; then
-    git stash drop || true
+# Track only the single target branch without tags
+git config remote.origin.fetch "+refs/heads/${BRANCH}:refs/remotes/origin/${BRANCH}"
+git config fetch.prune true
+
+# Stash local server changes (e.g. HACS updates) before aligning with shallow remote HEAD
+STASH_BEFORE="$(git rev-parse -q --verify refs/stash || true)"
+git stash push --include-untracked -m "ha-shallow-sync" >/dev/null 2>&1 || true
+STASH_AFTER="$(git rev-parse -q --verify refs/stash || true)"
+
+# Fetch only the latest commit (--depth=1) and reset HEAD to it
+git fetch --depth=1 --no-tags origin "$BRANCH"
+git checkout -f -B "$BRANCH" "origin/$BRANCH"
+git reset --hard "origin/$BRANCH"
+
+# Re-apply stashed local server changes if a stash was created
+if [ "$STASH_BEFORE" != "$STASH_AFTER" ]; then
+    if ! git stash pop >/dev/null 2>&1; then
+        # If stash pop aborted before merging (e.g. untracked file collision with origin),
+        # apply tracked changes via 3-way patch and restore non-colliding untracked files.
+        if [ -z "$(git diff --name-only --diff-filter=U)" ]; then
+            git stash show -p refs/stash | git apply --3way 2>/dev/null || true
+            if git rev-parse -q --verify 'refs/stash@{0}^3' >/dev/null 2>&1; then
+                git ls-tree -r --name-only 'refs/stash@{0}^3' | while IFS= read -r ufile; do
+                    if [ -n "$ufile" ] && [ ! -e "$ufile" ]; then
+                        git checkout 'refs/stash@{0}^3' -- "$ufile" 2>/dev/null || true
+                        git reset HEAD -- "$ufile" >/dev/null 2>&1 || true
+                    fi
+                done
+            fi
+        fi
+
+        # Resolve any merge conflicts cleanly in favor of origin/main (HEAD)
+        git diff --name-only --diff-filter=U | while IFS= read -r file; do
+            [ -z "$file" ] && continue
+            if git cat-file -e "HEAD:$file" 2>/dev/null; then
+                git checkout --ours -- "$file"
+                git add -- "$file"
+            else
+                git rm -f --cached -- "$file" 2>/dev/null || true
+            fi
+        done
+
+        git stash drop -q || true
+    fi
 fi
 
-# Safety: Restore any data files that git pull might have deleted
+# Untrack any ignored files that might still be in the index
+git rm --cached -r -f --ignore-unmatch \
+    '*.pyc' \
+    '*.pyo' \
+    '*.pyd' \
+    '*__pycache__*' \
+    'custom_components/ha_washdata/www/*.gz' \
+    '*.log' \
+    'grid_price_monitor/logs/*' \
+    '*.db*' \
+    'sfml_stats/*.db*' \
+    'sfml_stats/data/*.json' \
+    'solar_forecast_eai/*.db*' \
+    'toorox_foresight_ha/*.db*' \
+    2>/dev/null || true
+
+# Safety: Restore any data files that git reset might have removed
 if [ -f "./restore_data.sh" ]; then
     ./restore_data.sh --keep-existing || true
 fi
 
-# Check if working directory is clean
+# Commit and push local Home Assistant changes (e.g. HACS updates) if any remain
 if [ -n "$(git status --porcelain)" ]; then
+    git config user.name >/dev/null 2>&1 || git config user.name "Home Assistant"
+    git config user.email >/dev/null 2>&1 || git config user.email "homeassistant@localhost"
     git add .
-    git commit -m "Updates from Home Assistant"
-    git push
+    if ! git diff --cached --quiet; then
+        git commit -m "Updates from Home Assistant"
+        git push origin "$BRANCH"
+        # Re-shallow to the newly pushed commit so parent commit can also be pruned
+        git fetch --depth=1 --no-tags origin "$BRANCH"
+    fi
 fi
+
+# Purge stashes, tags, extra branches, reflogs, and unreachable history so .git stays at depth=1
+git update-ref -d refs/stash 2>/dev/null || true
+git update-ref -d ORIG_HEAD 2>/dev/null || true
+git tag -l | while IFS= read -r tag; do
+    [ -n "$tag" ] && git tag -d "$tag" >/dev/null 2>&1 || true
+done
+git for-each-ref --format='%(refname)' refs/heads refs/remotes | while IFS= read -r ref; do
+    case "$ref" in
+        "refs/heads/${BRANCH}"|"refs/remotes/origin/${BRANCH}"|"refs/remotes/origin/HEAD") ;;
+        *) git update-ref -d "$ref" 2>/dev/null || true ;;
+    esac
+done
+git reflog expire --expire=now --all
+git repack -adq --window=10 --depth=10
+git prune --expire=now
