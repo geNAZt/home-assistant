@@ -83,26 +83,60 @@ variables:
   _alloc_stage1: "{{ [_pv_next_24h | float(0), _stage1_rem | float(0)] | min }}"
   _pv_after_stage1: "{{ [(_pv_next_24h | float(0)) - (_alloc_stage1 | float(0)), 0.0] | max }}"
 
+  # Phasen-konsistenter Heizbedarf:
+  # - 00:00–05:00: Voller Tagesbedarf heute (05->24 Uhr) für Nacht-Akku-/PV-Shift-Entscheidung
+  # - 05:00–14:00: Verbleibender Netto-Heizbedarf heute bis 24:00 abzüglich bereits im 2R2C-Estrich gespeicherter Wärme
+  # - 14:00–24:00: Voller Folgetagsbedarf morgen (05->24 Uhr) für Nachmittags-Warmwasser-Stufe-2-Reservierung
   _heating_need: >-
     {% set c = states('input_number.building_heat_capacity') | float(7.1) %}
-    {% set off = states('sensor.heating_preheat_offset_24h_max') | float(0) %}
+    {% set eff_c = [c * 1.12, 1.0] | max %}
+    {% set h_now = now().hour %}
+    {% set weights = {'wohnzimmer': 11.9, 'kueche': 19.5, 'flur': 29.0, 'schlafzimmer': 9.1, 'buero_fabian': 6.6, 'buero_merja': 13.9, 'bad': 4.9, 'speisekammer': 5.1} %}
+    {% set wns = namespace(w_sum=0.0, w_total=0.0) %}
+    {% for room, w in weights.items() %}
+      {% set val = states('input_number.heating_base_' ~ room) | float(none) %}
+      {% if val is not none and val > 0 %}
+        {% set wns.w_sum = wns.w_sum + (val * w) %}
+        {% set wns.w_total = wns.w_total + w %}
+      {% endif %}
+    {% endfor %}
+    {% set t_sp = (wns.w_sum / wns.w_total) if wns.w_total > 0 else 21.5 %}
+    {% set dyn_off = states('sensor.heating_preheat_offset_dynamic') | float(0) %}
+    {% set today_full_off = state_attr('sensor.heating_preheat_offset_dynamic_uncapped', 'full_day_today_offset_k') | float(dyn_off) %}
+    {% set tomorrow_off = state_attr('sensor.heating_preheat_offset_dynamic_uncapped', 'tomorrow_preheat_offset_k') | float(today_full_off) %}
     {% set def_2r2c = states('sensor.thermal_2r2c_deficit_kwh') | float(none) %}
-    {% if def_2r2c is not none %}
-      {{ [def_2r2c + (c * off), 0.0] | max }}
+
+    {% if h_now < 5 %}
+      {% if def_2r2c is not none %}
+        {{ [def_2r2c + (eff_c * today_full_off), 0.0] | max }}
+      {% else %}
+        {% set inside_now = states('sensor.inside_temp_mean_now') | float(t_sp) %}
+        {{ [(eff_c * today_full_off) + (c * [t_sp - inside_now, 0.0] | max), 0.0] | max }}
+      {% endif %}
+    {% elif h_now < 14 %}
+      {% set t_air = states('sensor.inside_temp_mean_now') | float(t_sp) %}
+      {% set t_mass = states('sensor.thermal_2r2c_mass_temperature') | float(none) %}
+      {% if t_mass is not none %}
+        {% set c_air = c * 0.10 %}
+        {% set c_mass = c * 0.90 %}
+        {% set h_above_w_k = (state_attr('sensor.h_kw_per_k_effective', 'h_above_air_kw_per_k') | float(0.070)) * 1000.0 %}
+        {% set t_out = states('sensor.outside_temperature') | float(8.0) %}
+        {% set q_air_loss_sp = h_above_w_k * [t_sp - t_out, 0.0] | max %}
+        {% set q_air_int_base = 0.80 * (states('sensor.internal_gains_daytime_median') | float(states('sensor.internal_gains_total') | float(450))) %}
+        {% set eq_mass_boost_k = [ [(q_air_loss_sp - q_air_int_base) / 730.0, 0.0] | max, 1.5 ] | min %}
+        {% set t_mass_eq = t_sp + eq_mass_boost_k %}
+        {% set e_signed_2r2c = (c_air * (t_air - t_sp)) + (c_mass * (t_mass - t_mass_eq)) %}
+        {{ [(eff_c * [dyn_off, 0.0] | max) - e_signed_2r2c, 0.0] | max }}
+      {% else %}
+        {{ [eff_c * ([dyn_off, 0.0] | max) - (c * (t_air - t_sp)), 0.0] | max }}
+      {% endif %}
     {% else %}
-      {% set weights = {'wohnzimmer': 11.9, 'kueche': 19.5, 'flur': 29.0, 'schlafzimmer': 9.1, 'buero_fabian': 6.6, 'buero_merja': 13.9, 'bad': 4.9, 'speisekammer': 5.1} %}
-      {% set wns = namespace(w_sum=0.0, w_total=0.0) %}
-      {% for room, w in weights.items() %}
-        {% set val = states('input_number.heating_base_' ~ room) | float(none) %}
-        {% if val is not none %}
-          {% set wns.w_sum = wns.w_sum + (val * w) %}
-          {% set wns.w_total = wns.w_total + w %}
-        {% endif %}
-      {% endfor %}
-      {% set setpoint_mean = (wns.w_sum / wns.w_total) if wns.w_total > 0 else 0 %}
-      {% set inside_now = states('sensor.inside_temp_mean_now') | float(0) %}
-      {% set missing_delta_k = [setpoint_mean - inside_now, 0] | max %}
-      {{ [c * (off + missing_delta_k), 0.0] | max }}
+      {% if def_2r2c is not none %}
+        {{ [def_2r2c + (eff_c * tomorrow_off), 0.0] | max }}
+      {% else %}
+        {% set inside_now = states('sensor.inside_temp_mean_now') | float(t_sp) %}
+        {{ [(eff_c * tomorrow_off) + (c * [t_sp - inside_now, 0.0] | max), 0.0] | max }}
+      {% endif %}
     {% endif %}
   _alloc_heating: "{{ [_pv_after_stage1 | float(0), _heating_need | float(0)] | min }}"
   _heating_uncovered: "{{ [(_heating_need | float(0)) - (_alloc_heating | float(0)), 0.0] | max }}"

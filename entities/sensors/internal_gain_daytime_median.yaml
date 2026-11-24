@@ -3,5 +3,5 @@ name: "Internal Gains Daytime Median"
 entity_id: sensor.internal_gains_daytime
 state_characteristic: median
 max_age:
-  hours: 72
-sampling_size: 1000
+  hours: 168
+sampling_size: 2500

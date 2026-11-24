@@ -5,81 +5,63 @@ triggers:
   entity_id:
     - input_boolean.cover_night_mode
     - sensor.cover_wakeup_recent
-sensor:
-- name: "Cover Wakeup Hour Max 3d"
-  unique_id: cover_wakeup_hour_max_3d
-  unit_of_measurement: 'h'
-  icon: mdi:weather-sunset-up
-  state: >
+- trigger: homeassistant
+  event: start
+variables:
+  _wakeup_info: >-
     {% set raw = state_attr('sensor.cover_wakeup_recent', 'off_timestamps') %}
     {% set ts_list = raw | from_json(default=[]) if raw is string else (raw if raw is iterable else []) %}
-    {% set by_day = namespace(first_off={}) %}
+    {% set by_day = namespace(first_off={}, formatted={}) %}
     {% for ts_val in (ts_list | map('float', 0) | sort) %}
       {% if ts_val > 0 %}
         {% set d_str = ts_val | timestamp_custom('%Y-%m-%d', true) %}
         {% set h_dec = (ts_val | timestamp_custom('%H', true) | int) + ((ts_val | timestamp_custom('%M', true) | int) / 60.0) + ((ts_val | timestamp_custom('%S', true) | int) / 3600.0) %}
         {# Nur echte Aufsteh-Events zwischen 05:00 und 16:00 Lokalzeit zählen; frühestes 'off' pro Kalendertag gewinnt #}
         {% if 5.0 <= h_dec <= 16.0 and d_str not in by_day.first_off %}
+          {% set hh = h_dec | int %}
+          {% set mm = ((h_dec - hh) * 60.0) | round(0) | int %}
+          {% set fmt = ('%02d:00' | format(hh + 1)) if mm == 60 else ('%02d:%02d' | format(hh, mm)) %}
           {% set by_day.first_off = by_day.first_off | combine({d_str: (h_dec | round(2))}) %}
+          {% set by_day.formatted = by_day.formatted | combine({d_str: fmt}) %}
         {% endif %}
       {% endif %}
     {% endfor %}
     {% set sorted_days = by_day.first_off.keys() | list | sort %}
     {% set last3_days = sorted_days[-3:] if (sorted_days | count) > 0 else [] %}
-    {% set ns = namespace(vals=[]) %}
+    {% set ns = namespace(vals=[], last3_fmt={}) %}
     {% for d in last3_days %}
       {% set ns.vals = ns.vals + [by_day.first_off[d] | float(11.5)] %}
+      {% set ns.last3_fmt = ns.last3_fmt | combine({d: by_day.formatted[d]}) %}
     {% endfor %}
     {# Falls heute noch geschlafen wird und es bereits später ist als das 3-Tage-Max, zieht die Live-Uhrzeit das Max nach oben #}
     {% set now_h = now().hour + (now().minute / 60.0) %}
     {% set base_max = (ns.vals | max) if (ns.vals | count) > 0 else 11.5 %}
     {% if is_state('input_boolean.cover_night_mode', 'on') and is_state('sun.sun', 'above_horizon') and 5.0 <= now_h <= 16.0 %}
-      {{ [base_max, (now_h + 0.17)] | max | round(2) }}
+      {% set max_h = [base_max, (now_h + 0.17)] | max | round(2) %}
     {% else %}
-      {{ base_max | round(2) }}
+      {% set max_h = base_max | round(2) %}
     {% endif %}
-  attributes:
-    wakeup_time_formatted: >
-      {% set h_val = states('sensor.cover_wakeup_hour_max_3d') | float(11.5) %}
-      {% set hh = h_val | int %}
-      {% set mm = ((h_val - hh) * 60.0) | round(0) | int %}
-      {% if mm == 60 %}
-        {{ '%02d:00' | format(hh + 1) }}
-      {% else %}
-        {{ '%02d:%02d' | format(hh, mm) }}
-      {% endif %}
-    daily_wakeups_last_3d: >
-      {% set raw = state_attr('sensor.cover_wakeup_recent', 'off_timestamps') %}
-      {% set ts_list = raw | from_json(default=[]) if raw is string else (raw if raw is iterable else []) %}
-      {% set by_day = namespace(first_off={}) %}
-      {% for ts_val in (ts_list | map('float', 0) | sort) %}
-        {% if ts_val > 0 %}
-          {% set d_str = ts_val | timestamp_custom('%Y-%m-%d', true) %}
-          {% set h_dec = (ts_val | timestamp_custom('%H', true) | int) + ((ts_val | timestamp_custom('%M', true) | int) / 60.0) %}
-          {% if 5.0 <= h_dec <= 16.0 and d_str not in by_day.first_off %}
-            {% set hh = h_dec | int %}
-            {% set mm = ((h_dec - hh) * 60.0) | round(0) | int %}
-            {% set by_day.first_off = by_day.first_off | combine({d_str: ('%02d:%02d' | format(hh, mm))}) %}
-          {% endif %}
-        {% endif %}
-      {% endfor %}
-      {% set sorted_days = by_day.first_off.keys() | list | sort %}
-      {% set out = namespace(d={}) %}
-      {% for k in sorted_days[-3:] %}
-        {% set out.d = out.d | combine({k: by_day.first_off[k]}) %}
-      {% endfor %}
-      {{ out.d }}
-
-- name: "Solar Gains Forecast"
-  unique_id: solar_gains_forecast
-  unit_of_measurement: 'kWh'
-  device_class: energy
-  icon: mdi:sun-wireless
-  state: >
+    {% set m_hh = max_h | int %}
+    {% set m_mm = ((max_h - m_hh) * 60.0) | round(0) | int %}
+    {% set max_fmt = ('%02d:00' | format(m_hh + 1)) if m_mm == 60 else ('%02d:%02d' | format(m_hh, m_mm)) %}
+    {{ {
+      'max_h': max_h,
+      'max_fmt': max_fmt,
+      'daily_last_3d': ns.last3_fmt
+    } }}
+  _solar_calc: >-
     {% set pv_preds = state_attr('sensor.solar_prediction_kwh', 'predictions') %}
     {% set pv_preds = pv_preds | from_json(default={}) if pv_preds is string else pv_preds %}
-    {% set t0 = as_timestamp(now()) %}
-    {% set t1 = t0 + 24 * 3600 %}
+    {% set t_now = as_timestamp(now()) %}
+    {% set t_24h = t_now + 24 * 3600 %}
+    {% set t_today_00 = as_timestamp(today_at('00:00')) %}
+    {% set t_today_05 = as_timestamp(today_at('05:00')) %}
+    {% set tomorrow_noon = today_at('12:00') + timedelta(days=1) %}
+    {% set day2_noon = today_at('12:00') + timedelta(days=2) %}
+    {% set t_tomorrow_00 = as_timestamp(tomorrow_noon.replace(hour=0, minute=0, second=0, microsecond=0)) %}
+    {% set t_tomorrow_05 = as_timestamp(tomorrow_noon.replace(hour=5, minute=0, second=0, microsecond=0)) %}
+    {% set t_day2_00 = as_timestamp(day2_noon.replace(hour=0, minute=0, second=0, microsecond=0)) %}
+    {% set t_bridge_start = [t_now, t_today_05] | max %}
     {% set today_str = now().strftime('%Y-%m-%d') %}
     {% set now_h = now().hour + (now().minute / 60.0) %}
     {% set rad2deg = 57.2957795 %}
@@ -90,436 +72,461 @@ sensor:
     {% set is_vacation = is_state('binary_sensor.vacation_mode', 'on') %}
     {% set is_night_now = is_state('input_boolean.cover_night_mode', 'on') %}
     {% set sun_up_now = is_state('sun.sun', 'above_horizon') %}
-    {% set wakeup_max_3d_h = states('sensor.cover_wakeup_hour_max_3d') | float(11.5) %}
-    {% set ns = namespace(solar_gain_kwh=0.0) %}
+    {% set wakeup_max_3d_h = _wakeup_info.max_h | float(11.5) %}
+    {% set ns = namespace(
+      next_24h_kwh=0.0,
+      pv_next_24h_kwh=0.0,
+      today_bridge_kwh=0.0,
+      tomorrow_05_24_kwh=0.0,
+      hourly_gains={}
+    ) %}
 
     {% if pv_preds is mapping %}
       {% for ts_str, pv_kwh in pv_preds.items() %}
         {% set ts = as_timestamp(ts_str) %}
-        {% if ts is number and t0 <= ts < t1 and (pv_kwh | float(0)) > 0 %}
-          {% set pv_val = pv_kwh | float(0) %}
-          {# DST-sichere UTC-Stundenmitte direkt aus UNIX-Timestamp (unabhängig von MEZ/MESZ) #}
-          {% set dt_utc = (ts + 1800) | timestamp_custom('%j', false) | int %}
-          {% set fc_date = ts | timestamp_custom('%Y-%m-%d', true) %}
-          {% set bucket_start_h = (ts | timestamp_custom('%H', true) | int) + ((ts | timestamp_custom('%M', true) | int) / 60.0) %}
-          {% set bucket_end_h = bucket_start_h + 1.0 %}
-          {% set decl = (23.45 * sin((360.0 / 365.0) * (dt_utc - 81) * deg2rad)) * deg2rad %}
-          {% set hour_utc = ((ts + 1800) % 86400) / 3600.0 %}
-          {% set sol_time = hour_utc + lon_offset_h %}
-          {% set ha = ((sol_time - 12.0) * 15.0) * deg2rad %}
-          {% set sin_ele = sin(lat) * sin(decl) + cos(lat) * cos(decl) * cos(ha) %}
-          {% set sin_ele_clamped = [ [sin_ele, -1.0] | max, 1.0 ] | min %}
-          {% set ele = asin(sin_ele_clamped) %}
+        {% if ts is number and t_today_00 <= ts < t_day2_00 %}
+          {% set pv_val = [pv_kwh | float(0), 0.0] | max %}
+          {% set b_start = ts %}
+          {% set b_end = ts + 3600.0 %}
+          {% set frac_24h = [([b_end, t_24h] | min - [b_start, t_now] | max) / 3600.0, 0.0] | max %}
+          {% if frac_24h > 0 %}
+            {% set ns.pv_next_24h_kwh = ns.pv_next_24h_kwh + (pv_val * frac_24h) %}
+          {% endif %}
 
-          {% if ele > 0 %}
-            {% set cos_ele = cos(ele) %}
-            {% set cos_azi = (sin(decl) - sin(lat) * sin_ele_clamped) / ([cos(lat) * cos_ele, 0.001] | max) %}
-            {% set cos_azi_clamped = [ [cos_azi, -1.0] | max, 1.0 ] | min %}
-            {% set azi = (acos(cos_azi_clamped) * rad2deg) %}
-            {% set azi = (360.0 - azi) if ha > 0 else azi %}
+          {% if pv_val > 0 %}
+            {# DST-sichere UTC-Stundenmitte direkt aus UNIX-Timestamp (unabhängig von MEZ/MESZ) #}
+            {% set dt_utc = (ts + 1800) | timestamp_custom('%j', false) | int %}
+            {% set fc_date = ts | timestamp_custom('%Y-%m-%d', true) %}
+            {% set bucket_start_h = (ts | timestamp_custom('%H', true) | int) + ((ts | timestamp_custom('%M', true) | int) / 60.0) %}
+            {% set bucket_end_h = bucket_start_h + 1.0 %}
+            {% set decl = (23.45 * sin((360.0 / 365.0) * (dt_utc - 81) * deg2rad)) * deg2rad %}
+            {% set hour_utc = ((ts + 1800) % 86400) / 3600.0 %}
+            {% set sol_time = hour_utc + lon_offset_h %}
+            {% set ha = ((sol_time - 12.0) * 15.0) * deg2rad %}
+            {% set sin_ele = sin(lat) * sin(decl) + cos(lat) * cos(decl) * cos(ha) %}
+            {% set sin_ele_clamped = [ [sin_ele, -1.0] | max, 1.0 ] | min %}
+            {% set ele = asin(sin_ele_clamped) %}
 
-            {# Mehrseitiges Walmdach (12.865 kWp AC) -> äquivalente horizontale Globalstrahlung GHI #}
-            {% set ghi_clear_max = 1080.0 * ([sin_ele_clamped, 0.0] | max ** 1.15) %}
-            {% set ghi = [((pv_val / 12.865) * 1000.0) / 0.88, ghi_clear_max] | min %}
-            {% set clearness = (ghi / ghi_clear_max) if ghi_clear_max > 10 else 0.3 %}
-            {% set hour_cloud = [ [1.0 - clearness, cloud * 0.5] | max, 1.0] | min %}
-            {% set h_gain = namespace(w=0.0) %}
+            {% if ele > 0 %}
+              {% set cos_ele = cos(ele) %}
+              {% set cos_azi = (sin(decl) - sin(lat) * sin_ele_clamped) / ([cos(lat) * cos_ele, 0.001] | max) %}
+              {% set cos_azi_clamped = [ [cos_azi, -1.0] | max, 1.0 ] | min %}
+              {% set azi = (acos(cos_azi_clamped) * rad2deg) %}
+              {% set azi = (360.0 - azi) if ha > 0 else azi %}
 
-            {# Öffnungsanteil der 5 Schlaf-Rolläden anhand des echten 3-Tage-Max der Aufstehzeit (bzw. 1.0 falls heute schon wach) #}
-            {% if is_vacation or (fc_date == today_str and (not is_night_now) and sun_up_now) %}
-              {% set sleep_group_open_factor = 1.0 %}
-            {% elif fc_date == today_str and is_night_now and sun_up_now %}
-              {% set eff_wake_h = [wakeup_max_3d_h, now_h + 0.17] | max %}
-              {% set sleep_group_open_factor = [ [bucket_end_h - eff_wake_h, 0.0] | max, 1.0 ] | min %}
-            {% else %}
-              {% set sleep_group_open_factor = [ [bucket_end_h - wakeup_max_3d_h, 0.0] | max, 1.0 ] | min %}
-            {% endif %}
+              {# Mehrseitiges Walmdach (12.865 kWp AC) -> äquivalente horizontale Globalstrahlung GHI #}
+              {% set ghi_clear_max = 1080.0 * ([sin_ele_clamped, 0.0] | max ** 1.15) %}
+              {% set ghi = [((pv_val / 12.865) * 1000.0) / 0.88, ghi_clear_max] | min %}
+              {% set clearness = (ghi / ghi_clear_max) if ghi_clear_max > 10 else 0.3 %}
+              {% set hour_cloud = [ [1.0 - clearness, cloud * 0.5] | max, 1.0] | min %}
+              {% set h_gain = namespace(w=0.0) %}
 
-                {% set win_open_factor = 1.0 if true else sleep_group_open_factor %}
-                {% if win_open_factor > 0 %}
-                  {% set s_factor = 0.15 + (1.0 - 0.15) * hour_cloud %}
-                  {% set dhi = ghi * s_factor %}
-                  {% set dni = [(ghi * (1.0 - s_factor)) / ([sin_ele_clamped, 0.08] | max), 950.0] | min %}
-                  {% set g_diff = 0.53 * 0.87 %}
-                  {% set rel_azi = ((azi - 180 + 180) % 360 - 180) %}
-                  {% set diffuse_factor = 1.0 %}
-                  {% set direct_w_m2 = 0.0 %}
+              {# Öffnungsanteil der 5 Schlaf-Rolläden anhand des echten 3-Tage-Max der Aufstehzeit (bzw. 1.0 falls heute schon wach) #}
+              {% if is_vacation or (fc_date == today_str and (not is_night_now) and sun_up_now) %}
+                {% set sleep_group_open_factor = 1.0 %}
+              {% elif fc_date == today_str and is_night_now and sun_up_now %}
+                {% set eff_wake_h = [wakeup_max_3d_h, now_h + 0.17] | max %}
+                {% set sleep_group_open_factor = [ [bucket_end_h - eff_wake_h, 0.0] | max, 1.0 ] | min %}
+              {% else %}
+                {% set sleep_group_open_factor = [ [bucket_end_h - wakeup_max_3d_h, 0.0] | max, 1.0 ] | min %}
+              {% endif %}
 
-                  {% if (rel_azi | abs) < 90 %}
-                    {% set cos_f = ((azi - 180) * deg2rad) | cos | abs %}
-                    {% set cos_aoi = cos_ele * cos_f %}
-                    {% set term = 1.0 - cos_aoi %}
-                    {% set g_dir = 0.53 * (1.0 - term * term * term) %}
-                    {% set tan_prof = tan(ele) / ([cos_f, 0.05] | max) %}
-                    {% set df_bottom = 1.0 %}
-                    {% set df_top = 1.0 %}
-                    {% set df_side = 1.0 %}
+                  {% set win_open_factor = 1.0 if true else sleep_group_open_factor %}
+                  {% if win_open_factor > 0 %}
+                    {% set s_factor = 0.15 + (1.0 - 0.15) * hour_cloud %}
+                    {% set dhi = ghi * s_factor %}
+                    {% set dni = [(ghi * (1.0 - s_factor)) / ([sin_ele_clamped, 0.08] | max), 950.0] | min %}
+                    {% set g_diff = 0.53 * 0.87 %}
+                    {% set rel_azi = ((azi - 180 + 180) % 360 - 180) %}
+                    {% set diffuse_factor = 1.0 %}
+                    {% set direct_w_m2 = 0.0 %}
 
-                        {% set shadow_h = 8.7 - (7.5 * tan_prof) %}
-                        {% set win_top = 2.0 %}
-                        {% set win_bottom = 0.0 %}
-                        {% set sun_h = [0, win_top - [win_bottom, shadow_h]|max]|max %}
-                        {% set df_bottom = [df_bottom, sun_h / 2.0 ] | min %}
+                    {% if (rel_azi | abs) < 90 %}
+                      {% set cos_f = ((azi - 180) * deg2rad) | cos | abs %}
+                      {% set cos_aoi = cos_ele * cos_f %}
+                      {% set term = 1.0 - cos_aoi %}
+                      {% set g_dir = 0.53 * (1.0 - term * term * term) %}
+                      {% set tan_prof = tan(ele) / ([cos_f, 0.05] | max) %}
+                      {% set df_bottom = 1.0 %}
+                      {% set df_top = 1.0 %}
+                      {% set df_side = 1.0 %}
 
-                    {% set sun_part = [0.0, df_top + df_bottom - 1.0] | max * df_side %}
-                    {% set direct_w_m2 = dni * cos_aoi * sun_part * g_dir %}
+                          {% set shadow_h = 8.7 - (7.5 * tan_prof) %}
+                          {% set win_top = 2.0 %}
+                          {% set win_bottom = 0.0 %}
+                          {% set sun_h = [0, win_top - [win_bottom, shadow_h]|max]|max %}
+                          {% set df_bottom = [df_bottom, sun_h / 2.0 ] | min %}
+
+                      {% set sun_part = [0.0, df_top + df_bottom - 1.0] | max * df_side %}
+                      {% set direct_w_m2 = dni * cos_aoi * sun_part * g_dir %}
+                    {% endif %}
+
+                    {% set diffuse_w_m2 = 0.5 * dhi * g_diff * diffuse_factor %}
+                    {% set ground_w_m2 = 0.10 * ghi * g_diff * diffuse_factor %}
+                    {% set h_gain.w = h_gain.w + (1.6 * win_open_factor * (direct_w_m2 + diffuse_w_m2 + ground_w_m2)) %}
                   {% endif %}
+                  {% set win_open_factor = 1.0 if true else sleep_group_open_factor %}
+                  {% if win_open_factor > 0 %}
+                    {% set s_factor = 0.15 + (1.0 - 0.15) * hour_cloud %}
+                    {% set dhi = ghi * s_factor %}
+                    {% set dni = [(ghi * (1.0 - s_factor)) / ([sin_ele_clamped, 0.08] | max), 950.0] | min %}
+                    {% set g_diff = 0.53 * 0.87 %}
+                    {% set rel_azi = ((azi - 180 + 180) % 360 - 180) %}
+                    {% set diffuse_factor = 1.0 %}
+                    {% set direct_w_m2 = 0.0 %}
 
-                  {% set diffuse_w_m2 = 0.5 * dhi * g_diff * diffuse_factor %}
-                  {% set ground_w_m2 = 0.10 * ghi * g_diff * diffuse_factor %}
-                  {% set h_gain.w = h_gain.w + (1.6 * win_open_factor * (direct_w_m2 + diffuse_w_m2 + ground_w_m2)) %}
-                {% endif %}
-                {% set win_open_factor = 1.0 if true else sleep_group_open_factor %}
-                {% if win_open_factor > 0 %}
-                  {% set s_factor = 0.15 + (1.0 - 0.15) * hour_cloud %}
-                  {% set dhi = ghi * s_factor %}
-                  {% set dni = [(ghi * (1.0 - s_factor)) / ([sin_ele_clamped, 0.08] | max), 950.0] | min %}
-                  {% set g_diff = 0.53 * 0.87 %}
-                  {% set rel_azi = ((azi - 180 + 180) % 360 - 180) %}
-                  {% set diffuse_factor = 1.0 %}
-                  {% set direct_w_m2 = 0.0 %}
+                    {% if (rel_azi | abs) < 90 %}
+                      {% set cos_f = ((azi - 180) * deg2rad) | cos | abs %}
+                      {% set cos_aoi = cos_ele * cos_f %}
+                      {% set term = 1.0 - cos_aoi %}
+                      {% set g_dir = 0.53 * (1.0 - term * term * term) %}
+                      {% set tan_prof = tan(ele) / ([cos_f, 0.05] | max) %}
+                      {% set df_bottom = 1.0 %}
+                      {% set df_top = 1.0 %}
+                      {% set df_side = 1.0 %}
 
-                  {% if (rel_azi | abs) < 90 %}
-                    {% set cos_f = ((azi - 180) * deg2rad) | cos | abs %}
-                    {% set cos_aoi = cos_ele * cos_f %}
-                    {% set term = 1.0 - cos_aoi %}
-                    {% set g_dir = 0.53 * (1.0 - term * term * term) %}
-                    {% set tan_prof = tan(ele) / ([cos_f, 0.05] | max) %}
-                    {% set df_bottom = 1.0 %}
-                    {% set df_top = 1.0 %}
-                    {% set df_side = 1.0 %}
+                          {% set shadow_h = 5.0 - (7.2 * tan_prof) %}
+                          {% set win_top = 1.98 %}
+                          {% set win_bottom = 0.0 %}
+                          {% set sun_h = [0, win_top - [win_bottom, shadow_h]|max]|max %}
+                          {% set df_bottom = [df_bottom, sun_h / 1.98 ] | min %}
+                          {% set shadow_h = 2.9 - (3.0 * tan_prof) %}
+                          {% set win_top = 1.98 %}
+                          {% set win_bottom = 0.0 %}
+                          {% set sun_h = [0, [shadow_h, win_top]|min - win_bottom]|max %}
+                          {% set cur_df_top = sun_h / 1.98 %}
+                          {% set df_top = [df_top, cur_df_top] | min %}
+                          {% set diffuse_factor = [diffuse_factor, 0.3 + 0.7 * cur_df_top] | min %}
+                          {% if rel_azi < 0 %}
+                            {% set shadow_w = 4.0 * ((-rel_azi * deg2rad) | tan) %}
+                            {% set df_side = [df_side, [0, 1 - (shadow_w / 1.4)] | max] | min %}
+                          {% endif %}
 
-                        {% set shadow_h = 5.0 - (7.2 * tan_prof) %}
-                        {% set win_top = 1.98 %}
-                        {% set win_bottom = 0.0 %}
-                        {% set sun_h = [0, win_top - [win_bottom, shadow_h]|max]|max %}
-                        {% set df_bottom = [df_bottom, sun_h / 1.98 ] | min %}
-                        {% set shadow_h = 2.9 - (3.0 * tan_prof) %}
-                        {% set win_top = 1.98 %}
-                        {% set win_bottom = 0.0 %}
-                        {% set sun_h = [0, [shadow_h, win_top]|min - win_bottom]|max %}
-                        {% set cur_df_top = sun_h / 1.98 %}
-                        {% set df_top = [df_top, cur_df_top] | min %}
-                        {% set diffuse_factor = [diffuse_factor, 0.3 + 0.7 * cur_df_top] | min %}
-                        {% if rel_azi < 0 %}
-                          {% set shadow_w = 4.0 * ((-rel_azi * deg2rad) | tan) %}
-                          {% set df_side = [df_side, [0, 1 - (shadow_w / 1.4)] | max] | min %}
-                        {% endif %}
+                      {% set sun_part = [0.0, df_top + df_bottom - 1.0] | max * df_side %}
+                      {% set direct_w_m2 = dni * cos_aoi * sun_part * g_dir %}
+                    {% endif %}
 
-                    {% set sun_part = [0.0, df_top + df_bottom - 1.0] | max * df_side %}
-                    {% set direct_w_m2 = dni * cos_aoi * sun_part * g_dir %}
+                    {% set diffuse_w_m2 = 0.5 * dhi * g_diff * diffuse_factor %}
+                    {% set ground_w_m2 = 0.10 * ghi * g_diff * diffuse_factor %}
+                    {% set h_gain.w = h_gain.w + (2.772 * win_open_factor * (direct_w_m2 + diffuse_w_m2 + ground_w_m2)) %}
                   {% endif %}
+                  {% set win_open_factor = 1.0 if true else sleep_group_open_factor %}
+                  {% if win_open_factor > 0 %}
+                    {% set s_factor = 0.15 + (1.0 - 0.15) * hour_cloud %}
+                    {% set dhi = ghi * s_factor %}
+                    {% set dni = [(ghi * (1.0 - s_factor)) / ([sin_ele_clamped, 0.08] | max), 950.0] | min %}
+                    {% set g_diff = 0.53 * 0.87 %}
+                    {% set rel_azi = ((azi - 180 + 180) % 360 - 180) %}
+                    {% set diffuse_factor = 1.0 %}
+                    {% set direct_w_m2 = 0.0 %}
 
-                  {% set diffuse_w_m2 = 0.5 * dhi * g_diff * diffuse_factor %}
-                  {% set ground_w_m2 = 0.10 * ghi * g_diff * diffuse_factor %}
-                  {% set h_gain.w = h_gain.w + (2.772 * win_open_factor * (direct_w_m2 + diffuse_w_m2 + ground_w_m2)) %}
-                {% endif %}
-                {% set win_open_factor = 1.0 if true else sleep_group_open_factor %}
-                {% if win_open_factor > 0 %}
-                  {% set s_factor = 0.15 + (1.0 - 0.15) * hour_cloud %}
-                  {% set dhi = ghi * s_factor %}
-                  {% set dni = [(ghi * (1.0 - s_factor)) / ([sin_ele_clamped, 0.08] | max), 950.0] | min %}
-                  {% set g_diff = 0.53 * 0.87 %}
-                  {% set rel_azi = ((azi - 180 + 180) % 360 - 180) %}
-                  {% set diffuse_factor = 1.0 %}
-                  {% set direct_w_m2 = 0.0 %}
+                    {% if (rel_azi | abs) < 90 %}
+                      {% set cos_f = ((azi - 180) * deg2rad) | cos | abs %}
+                      {% set cos_aoi = cos_ele * cos_f %}
+                      {% set term = 1.0 - cos_aoi %}
+                      {% set g_dir = 0.53 * (1.0 - term * term * term) %}
+                      {% set tan_prof = tan(ele) / ([cos_f, 0.05] | max) %}
+                      {% set df_bottom = 1.0 %}
+                      {% set df_top = 1.0 %}
+                      {% set df_side = 1.0 %}
 
-                  {% if (rel_azi | abs) < 90 %}
-                    {% set cos_f = ((azi - 180) * deg2rad) | cos | abs %}
-                    {% set cos_aoi = cos_ele * cos_f %}
-                    {% set term = 1.0 - cos_aoi %}
-                    {% set g_dir = 0.53 * (1.0 - term * term * term) %}
-                    {% set tan_prof = tan(ele) / ([cos_f, 0.05] | max) %}
-                    {% set df_bottom = 1.0 %}
-                    {% set df_top = 1.0 %}
-                    {% set df_side = 1.0 %}
+                          {% set shadow_h = 5.0 - (7.5 * tan_prof) %}
+                          {% set win_top = 1.98 %}
+                          {% set win_bottom = 0.0 %}
+                          {% set sun_h = [0, win_top - [win_bottom, shadow_h]|max]|max %}
+                          {% set df_bottom = [df_bottom, sun_h / 1.98 ] | min %}
+                          {% set shadow_h = 2.9 - (3.5 * tan_prof) %}
+                          {% set win_top = 1.98 %}
+                          {% set win_bottom = 0.0 %}
+                          {% set sun_h = [0, [shadow_h, win_top]|min - win_bottom]|max %}
+                          {% set cur_df_top = sun_h / 1.98 %}
+                          {% set df_top = [df_top, cur_df_top] | min %}
+                          {% set diffuse_factor = [diffuse_factor, 0.3 + 0.7 * cur_df_top] | min %}
 
-                        {% set shadow_h = 5.0 - (7.5 * tan_prof) %}
-                        {% set win_top = 1.98 %}
-                        {% set win_bottom = 0.0 %}
-                        {% set sun_h = [0, win_top - [win_bottom, shadow_h]|max]|max %}
-                        {% set df_bottom = [df_bottom, sun_h / 1.98 ] | min %}
-                        {% set shadow_h = 2.9 - (3.5 * tan_prof) %}
-                        {% set win_top = 1.98 %}
-                        {% set win_bottom = 0.0 %}
-                        {% set sun_h = [0, [shadow_h, win_top]|min - win_bottom]|max %}
-                        {% set cur_df_top = sun_h / 1.98 %}
-                        {% set df_top = [df_top, cur_df_top] | min %}
-                        {% set diffuse_factor = [diffuse_factor, 0.3 + 0.7 * cur_df_top] | min %}
+                      {% set sun_part = [0.0, df_top + df_bottom - 1.0] | max * df_side %}
+                      {% set direct_w_m2 = dni * cos_aoi * sun_part * g_dir %}
+                    {% endif %}
 
-                    {% set sun_part = [0.0, df_top + df_bottom - 1.0] | max * df_side %}
-                    {% set direct_w_m2 = dni * cos_aoi * sun_part * g_dir %}
+                    {% set diffuse_w_m2 = 0.5 * dhi * g_diff * diffuse_factor %}
+                    {% set ground_w_m2 = 0.10 * ghi * g_diff * diffuse_factor %}
+                    {% set h_gain.w = h_gain.w + (2.772 * win_open_factor * (direct_w_m2 + diffuse_w_m2 + ground_w_m2)) %}
                   {% endif %}
+                  {% set win_open_factor = 1.0 if true else sleep_group_open_factor %}
+                  {% if win_open_factor > 0 %}
+                    {% set s_factor = 0.15 + (1.0 - 0.15) * hour_cloud %}
+                    {% set dhi = ghi * s_factor %}
+                    {% set dni = [(ghi * (1.0 - s_factor)) / ([sin_ele_clamped, 0.08] | max), 950.0] | min %}
+                    {% set g_diff = 0.53 * 0.87 %}
+                    {% set rel_azi = ((azi - 270 + 180) % 360 - 180) %}
+                    {% set diffuse_factor = 1.0 %}
+                    {% set direct_w_m2 = 0.0 %}
 
-                  {% set diffuse_w_m2 = 0.5 * dhi * g_diff * diffuse_factor %}
-                  {% set ground_w_m2 = 0.10 * ghi * g_diff * diffuse_factor %}
-                  {% set h_gain.w = h_gain.w + (2.772 * win_open_factor * (direct_w_m2 + diffuse_w_m2 + ground_w_m2)) %}
-                {% endif %}
-                {% set win_open_factor = 1.0 if true else sleep_group_open_factor %}
-                {% if win_open_factor > 0 %}
-                  {% set s_factor = 0.15 + (1.0 - 0.15) * hour_cloud %}
-                  {% set dhi = ghi * s_factor %}
-                  {% set dni = [(ghi * (1.0 - s_factor)) / ([sin_ele_clamped, 0.08] | max), 950.0] | min %}
-                  {% set g_diff = 0.53 * 0.87 %}
-                  {% set rel_azi = ((azi - 270 + 180) % 360 - 180) %}
-                  {% set diffuse_factor = 1.0 %}
-                  {% set direct_w_m2 = 0.0 %}
+                    {% if (rel_azi | abs) < 90 %}
+                      {% set cos_f = ((azi - 270) * deg2rad) | cos | abs %}
+                      {% set cos_aoi = cos_ele * cos_f %}
+                      {% set term = 1.0 - cos_aoi %}
+                      {% set g_dir = 0.53 * (1.0 - term * term * term) %}
+                      {% set tan_prof = tan(ele) / ([cos_f, 0.05] | max) %}
+                      {% set df_bottom = 1.0 %}
+                      {% set df_top = 1.0 %}
+                      {% set df_side = 1.0 %}
 
-                  {% if (rel_azi | abs) < 90 %}
-                    {% set cos_f = ((azi - 270) * deg2rad) | cos | abs %}
-                    {% set cos_aoi = cos_ele * cos_f %}
-                    {% set term = 1.0 - cos_aoi %}
-                    {% set g_dir = 0.53 * (1.0 - term * term * term) %}
-                    {% set tan_prof = tan(ele) / ([cos_f, 0.05] | max) %}
-                    {% set df_bottom = 1.0 %}
-                    {% set df_top = 1.0 %}
-                    {% set df_side = 1.0 %}
+                          {% set shadow_h = 2.9 - (4.5 * tan_prof) %}
+                          {% set win_top = 1.94 %}
+                          {% set win_bottom = 0.0 %}
+                          {% set sun_h = [0, [shadow_h, win_top]|min - win_bottom]|max %}
+                          {% set cur_df_top = sun_h / 1.94 %}
+                          {% set df_top = [df_top, cur_df_top] | min %}
+                          {% set diffuse_factor = [diffuse_factor, 0.3 + 0.7 * cur_df_top] | min %}
 
-                        {% set shadow_h = 2.9 - (4.5 * tan_prof) %}
-                        {% set win_top = 1.94 %}
-                        {% set win_bottom = 0.0 %}
-                        {% set sun_h = [0, [shadow_h, win_top]|min - win_bottom]|max %}
-                        {% set cur_df_top = sun_h / 1.94 %}
-                        {% set df_top = [df_top, cur_df_top] | min %}
-                        {% set diffuse_factor = [diffuse_factor, 0.3 + 0.7 * cur_df_top] | min %}
+                      {% set sun_part = [0.0, df_top + df_bottom - 1.0] | max * df_side %}
+                      {% set direct_w_m2 = dni * cos_aoi * sun_part * g_dir %}
+                    {% endif %}
 
-                    {% set sun_part = [0.0, df_top + df_bottom - 1.0] | max * df_side %}
-                    {% set direct_w_m2 = dni * cos_aoi * sun_part * g_dir %}
+                    {% set diffuse_w_m2 = 0.5 * dhi * g_diff * diffuse_factor %}
+                    {% set ground_w_m2 = 0.10 * ghi * g_diff * diffuse_factor %}
+                    {% set h_gain.w = h_gain.w + (2.91 * win_open_factor * (direct_w_m2 + diffuse_w_m2 + ground_w_m2)) %}
                   {% endif %}
-
-                  {% set diffuse_w_m2 = 0.5 * dhi * g_diff * diffuse_factor %}
-                  {% set ground_w_m2 = 0.10 * ghi * g_diff * diffuse_factor %}
-                  {% set h_gain.w = h_gain.w + (2.91 * win_open_factor * (direct_w_m2 + diffuse_w_m2 + ground_w_m2)) %}
-                {% endif %}
-                {% set win_open_factor = 1.0 if false else sleep_group_open_factor %}
-                {% if win_open_factor > 0 %}
-                  {% set s_factor = 0.15 + (1.0 - 0.15) * hour_cloud %}
-                  {% set dhi = ghi * s_factor %}
-                  {% set dni = [(ghi * (1.0 - s_factor)) / ([sin_ele_clamped, 0.08] | max), 950.0] | min %}
-                  {% set g_diff = 0.53 * 0.87 %}
-                  {% set rel_azi = ((azi - 180 + 180) % 360 - 180) %}
-                  {% set diffuse_factor = 1.0 %}
-                  {% set direct_w_m2 = 0.0 %}
-
-                  {% if (rel_azi | abs) < 90 %}
-                    {% set cos_f = ((azi - 180) * deg2rad) | cos | abs %}
-                    {% set cos_aoi = cos_ele * cos_f %}
-                    {% set term = 1.0 - cos_aoi %}
-                    {% set g_dir = 0.53 * (1.0 - term * term * term) %}
-                    {% set tan_prof = tan(ele) / ([cos_f, 0.05] | max) %}
-                    {% set df_bottom = 1.0 %}
-                    {% set df_top = 1.0 %}
-                    {% set df_side = 1.0 %}
-
-                        {% set shadow_h = 5.0 - (4.2 * tan_prof) %}
-                        {% set win_top = 2.09 %}
-                        {% set win_bottom = 0.0 %}
-                        {% set sun_h = [0, win_top - [win_bottom, shadow_h]|max]|max %}
-                        {% set df_bottom = [df_bottom, sun_h / 2.09 ] | min %}
-
-                    {% set sun_part = [0.0, df_top + df_bottom - 1.0] | max * df_side %}
-                    {% set direct_w_m2 = dni * cos_aoi * sun_part * g_dir %}
-                  {% endif %}
-
-                  {% set diffuse_w_m2 = 0.5 * dhi * g_diff * diffuse_factor %}
-                  {% set ground_w_m2 = 0.10 * ghi * g_diff * diffuse_factor %}
-                  {% set h_gain.w = h_gain.w + (3.2186 * win_open_factor * (direct_w_m2 + diffuse_w_m2 + ground_w_m2)) %}
-                {% endif %}
-                {% set win_open_factor = 1.0 if true else sleep_group_open_factor %}
-                {% if win_open_factor > 0 %}
-                  {% set s_factor = 0.15 + (1.0 - 0.15) * hour_cloud %}
-                  {% set dhi = ghi * s_factor %}
-                  {% set dni = [(ghi * (1.0 - s_factor)) / ([sin_ele_clamped, 0.08] | max), 950.0] | min %}
-                  {% set g_diff = 0.53 * 0.87 %}
-                  {% set rel_azi = ((azi - 90 + 180) % 360 - 180) %}
-                  {% set diffuse_factor = 1.0 %}
-                  {% set direct_w_m2 = 0.0 %}
-
-                  {% if (rel_azi | abs) < 90 %}
-                    {% set cos_f = ((azi - 90) * deg2rad) | cos | abs %}
-                    {% set cos_aoi = cos_ele * cos_f %}
-                    {% set term = 1.0 - cos_aoi %}
-                    {% set g_dir = 0.53 * (1.0 - term * term * term) %}
-                    {% set tan_prof = tan(ele) / ([cos_f, 0.05] | max) %}
-                    {% set df_bottom = 1.0 %}
-                    {% set df_top = 1.0 %}
-                    {% set df_side = 1.0 %}
-
-
-                    {% set sun_part = [0.0, df_top + df_bottom - 1.0] | max * df_side %}
-                    {% set direct_w_m2 = dni * cos_aoi * sun_part * g_dir %}
-                  {% endif %}
-
-                  {% set diffuse_w_m2 = 0.5 * dhi * g_diff * diffuse_factor %}
-                  {% set ground_w_m2 = 0.10 * ghi * g_diff * diffuse_factor %}
-                  {% set h_gain.w = h_gain.w + (0.24 * win_open_factor * (direct_w_m2 + diffuse_w_m2 + ground_w_m2)) %}
-                {% endif %}
-                {% set win_open_factor = 1.0 if false else sleep_group_open_factor %}
-                {% if win_open_factor > 0 %}
-                  {% set s_factor = 0.15 + (1.0 - 0.15) * hour_cloud %}
-                  {% set dhi = ghi * s_factor %}
-                  {% set dni = [(ghi * (1.0 - s_factor)) / ([sin_ele_clamped, 0.08] | max), 950.0] | min %}
-                  {% set g_diff = 0.53 * 0.87 %}
-                  {% set rel_azi = ((azi - 0 + 180) % 360 - 180) %}
-                  {% set diffuse_factor = 1.0 %}
-                  {% set direct_w_m2 = 0.0 %}
-
-                  {% if (rel_azi | abs) < 90 %}
-                    {% set cos_f = ((azi - 0) * deg2rad) | cos | abs %}
-                    {% set cos_aoi = cos_ele * cos_f %}
-                    {% set term = 1.0 - cos_aoi %}
-                    {% set g_dir = 0.53 * (1.0 - term * term * term) %}
-                    {% set tan_prof = tan(ele) / ([cos_f, 0.05] | max) %}
-                    {% set df_bottom = 1.0 %}
-                    {% set df_top = 1.0 %}
-                    {% set df_side = 1.0 %}
-
-
-                    {% set sun_part = [0.0, df_top + df_bottom - 1.0] | max * df_side %}
-                    {% set direct_w_m2 = dni * cos_aoi * sun_part * g_dir %}
-                  {% endif %}
-
-                  {% set diffuse_w_m2 = 0.5 * dhi * g_diff * diffuse_factor %}
-                  {% set ground_w_m2 = 0.10 * ghi * g_diff * diffuse_factor %}
-                  {% set h_gain.w = h_gain.w + (0.24 * win_open_factor * (direct_w_m2 + diffuse_w_m2 + ground_w_m2)) %}
-                {% endif %}
-                {% set win_open_factor = 1.0 if false else sleep_group_open_factor %}
-                {% if win_open_factor > 0 %}
-                  {% set s_factor = 0.15 + (1.0 - 0.15) * hour_cloud %}
-                  {% set dhi = ghi * s_factor %}
-                  {% set dni = [(ghi * (1.0 - s_factor)) / ([sin_ele_clamped, 0.08] | max), 950.0] | min %}
-                  {% set g_diff = 0.53 * 0.87 %}
-                  {% set rel_azi = ((azi - 0 + 180) % 360 - 180) %}
-                  {% set diffuse_factor = 1.0 %}
-                  {% set direct_w_m2 = 0.0 %}
-
-                  {% if (rel_azi | abs) < 90 %}
-                    {% set cos_f = ((azi - 0) * deg2rad) | cos | abs %}
-                    {% set cos_aoi = cos_ele * cos_f %}
-                    {% set term = 1.0 - cos_aoi %}
-                    {% set g_dir = 0.53 * (1.0 - term * term * term) %}
-                    {% set tan_prof = tan(ele) / ([cos_f, 0.05] | max) %}
-                    {% set df_bottom = 1.0 %}
-                    {% set df_top = 1.0 %}
-                    {% set df_side = 1.0 %}
-
-
-                    {% set sun_part = [0.0, df_top + df_bottom - 1.0] | max * df_side %}
-                    {% set direct_w_m2 = dni * cos_aoi * sun_part * g_dir %}
-                  {% endif %}
-
-                  {% set diffuse_w_m2 = 0.5 * dhi * g_diff * diffuse_factor %}
-                  {% set ground_w_m2 = 0.10 * ghi * g_diff * diffuse_factor %}
-                  {% set h_gain.w = h_gain.w + (0.9102 * win_open_factor * (direct_w_m2 + diffuse_w_m2 + ground_w_m2)) %}
-                {% endif %}
-                {% set win_open_factor = 1.0 if false else sleep_group_open_factor %}
-                {% if win_open_factor > 0 %}
-                  {% set s_factor = 0.15 + (1.0 - 0.15) * hour_cloud %}
-                  {% set dhi = ghi * s_factor %}
-                  {% set dni = [(ghi * (1.0 - s_factor)) / ([sin_ele_clamped, 0.08] | max), 950.0] | min %}
-                  {% set g_diff = 0.53 * 0.87 %}
-                  {% set rel_azi = ((azi - 0 + 180) % 360 - 180) %}
-                  {% set diffuse_factor = 1.0 %}
-                  {% set direct_w_m2 = 0.0 %}
-
-                  {% if (rel_azi | abs) < 90 %}
-                    {% set cos_f = ((azi - 0) * deg2rad) | cos | abs %}
-                    {% set cos_aoi = cos_ele * cos_f %}
-                    {% set term = 1.0 - cos_aoi %}
-                    {% set g_dir = 0.53 * (1.0 - term * term * term) %}
-                    {% set tan_prof = tan(ele) / ([cos_f, 0.05] | max) %}
-                    {% set df_bottom = 1.0 %}
-                    {% set df_top = 1.0 %}
-                    {% set df_side = 1.0 %}
-
-                        {% set shadow_h = 7.5 - (4.2 * tan_prof) %}
-                        {% set win_top = 2.0 %}
-                        {% set win_bottom = 0.0 %}
-                        {% set sun_h = [0, win_top - [win_bottom, shadow_h]|max]|max %}
-                        {% set df_bottom = [df_bottom, sun_h / 2.0 ] | min %}
-
-                    {% set sun_part = [0.0, df_top + df_bottom - 1.0] | max * df_side %}
-                    {% set direct_w_m2 = dni * cos_aoi * sun_part * g_dir %}
-                  {% endif %}
-
-                  {% set diffuse_w_m2 = 0.5 * dhi * g_diff * diffuse_factor %}
-                  {% set ground_w_m2 = 0.10 * ghi * g_diff * diffuse_factor %}
-                  {% set h_gain.w = h_gain.w + (1.54 * win_open_factor * (direct_w_m2 + diffuse_w_m2 + ground_w_m2)) %}
-                {% endif %}
                   {% set win_open_factor = 1.0 if false else sleep_group_open_factor %}
-                {% if win_open_factor > 0 %}
-                  {% set s_factor = 0.15 + (1.0 - 0.15) * hour_cloud %}
-                  {% set dhi = ghi * s_factor %}
-                  {% set dni = [(ghi * (1.0 - s_factor)) / ([sin_ele_clamped, 0.08] | max), 950.0] | min %}
-                  {% set g_diff = 0.53 * 0.87 %}
-                  {% set rel_azi = ((azi - 270 + 180) % 360 - 180) %}
-                  {% set diffuse_factor = 1.0 %}
-                  {% set direct_w_m2 = 0.0 %}
+                  {% if win_open_factor > 0 %}
+                    {% set s_factor = 0.15 + (1.0 - 0.15) * hour_cloud %}
+                    {% set dhi = ghi * s_factor %}
+                    {% set dni = [(ghi * (1.0 - s_factor)) / ([sin_ele_clamped, 0.08] | max), 950.0] | min %}
+                    {% set g_diff = 0.53 * 0.87 %}
+                    {% set rel_azi = ((azi - 180 + 180) % 360 - 180) %}
+                    {% set diffuse_factor = 1.0 %}
+                    {% set direct_w_m2 = 0.0 %}
 
-                  {% if (rel_azi | abs) < 90 %}
-                    {% set cos_f = ((azi - 270) * deg2rad) | cos | abs %}
-                    {% set cos_aoi = cos_ele * cos_f %}
-                    {% set term = 1.0 - cos_aoi %}
-                    {% set g_dir = 0.53 * (1.0 - term * term * term) %}
-                    {% set tan_prof = tan(ele) / ([cos_f, 0.05] | max) %}
-                    {% set df_bottom = 1.0 %}
-                    {% set df_top = 1.0 %}
-                    {% set df_side = 1.0 %}
+                    {% if (rel_azi | abs) < 90 %}
+                      {% set cos_f = ((azi - 180) * deg2rad) | cos | abs %}
+                      {% set cos_aoi = cos_ele * cos_f %}
+                      {% set term = 1.0 - cos_aoi %}
+                      {% set g_dir = 0.53 * (1.0 - term * term * term) %}
+                      {% set tan_prof = tan(ele) / ([cos_f, 0.05] | max) %}
+                      {% set df_bottom = 1.0 %}
+                      {% set df_top = 1.0 %}
+                      {% set df_side = 1.0 %}
 
-                        {% set shadow_h = 15 - (10 * tan_prof) %}
-                        {% set win_top = 2.09 %}
-                        {% set win_bottom = 0.0 %}
-                        {% set sun_h = [0, win_top - [win_bottom, shadow_h]|max]|max %}
-                        {% set df_bottom = [df_bottom, sun_h / 2.09 ] | min %}
+                          {% set shadow_h = 5.0 - (4.2 * tan_prof) %}
+                          {% set win_top = 2.09 %}
+                          {% set win_bottom = 0.0 %}
+                          {% set sun_h = [0, win_top - [win_bottom, shadow_h]|max]|max %}
+                          {% set df_bottom = [df_bottom, sun_h / 2.09 ] | min %}
 
-                    {% set sun_part = [0.0, df_top + df_bottom - 1.0] | max * df_side %}
-                    {% set direct_w_m2 = dni * cos_aoi * sun_part * g_dir %}
+                      {% set sun_part = [0.0, df_top + df_bottom - 1.0] | max * df_side %}
+                      {% set direct_w_m2 = dni * cos_aoi * sun_part * g_dir %}
+                    {% endif %}
+
+                    {% set diffuse_w_m2 = 0.5 * dhi * g_diff * diffuse_factor %}
+                    {% set ground_w_m2 = 0.10 * ghi * g_diff * diffuse_factor %}
+                    {% set h_gain.w = h_gain.w + (3.2186 * win_open_factor * (direct_w_m2 + diffuse_w_m2 + ground_w_m2)) %}
+                  {% endif %}
+                  {% set win_open_factor = 1.0 if true else sleep_group_open_factor %}
+                  {% if win_open_factor > 0 %}
+                    {% set s_factor = 0.15 + (1.0 - 0.15) * hour_cloud %}
+                    {% set dhi = ghi * s_factor %}
+                    {% set dni = [(ghi * (1.0 - s_factor)) / ([sin_ele_clamped, 0.08] | max), 950.0] | min %}
+                    {% set g_diff = 0.53 * 0.87 %}
+                    {% set rel_azi = ((azi - 90 + 180) % 360 - 180) %}
+                    {% set diffuse_factor = 1.0 %}
+                    {% set direct_w_m2 = 0.0 %}
+
+                    {% if (rel_azi | abs) < 90 %}
+                      {% set cos_f = ((azi - 90) * deg2rad) | cos | abs %}
+                      {% set cos_aoi = cos_ele * cos_f %}
+                      {% set term = 1.0 - cos_aoi %}
+                      {% set g_dir = 0.53 * (1.0 - term * term * term) %}
+                      {% set tan_prof = tan(ele) / ([cos_f, 0.05] | max) %}
+                      {% set df_bottom = 1.0 %}
+                      {% set df_top = 1.0 %}
+                      {% set df_side = 1.0 %}
+
+
+                      {% set sun_part = [0.0, df_top + df_bottom - 1.0] | max * df_side %}
+                      {% set direct_w_m2 = dni * cos_aoi * sun_part * g_dir %}
+                    {% endif %}
+
+                    {% set diffuse_w_m2 = 0.5 * dhi * g_diff * diffuse_factor %}
+                    {% set ground_w_m2 = 0.10 * ghi * g_diff * diffuse_factor %}
+                    {% set h_gain.w = h_gain.w + (0.24 * win_open_factor * (direct_w_m2 + diffuse_w_m2 + ground_w_m2)) %}
+                  {% endif %}
+                  {% set win_open_factor = 1.0 if false else sleep_group_open_factor %}
+                  {% if win_open_factor > 0 %}
+                    {% set s_factor = 0.15 + (1.0 - 0.15) * hour_cloud %}
+                    {% set dhi = ghi * s_factor %}
+                    {% set dni = [(ghi * (1.0 - s_factor)) / ([sin_ele_clamped, 0.08] | max), 950.0] | min %}
+                    {% set g_diff = 0.53 * 0.87 %}
+                    {% set rel_azi = ((azi - 0 + 180) % 360 - 180) %}
+                    {% set diffuse_factor = 1.0 %}
+                    {% set direct_w_m2 = 0.0 %}
+
+                    {% if (rel_azi | abs) < 90 %}
+                      {% set cos_f = ((azi - 0) * deg2rad) | cos | abs %}
+                      {% set cos_aoi = cos_ele * cos_f %}
+                      {% set term = 1.0 - cos_aoi %}
+                      {% set g_dir = 0.53 * (1.0 - term * term * term) %}
+                      {% set tan_prof = tan(ele) / ([cos_f, 0.05] | max) %}
+                      {% set df_bottom = 1.0 %}
+                      {% set df_top = 1.0 %}
+                      {% set df_side = 1.0 %}
+
+
+                      {% set sun_part = [0.0, df_top + df_bottom - 1.0] | max * df_side %}
+                      {% set direct_w_m2 = dni * cos_aoi * sun_part * g_dir %}
+                    {% endif %}
+
+                    {% set diffuse_w_m2 = 0.5 * dhi * g_diff * diffuse_factor %}
+                    {% set ground_w_m2 = 0.10 * ghi * g_diff * diffuse_factor %}
+                    {% set h_gain.w = h_gain.w + (0.24 * win_open_factor * (direct_w_m2 + diffuse_w_m2 + ground_w_m2)) %}
+                  {% endif %}
+                  {% set win_open_factor = 1.0 if false else sleep_group_open_factor %}
+                  {% if win_open_factor > 0 %}
+                    {% set s_factor = 0.15 + (1.0 - 0.15) * hour_cloud %}
+                    {% set dhi = ghi * s_factor %}
+                    {% set dni = [(ghi * (1.0 - s_factor)) / ([sin_ele_clamped, 0.08] | max), 950.0] | min %}
+                    {% set g_diff = 0.53 * 0.87 %}
+                    {% set rel_azi = ((azi - 0 + 180) % 360 - 180) %}
+                    {% set diffuse_factor = 1.0 %}
+                    {% set direct_w_m2 = 0.0 %}
+
+                    {% if (rel_azi | abs) < 90 %}
+                      {% set cos_f = ((azi - 0) * deg2rad) | cos | abs %}
+                      {% set cos_aoi = cos_ele * cos_f %}
+                      {% set term = 1.0 - cos_aoi %}
+                      {% set g_dir = 0.53 * (1.0 - term * term * term) %}
+                      {% set tan_prof = tan(ele) / ([cos_f, 0.05] | max) %}
+                      {% set df_bottom = 1.0 %}
+                      {% set df_top = 1.0 %}
+                      {% set df_side = 1.0 %}
+
+
+                      {% set sun_part = [0.0, df_top + df_bottom - 1.0] | max * df_side %}
+                      {% set direct_w_m2 = dni * cos_aoi * sun_part * g_dir %}
+                    {% endif %}
+
+                    {% set diffuse_w_m2 = 0.5 * dhi * g_diff * diffuse_factor %}
+                    {% set ground_w_m2 = 0.10 * ghi * g_diff * diffuse_factor %}
+                    {% set h_gain.w = h_gain.w + (0.9102 * win_open_factor * (direct_w_m2 + diffuse_w_m2 + ground_w_m2)) %}
+                  {% endif %}
+                  {% set win_open_factor = 1.0 if false else sleep_group_open_factor %}
+                  {% if win_open_factor > 0 %}
+                    {% set s_factor = 0.15 + (1.0 - 0.15) * hour_cloud %}
+                    {% set dhi = ghi * s_factor %}
+                    {% set dni = [(ghi * (1.0 - s_factor)) / ([sin_ele_clamped, 0.08] | max), 950.0] | min %}
+                    {% set g_diff = 0.53 * 0.87 %}
+                    {% set rel_azi = ((azi - 0 + 180) % 360 - 180) %}
+                    {% set diffuse_factor = 1.0 %}
+                    {% set direct_w_m2 = 0.0 %}
+
+                    {% if (rel_azi | abs) < 90 %}
+                      {% set cos_f = ((azi - 0) * deg2rad) | cos | abs %}
+                      {% set cos_aoi = cos_ele * cos_f %}
+                      {% set term = 1.0 - cos_aoi %}
+                      {% set g_dir = 0.53 * (1.0 - term * term * term) %}
+                      {% set tan_prof = tan(ele) / ([cos_f, 0.05] | max) %}
+                      {% set df_bottom = 1.0 %}
+                      {% set df_top = 1.0 %}
+                      {% set df_side = 1.0 %}
+
+                          {% set shadow_h = 7.5 - (4.2 * tan_prof) %}
+                          {% set win_top = 2.0 %}
+                          {% set win_bottom = 0.0 %}
+                          {% set sun_h = [0, win_top - [win_bottom, shadow_h]|max]|max %}
+                          {% set df_bottom = [df_bottom, sun_h / 2.0 ] | min %}
+
+                      {% set sun_part = [0.0, df_top + df_bottom - 1.0] | max * df_side %}
+                      {% set direct_w_m2 = dni * cos_aoi * sun_part * g_dir %}
+                    {% endif %}
+
+                    {% set diffuse_w_m2 = 0.5 * dhi * g_diff * diffuse_factor %}
+                    {% set ground_w_m2 = 0.10 * ghi * g_diff * diffuse_factor %}
+                    {% set h_gain.w = h_gain.w + (1.54 * win_open_factor * (direct_w_m2 + diffuse_w_m2 + ground_w_m2)) %}
+                  {% endif %}
+                    {% set win_open_factor = 1.0 if false else sleep_group_open_factor %}
+                  {% if win_open_factor > 0 %}
+                    {% set s_factor = 0.15 + (1.0 - 0.15) * hour_cloud %}
+                    {% set dhi = ghi * s_factor %}
+                    {% set dni = [(ghi * (1.0 - s_factor)) / ([sin_ele_clamped, 0.08] | max), 950.0] | min %}
+                    {% set g_diff = 0.53 * 0.87 %}
+                    {% set rel_azi = ((azi - 270 + 180) % 360 - 180) %}
+                    {% set diffuse_factor = 1.0 %}
+                    {% set direct_w_m2 = 0.0 %}
+
+                    {% if (rel_azi | abs) < 90 %}
+                      {% set cos_f = ((azi - 270) * deg2rad) | cos | abs %}
+                      {% set cos_aoi = cos_ele * cos_f %}
+                      {% set term = 1.0 - cos_aoi %}
+                      {% set g_dir = 0.53 * (1.0 - term * term * term) %}
+                      {% set tan_prof = tan(ele) / ([cos_f, 0.05] | max) %}
+                      {% set df_bottom = 1.0 %}
+                      {% set df_top = 1.0 %}
+                      {% set df_side = 1.0 %}
+
+                          {% set shadow_h = 15 - (10 * tan_prof) %}
+                          {% set win_top = 2.09 %}
+                          {% set win_bottom = 0.0 %}
+                          {% set sun_h = [0, win_top - [win_bottom, shadow_h]|max]|max %}
+                          {% set df_bottom = [df_bottom, sun_h / 2.09 ] | min %}
+
+                      {% set sun_part = [0.0, df_top + df_bottom - 1.0] | max * df_side %}
+                      {% set direct_w_m2 = dni * cos_aoi * sun_part * g_dir %}
+                    {% endif %}
+
+                    {% set diffuse_w_m2 = 0.5 * dhi * g_diff * diffuse_factor %}
+                    {% set ground_w_m2 = 0.10 * ghi * g_diff * diffuse_factor %}
+                    {% set h_gain.w = h_gain.w + (3.2186 * win_open_factor * (direct_w_m2 + diffuse_w_m2 + ground_w_m2)) %}
                   {% endif %}
 
-                  {% set diffuse_w_m2 = 0.5 * dhi * g_diff * diffuse_factor %}
-                  {% set ground_w_m2 = 0.10 * ghi * g_diff * diffuse_factor %}
-                  {% set h_gain.w = h_gain.w + (3.2186 * win_open_factor * (direct_w_m2 + diffuse_w_m2 + ground_w_m2)) %}
+              {% set bucket_kwh = h_gain.w / 1000.0 %}
+              {% if bucket_kwh > 0 %}
+                {% set ts_key = (ts | int) | string %}
+                {% set ns.hourly_gains = ns.hourly_gains | combine({ts_key: (bucket_kwh | round(4))}) %}
+                {% if frac_24h > 0 %}
+                  {% set ns.next_24h_kwh = ns.next_24h_kwh + (bucket_kwh * frac_24h) %}
                 {% endif %}
-
-            {% set ns.solar_gain_kwh = ns.solar_gain_kwh + (h_gain.w / 1000.0) %}
+                {% set frac_today_bridge = [([b_end, t_tomorrow_00] | min - [b_start, t_bridge_start] | max) / 3600.0, 0.0] | max %}
+                {% if frac_today_bridge > 0 %}
+                  {% set ns.today_bridge_kwh = ns.today_bridge_kwh + (bucket_kwh * frac_today_bridge) %}
+                {% endif %}
+                {% set frac_tom = [([b_end, t_day2_00] | min - [b_start, t_tomorrow_05] | max) / 3600.0, 0.0] | max %}
+                {% if frac_tom > 0 %}
+                  {% set ns.tomorrow_05_24_kwh = ns.tomorrow_05_24_kwh + (bucket_kwh * frac_tom) %}
+                {% endif %}
+              {% endif %}
+            {% endif %}
           {% endif %}
         {% endif %}
       {% endfor %}
     {% endif %}
-    {{ ns.solar_gain_kwh | round(3) }}
+    {{ {
+      'next_24h_kwh': ns.next_24h_kwh | round(3),
+      'pv_next_24h_kwh': ns.pv_next_24h_kwh | round(3),
+      'today_bridge_kwh': ns.today_bridge_kwh | round(3),
+      'tomorrow_05_24_kwh': ns.tomorrow_05_24_kwh | round(3),
+      'ratio_24h': ((ns.next_24h_kwh / ns.pv_next_24h_kwh) | round(3)) if ns.pv_next_24h_kwh > 0 else 0.08,
+      'hourly_gains': ns.hourly_gains
+    } }}
+sensor:
+- name: "Cover Wakeup Hour Max 3d"
+  unique_id: cover_wakeup_hour_max_3d
+  unit_of_measurement: 'h'
+  icon: mdi:weather-sunset-up
+  state: "{{ _wakeup_info.max_h }}"
   attributes:
-    sleep_covers_wakeup_max_3d: >
-      {{ state_attr('sensor.cover_wakeup_hour_max_3d', 'wakeup_time_formatted') | default('11:30') }}
-    solar_gain_next_24h_kwh: >
-      {{ states('sensor.solar_gains_forecast') | float(0) }}
-    solar_gain_ratio_next_24h: >
-      {% set pv_preds = state_attr('sensor.solar_prediction_kwh', 'predictions') %}
-      {% set pv_preds = pv_preds | from_json(default={}) if pv_preds is string else pv_preds %}
-      {% set t0 = as_timestamp(now()) %}
-      {% set t1 = t0 + 24 * 3600 %}
-      {% set ns = namespace(pv_sum=0.0) %}
-      {% if pv_preds is mapping %}
-        {% for ts_str, pv_kwh in pv_preds.items() %}
-          {% set ts = as_timestamp(ts_str) %}
-          {% if ts is number and t0 <= ts < t1 %}
-            {% set ns.pv_sum = ns.pv_sum + (pv_kwh | float(0)) %}
-          {% endif %}
-        {% endfor %}
-      {% endif %}
-      {% set gain = states('sensor.solar_gains_forecast') | float(0) %}
-      {{ ((gain / ns.pv_sum) | round(3)) if ns.pv_sum > 0 else 0.08 }}
-    pv_next_24h_kwh: >
-      {% set pv_preds = state_attr('sensor.solar_prediction_kwh', 'predictions') %}
-      {% set pv_preds = pv_preds | from_json(default={}) if pv_preds is string else pv_preds %}
-      {% set t0 = as_timestamp(now()) %}
-      {% set t1 = t0 + 24 * 3600 %}
-      {% set ns = namespace(pv_sum=0.0) %}
-      {% if pv_preds is mapping %}
-        {% for ts_str, pv_kwh in pv_preds.items() %}
-          {% set ts = as_timestamp(ts_str) %}
-          {% if ts is number and t0 <= ts < t1 %}
-            {% set ns.pv_sum = ns.pv_sum + (pv_kwh | float(0)) %}
-          {% endif %}
-        {% endfor %}
-      {% endif %}
-      {{ ns.pv_sum | round(3) }}
+    wakeup_time_formatted: "{{ _wakeup_info.max_fmt }}"
+    daily_wakeups_last_3d: "{{ _wakeup_info.daily_last_3d }}"
+
+- name: "Solar Gains Forecast"
+  unique_id: solar_gains_forecast
+  unit_of_measurement: 'kWh'
+  device_class: energy
+  icon: mdi:sun-wireless
+  state: "{{ _solar_calc.next_24h_kwh }}"
+  attributes:
+    sleep_covers_wakeup_max_3d: "{{ _wakeup_info.max_fmt | default('11:30') }}"
+    solar_gain_next_24h_kwh: "{{ _solar_calc.next_24h_kwh }}"
+    solar_gain_today_bridge_kwh: "{{ _solar_calc.today_bridge_kwh }}"
+    solar_gain_tomorrow_05_24_kwh: "{{ _solar_calc.tomorrow_05_24_kwh }}"
+    hourly_gains_kwh: "{{ _solar_calc.hourly_gains }}"
+    solar_gain_ratio_next_24h: "{{ _solar_calc.ratio_24h }}"
+    pv_next_24h_kwh: "{{ _solar_calc.pv_next_24h_kwh }}"

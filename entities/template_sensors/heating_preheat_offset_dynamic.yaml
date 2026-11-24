@@ -1,107 +1,285 @@
-sensor:
-- name: "Heating Preheat Offset Dynamic Uncapped"
-  unit_of_measurement: "K"
-  availability: >
-    {{ states('sensor.h_kw_per_k_effective') | is_number
-       and states('input_number.outside_temp_forecast_24h_c') | is_number }}
-  state: >
-    {% set c_real = states('input_number.building_heat_capacity') | float(7.1) %}
-    {% set weights = {'wohnzimmer': 11.9, 'kueche': 19.5, 'flur': 29.0, 'schlafzimmer': 9.1, 'buero_fabian': 6.6, 'buero_merja': 13.9, 'bad': 4.9, 'speisekammer': 5.1} %}
-    {% set wns = namespace(w_sum=0.0, w_total=0.0) %}
-    {% for room, w in weights.items() %}
-      {% set val = states('input_number.heating_base_' ~ room) | float(none) %}
-      {% if val is not none %}
-        {% set wns.w_sum = wns.w_sum + (val * w) %}
-        {% set wns.w_total = wns.w_total + w %}
-      {% endif %}
-    {% endfor %}
-    {% set t_sp_mean = (wns.w_sum / wns.w_total) if wns.w_total > 0 else 21.5 %}
-    {% set t_out_fc = states('input_number.outside_temp_forecast_24h_c') | float(states('sensor.outside_temperature') | float(8.0)) %}
+triggers:
+  - trigger: time_pattern
+    minutes: "/5"
+  - trigger: homeassistant
+    event: start
+  - trigger: state
+    entity_id:
+      - input_number.building_heat_capacity
+      - input_number.heating_max_offset_k
+      - input_number.h_kw_per_k
+      - input_number.outside_temp_forecast_24h_c
+      - sensor.solar_gains_forecast
+      - input_number.heating_base_wohnzimmer
+      - input_number.heating_base_kueche
+      - input_number.heating_base_flur
+      - input_number.heating_base_schlafzimmer
+      - input_number.heating_base_buero_fabian
+      - input_number.heating_base_buero_merja
+      - input_number.heating_base_bad
+      - input_number.heating_base_speisekammer
+  - trigger: state
+    entity_id: weather.barsinghausen_hohenb
+    from:
+      - "unavailable"
+      - "unknown"
+actions:
+  - action: weather.get_forecasts
+    target:
+      entity_id: weather.barsinghausen_hohenb
+    data:
+      type: hourly
+    response_variable: weather_fc
+    continue_on_error: true
+  - variables:
+      _calc: >-
+        {% set c_real = states('input_number.building_heat_capacity') | float(7.1) %}
+        {% set eff_storage_kwh_per_k = [c_real * 1.12, 1.0] | max %}
+        {% set max_offset = states('input_number.heating_max_offset_k') | float(2.0) %}
 
-    {# 2R2C / Perimeterdämmungs-Verlustprognose über 19h:
-       Außenluft-Hülle + Wind + KWL gegen T_out_forecast, Bodenplatte gegen saisonales Erdreich T_ground #}
-    {% set h_above = state_attr('sensor.h_kw_per_k_effective', 'h_above_air_kw_per_k') | float(none) %}
-    {% set h_ground = state_attr('sensor.h_kw_per_k_effective', 'h_ground_kw_per_k') | float(0.0122) %}
-    {% set t_ground = state_attr('sensor.h_kw_per_k_effective', 'ground_temperature_c') | float(10.0) %}
-    {% set hours_to_bridge = 19.0 %}
-    {% if h_above is not none %}
-      {% set loss_above_kwh = h_above * [t_sp_mean - t_out_fc, 0.0] | max * hours_to_bridge %}
-      {% set loss_ground_kwh = h_ground * [t_sp_mean - t_ground, 0.0] | max * hours_to_bridge %}
-      {% set total_energy_loss = loss_above_kwh + loss_ground_kwh %}
-    {% else %}
-      {% set h_eff = states('sensor.h_kw_per_k_effective') | float(0.08) %}
-      {% set total_energy_loss = h_eff * [t_sp_mean - t_out_fc, 0.0] | max * hours_to_bridge %}
-    {% endif %}
+        {% set weights = {
+          'wohnzimmer': 11.9,
+          'kueche': 19.5,
+          'flur': 29.0,
+          'schlafzimmer': 9.1,
+          'buero_fabian': 6.6,
+          'buero_merja': 13.9,
+          'bad': 4.9,
+          'speisekammer': 5.1
+        } %}
+        {% set wns = namespace(w_sum=0.0, w_total=0.0) %}
+        {% for room, w in weights.items() %}
+          {% set val = states('input_number.heating_base_' ~ room) | float(none) %}
+          {% if val is not none and val > 0 %}
+            {% set wns.w_sum = wns.w_sum + (val * w) %}
+            {% set wns.w_total = wns.w_total + w %}
+          {% endif %}
+        {% endfor %}
+        {% set t_sp_mean = (wns.w_sum / wns.w_total) if wns.w_total > 0 else 21.5 %}
 
-    {# Physikalische Fenster-Solargewinn-Prognose #}
-    {% set sim_solar_gains = states('sensor.solar_gains_forecast') | float(none) %}
-    {% if sim_solar_gains is not none and sim_solar_gains >= 0 %}
-      {% set solar_gains_kwh = sim_solar_gains %}
-    {% else %}
-      {% set pv_budget = state_attr('sensor.pv_priority_next_day_budget', 'pv_next_24h_kwh') | float(none) %}
-      {% if pv_budget is not none and pv_budget > 0 %}
-        {% set solar_gains_kwh = pv_budget * 0.10 %}
-      {% else %}
-        {% set solar_gains_kwh = (states('sensor.solar_gains_average') | float(0) * hours_to_bridge) / 1000.0 %}
-      {% endif %}
-    {% endif %}
+        {# 2R2C Transmissions- & Lüftungsparameter #}
+        {% set h_basis = states('input_number.h_kw_per_k') | float(0.068) %}
+        {% set flow = states('input_number.hrv_flow_rate') | float(160) %}
+        {% set wrg_raw = states('input_number.hrv_wrg_efficiency') | float(0.85) %}
+        {% set wrg = (wrg_raw / 100.0) if wrg_raw > 1.0 else wrg_raw %}
+        {% set h_hrv = state_attr('sensor.h_kw_per_k_effective', 'h_hrv_kw_per_k') | float((flow * 0.34 * [1.0 - wrg, 0.0] | max) / 1000.0) %}
+        {% set h_above_no_wind = (h_basis * 0.82) + h_hrv %}
+        {% set h_ground = state_attr('sensor.h_kw_per_k_effective', 'h_ground_kw_per_k') | float(h_basis * 0.18) %}
+        {% set t_ground = state_attr('sensor.h_kw_per_k_effective', 'ground_temperature_c') | float(10.0) %}
+        {% set loss_ground_kw = h_ground * [t_sp_mean - t_ground, 0.0] | max %}
 
-    {# Robuste Tages-Basislast interner Gewinne über 72h Daytime-Median (05:00-24:00) #}
-    {% set day_median_w = states('sensor.internal_gains_daytime_median') | float(none) %}
-    {% set fallback_median_w = states('sensor.internal_gains_median') | float(none) %}
-    {% set base_int_w = day_median_w if (day_median_w is not none and day_median_w > 0) else (fallback_median_w if (fallback_median_w is not none and fallback_median_w > 0) else (states('sensor.internal_gains_average') | float(500))) %}
-    {% set internal_gains_kwh = (base_int_w * hours_to_bridge) / 1000.0 %}
-    {% set total_gains_kwh = solar_gains_kwh + internal_gains_kwh %}
+        {% set fallback_t_out = states('input_number.outside_temp_forecast_24h_c') | float(states('sensor.outside_temperature') | float(8.0)) %}
+        {% set fallback_v_ms = states('sensor.wind_speed_ms') | float(1.0) %}
 
-    {# Im 2R2C-System lädt der Estrich (C_mass=0.90*C) während des 5h-Heizfensters ca. ~1.15x stärker auf als der Luftknoten,
-       sodass pro 1 K Luft-Offset effektiv ~1.12 * C_total an Speicherenergie für die 19h-Brücke eingelagert wird #}
-    {% set effective_2r2c_storage_kwh_per_k = [c_real * 1.12, 1.0] | max %}
-    {% set needed_offset = (total_energy_loss - total_gains_kwh) / effective_2r2c_storage_kwh_per_k %}
-    {{ needed_offset | round(2) }}
-  attributes:
-    forecast_outside_temp: "{{ states('input_number.outside_temp_forecast_24h_c') }}"
-    ground_temperature_c: "{{ state_attr('sensor.h_kw_per_k_effective', 'ground_temperature_c') | float(10.0) | round(2) }}"
-    forecast_internal_gains_w: >-
-      {% set day_median_w = states('sensor.internal_gains_daytime_median') | float(none) %}
-      {% set fallback_median_w = states('sensor.internal_gains_median') | float(none) %}
-      {% set base_int_w = day_median_w if (day_median_w is not none and day_median_w > 0) else (fallback_median_w if (fallback_median_w is not none and fallback_median_w > 0) else (states('sensor.internal_gains_average') | float(500))) %}
-      {{ base_int_w | round(0) }}
-    forecast_loss_kwh: >-
-      {% set weights = {'wohnzimmer': 11.9, 'kueche': 19.5, 'flur': 29.0, 'schlafzimmer': 9.1, 'buero_fabian': 6.6, 'buero_merja': 13.9, 'bad': 4.9, 'speisekammer': 5.1} %}
-      {% set wns = namespace(w_sum=0.0, w_total=0.0) %}
-      {% for room, w in weights.items() %}
-        {% set val = states('input_number.heating_base_' ~ room) | float(none) %}
-        {% if val is not none %}
-          {% set wns.w_sum = wns.w_sum + (val * w) %}
-          {% set wns.w_total = wns.w_total + w %}
+        {# Robuste Tages-Basislast interner Gewinne (7-Tage Daytime-Median 05:00-24:00) #}
+        {% set day_median_w = states('sensor.internal_gains_daytime_median') | float(none) %}
+        {% set fallback_median_w = states('sensor.internal_gains_median') | float(none) %}
+        {% set base_int_w = day_median_w if (day_median_w is not none and day_median_w > 0) else (fallback_median_w if (fallback_median_w is not none and fallback_median_w > 0) else (states('sensor.internal_gains_average') | float(500))) %}
+        {% set int_kw = base_int_w / 1000.0 %}
+
+        {# Stündliche Wetter- & Solardaten nach UTC-Stunden-Timestamp indizieren #}
+        {% set fc_arr = (
+          weather_fc['weather.barsinghausen_hohenb']['forecast']
+          if (weather_fc is defined and weather_fc is mapping and 'weather.barsinghausen_hohenb' in weather_fc and 'forecast' in weather_fc['weather.barsinghausen_hohenb'])
+          else []
+        ) %}
+        {% set wmap = namespace(d={}, last_t=fallback_t_out, last_v=fallback_v_ms) %}
+        {% for e in fc_arr %}
+          {% set ts_e = as_timestamp(e.datetime if e.datetime is defined else e.get('datetime'), default=none) %}
+          {% if ts_e is not none %}
+            {% set t_e = (e.temperature if e.temperature is defined else e.get('temperature')) | float(wmap.last_t) %}
+            {% set w_kmh = (e.wind_speed if e.wind_speed is defined else e.get('wind_speed')) | float(wmap.last_v * 3.6) %}
+            {% set v_e = [w_kmh / 3.6, 0.0] | max %}
+            {% set wmap.last_t = t_e %}
+            {% set wmap.last_v = v_e %}
+            {% set wmap.d = wmap.d | combine({((ts_e | int) | string): {'t': t_e, 'v': v_e}}) %}
+          {% endif %}
+        {% endfor %}
+
+        {% set sol_raw = state_attr('sensor.solar_gains_forecast', 'hourly_gains_kwh') %}
+        {% set sol_map = (sol_raw | from_json(default={})) if sol_raw is string else (sol_raw if sol_raw is mapping else {}) %}
+        {% set has_sol_map = (sol_map is mapping) and ((sol_map | count) > 0) %}
+        {% set fallback_sol_24h = [states('sensor.solar_gains_forecast') | float(0.0), 0.0] | max %}
+
+        {% set t_now = as_timestamp(now()) %}
+        {% set today_str = now().strftime('%Y-%m-%d') %}
+        {% set t_today_05 = as_timestamp(today_at('05:00')) %}
+        {% set tomorrow_noon = today_at('12:00') + timedelta(days=1) %}
+        {% set day2_noon = today_at('12:00') + timedelta(days=2) %}
+        {% set t_tomorrow_00 = as_timestamp(tomorrow_noon.replace(hour=0, minute=0, second=0, microsecond=0)) %}
+        {% set t_tomorrow_05 = as_timestamp(tomorrow_noon.replace(hour=5, minute=0, second=0, microsecond=0)) %}
+        {% set t_day2_00 = as_timestamp(day2_noon.replace(hour=0, minute=0, second=0, microsecond=0)) %}
+
+        {# 1. Heute 05:00 -> 24:00 (Voll-Zyklus für Nacht-Preheat 00-05 Uhr & Tages-Referenz; ab 05:05 für heute eingefroren, damit vergangene Sonnenstunden nicht verschwinden) #}
+        {% set n_today_05_24 = [((t_tomorrow_00 - t_today_05) / 3600.0) | round(0) | int, 1] | max %}
+        {% set full_td = namespace(cum_net=0.0, max_pref=none, loss=0.0, sol=0.0, ig=0.0, t_sum=0.0, t_cnt=0, cur_t=fallback_t_out, cur_v=fallback_v_ms) %}
+        {% for i in range(n_today_05_24) %}
+          {% set b_s = (t_today_05 | int) + (i * 3600) %}
+          {% set k = b_s | string %}
+          {% if k in wmap.d %}
+            {% set full_td.cur_t = wmap.d[k].t %}
+            {% set full_td.cur_v = wmap.d[k].v %}
+          {% endif %}
+          {% set h_wind = (336.25 * 0.9 * (full_td.cur_v * 0.02) * 0.34) / 1000.0 %}
+          {% set loss_h = ((h_above_no_wind + h_wind) * [t_sp_mean - full_td.cur_t, 0.0] | max) + loss_ground_kw %}
+          {% if has_sol_map %}
+            {% set sol_h = [sol_map.get(k, 0.0) | float(0.0), 0.0] | max %}
+          {% elif fallback_sol_24h > 0 and b_s >= ((t_now | int) - 3600) and b_s < ((t_now | int) + 86400) %}
+            {% set h_loc = (as_datetime(b_s) | as_local).hour %}
+            {% set sol_h = (fallback_sol_24h / 7.0) if (9 <= h_loc < 16) else 0.0 %}
+          {% else %}
+            {% set sol_h = 0.0 %}
+          {% endif %}
+          {% set net_h = loss_h - sol_h - int_kw %}
+          {% set full_td.loss = full_td.loss + loss_h %}
+          {% set full_td.sol = full_td.sol + sol_h %}
+          {% set full_td.ig = full_td.ig + int_kw %}
+          {% set full_td.t_sum = full_td.t_sum + full_td.cur_t %}
+          {% set full_td.t_cnt = full_td.t_cnt + 1 %}
+          {% set full_td.cum_net = full_td.cum_net + net_h %}
+          {% if full_td.max_pref is none or full_td.cum_net > full_td.max_pref %}
+            {% set full_td.max_pref = full_td.cum_net %}
+          {% endif %}
+        {% endfor %}
+        {% set computed_full_today_kwh = full_td.max_pref if (full_td.max_pref is not none and full_td.max_pref > 0) else full_td.cum_net %}
+        {% set prev_today_date = state_attr('sensor.heating_preheat_offset_dynamic_uncapped', 'full_day_today_date') %}
+        {% set prev_today_kwh = state_attr('sensor.heating_preheat_offset_dynamic_uncapped', 'full_day_today_energy_kwh') | float(none) %}
+        {% if t_now >= (t_today_05 + 300) and prev_today_date == today_str and prev_today_kwh is not none %}
+          {% set e_full_today_kwh = prev_today_kwh %}
+        {% else %}
+          {% set e_full_today_kwh = computed_full_today_kwh %}
         {% endif %}
-      {% endfor %}
-      {% set t_sp_mean = (wns.w_sum / wns.w_total) if wns.w_total > 0 else 21.5 %}
-      {% set t_out_fc = states('input_number.outside_temp_forecast_24h_c') | float(8.0) %}
-      {% set h_above = state_attr('sensor.h_kw_per_k_effective', 'h_above_air_kw_per_k') | float(0.070) %}
-      {% set h_ground = state_attr('sensor.h_kw_per_k_effective', 'h_ground_kw_per_k') | float(0.0122) %}
-      {% set t_ground = state_attr('sensor.h_kw_per_k_effective', 'ground_temperature_c') | float(10.0) %}
-      {{ ((h_above * [t_sp_mean - t_out_fc, 0.0] | max + h_ground * [t_sp_mean - t_ground, 0.0] | max) * 19.0) | round(2) }}
-    forecast_gains_kwh: >-
-      {% set sim_solar = states('sensor.solar_gains_forecast') | float(none) %}
-      {% set solar = sim_solar if (sim_solar is not none and sim_solar >= 0) else ((states('sensor.solar_gains_average') | float(0) * 19.0) / 1000.0) %}
-      {% set day_median_w = states('sensor.internal_gains_daytime_median') | float(none) %}
-      {% set fallback_median_w = states('sensor.internal_gains_median') | float(none) %}
-      {% set base_int_w = day_median_w if (day_median_w is not none and day_median_w > 0) else (fallback_median_w if (fallback_median_w is not none and fallback_median_w > 0) else (states('sensor.internal_gains_average') | float(500))) %}
-      {% set internal = (base_int_w * 19.0) / 1000.0 %}
-      {{ (solar + internal) | round(2) }}
-- name: "Heating Preheat Offset Dynamic"
-  unit_of_measurement: "K"
-  availability: >
-    {{ states('sensor.heating_preheat_offset_dynamic_uncapped') | is_number
-       and states('input_number.heating_max_offset_k') | is_number }}
-  state: >
-    {% set uncapped = states('sensor.heating_preheat_offset_dynamic_uncapped') | float %}
-    {% set max_offset = states('input_number.heating_max_offset_k') | float %}
-    {% if uncapped > max_offset %}
-      {{ max_offset }}
-    {% elif uncapped < 0 %}
-      0
-    {% else %}
-      {{ uncapped | round(1) }}
-    {% endif %}
+        {% set full_day_today_off_uncapped = e_full_today_kwh / eff_storage_kwh_per_k %}
+        {% set full_day_today_off_capped = [[full_day_today_off_uncapped | round(1), 0.0] | max, max_offset] | min %}
+
+        {# 2. Morgen 05:00 -> 24:00 (für Nachmittags-/Abend-Budgetplanung des Folgetags) #}
+        {% set n_tom_05_24 = [((t_day2_00 - t_tomorrow_05) / 3600.0) | round(0) | int, 1] | max %}
+        {% set full_tm = namespace(cum_net=0.0, max_pref=none, cur_t=full_td.cur_t, cur_v=full_td.cur_v) %}
+        {% for i in range(n_tom_05_24) %}
+          {% set b_s = (t_tomorrow_05 | int) + (i * 3600) %}
+          {% set k = b_s | string %}
+          {% if k in wmap.d %}
+            {% set full_tm.cur_t = wmap.d[k].t %}
+            {% set full_tm.cur_v = wmap.d[k].v %}
+          {% endif %}
+          {% set h_wind = (336.25 * 0.9 * (full_tm.cur_v * 0.02) * 0.34) / 1000.0 %}
+          {% set loss_h = ((h_above_no_wind + h_wind) * [t_sp_mean - full_tm.cur_t, 0.0] | max) + loss_ground_kw %}
+          {% if has_sol_map %}
+            {% set sol_h = [sol_map.get(k, 0.0) | float(0.0), 0.0] | max %}
+          {% elif fallback_sol_24h > 0 and b_s >= ((t_now | int) - 3600) and b_s < ((t_now | int) + 86400) %}
+            {% set h_loc = (as_datetime(b_s) | as_local).hour %}
+            {% set sol_h = (fallback_sol_24h / 7.0) if (9 <= h_loc < 16) else 0.0 %}
+          {% else %}
+            {% set sol_h = 0.0 %}
+          {% endif %}
+          {% set net_h = loss_h - sol_h - int_kw %}
+          {% set full_tm.cum_net = full_tm.cum_net + net_h %}
+          {% if full_tm.max_pref is none or full_tm.cum_net > full_tm.max_pref %}
+            {% set full_tm.max_pref = full_tm.cum_net %}
+          {% endif %}
+        {% endfor %}
+        {% set e_full_tom_kwh = full_tm.max_pref if (full_tm.max_pref is not none and full_tm.max_pref > 0) else full_tm.cum_net %}
+        {% set tomorrow_off_capped = [[(e_full_tom_kwh / eff_storage_kwh_per_k) | round(1), 0.0] | max, max_offset] | min %}
+
+        {# 3. Aktiver Brücken-Offset bis 24:00 Uhr (Nachts 00-05: fest 05->24 Uhr; Tagsüber 05-24: monotone Restbrücke jetzt->24 Uhr) #}
+        {% if t_now < t_today_05 %}
+          {% set bridge_mode = 'night_05_to_24' %}
+          {% set hours_bridge = (t_tomorrow_00 - t_today_05) / 3600.0 %}
+          {% set e_bridge_kwh = e_full_today_kwh %}
+          {% set bridge_loss_kwh = full_td.loss %}
+          {% set bridge_sol_kwh = full_td.sol %}
+          {% set bridge_ig_kwh = full_td.ig %}
+          {% set bridge_t_out = (full_td.t_sum / full_td.t_cnt) if full_td.t_cnt > 0 else fallback_t_out %}
+        {% else %}
+          {% set bridge_mode = 'daytime_to_24' %}
+          {% set hours_bridge = [(t_tomorrow_00 - t_now) / 3600.0, 0.0] | max %}
+          {% set n_rem = ((t_tomorrow_00 - t_now + 3599.999) // 3600) | int %}
+          {% set rem = namespace(run_net=0.0, max_suf=none, loss=0.0, sol=0.0, ig=0.0, t_wsum=0.0, h_sum=0.0) %}
+          {% for j in range(n_rem) %}
+            {% set b_end = (t_tomorrow_00 | int) - (j * 3600) %}
+            {% set b_start = b_end - 3600 %}
+            {% set frac = [([b_end, t_tomorrow_00] | min - [b_start, t_now] | max) / 3600.0, 0.0] | max %}
+            {% if frac > 0 %}
+              {% set k = b_start | string %}
+              {% set w_entry = wmap.d.get(k) %}
+              {% set t_h = w_entry.t if w_entry is mapping else fallback_t_out %}
+              {% set v_h = w_entry.v if w_entry is mapping else fallback_v_ms %}
+              {% set h_wind = (336.25 * 0.9 * (v_h * 0.02) * 0.34) / 1000.0 %}
+              {% set loss_h = (((h_above_no_wind + h_wind) * [t_sp_mean - t_h, 0.0] | max) + loss_ground_kw) * frac %}
+              {% if has_sol_map %}
+                {% set sol_h_base = [sol_map.get(k, 0.0) | float(0.0), 0.0] | max %}
+              {% elif fallback_sol_24h > 0 and b_start >= ((t_now | int) - 3600) and b_start < ((t_now | int) + 86400) %}
+                {% set h_loc = (as_datetime(b_start) | as_local).hour %}
+                {% set sol_h_base = (fallback_sol_24h / 7.0) if (9 <= h_loc < 16) else 0.0 %}
+              {% else %}
+                {% set sol_h_base = 0.0 %}
+              {% endif %}
+              {% set sol_h = sol_h_base * frac %}
+              {% set ig_h = int_kw * frac %}
+              {% set net_h = loss_h - sol_h - ig_h %}
+              {% set rem.loss = rem.loss + loss_h %}
+              {% set rem.sol = rem.sol + sol_h %}
+              {% set rem.ig = rem.ig + ig_h %}
+              {% set rem.t_wsum = rem.t_wsum + (t_h * frac) %}
+              {% set rem.h_sum = rem.h_sum + frac %}
+              {% set rem.run_net = rem.run_net + net_h %}
+              {% if rem.max_suf is none or rem.run_net > rem.max_suf %}
+                {% set rem.max_suf = rem.run_net %}
+              {% endif %}
+            {% endif %}
+          {% endfor %}
+          {% set e_bridge_kwh = rem.max_suf if (rem.max_suf is not none and rem.max_suf > 0) else (rem.run_net if n_rem > 0 else 0.0) %}
+          {% set bridge_loss_kwh = rem.loss %}
+          {% set bridge_sol_kwh = rem.sol %}
+          {% set bridge_ig_kwh = rem.ig %}
+          {% set bridge_t_out = (rem.t_wsum / rem.h_sum) if rem.h_sum > 0 else fallback_t_out %}
+        {% endif %}
+
+        {% set uncapped = (e_bridge_kwh / eff_storage_kwh_per_k) | round(2) %}
+        {% if uncapped > max_offset %}
+          {% set capped = max_offset %}
+        {% elif uncapped <= 0 %}
+          {% set capped = 0.0 %}
+        {% else %}
+          {% set capped = uncapped | round(1) %}
+        {% endif %}
+
+        {{ {
+          'uncapped': uncapped,
+          'capped': capped,
+          'bridge_mode': bridge_mode,
+          'hours_to_bridge': hours_bridge | round(2),
+          'forecast_outside_temp': bridge_t_out | round(2),
+          'ground_temperature_c': t_ground | round(2),
+          'forecast_internal_gains_w': base_int_w | round(0) | int,
+          'forecast_loss_kwh': bridge_loss_kwh | round(2),
+          'forecast_solar_gains_kwh': bridge_sol_kwh | round(2),
+          'forecast_gains_kwh': (bridge_sol_kwh + bridge_ig_kwh) | round(2),
+          'bridge_net_energy_kwh': e_bridge_kwh | round(2),
+          'full_day_today_date': today_str,
+          'full_day_today_energy_kwh': e_full_today_kwh | round(3),
+          'full_day_today_offset_k': full_day_today_off_capped,
+          'tomorrow_preheat_offset_k': tomorrow_off_capped
+        } }}
+sensor:
+  - name: "Heating Preheat Offset Dynamic Uncapped"
+    unit_of_measurement: "K"
+    state: "{{ _calc.uncapped }}"
+    attributes:
+      bridge_mode: "{{ _calc.bridge_mode }}"
+      hours_to_bridge: "{{ _calc.hours_to_bridge }}"
+      forecast_outside_temp: "{{ _calc.forecast_outside_temp }}"
+      ground_temperature_c: "{{ _calc.ground_temperature_c }}"
+      forecast_internal_gains_w: "{{ _calc.forecast_internal_gains_w }}"
+      forecast_loss_kwh: "{{ _calc.forecast_loss_kwh }}"
+      forecast_solar_gains_kwh: "{{ _calc.forecast_solar_gains_kwh }}"
+      forecast_gains_kwh: "{{ _calc.forecast_gains_kwh }}"
+      bridge_net_energy_kwh: "{{ _calc.bridge_net_energy_kwh }}"
+      full_day_today_date: "{{ _calc.full_day_today_date }}"
+      full_day_today_energy_kwh: "{{ _calc.full_day_today_energy_kwh }}"
+      full_day_today_offset_k: "{{ _calc.full_day_today_offset_k }}"
+      tomorrow_preheat_offset_k: "{{ _calc.tomorrow_preheat_offset_k }}"
+
+  - name: "Heating Preheat Offset Dynamic"
+    unit_of_measurement: "K"
+    state: "{{ _calc.capped }}"

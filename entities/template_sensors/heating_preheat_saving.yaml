@@ -7,7 +7,7 @@ sensor:
     {% set C = states('input_number.building_heat_capacity') | float(7.1) %}
     {% set H = states('sensor.H_kW_per_K_effective') | float(0.074) %}
     {% set COP = 1.0 %}
-    {% set offset = states('sensor.heating_preheat_offset_dynamic') | float(0) %}
+    {% set offset = state_attr('sensor.heating_preheat_offset_dynamic_uncapped', 'full_day_today_offset_k') | float(states('sensor.heating_preheat_offset_dynamic') | float(0)) %}
     
     {# 2. Preise (Euro/kWh) #}
     {% set p_low = states('sensor.power_price_nt') | float(0.20) %}
@@ -41,7 +41,7 @@ sensor:
       {% set C = states('input_number.building_heat_capacity') | float(7.1) %}
       {% set H = states('sensor.H_kW_per_K_effective') | float(0.074) %}
       {% set COP = 1.0 %}
-      {% set offset = states('sensor.heating_preheat_offset_dynamic') | float(0) %}
+      {% set offset = state_attr('sensor.heating_preheat_offset_dynamic_uncapped', 'full_day_today_offset_k') | float(states('sensor.heating_preheat_offset_dynamic') | float(0)) %}
       
       {# 2. Preise (Euro/kWh) #}
       {% set p_low = states('sensor.power_price_nt') | float(0.20) %}
@@ -69,7 +69,7 @@ sensor:
       {% set C = states('input_number.building_heat_capacity') | float(7.1) %}
       {% set H = states('sensor.H_kW_per_K_effective') | float(0.074) %}
       {% set COP = 1.0 %}
-      {% set offset = states('sensor.heating_preheat_offset_dynamic') | float(0) %}
+      {% set offset = state_attr('sensor.heating_preheat_offset_dynamic_uncapped', 'full_day_today_offset_k') | float(states('sensor.heating_preheat_offset_dynamic') | float(0)) %}
       
       {# 2. Preise (Euro/kWh) #}
       {% set p_low = states('sensor.power_price_nt') | float(0.20) %}
@@ -87,4 +87,5 @@ sensor:
         0.0
       {% endif %}
     energy_stored_kwh: >
-      {{ (states('sensor.heating_preheat_offset_dynamic') | float(0) * states('input_number.building_heat_capacity') | float(7.1)) | round(2) }}
+      {% set offset = state_attr('sensor.heating_preheat_offset_dynamic_uncapped', 'full_day_today_offset_k') | float(states('sensor.heating_preheat_offset_dynamic') | float(0)) %}
+      {{ (offset * (states('input_number.building_heat_capacity') | float(7.1))) | round(2) }}
