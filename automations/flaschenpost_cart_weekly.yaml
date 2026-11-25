@@ -18,7 +18,7 @@
     - action: flaschenpost.add_shopping_lists_to_cart
       data:
         shopping_lists: >
-          {{ ['Every Week'] + (['Every Month'] if now().day <= 7 else []) + ['Süßes', 'Bring'] }}
+          {{ ['Every Week', 'Hunde'] + (['Every Month'] if now().day <= 7 else []) + ['Süßes', 'Bring'] }}
         clear_cart_first: true
         default_sort_by: price
     - delay:
