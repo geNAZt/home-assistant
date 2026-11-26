@@ -85,7 +85,7 @@ variables:
 
   # Phasen-konsistenter Heizbedarf:
   # - 00:00–05:00: Voller Tagesbedarf heute (05->24 Uhr) für Nacht-Akku-/PV-Shift-Entscheidung
-  # - 05:00–14:00: Verbleibender Netto-Heizbedarf heute bis 24:00 abzüglich bereits im 2R2C-Estrich gespeicherter Wärme
+  # - 05:00–14:00: Verbleibender Netto-Heizbedarf heute bis 24:00 abzüglich im 2R2C-Modell über t_sp gespeicherter Wärme (analog heating_debt.yaml)
   # - 14:00–24:00: Voller Folgetagsbedarf morgen (05->24 Uhr) für Nachmittags-Warmwasser-Stufe-2-Reservierung
   _heating_need: >-
     {% set c = states('input_number.building_heat_capacity') | float(7.1) %}
@@ -114,21 +114,16 @@ variables:
         {{ [(eff_c * today_full_off) + (c * [t_sp - inside_now, 0.0] | max), 0.0] | max }}
       {% endif %}
     {% elif h_now < 14 %}
+      {% set e_target_rem = state_attr('sensor.heating_preheat_offset_dynamic_uncapped', 'bridge_net_energy_kwh') | float(eff_c * [dyn_off, 0.0] | max) %}
       {% set t_air = states('sensor.inside_temp_mean_now') | float(t_sp) %}
       {% set t_mass = states('sensor.thermal_2r2c_mass_temperature') | float(none) %}
       {% if t_mass is not none %}
         {% set c_air = c * 0.10 %}
         {% set c_mass = c * 0.90 %}
-        {% set h_above_w_k = (state_attr('sensor.h_kw_per_k_effective', 'h_above_air_kw_per_k') | float(0.070)) * 1000.0 %}
-        {% set t_out = states('sensor.outside_temperature') | float(8.0) %}
-        {% set q_air_loss_sp = h_above_w_k * [t_sp - t_out, 0.0] | max %}
-        {% set q_air_int_base = 0.80 * (states('sensor.internal_gains_daytime_median') | float(states('sensor.internal_gains_total') | float(450))) %}
-        {% set eq_mass_boost_k = [ [(q_air_loss_sp - q_air_int_base) / 730.0, 0.0] | max, 1.5 ] | min %}
-        {% set t_mass_eq = t_sp + eq_mass_boost_k %}
-        {% set e_signed_2r2c = (c_air * (t_air - t_sp)) + (c_mass * (t_mass - t_mass_eq)) %}
-        {{ [(eff_c * [dyn_off, 0.0] | max) - e_signed_2r2c, 0.0] | max }}
+        {% set e_signed_2r2c = (c_air * (t_air - t_sp)) + (c_mass * (t_mass - t_sp)) %}
+        {{ [[e_target_rem, 0.0] | max - e_signed_2r2c, 0.0] | max }}
       {% else %}
-        {{ [eff_c * ([dyn_off, 0.0] | max) - (c * (t_air - t_sp)), 0.0] | max }}
+        {{ [[e_target_rem, 0.0] | max - (c * (t_air - t_sp)), 0.0] | max }}
       {% endif %}
     {% else %}
       {% if def_2r2c is not none %}

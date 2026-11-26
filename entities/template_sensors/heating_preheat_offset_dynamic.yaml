@@ -103,12 +103,25 @@ actions:
 
         {% set t_now = as_timestamp(now()) %}
         {% set today_str = now().strftime('%Y-%m-%d') %}
+        {% set t_today_00_05 = as_timestamp(today_at('00:05')) %}
         {% set t_today_05 = as_timestamp(today_at('05:00')) %}
         {% set tomorrow_noon = today_at('12:00') + timedelta(days=1) %}
         {% set day2_noon = today_at('12:00') + timedelta(days=2) %}
         {% set t_tomorrow_00 = as_timestamp(tomorrow_noon.replace(hour=0, minute=0, second=0, microsecond=0)) %}
         {% set t_tomorrow_05 = as_timestamp(tomorrow_noon.replace(hour=5, minute=0, second=0, microsecond=0)) %}
         {% set t_day2_00 = as_timestamp(day2_noon.replace(hour=0, minute=0, second=0, microsecond=0)) %}
+
+        {# Merker, ob heute zwischen 00:05 und 05:00 bereits der NT-Nacht-Preheat aktiv war (verhindert späteres PV-Shift-Umkippen) #}
+        {% set prev_today_date = state_attr('sensor.heating_preheat_offset_dynamic_uncapped', 'full_day_today_date') %}
+        {% set prev_night_ran = (state_attr('sensor.heating_preheat_offset_dynamic_uncapped', 'night_preheat_ran_today') == true) if (prev_today_date == today_str) else false %}
+        {% if t_now < t_today_00_05 %}
+          {% set night_preheat_ran = false %}
+        {% elif t_now < t_today_05 %}
+          {% set night_off_active = (states('input_number.heating_offset_wohnzimmer') | float(0)) > 0.05 %}
+          {% set night_preheat_ran = prev_night_ran or night_off_active %}
+        {% else %}
+          {% set night_preheat_ran = prev_night_ran %}
+        {% endif %}
 
         {# 1. Heute 05:00 -> 24:00 (Voll-Zyklus für Nacht-Preheat 00-05 Uhr & Tages-Referenz; ab 05:05 für heute eingefroren, damit vergangene Sonnenstunden nicht verschwinden) #}
         {% set n_today_05_24 = [((t_tomorrow_00 - t_today_05) / 3600.0) | round(0) | int, 1] | max %}
@@ -142,7 +155,6 @@ actions:
           {% endif %}
         {% endfor %}
         {% set computed_full_today_kwh = full_td.max_pref if (full_td.max_pref is not none and full_td.max_pref > 0) else full_td.cum_net %}
-        {% set prev_today_date = state_attr('sensor.heating_preheat_offset_dynamic_uncapped', 'full_day_today_date') %}
         {% set prev_today_kwh = state_attr('sensor.heating_preheat_offset_dynamic_uncapped', 'full_day_today_energy_kwh') | float(none) %}
         {% if t_now >= (t_today_05 + 300) and prev_today_date == today_str and prev_today_kwh is not none %}
           {% set e_full_today_kwh = prev_today_kwh %}
@@ -259,7 +271,8 @@ actions:
           'full_day_today_date': today_str,
           'full_day_today_energy_kwh': e_full_today_kwh | round(3),
           'full_day_today_offset_k': full_day_today_off_capped,
-          'tomorrow_preheat_offset_k': tomorrow_off_capped
+          'tomorrow_preheat_offset_k': tomorrow_off_capped,
+          'night_preheat_ran_today': night_preheat_ran
         } }}
 sensor:
   - name: "Heating Preheat Offset Dynamic Uncapped"
@@ -279,6 +292,7 @@ sensor:
       full_day_today_energy_kwh: "{{ _calc.full_day_today_energy_kwh }}"
       full_day_today_offset_k: "{{ _calc.full_day_today_offset_k }}"
       tomorrow_preheat_offset_k: "{{ _calc.tomorrow_preheat_offset_k }}"
+      night_preheat_ran_today: "{{ _calc.night_preheat_ran_today }}"
 
   - name: "Heating Preheat Offset Dynamic"
     unit_of_measurement: "K"

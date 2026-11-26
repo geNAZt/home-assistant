@@ -59,6 +59,12 @@
       {% endif %}
     pv_thr_w: "{{ states('input_number.pv_excess_threshold_w') | float(0) }}"
     water_stage1_remaining_kwh: "{{ state_attr('sensor.pv_priority_next_day_budget', 'water_stage1_remaining_kwh') | float(0) }}"
+    water_stage1_target_kwh: >-
+      {% if is_state('input_boolean.water_heater_stage2_whitelist', 'on') %}
+        0.0
+      {% else %}
+        {{ state_attr('sensor.pv_priority_next_day_budget', 'water_stage1_target_kwh') | float(water_stage1_remaining_kwh | float(0)) }}
+      {% endif %}
     water_pump_running_w: "{{ states('sensor.water_heating_pump_power') | float(0) }}"
     water_stage1_reserve_w: "{{ 450 if ((water_stage1_remaining_kwh | float(0)) > 0.05 and (water_pump_running_w | float(0)) < 100) else 0 }}"
     non_heating_house_w: >-
@@ -139,30 +145,23 @@
         {% set missing_delta_k = [sp_m - inside_now, 0.0] | max %}
         {{ [(eff_c * off) + (c * missing_delta_k), 0.0] | max }}
       {% endif %}
+    # Verbleibender Netto-Heizbedarf bis 24:00 Uhr relativ zu t_sp (konsistent mit sensor.heating_energy_debt_tracker)
     heating_need_remaining_today_kwh: >-
       {% set c_tot = states('input_number.building_heat_capacity') | float(7.1) %}
       {% set eff_c = [c_tot * 1.12, 1.0] | max %}
       {% set dyn_off = [states('sensor.heating_preheat_offset_dynamic') | float(0), 0.0] | max %}
-      {% set e_target_rem = eff_c * dyn_off %}
+      {% set e_target_rem = state_attr('sensor.heating_preheat_offset_dynamic_uncapped', 'bridge_net_energy_kwh') | float(eff_c * dyn_off) %}
       {% set t_sp = setpoint_mean | float(21.5) %}
       {% set t_air = states('sensor.inside_temp_mean_now') | float(t_sp) %}
       {% set t_mass = states('sensor.thermal_2r2c_mass_temperature') | float(none) %}
       {% if t_mass is not none %}
         {% set c_air = c_tot * 0.10 %}
         {% set c_mass = c_tot * 0.90 %}
-        {% set h_above_w_k = (state_attr('sensor.h_kw_per_k_effective', 'h_above_air_kw_per_k') | float(0.070)) * 1000.0 %}
-        {% set t_out = states('sensor.outside_temperature') | float(8.0) %}
-        {% set q_air_loss_sp = h_above_w_k * [t_sp - t_out, 0.0] | max %}
-        {% set q_air_int_base = 0.80 * (states('sensor.internal_gains_daytime_median') | float(states('sensor.internal_gains_total') | float(450))) %}
-        {% set eq_mass_boost_k = [ [(q_air_loss_sp - q_air_int_base) / 730.0, 0.0] | max, 1.5 ] | min %}
-        {% set t_mass_eq = t_sp + eq_mass_boost_k %}
-        {% set e_signed_2r2c = (c_air * (t_air - t_sp)) + (c_mass * (t_mass - t_mass_eq)) %}
-        {{ [e_target_rem - e_signed_2r2c, 0.0] | max | round(3) }}
+        {% set e_signed_2r2c = (c_air * (t_air - t_sp)) + (c_mass * (t_mass - t_sp)) %}
+        {{ [[e_target_rem, 0.0] | max - e_signed_2r2c, 0.0] | max | round(3) }}
       {% else %}
-        {{ [e_target_rem - (c_tot * (t_air - t_sp)), 0.0] | max | round(3) }}
+        {{ [[e_target_rem, 0.0] | max - (c_tot * (t_air - t_sp)), 0.0] | max | round(3) }}
       {% endif %}
-    pv_enough_next_day: "{{ ((pv_plan_day_kwh | float(0)) - (water_stage1_remaining_kwh | float(0))) >= (heating_need_next_day_kwh | float(0)) and (heating_need_next_day_kwh | float(0)) > 0 }}"
-    shift_heating_start_to_pv: "{{ is_state('binary_sensor.preheat_erlaubt_demand_weighted', 'on') and pv_enough_next_day }}"
 
     # Preheat-Fenster 00–05 Uhr (Preis egal)
     is_preheat_window: >-
@@ -171,12 +170,20 @@
       {% set t1 = as_timestamp(now().replace(hour=5, minute=0, second=0, microsecond=0)) %}
       {{ t0 <= nowts < t1 }}
 
+    # Nachts gegen verbleibendes Stage-1-Ziel prüfen; tagsüber gegen volles Tages-Stage-1-Ziel (damit erledigte WW-kWh die Ganztagsbilanz nicht künstlich drehen)
+    # sowie gegen night_preheat_ran_today verriegeln, falls 00–05 Uhr bereits NT-Preheat lief.
+    night_preheat_ran_today: "{{ state_attr('sensor.heating_preheat_offset_dynamic_uncapped', 'night_preheat_ran_today') == true }}"
+    pv_enough_next_day: >-
+      {% set w_deduct = (water_stage1_remaining_kwh | float(0)) if is_preheat_window else (water_stage1_target_kwh | float(0)) %}
+      {{ ((pv_plan_day_kwh | float(0)) - w_deduct) >= (heating_need_next_day_kwh | float(0)) and (heating_need_next_day_kwh | float(0)) > 0 }}
+    shift_heating_start_to_pv: "{{ is_state('binary_sensor.preheat_erlaubt_demand_weighted', 'on') and pv_enough_next_day and (is_preheat_window or (not night_preheat_ran_today)) }}"
+
     # Heating blocking: When enabled, only allow heating during preheat window (00:00-05:00)
     # Turn this switch ON to block heating outside preheat window
     preheat_enabled: "{{ is_state('binary_sensor.preheat_erlaubt_demand_weighted', 'on') }}"
     heating_block_enabled: "{{ is_state('input_boolean.heating_block_daytime', 'on') and preheat_enabled }}"
-    # Tagsüber PV-Shifting nur solange heute noch echter Rest-PV-Ertrag & Live-PV vorhanden sind
-    # (Akku puffert Wolken und große Heizkreise, wird aber weder morgens im Dunkeln noch nachmittags leer gezogen)
+    # Tagsüber PV-Shifting NUR an echten PV-Shift-Tagen (wenn Nacht-Preheat übersprungen wurde und im Estrich tatsächlich noch Wärme bis 24:00 fehlt)
+    # UND erst starten, wenn echte Netto-PV (pv_available_for_heating_w >= 300 W) über der aktuellen Hauslast anliegt!
     pv_shift_active_now: >-
       {% set dyn_off = states('sensor.heating_preheat_offset_dynamic') | float(0) %}
       {% set is_pv_day_window = is_state('sun.sun', 'above_horizon')
@@ -185,14 +192,17 @@
       {% set pv_rem = pv_remaining_after_water_kwh | float(0) %}
       {% set need_rem = heating_need_remaining_today_kwh | float(0) %}
       {% set pv_gen = pv_generation_w | float(0) %}
+      {% set pv_net = pv_available_for_heating_w | float(0) %}
       {% set soc = battery_soc | float(0) %}
+      {% set need_gate = any_room_heating_now or (need_rem > 0.4) %}
       {% set rem_covers_need = (pv_rem >= need_rem) or has_pv_excess %}
       {% set min_rem_kwh = 0.4 if any_room_heating_now else 0.8 %}
-      {% set min_pv_w = 400.0 if any_room_heating_now else 700.0 %}
+      {% set min_pv_w = 450.0 if any_room_heating_now else 700.0 %}
+      {% set min_net_w = 0.0 if any_room_heating_now else 300.0 %}
       {% set min_late_soc = 28.0 if any_room_heating_now else 33.0 %}
       {% set battery_buffer_ok = battery_above_min and (pv_rem >= 2.0 or soc >= min_late_soc) %}
-      {% set live_pv_and_rem_ok = (pv_rem >= min_rem_kwh) and (pv_gen >= min_pv_w) and (battery_buffer_ok or (pv_available_for_heating_w | float(0)) >= 900.0) %}
-      {{ preheat_enabled and (not is_preheat_window) and (dyn_off > 0) and is_pv_day_window and rem_covers_need and (has_pv_excess or live_pv_and_rem_ok) }}
+      {% set live_pv_and_rem_ok = (pv_rem >= min_rem_kwh) and (pv_gen >= min_pv_w) and (pv_net >= min_net_w) and (battery_buffer_ok or pv_net >= 900.0) %}
+      {{ shift_heating_start_to_pv and preheat_enabled and (not is_preheat_window) and (dyn_off > 0) and is_pv_day_window and need_gate and rem_covers_need and (has_pv_excess or live_pv_and_rem_ok) }}
     offset_allowed_now: "{{ has_pv_excess or pv_shift_active_now or (is_preheat_window and preheat_enabled and not shift_heating_start_to_pv) }}"
 
     # --- Preheat goal (room-specific) ---
